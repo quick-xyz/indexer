@@ -216,3 +216,80 @@ class GCSStorage(BaseStorage):
                 path = str(block_number)
                 if not (path.startswith(self.raw_prefix) or path.startswith(self.decoded_prefix)):
                     # Try both prefixes
+                    raw_path = f"{self.raw_prefix}{path}"
+                    decoded_path = f"{self.decoded_prefix}{path}"
+                    
+                    raw_blob = self.bucket.blob(raw_path)
+                    decoded_blob = self.bucket.blob(decoded_path)
+                    
+                    deleted = False
+                    if raw_blob.exists():
+                        raw_blob.delete()
+                        deleted = True
+                    if decoded_blob.exists():
+                        decoded_blob.delete()
+                        deleted = True
+                    return deleted
+                else:
+                    blob = self.bucket.blob(path)
+            else:
+                # Try both raw and decoded paths
+                raw_path = self.get_raw_path(block_number)
+                decoded_path = self.get_decoded_path(block_number)
+                
+                raw_blob = self.bucket.blob(raw_path)
+                decoded_blob = self.bucket.blob(decoded_path)
+                
+                deleted = False
+                if raw_blob.exists():
+                    raw_blob.delete()
+                    deleted = True
+                if decoded_blob.exists():
+                    decoded_blob.delete()
+                    deleted = True
+                return deleted
+            
+            # Delete the blob if it exists
+            if blob.exists():
+                blob.delete()
+                self.logger.debug(f"Deleted block {block_number} from gs://{self.bucket_name}/{path}")
+                return True
+            return False
+            
+        except Exception as e:
+            self.logger.error(f"Error deleting block {block_number}: {e}")
+            return False
+    
+    def list_blocks(self, prefix: Optional[str] = None, limit: int = 1000) -> List[str]:
+        """
+        List available blocks in storage.
+        
+        Args:
+            prefix: Optional prefix to filter by
+            limit: Maximum number of blocks to return
+            
+        Returns:
+            List of block paths
+        """
+        try:
+            # Determine prefix
+            if prefix is None:
+                # List both raw and decoded blocks
+                raw_blobs = list(self.bucket.list_blobs(prefix=self.raw_prefix, max_results=limit))
+                
+                remaining = limit - len(raw_blobs)
+                decoded_blobs = []
+                if remaining > 0:
+                    decoded_blobs = list(self.bucket.list_blobs(prefix=self.decoded_prefix, max_results=remaining))
+                
+                blobs = raw_blobs + decoded_blobs
+            else:
+                # Use the specified prefix
+                blobs = list(self.bucket.list_blobs(prefix=prefix, max_results=limit))
+            
+            # Extract paths
+            return [blob.name for blob in blobs]
+            
+        except Exception as e:
+            self.logger.error(f"Error listing blocks: {e}")
+            return []
