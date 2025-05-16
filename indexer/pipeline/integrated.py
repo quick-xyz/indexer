@@ -10,11 +10,12 @@ from typing import Dict, Any, List, Optional, Union, Tuple
 from datetime import datetime, timedelta
 import json
 
-from blockchain_indexer.streamer.interfaces import BlockStreamerInterface
-from blockchain_indexer.decoder.interfaces import BlockProcessorInterface
-from blockchain_indexer.database.registry.block_registry import BlockRegistry
-from blockchain_indexer.transformer.framework.manager import TransformationManager
-from blockchain_indexer.transformer.interfaces import EventListener
+from indexer.stream.interfaces import BlockStreamerInterface
+from indexer.decode.interfaces import BlockProcessorInterface
+from indexer.database.registry.block_registry import BlockRegistry
+from indexer.transform.framework.manager import TransformationManager
+from indexer.transform.interfaces import EventListener
+
 
 class DecoderListener:
     """
@@ -35,7 +36,9 @@ class DecoderListener:
         self.block_processor = block_processor
         self.block_registry = block_registry
         self.logger = logging.getLogger(__name__)
-    
+
+
+
     def on_new_block(self, block_number: int, block_data: Optional[bytes] = None, 
                     block_path: Optional[str] = None) -> None:
         """

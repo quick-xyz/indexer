@@ -16,7 +16,7 @@ import importlib
 @dataclass
 class StorageConfig:
     """Storage configuration settings."""
-    # Storage type: "local", "gcs", "s3", etc.
+    # Storage type: "local", "gcs" etc.
     storage_type: str = "local"
     
     # Bucket name for cloud storage
@@ -82,6 +82,9 @@ class ContractConfig:
 @dataclass
 class StreamerConfig:
     """Streamer configuration settings."""
+    # Stream mode: "active" (internal streaming), "passive" (use existing blocks)
+    mode: str = "active"
+
     # RPC endpoints
     live_rpc_url: str = "http://localhost:8545"
     archive_rpc_url: Optional[str] = None
@@ -484,10 +487,10 @@ class ConfigManager:
             ValueError: If configuration is invalid
         """
         # Validate storage config
-        if self.config.storage.storage_type not in ("local", "gcs", "s3"):
+        if self.config.storage.storage_type not in ("local", "gcs"):
             raise ValueError(f"Unsupported storage type: {self.config.storage.storage_type}")
         
-        if self.config.storage.storage_type in ("gcs", "s3") and not self.config.storage.bucket_name:
+        if self.config.storage.storage_type in ("gcs") and not self.config.storage.bucket_name:
             raise ValueError(f"Bucket name is required for {self.config.storage.storage_type} storage")
         
         if self.config.storage.storage_type == "local" and not self.config.storage.local_dir:
@@ -591,8 +594,8 @@ class ConfigManager:
         Returns:
             Storage handler instance
         """
-        from blockchain_indexer.storage.handler import BlockHandler
-        from blockchain_indexer.storage.local import LocalStorage
+        from indexer.storage.handler import BlockHandler
+        from indexer.storage.local import LocalStorage
         
         if self.config.storage.storage_type == "local":
             # Create local storage
@@ -610,7 +613,7 @@ class ConfigManager:
             
         elif self.config.storage.storage_type == "gcs":
             # Create GCS storage
-            from blockchain_indexer.storage.gcs import GCSStorage
+            from indexer.storage.gcs import GCSStorage
             
             gcs_storage = GCSStorage(
                 bucket_name=self.config.storage.bucket_name,
@@ -625,24 +628,6 @@ class ConfigManager:
                 decoded_template=self.config.storage.decoded_block_template
             )
             
-        elif self.config.storage.storage_type == "s3":
-            # Create S3 storage
-            from blockchain_indexer.storage.s3 import S3Storage
-            
-            s3_storage = S3Storage(
-                bucket_name=self.config.storage.bucket_name,
-                aws_profile=self.config.custom.get("aws_profile"),
-                aws_region=self.config.custom.get("aws_region", "us-east-1"),
-                raw_prefix=self.config.storage.raw_prefix,
-                decoded_prefix=self.config.storage.decoded_prefix
-            )
-            
-            return BlockHandler(
-                storage=s3_storage,
-                raw_template=self.config.storage.raw_block_template,
-                decoded_template=self.config.storage.decoded_block_template
-            )
-            
         else:
             raise ValueError(f"Unsupported storage type: {self.config.storage.storage_type}")
     
@@ -653,8 +638,8 @@ class ConfigManager:
         Returns:
             Streamer instance
         """
-        from blockchain_indexer.streamer.streamer import BlockStreamer
-        from blockchain_indexer.streamer.clients.rpc_client import RPCClient
+        from indexer.streamer.streamer import BlockStreamer
+        from indexer.streamer.clients.rpc_client import RPCClient
         
         # Create RPC clients
         live_rpc = RPCClient(
@@ -693,8 +678,8 @@ class ConfigManager:
         Returns:
             Decoder instance
         """
-        from blockchain_indexer.decoder.decoders.block import BlockDecoder
-        from blockchain_indexer.decoder.contracts.registry import ContractRegistry
+        from indexer.decoder.decoders.block import BlockDecoder
+        from indexer.decoder.contracts.registry import ContractRegistry
         
         # Create contract registry
         registry = ContractRegistry(
@@ -715,8 +700,8 @@ class ConfigManager:
         Returns:
             Block registry instance
         """
-        from blockchain_indexer.database.registry.block_registry import BlockRegistry
-        from blockchain_indexer.database.operations.session import ConnectionManager
+        from indexer.database.registry.block_registry import BlockRegistry
+        from indexer.database.operations.session import ConnectionManager
         
         # Create database connection
         db_manager = ConnectionManager(self.get_db_url())
@@ -731,8 +716,8 @@ class ConfigManager:
         Returns:
             Transformation manager instance
         """
-        from blockchain_indexer.transformer.framework.manager import TransformationManager
-        from blockchain_indexer.transformer.framework.transformer import BaseEventTransformer
+        from indexer.transformer.framework.manager import TransformationManager
+        from indexer.transformer.framework.transformer import BaseEventTransformer
         
         # Load transformers
         transformers = []

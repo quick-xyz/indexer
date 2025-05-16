@@ -15,7 +15,7 @@ try:
 except ImportError:
     GOOGLE_CLOUD_AVAILABLE = False
 
-from blockchain_indexer.storage.base import BaseStorage
+from indexer.storage.base import BaseStorage
 
 class GCSStorage(BaseStorage):
     """Google Cloud Storage implementation."""

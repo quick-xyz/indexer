@@ -33,7 +33,7 @@
 
 ### 5. Storage Component
 
-- [ ] Complete implementation of storage backends (`Local`, `GCS`, `S3`)
+- [ ] Complete implementation of storage backends (`Local`, `GCS`)
 - [ ] Add proper error handling and retries
 - [ ] Implement efficient block lookup and listing
 - [ ] Add support for data retention policies

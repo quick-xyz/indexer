@@ -4,10 +4,10 @@ from typing import Optional
 
 from ..contracts.registry import ContractRegistry
 from ..contracts.manager import ContractManager
-from .transaction import TransactionDecoder
+from .transactions import TransactionDecoder
 from ..model.block import Block
 from ..model.evm import EvmFilteredBlock,EvmHash,EvmTransaction,EvmTxReceipt
-from ..utils.logging import setup_logger
+from ...utils.logging import setup_logger
 
 def hex_timestamp_to_datetime(w3: Web3,hex_timestamp):
     try:

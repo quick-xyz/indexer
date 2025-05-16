@@ -9,7 +9,7 @@ import logging
 from typing import Dict, Any, Optional, Union, List
 from pathlib import Path
 
-from blockchain_indexer.storage.interfaces import StorageInterface
+from indexer.storage.interfaces import StorageInterface
 
 class BaseStorage(StorageInterface):
     """Base class for storage backends."""

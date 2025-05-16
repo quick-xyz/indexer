@@ -4,8 +4,8 @@ Implementation of transaction context for blockchain transformer.
 import logging
 from typing import Dict, Any, List, Optional, Union, Set
 
-from blockchain_transformer.core.events.base import BusinessEvent
-from blockchain_transformer.core.interfaces import TransactionContext, EventTransformer
+from indexer.transform.events.base import BusinessEvent
+from indexer.transform.interfaces import TransactionContext, EventTransformer
 
 class TransactionContextImpl(TransactionContext):
     """

@@ -62,7 +62,6 @@ indexer/                             # Main package directory
 │   │   ├── handler.py               # Block handling logic
 │   │   ├── local.py                 # Local filesystem storage
 │   │   ├── gcs.py                   # Google Cloud Storage implementation
-│   │   └── s3.py                    # Amazon S3 storage implementation
 │   ├── database/                    # Database components
 │   │   ├── __init__.py
 │   │   ├── interfaces.py            # Database interfaces

@@ -5,7 +5,7 @@ import msgspec
 from msgspec import Struct
 
 from ..model.types import EvmAddress
-from ..utils.logging import setup_logger
+from ...utils.logging import setup_logger
 
 class ABIConfig(Struct):
     address: EvmAddress

@@ -1,154 +1,183 @@
-#!/usr/bin/env python3
 """
-Script to run the blockchain indexer pipeline.
+Block registry for tracking processing status.
 
-This script demonstrates how to use the Launch indexer pipeline 
-for continuous block processing or processing specific blocks.
+This module provides the block registry responsible for tracking the
+processing status of blocks throughout the indexing pipeline.
 """
-import argparse
 import logging
-import sys
-import os
-from pathlib import Path
+from typing import List, Optional, Dict, Any
+from datetime import datetime
 
-# Ensure project root is in path
-script_dir = Path(__file__).resolve().parent
-backend_dir = script_dir.parent
-project_root = backend_dir.parent
-sys.path.append(str(project_root))
+from ..db_models.status import ProcessingStatus, BlockProcess
 
-# Import from launch
-from backend.indexer.pipeline import get_pipeline
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger("run_indexer")
-
-def main():
-    """Main entry point."""
-    parser = argparse.ArgumentParser(description="Run the blockchain indexer pipeline")
+class BlockRegistry:
+    """
+    Registry for tracking block processing status.
     
-    # Config options
-    parser.add_argument("--config", type=str, default=None,
-                       help="Path to indexer configuration file")
+    This class manages the status of blocks as they move through the
+    indexing pipeline, tracking which blocks have been processed,
+    which have failed, and which need reprocessing.
+    """
     
-    # Command selection
-    subparsers = parser.add_subparsers(dest="command", help="Command to run")
-    
-    # Continuous processing command
-    continuous_parser = subparsers.add_parser("continuous", help="Start continuous processing")
-    continuous_parser.add_argument("--start-block", type=int, default=None,
-                                 help="Starting block number (default: latest)")
-    continuous_parser.add_argument("--end-block", type=int, default=None,
-                                 help="Ending block number (default: none, runs indefinitely)")
-    
-    # Specific blocks command
-    blocks_parser = subparsers.add_parser("blocks", help="Process specific blocks")
-    blocks_parser.add_argument("block_numbers", type=int, nargs="+",
-                              help="Block numbers to process")
-    blocks_parser.add_argument("--force", action="store_true",
-                              help="Force reprocessing even if already processed")
-    
-    # Range command
-    range_parser = subparsers.add_parser("range", help="Process a range of blocks")
-    range_parser.add_argument("start_block", type=int, help="Starting block number")
-    range_parser.add_argument("end_block", type=int, help="Ending block number")
-    range_parser.add_argument("--force", action="store_true",
-                              help="Force reprocessing even if already processed")
-    
-    # Failed blocks command
-    failed_parser = subparsers.add_parser("failed", help="Reprocess failed blocks")
-    failed_parser.add_argument("--limit", type=int, default=100,
-                              help="Maximum number of blocks to reprocess (default: 100)")
-    
-    # Missing blocks command
-    missing_parser = subparsers.add_parser("missing", help="Find and process missing blocks")
-    missing_parser.add_argument("start_block", type=int, help="Starting block number")
-    missing_parser.add_argument("end_block", type=int, help="Ending block number")
-    
-    args = parser.parse_args()
-    
-    # Get the pipeline
-    try:
-        pipeline = get_pipeline(config_file=args.config)
-    except Exception as e:
-        logger.error(f"Error initializing pipeline: {e}")
-        return 1
-    
-    try:
-        # Execute command
-        if args.command == "continuous":
-            logger.info(f"Starting continuous processing from block {args.start_block or 'latest'}")
-            pipeline.start_processing(args.start_block, args.end_block)
-            
-        elif args.command == "blocks":
-            logger.info(f"Processing {len(args.block_numbers)} specific blocks")
-            results = pipeline.process_specific_blocks(args.block_numbers, args.force)
-            _print_results_summary(results)
-            
-        elif args.command == "range":
-            logger.info(f"Processing block range from {args.start_block} to {args.end_block}")
-            results = pipeline.process_block_range(args.start_block, args.end_block, args.force)
-            _print_results_summary(results)
-            
-        elif args.command == "failed":
-            logger.info(f"Reprocessing failed blocks (limit: {args.limit})")
-            results = pipeline.reprocess_failed_blocks(args.limit)
-            _print_results_summary(results)
-            
-        elif args.command == "missing":
-            logger.info(f"Finding and processing missing blocks in range {args.start_block} to {args.end_block}")
-            results = pipeline.process_missing_blocks(args.start_block, args.end_block)
-            _print_results_summary(results)
-            
-        else:
-            logger.error("No command specified")
-            parser.print_help()
-            return 1
-            
-        return 0
+    def __init__(self, db_manager):
+        """
+        Initialize block registry.
         
-    except KeyboardInterrupt:
-        logger.info("Interrupted by user, shutting down...")
-        pipeline.shutdown()
-        return 0
+        Args:
+            db_manager: Database manager for persistence
+        """
+        self.db = db_manager
+        self.logger = logging.getLogger(__name__)
         
-    except Exception as e:
-        logger.error(f"Error running command: {e}")
-        return 1
-    
-    finally:
-        # Ensure clean shutdown
-        pipeline.shutdown()
-
-def _print_results_summary(results):
-    """Print a summary of processing results."""
-    if not results:
-        logger.info("No results to display")
-        return
+    def register_block(self, block_number: int, block_hash: str, 
+                      parent_hash: str, timestamp) -> None:
+        """
+        Register a block in the registry.
         
-    # Count successes, failures, and total events
-    success_count = sum(1 for r in results if r.get("decoding") and r.get("transformation", False))
-    failure_count = len(results) - success_count
-    event_count = sum(r.get("event_count", 0) for r in results)
+        Args:
+            block_number: Block number
+            block_hash: Block hash
+            parent_hash: Parent block hash
+            timestamp: Block timestamp
+        """
+        try:
+            self.db.record_block(
+                block_number=block_number,
+                block_hash=block_hash,
+                parent_hash=parent_hash,
+                timestamp=timestamp,
+                status=str(ProcessingStatus.PENDING.value)
+            )
+            self.logger.debug(f"Registered block {block_number}")
+        except Exception as e:
+            self.logger.error(f"Error registering block {block_number}: {e}")
     
-    logger.info(f"Processing completed:")
-    logger.info(f"  Total blocks: {len(results)}")
-    logger.info(f"  Success: {success_count}")
-    logger.info(f"  Failure: {failure_count}")
-    logger.info(f"  Total events: {event_count}")
+    def update_block_status(self, block_number: int, status: str,
+                          storage_type: Optional[str] = None,
+                          path: Optional[str] = None,
+                          error: Optional[str] = None) -> None:
+        """
+        Update block status.
+        
+        Args:
+            block_number: Block number
+            status: New status
+            storage_type: Storage type (optional)
+            path: Block path (optional)
+            error: Error message (optional)
+        """
+        try:
+            self.db.update_block_status(
+                block_number=block_number,
+                status=status,
+                storage_type=storage_type,
+                path=path,
+                error=error
+            )
+            self.logger.debug(f"Updated block {block_number} status to {status}")
+        except Exception as e:
+            self.logger.error(f"Error updating block {block_number} status: {e}")
     
-    # Print failures
-    if failure_count > 0:
-        logger.info("Failed blocks:")
-        for result in results:
-            if not (result.get("decoding") and result.get("transformation", False)):
-                block_number = result.get("block_number", "unknown")
-                errors = result.get("errors", [])
-                logger.info(f"  Block {block_number}: {'; '.join(errors)}")
-
-if __name__ == "__main__":
-    sys.exit(main())
+    def get_block_info(self, block_number: int) -> Optional[Any]:
+        """
+        Get block information from the registry.
+        
+        Args:
+            block_number: Block number
+            
+        Returns:
+            Block information or None if not found
+        """
+        try:
+            return self.db.get_block(block_number)
+        except Exception as e:
+            self.logger.error(f"Error getting block {block_number} info: {e}")
+            return None
+    
+    def get_blocks_by_status(self, status: str, limit: int = 100) -> List[Any]:
+        """
+        Get blocks with a specific status.
+        
+        Args:
+            status: Status to filter by
+            limit: Maximum number of blocks to return
+            
+        Returns:
+            List of blocks
+        """
+        try:
+            return self.db.get_blocks_by_status(status, limit)
+        except Exception as e:
+            self.logger.error(f"Error getting blocks by status {status}: {e}")
+            return []
+    
+    def get_missing_blocks(self, start_block: int, end_block: int) -> List[int]:
+        """
+        Find missing blocks in a range.
+        
+        Args:
+            start_block: Start block number
+            end_block: End block number
+            
+        Returns:
+            List of missing block numbers
+        """
+        try:
+            return self.db.get_missing_blocks(start_block, end_block)
+        except Exception as e:
+            self.logger.error(f"Error getting missing blocks: {e}")
+            return []
+    
+    def set_event_count(self, block_number: int, count: int) -> None:
+        """
+        Set the number of events extracted from a block.
+        
+        Args:
+            block_number: Block number
+            count: Number of events
+        """
+        try:
+            self.db.set_event_count(block_number, count)
+            self.logger.debug(f"Set event count for block {block_number} to {count}")
+        except Exception as e:
+            self.logger.error(f"Error setting event count for block {block_number}: {e}")
+    
+    def get_available_blocks(self, start_block=None, end_block=None, limit=None):
+        """
+        Get a list of available blocks in storage.
+        
+        Args:
+            start_block: Start block number (optional)
+            end_block: End block number (optional)
+            limit: Maximum number of blocks to return (optional)
+            
+        Returns:
+            List of available block numbers
+        """
+        try:
+            # This method should be implemented in the database manager
+            return self.db.get_available_block_numbers(
+                start_block=start_block,
+                end_block=end_block,
+                limit=limit
+            )
+        except Exception as e:
+            self.logger.error(f"Error getting available blocks: {e}")
+            return []
+    
+    def get_latest_blocks(self, limit=1):
+        """
+        Get the latest blocks from the registry.
+        
+        Args:
+            limit: Maximum number of blocks to return
+            
+        Returns:
+            List of latest block numbers
+        """
+        try:
+            # This would need to be implemented in the database manager
+            return self.db.get_latest_block_numbers(limit=limit)
+        except Exception as e:
+            self.logger.error(f"Error getting latest blocks: {e}")
+            return []

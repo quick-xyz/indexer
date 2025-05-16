@@ -55,7 +55,6 @@ The blockchain-indexer is a modular, extensible framework designed to process an
 - `StorageInterface`: Common interface for all storage backends
 - `LocalStorage`: Local filesystem storage
 - `GCSStorage`: Google Cloud Storage
-- `S3Storage`: Amazon S3 Storage
 - `BlockHandler`: Unified interface for block storage
 
 ### 6. Database

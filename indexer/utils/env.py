@@ -5,8 +5,8 @@ import os
 import re
 import logging
 from pathlib import Path
-from typing import Dict, Any, Optional
-import importlib.util
+from typing import Optional
+
 
 # Try to import dotenv, with fallback
 try:
@@ -17,10 +17,9 @@ except ImportError:
 
 class IndexerEnvironment:
     """
-    Environment configuration manager for blockchain indexer.
+    Environment manager for blockchain indexer.
     
-    Handles loading environment variables, path resolution,
-    database configuration, and component registration.
+    Handles loading environment variables and path resolution.
     """
     
     def __init__(self, 
@@ -39,9 +38,8 @@ class IndexerEnvironment:
         """
         self.env_prefix = env_prefix
         self.logger = logging.getLogger("indexer.env")
-        self._components = {}
         
-        # Initialize paths
+
         self._init_paths(project_root, indexer_root)
         
         # Load environment variables
@@ -63,7 +61,7 @@ class IndexerEnvironment:
         else:
             # Try to find indexer root based on this file's location
             self.current_dir = Path(__file__).resolve()
-            self.indexer_root = self.current_dir.parents[2]  # blockchain_indexer/utils/env.py -> blockchain_indexer
+            self.indexer_root = self.current_dir.parents[2]  # indexer/utils/env.py -> indexer
         
         if project_root:
             self.project_root = Path(project_root).resolve()
@@ -263,14 +261,6 @@ class IndexerEnvironment:
                 "credentials_path": self.get_env("GCS_CREDENTIALS_PATH"),
                 "raw_prefix": self.get_env("GCS_RAW_PREFIX", "raw/"),
                 "decoded_prefix": self.get_env("GCS_DECODED_PREFIX", "decoded/")
-            }
-        elif storage_type == "s3":
-            return {
-                "storage_type": "s3",
-                "bucket_name": self.get_env("S3_BUCKET_NAME"),
-                "aws_region": self.get_env("AWS_REGION", "us-east-1"),
-                "raw_prefix": self.get_env("S3_RAW_PREFIX", "raw/"),
-                "decoded_prefix": self.get_env("S3_DECODED_PREFIX", "decoded/")
             }
         else:
             # Default to local

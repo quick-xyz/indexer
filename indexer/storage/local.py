@@ -8,7 +8,7 @@ import shutil
 from pathlib import Path
 from typing import Dict, Any, Optional, Union, List
 
-from blockchain_indexer.storage.base import BaseStorage
+from indexer.storage.base import BaseStorage
 
 class LocalStorage(BaseStorage):
     """Local filesystem storage implementation."""

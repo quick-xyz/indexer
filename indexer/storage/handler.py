@@ -7,7 +7,7 @@ import json
 import logging
 from typing import Dict, Any, Optional, Union, List
 
-from blockchain_indexer.storage.interfaces import StorageHandlerInterface, StorageInterface
+from indexer.storage.interfaces import StorageHandlerInterface, StorageInterface
 
 class BlockHandler(StorageHandlerInterface):
     """

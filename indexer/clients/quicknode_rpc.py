@@ -3,18 +3,15 @@ from datetime import datetime
 from typing import List, Dict, Union, Optional, Any
 import json
 
-class QuickNodeRPCClient:
+from .interfaces import RPCClientInterface
+
+class QuickNodeRPCClient(RPCClientInterface):
     """
     A client for interacting with Ethereum blockchain via QuickNode RPC.
     """
     
     def __init__(self, endpoint_url: str):
-        """
-        Initialize the QuickNode RPC client.
-        
-        Args:
-            endpoint_url (str): The QuickNode RPC endpoint URL
-        """
+
         self.endpoint_url = endpoint_url
         self.w3 = Web3(Web3.HTTPProvider(endpoint_url))
         
@@ -22,26 +19,82 @@ class QuickNodeRPCClient:
             raise ConnectionError("Failed to connect to QuickNode RPC endpoint")
     
     def get_latest_block_number(self) -> int:
-        """Get the latest block number on the blockchain."""
+        """
+        Get the latest block number on the blockchain.
+        
+        Returns:
+            Latest block number
+        """
         return self.w3.eth.block_number
     
-    def get_block(self, block_identifier: Union[int, str], full_transactions: bool = False) -> Dict:
+    def get_block(self, block_number: int, full_transactions: bool = True) -> Dict[str, Any]:
         """
-        Get block details by number or hash.
+        Get a block by number.
         
         Args:
-            block_identifier: Block number (int) or block hash (str) or 'latest', 'earliest', 'pending', 'finalized', 'safe'
-            full_transactions: Whether to include full transaction objects or just hashes
+            block_number: Block number
+            full_transactions: Whether to include full transaction objects
             
         Returns:
-            Dict containing block details
+            Block data
         """
-        block = self.w3.eth.get_block(block_identifier, full_transactions=full_transactions)
+        block = self.w3.eth.get_block(block_number, full_transactions=full_transactions)
         return dict(block)
     
+    def get_transaction_receipt(self, tx_hash: str) -> Dict[str, Any]:
+        """
+        Get a transaction receipt.
+        
+        Args:
+            tx_hash: Transaction hash
+            
+        Returns:
+            Transaction receipt
+        """
+        receipt = self.w3.eth.get_transaction_receipt(tx_hash)
+        return dict(receipt)
+    
+    def get_block_with_receipts(self, block_number: int) -> Dict[str, Any]:
+        """
+        Get a block with transaction receipts.
+        
+        Args:
+            block_number: Block number
+            
+        Returns:
+            Block data with transaction receipts
+        """
+        block = self.get_block(block_number, full_transactions=True)
+        
+        # Try to use the eth_getBlockReceipts method if available (QuickNode specific)
+        try:
+            receipts = self.get_block_receipts(block_number)
+            # Create a mapping of transaction hash to receipt
+            receipts_map = {r['transactionHash']: r for r in receipts}
+            
+            # Add receipts to transactions
+            for tx in block['transactions']:
+                tx_hash = tx['hash'].hex() if hasattr(tx['hash'], 'hex') else tx['hash']
+                if tx_hash in receipts_map:
+                    tx['receipt'] = receipts_map[tx_hash]
+            
+            return block
+        except Exception:
+            # Fallback to fetching individual receipts if batch method not available
+            for tx in block['transactions']:
+                tx_hash = tx['hash'].hex() if hasattr(tx['hash'], 'hex') else tx['hash']
+                tx['receipt'] = self.get_transaction_receipt(tx_hash)
+            
+            return block
+        
     def get_block_formatted(self, block_identifier: Union[int, str], full_transactions: bool = False) -> Dict:
         """Get block with formatted data for easier reading."""
-        block = self.get_block(block_identifier, full_transactions)
+        if isinstance(block_identifier, int):
+            block = self.get_block(block_identifier, full_transactions)
+        else:
+            # Handle 'latest', 'earliest', etc. or hash
+            block = self.w3.eth.get_block(block_identifier, full_transactions=full_transactions)
+            block = dict(block)
         
         # Format timestamp
         if 'timestamp' in block:
@@ -113,7 +166,12 @@ class QuickNodeRPCClient:
             List of transactions involving the address
         """
         address = address.lower()
-        block = self.get_block(block_identifier, full_transactions=True)
+        
+        if isinstance(block_identifier, int):
+            block = self.get_block(block_identifier, full_transactions=True)
+        else:
+            block = self.w3.eth.get_block(block_identifier, full_transactions=True)
+            block = dict(block)
         
         matching_txs = []
         for tx in block['transactions']:
@@ -143,7 +201,8 @@ class QuickNodeRPCClient:
             Dict containing finalized block details
         """
         try:
-            return self.get_block('finalized')
+            block = self.w3.eth.get_block('finalized')
+            return dict(block)
         except Exception as e:
             raise Exception(f"Failed to get finalized block. This might not be supported: {e}")
     
@@ -155,16 +214,16 @@ class QuickNodeRPCClient:
             Dict with information about latest, safe, and finalized blocks
         """
         try:
-            latest = self.get_block('latest')
-            finalized = self.get_block('finalized')
-            safe = self.get_block('safe')
+            latest = self.w3.eth.get_block('latest')
+            finalized = self.w3.eth.get_block('finalized')
+            safe = self.w3.eth.get_block('safe')
             
             return {
-                'latest_block': latest['number'],
-                'safe_block': safe['number'],
-                'finalized_block': finalized['number'],
-                'blocks_until_safe': latest['number'] - safe['number'],
-                'blocks_until_finalized': latest['number'] - finalized['number'],
+                'latest_block': latest.number,
+                'safe_block': safe.number,
+                'finalized_block': finalized.number,
+                'blocks_until_safe': latest.number - safe.number,
+                'blocks_until_finalized': latest.number - finalized.number,
             }
         except Exception as e:
             raise Exception(f"Failed to get finalization status: {e}")
@@ -179,7 +238,11 @@ class QuickNodeRPCClient:
         Returns:
             Dict with gas information
         """
-        block = self.get_block(block_identifier)
+        if isinstance(block_identifier, int):
+            block = self.get_block(block_identifier)
+        else:
+            block = self.w3.eth.get_block(block_identifier)
+            block = dict(block)
         
         return {
             'gas_used': block['gasUsed'],

@@ -4,10 +4,10 @@ Implementation of transformation manager for blockchain transformer.
 import logging
 from typing import Dict, Any, List, Optional, Union, Set
 
-from blockchain_transformer.core.events.base import BusinessEvent
-from blockchain_transformer.core.interfaces import TransformationManager, EventTransformer
-from blockchain_transformer.core.interfaces import TransactionContext
-from blockchain_transformer.core.context import TransactionContextImpl
+from indexer.transform.events.base import BusinessEvent
+from indexer.transform.interfaces import TransformationManager, EventTransformer
+from indexer.transform.interfaces import TransactionContext
+from indexer.transform.context import TransactionContextImpl
 
 class TransformationManagerImpl(TransformationManager):
     """

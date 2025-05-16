@@ -1,7 +1,7 @@
 # In models/gcs.py (new file)
 from datetime import datetime
 from sqlalchemy import Column, String, BigInteger, DateTime
-from ..models.base import Base
+from ..db_models.base import Base
 
 class GcsObject(Base):
     __tablename__ = "gcs_objects"

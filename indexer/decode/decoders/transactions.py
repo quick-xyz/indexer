@@ -4,7 +4,7 @@ from web3 import Web3
 from ..contracts.manager import ContractManager
 from ..model.evm import EvmTransaction, EvmTxReceipt
 from ..model.block import DecodedLog, EncodedLog, EncodedMethod, DecodedMethod, Transaction
-from .log import LogDecoder
+from .logs import LogDecoder
 
 
 def hex_to_bool(hex_string):
