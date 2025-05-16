@@ -1,0 +1,4 @@
+msgspec
+python-dotenv
+sqlalchemy
+web3
