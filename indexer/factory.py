@@ -2,17 +2,16 @@
 Factory module for creating blockchain indexer components.
 """
 import logging
-import importlib
-import importlib.util
 from typing import Dict, Any, List, Optional, Union, Type, TypeVar
 
 # Singletons
 from .config.config_manager import config
 from .component_registry import registry
-from .decode.contracts.registry import contract_registry, ContractRegistry
+from .decode.contracts.registry import contract_registry
 
 # Instances
 from .decode.contracts.manager import ContractManager
+from .decode.contracts.registry import ContractRegistry
 from .clients.quicknode_rpc import QuickNodeRPCClient
 from .storage.gcs import GCSStorage
 from .decode.decoders.blocks import BlockDecoder
@@ -22,9 +21,14 @@ from .decode.decoders.blocks import BlockDecoder
 
 
 class ComponentFactory:
+
     @classmethod
-    def get_contract_registry(cls) -> 'ContractRegistry':
-        # Singleton, doesn't need to be registered
+    def get_contract_registry(cls) -> ContractRegistry:
+        registry_obj = registry.get('contract_registry')
+        if registry_obj:
+            return registry_obj
+            
+        registry.register('contract_registry', contract_registry)
         return contract_registry
     
     @classmethod
@@ -34,7 +38,6 @@ class ComponentFactory:
             return manager
         
         registry_obj = cls.get_contract_registry()
-        rpc_client = cls.get_rpc_client()
         
         manager = ContractManager(
             registry=registry_obj,
