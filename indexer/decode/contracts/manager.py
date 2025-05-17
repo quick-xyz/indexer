@@ -26,9 +26,9 @@ class ContractManager:
                     abi=contract_info.abi
                 )
         return self.contracts.get(address)
-    
+
     def has_contract(self, address: str) -> bool:
         """
         Check if address is a known contract in the registry.
         """
-        return self.registry.get_contract(address.lower()) is not None
+        return self.registry.has_contract(address.lower())
