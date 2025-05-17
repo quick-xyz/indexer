@@ -2,69 +2,63 @@
 Interfaces for blockchain data decoding components.
 
 This module defines the interfaces for decoding raw blockchain data
-into structured formats.
+into the indexer structured format.
 """
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Optional, Union, List
+from typing import Dict, Any, Optional, Union, List, Tuple
+
+from .model.block import Block
+from .model.evm import EvmFilteredBlock, EvmHash, EvmTransaction, EvmTxReceipt
 
 
-class BlockProcessorInterface(ABC):
-    """Interface for block processors."""
+class BlockDecoderInterface(ABC):
+    """Interface for block decoder implementations."""
     
     @abstractmethod
-    def process_block(self, block_path: str, force: bool = False) -> tuple[bool, Dict[str, Any]]:
-        """
-        Process a block from storage.
-        
-        Args:
-            block_path: Path to the block in storage
-            force: Whether to force reprocessing
-            
-        Returns:
-            Tuple of (success, result_info)
-        """
+    def __init__(self, contract_manager: 'ContractManagerInterface'):
+        """Initialize with a contract manager."""
         pass
 
-
-class DecoderInterface(ABC):
-    """Interface for blockchain data decoders."""
-    
     @abstractmethod
-    def decode_block(self, raw_block: Any) -> Any:
+    def merge_tx_with_receipts(self, raw_block: EvmFilteredBlock) -> Tuple[Dict[EvmHash, Tuple[EvmTransaction, EvmTxReceipt]], Optional[Dict]]:
         """
-        Decode a raw block.
-        
-        Args:
-            raw_block: Raw block data
-            
-        Returns:
-            Decoded block
+        Merge transactions with their corresponding receipts.
         """
         pass
     
     @abstractmethod
-    def decode_transaction(self, raw_tx: Any) -> Any:
+    def decode_block(self, raw_block: EvmFilteredBlock) -> Block:
         """
-        Decode a raw transaction.
-        
-        Args:
-            raw_tx: Raw transaction data
-            
-        Returns:
-            Decoded transaction
+        Decode a full block, including transactions and logs.
+        """
+        pass
+
+
+class TransactionDecoderInterface(ABC):
+    """Interface for transaction decoder implementations."""
+    
+    @abstractmethod
+    def process_tx(self, tx: EvmTransaction, receipt: EvmTxReceipt) -> Dict[str, Any]:
+        """
+        Process a transaction and its corresponding receipt.
         """
         pass
     
     @abstractmethod
-    def decode_log(self, raw_log: Any) -> Any:
+    def decode_function(self, tx: EvmTransaction) -> Optional[Dict[str, Any]]:
         """
-        Decode a raw log.
-        
-        Args:
-            raw_log: Raw log data
-            
-        Returns:
-            Decoded log
+        Decode the function call in a transaction.
+        """
+        pass
+
+
+class LogDecoderInterface(ABC):
+    """Interface for log decoder implementations."""
+    
+    @abstractmethod
+    def decode(self, log: Any) -> Dict[str, Any]:
+        """
+        Decode an event log.
         """
         pass
 
@@ -75,13 +69,7 @@ class ContractRegistryInterface(ABC):
     @abstractmethod
     def get_contract(self, address: str) -> Optional[Any]:
         """
-        Get contract information by address.
-        
-        Args:
-            address: Contract address
-            
-        Returns:
-            Contract information
+        Get a contract instance by address.
         """
         pass
     
@@ -89,11 +77,23 @@ class ContractRegistryInterface(ABC):
     def get_abi(self, address: str) -> Optional[List[Dict[str, Any]]]:
         """
         Get contract ABI by address.
-        
-        Args:
-            address: Contract address
-            
-        Returns:
-            Contract ABI
+        """
+        pass
+    
+    @abstractmethod
+    def load_contracts(self) -> None:
+        """
+        Load contracts from configuration.
+        """
+        pass
+
+
+class ContractManagerInterface(ABC):
+    """Interface for contract manager implementations."""
+    
+    @abstractmethod
+    def get_contract(self, address: str) -> Optional[Any]:
+        """
+        Get a contract instance by address.
         """
         pass

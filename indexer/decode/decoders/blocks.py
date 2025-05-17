@@ -2,6 +2,7 @@ from web3 import Web3
 import datetime
 from typing import Optional
 
+from ..interfaces import BlockDecoderInterface
 from ..contracts.registry import ContractRegistry
 from ..contracts.manager import ContractManager
 from .transactions import TransactionDecoder
@@ -17,9 +18,9 @@ def hex_timestamp_to_datetime(w3: Web3,hex_timestamp):
         return "Invalid hexadecimal timestamp"
 
 
-class BlockDecoder:
-    def __init__(self, registry: ContractRegistry):
-        self.contract_manager = ContractManager(registry)
+class BlockDecoder(BlockDecoderInterface):
+    def __init__(self, contract_manager: ContractManager):
+        self.contract_manager = contract_manager
         self.tx_decoder = TransactionDecoder(self.contract_manager)
         self.w3 = Web3()
         self.logger = setup_logger(__name__)

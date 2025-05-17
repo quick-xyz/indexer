@@ -1,9 +1,11 @@
 from typing import Optional
 from web3 import Web3
 
+from ..interfaces import TransactionDecoderInterface
 from ..contracts.manager import ContractManager
 from ..model.evm import EvmTransaction, EvmTxReceipt
 from ..model.block import DecodedLog, EncodedLog, EncodedMethod, DecodedMethod, Transaction
+from ...utils.logging import setup_logger
 from .logs import LogDecoder
 
 
@@ -17,11 +19,13 @@ def hex_to_bool(hex_string):
         raise ValueError("Invalid hex string for boolean conversion")
 
 
-class TransactionDecoder:
+class TransactionDecoder(TransactionDecoderInterface):
     def __init__(self, contract_manager: ContractManager):
         self.contract_manager = contract_manager
         self.log_decoder = LogDecoder(contract_manager)
         self.w3 = Web3()
+        self.logger = setup_logger(__name__)
+
 
     def decode_function(self, tx: EvmTransaction) -> EncodedMethod|DecodedMethod:
         if not tx.to:
@@ -39,19 +43,22 @@ class TransactionDecoder:
                 name= func_obj.fn_name,
                 args = dict(func_params),
             )
-        except:
-            return EncodedMethod(tx.input)
+        except Exception as e:
+            self.logger.debug(f"Failed to decode function input for tx {tx.hash}: {str(e)}")
+            return EncodedMethod(data=tx.input)
+
 
     def decode_receipt(self, receipt: EvmTxReceipt) -> dict[str,EncodedLog|DecodedLog]:
         logs = {}
         for log in receipt.logs:
             hash = log.transactionHash
             index = self.w3.to_int(hexstr=log.logIndex)
-            log_id = str(hash) + str(index)
+            log_id = f"{hash}_{index}"
             processed_log = self.log_decoder.decode(log)
             logs[log_id] = processed_log
         return logs
-    
+
+
     def process_tx(self, tx: EvmTransaction, receipt: EvmTxReceipt) -> Optional[Transaction]:
         try:
             tx_function = self.decode_function(tx)

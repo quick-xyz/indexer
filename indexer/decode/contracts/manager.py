@@ -2,9 +2,10 @@ from web3 import Web3
 from web3.contract import Contract
 from typing import Optional, Dict
 
+from ..interfaces import ContractManagerInterface
 from .registry import ContractRegistry
 
-class ContractManager:
+class ContractManager(ContractManagerInterface):
     """
     Caches Web3 contract instances (subset of the registry)
     """

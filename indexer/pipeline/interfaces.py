@@ -25,6 +25,17 @@ class PipelineInterface(ABC):
         """
         pass
     
+class BlockProcessorInterface(ABC):
+    """Interface for block processors."""
+    
+    @abstractmethod
+    def process_block(self, block_data: Union[Dict[str, Any], EvmFilteredBlock]) -> Block:
+        """
+        Process a block.
+        """
+        pass
+    
+
     @abstractmethod
     def process_blocks(self, block_numbers: List[int], force: bool = False) -> List[Dict[str, Any]]:
         """

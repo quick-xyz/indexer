@@ -127,10 +127,9 @@ class ComponentFactory:
         
         from .decode.decoders.block import BlockDecoder
         
-        registry = cls.get_contract_registry()
+        contract_manager = cls.get_contract_manager()
         decoder = BlockDecoder(
-            contract_registry=registry, 
-            force_hex_numbers=config.config.decoder.force_hex_numbers
+            contract_manager=contract_manager, 
         )
         env.register_component('block_decoder', decoder)
         return decoder

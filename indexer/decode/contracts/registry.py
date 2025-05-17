@@ -4,6 +4,7 @@ import json
 import msgspec
 from msgspec import Struct
 
+from ..interfaces import ContractRegistryInterface
 from ..model.types import EvmAddress
 from ...utils.logging import setup_logger
 
@@ -37,7 +38,7 @@ class ContractWithABI(Struct):
     contract_info: ContractConfig
     abi: list
 
-class ContractRegistry:
+class ContractRegistry(ContractRegistryInterface):
     _instance = None
 
     @classmethod
