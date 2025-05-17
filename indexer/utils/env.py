@@ -1,12 +1,14 @@
 """
-Environment configuration for blockchain indexer.
+Environment utilities for blockchain indexer.
+
+This module provides utilities for interacting with the environment,
+including path management, environment variables, and component caching.
 """
 import os
 import re
 import logging
 from pathlib import Path
-from typing import Optional
-
+from typing import Optional, Dict, Any, Type, TypeVar, List, Set
 
 # Try to import dotenv, with fallback
 try:
@@ -15,12 +17,26 @@ try:
 except ImportError:
     has_dotenv = False
 
+T = TypeVar('T')
+
 class IndexerEnvironment:
     """
     Environment manager for blockchain indexer.
     
-    Handles loading environment variables and path resolution.
+    Handles:
+    - Path resolution
+    - Component caching
+    - Environment detection
+    - .env file loading
     """
+    
+    _instance = None
+    
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
     
     def __init__(self, 
                 project_root: Optional[Path] = None,
@@ -36,22 +52,23 @@ class IndexerEnvironment:
             env_file: Path to .env file
             env_prefix: Prefix for environment variables
         """
+        # Only initialize once
+        if hasattr(self, '_initialized') and self._initialized:
+            return
+            
         self.env_prefix = env_prefix
         self.logger = logging.getLogger("indexer.env")
         
-
+        # Initialize paths
         self._init_paths(project_root, indexer_root)
         
         # Load environment variables
         self._load_env_vars(env_file)
         
-        # Validate environment
-        self._validate_env()
+        # Initialize component registry
+        self._components = {}
         
-        # Initialize database connection
-        self.db_engine = None
-        if self._validate_db_config():
-            self._init_db_connection()
+        self._initialized = True
     
     def _init_paths(self, project_root=None, indexer_root=None):
         """Initialize directory paths."""
@@ -74,122 +91,41 @@ class IndexerEnvironment:
             'project_root': self.project_root,
             'indexer_root': self.indexer_root,
             'data_dir': self.project_root / 'data',
-            'config_dir': self.indexer_root / 'config'
+            'config_dir': self.indexer_root / 'config',
+            'storage_dir': self.project_root / 'storage',
+            'cache_dir': self.project_root / 'cache',
+            'tmp_dir': self.project_root / 'tmp',
+            'log_dir': self.project_root / 'logs'
         }
         
         # Create directories if they don't exist
         for name, path in self.paths.items():
-            path.mkdir(parents=True, exist_ok=True)
+            if name not in ('project_root', 'indexer_root'):  # Don't create root dirs
+                path.mkdir(parents=True, exist_ok=True)
     
     def _load_env_vars(self, env_file=None):
-        """Load environment variables from .env files."""
-        if not has_dotenv:
-            self.logger.warning("python-dotenv not installed, skipping .env file loading")
-            return
-            
-        # Load from specific file if provided
-        if env_file and Path(env_file).exists():
-            load_dotenv(env_file)
-            self.logger.info(f"Loaded environment variables from {env_file}")
-            return
-            
-        # Otherwise try default locations
-        env_files = [
-            self.project_root / '.env',
-            self.indexer_root / '.env'
-        ]
-        
-        for file in env_files:
-            if file.exists():
-                load_dotenv(file)
-                self.logger.info(f"Loaded environment variables from {file}")
-    
-    def _validate_env(self):
-        """Validate required environment variables."""
-        required_vars = [
-            "STORAGE_TYPE",
-            "DB_TYPE"
-        ]
-        
-        missing = [var for var in required_vars if not self.get_env(var)]
-        if missing:
-            self.logger.warning(f"Missing recommended environment variables: {', '.join(missing)}")
-    
-    def _validate_db_config(self):
-        """Validate database configuration."""
-        db_type = self.get_env("DB_TYPE", "sqlite").lower()
-        
-        if db_type == "sqlite":
-            self.logger.info("Using SQLite database")
-            return True
-        
-        elif db_type == "postgresql":
-            # Check PostgreSQL config
-            db_vars = ['DB_USER', 'DB_PASS', 'DB_NAME', 'DB_HOST']
-            db_present = [var for var in db_vars if self.get_env(var)]
-            
-            if len(db_present) < len(db_vars):
-                # Incomplete PostgreSQL config
-                missing_db = [var for var in db_vars if not self.get_env(var)]
-                self.logger.warning(f"Incomplete PostgreSQL configuration. Missing: {', '.join(missing_db)}")
-                self.logger.warning("Falling back to SQLite database")
-                return True
-            
-            # Complete PostgreSQL config
-            self.logger.info("Using PostgreSQL database")
-            return True
-        
+        """Load environment variables from .env file."""
+        if has_dotenv:
+            if env_file and os.path.exists(env_file):
+                load_dotenv(env_file)
+                self.logger.info(f"Loaded environment variables from {env_file}")
+            else:
+                # Try to find .env file in standard locations
+                env_paths = [
+                    self.project_root / '.env',
+                    self.indexer_root / '.env',
+                    Path('.env')
+                ]
+                
+                for path in env_paths:
+                    if path.exists():
+                        load_dotenv(path)
+                        self.logger.info(f"Loaded environment variables from {path}")
+                        break
         else:
-            self.logger.warning(f"Unsupported database type: {db_type}")
-            self.logger.warning("Falling back to SQLite database")
-            return True
+            self.logger.debug("python-dotenv not installed, skipping .env file loading")
     
-    def _init_db_connection(self):
-        """Initialize database connection and verify it works."""
-        # Only import SQLAlchemy if needed
-        try:
-            from sqlalchemy import create_engine, text
-            from sqlalchemy.exc import SQLAlchemyError
-        except ImportError:
-            self.logger.warning("SQLAlchemy not installed, skipping database initialization")
-            return False
-            
-        db_url = self.get_db_url()
-        # Mask password in logs
-        masked_url = db_url
-        if ":" in db_url and "@" in db_url:
-            parts = db_url.split(":")
-            if len(parts) > 2:
-                masked_url = f"{parts[0]}:{parts[1]}:****@{db_url.split('@')[1]}"
-        
-        self.logger.info(f"Initializing database connection to {masked_url}")
-        
-        try:
-            # Create engine with reasonable defaults
-            self.db_engine = create_engine(
-                db_url,
-                pool_pre_ping=True,  # Verify connection before using
-                pool_recycle=300,    # Recycle connections after 5 minutes
-                pool_size=5,         # Maintain a pool of 5 connections
-                max_overflow=10      # Allow up to 10 additional connections
-            )
-            
-            # Test connection
-            with self.db_engine.connect() as conn:
-                result = conn.execute(text("SELECT 1")).scalar()
-                if result == 1:
-                    self.logger.info("Database connection verified")
-                    return True
-                else:
-                    self.logger.warning("Database connection test returned unexpected result")
-                    return False
-        except Exception as e:
-            self.logger.error(f"Database connection failed: {str(e)}")
-            self.logger.warning("Application may not function correctly without database access")
-            self.db_engine = None
-            return False
-    
-    def get_env(self, name, default=None):
+    def get_env(self, name: str, default: Any = None) -> Any:
         """
         Get environment variable with prefix.
         
@@ -202,77 +138,106 @@ class IndexerEnvironment:
         """
         return os.getenv(f"{self.env_prefix}{name}", default)
     
-    def get_path(self, name):
-        """Get path by name."""
+    def get_path(self, name: str) -> Optional[Path]:
+        """
+        Get path by name.
+        
+        Args:
+            name: Path name
+            
+        Returns:
+            Path or None if not found
+        """
         return self.paths.get(name)
     
-    def is_development(self):
-        """Check if running in development environment."""
+    def is_development(self) -> bool:
+        """
+        Check if running in development environment.
+        
+        Returns:
+            True if in development environment, False otherwise
+        """
         return self.get_env("ENVIRONMENT", "").lower() == "development"
     
-    def get_log_level(self):
-        """Get configured log level."""
-        level = self.get_env("LOG_LEVEL", "INFO").upper()
-        valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
-        return level if level in valid_levels else "INFO"
+    def is_production(self) -> bool:
+        """
+        Check if running in production environment.
+        
+        Returns:
+            True if in production environment, False otherwise
+        """
+        return self.get_env("ENVIRONMENT", "").lower() == "production"
     
-    def get_db_url(self):
-        """Get database connection URL from environment."""
-        db_type = self.get_env("DB_TYPE", "sqlite").lower()
+    def is_test(self) -> bool:
+        """
+        Check if running in test environment.
         
-        if db_type == "sqlite":
-            # Use SQLite for local development
-            data_dir = self.paths['data_dir']
-            sqlite_path = self.get_env("DB_SQLITE_PATH", str(data_dir / "indexer.db"))
-            return f"sqlite:///{sqlite_path}"
+        Returns:
+            True if in test environment, False otherwise
+        """
+        return self.get_env("ENVIRONMENT", "").lower() == "test"
         
-        elif db_type == "postgresql":
-            # PostgreSQL connection
-            db_user = self.get_env("DB_USER")
-            db_pass = self.get_env("DB_PASS")
-            db_name = self.get_env("DB_NAME")
-            db_host = self.get_env("DB_HOST")
-            db_port = self.get_env("DB_PORT", "5432")
+    def register_component(self, key: str, component: Any) -> None:
+        """
+        Register a component in the registry.
+        
+        Args:
+            key: Component key
+            component: Component instance
+        """
+        self._components[key] = component
+        
+    def get_component(self, key: str) -> Optional[Any]:
+        """
+        Get a component from the registry.
+        
+        Args:
+            key: Component key
             
-            if not all([db_user, db_pass, db_name, db_host]):
-                # Development fallback - SQLite
-                data_dir = self.paths['data_dir']
-                return f"sqlite:///{data_dir}/indexer.db"
+        Returns:
+            Component instance or None if not found
+        """
+        return self._components.get(key)
+    
+    def get_components_by_type(self, component_type: Type[T]) -> List[T]:
+        """
+        Get all components of a specific type.
+        
+        Args:
+            component_type: Component type
             
-            return f"postgresql://{db_user}:{db_pass}@{db_host}:{db_port}/{db_name}"
+        Returns:
+            List of components matching the type
+        """
+        return [c for c in self._components.values() if isinstance(c, component_type)]
+    
+    def clear_components(self, keys: Optional[Set[str]] = None) -> None:
+        """
+        Clear components from the registry.
         
+        Args:
+            keys: Set of keys to clear (None for all)
+        """
+        if keys is None:
+            self._components.clear()
         else:
-            # Default fallback
-            data_dir = self.paths['data_dir']
-            return f"sqlite:///{data_dir}/indexer.db"
+            for key in keys:
+                if key in self._components:
+                    del self._components[key]
     
-    def get_storage_type(self):
-        """Get storage type."""
-        return self.get_env("STORAGE_TYPE", "local")
-    
-    def get_storage_config(self):
-        """Get storage configuration."""
-        storage_type = self.get_storage_type()
+    def extract_block_number(self, path: str) -> int:
+        """
+        Extract block number from a block path.
         
-        if storage_type == "gcs":
-            return {
-                "storage_type": "gcs",
-                "bucket_name": self.get_env("GCS_BUCKET_NAME"),
-                "credentials_path": self.get_env("GCS_CREDENTIALS_PATH"),
-                "raw_prefix": self.get_env("GCS_RAW_PREFIX", "raw/"),
-                "decoded_prefix": self.get_env("GCS_DECODED_PREFIX", "decoded/")
-            }
-        else:
-            # Default to local
-            return {
-                "storage_type": "local",
-                "local_dir": str(self.paths['data_dir']),
-                "raw_prefix": self.get_env("LOCAL_RAW_PREFIX", "raw/"),
-                "decoded_prefix": self.get_env("LOCAL_DECODED_PREFIX", "decoded/")
-            }
-    
-    def extract_block_number(self, path):
-        """Extract block number from a block path."""
+        Args:
+            path: Path to block file
+            
+        Returns:
+            Block number
+            
+        Raises:
+            ValueError: If block number cannot be extracted
+        """
         try:
             # Get filename
             filename = Path(path).name
@@ -298,40 +263,6 @@ class IndexerEnvironment:
             self.logger.error(f"Failed to extract block number from {path}: {e}")
         
         raise ValueError(f"Could not extract block number from path: {path}")
-    
-    def register_component(self, name, component):
-        """Register a component for shared use."""
-        self._components[name] = component
-        
-    def get_component(self, name):
-        """Get a registered component."""
-        return self._components.get(name)
-    
-    def verify_database(self):
-        """
-        Verify database connection and schema.
-        Returns True if database is ready, False otherwise.
-        """
-        try:
-            # Only import SQLAlchemy if needed
-            from sqlalchemy import text
-        except ImportError:
-            self.logger.warning("SQLAlchemy not installed, skipping database verification")
-            return False
-            
-        if not self.db_engine:
-            success = self._init_db_connection()
-            if not success:
-                return False
-        
-        # Just check if we can execute a simple query
-        try:
-            with self.db_engine.connect() as conn:
-                result = conn.execute(text("SELECT 1")).scalar()
-                return result == 1
-        except Exception as e:
-            self.logger.error(f"Database verification failed: {e}")
-            return False
 
 # Create singleton instance
 env = IndexerEnvironment()

@@ -16,54 +16,32 @@ import importlib
 @dataclass
 class StorageConfig:
     """Storage configuration settings."""
-    # Storage type: "local", "gcs" etc.
     storage_type: str = "local"
-    
-    # Bucket name for cloud storage
     bucket_name: Optional[str] = None
-    
-    # Credentials path for cloud storage
     credentials_path: Optional[str] = None
-    
-    # Base directory for local storage
     local_dir: Optional[str] = None
-    
-    # Prefixes for different types of data
     raw_prefix: str = "raw/"
     decoded_prefix: str = "decoded/"
-    
-    # Format templates for block paths
     raw_block_template: str = "block_{block_number}.json"
     decoded_block_template: str = "{block_number}.json"
 
 
 @dataclass
 class DatabaseConfig:
-    """Database configuration settings."""
-    # Database type: "sqlite", "postgresql", etc.
     db_type: str = "sqlite"
-    
-    # Connection parameters
     host: Optional[str] = None
     port: Optional[int] = None
     user: Optional[str] = None
     password: Optional[str] = None
     database: Optional[str] = None
-    
-    # SQLite path if using SQLite
     sqlite_path: Optional[str] = None
-    
-    # Connection pool settings
     pool_size: int = 5
     max_overflow: int = 10
-    
-    # Whether to log SQL statements
     echo: bool = False
 
 
 @dataclass
 class LoggingConfig:
-    """Logging configuration settings."""
     level: str = "INFO"
     format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
     file_path: Optional[str] = None
@@ -71,39 +49,29 @@ class LoggingConfig:
 
 @dataclass
 class ContractConfig:
-    """Contract configuration settings."""
-    # Path to contract registry file
     contracts_file: Optional[str] = None
-    
-    # Path to ABI directory
     abi_directory: Optional[str] = None
 
 
 @dataclass
 class StreamerConfig:
-    """Streamer configuration settings."""
     # Stream mode: "active" (internal streaming), "passive" (use existing blocks)
+    enabled: bool = True
     mode: str = "active"
-
-    # RPC endpoints
+    source_type: str = "internal"  # "internal", "external", "none"
+    external_stream_url: Optional[str] = None
+    external_stream_auth: Optional[str] = None
     live_rpc_url: str = "http://localhost:8545"
     archive_rpc_url: Optional[str] = None
-    
-    # Polling interval in seconds
     poll_interval: float = 5.0
-    
     # Block format (full, minimal, with_receipts)
     block_format: str = "with_receipts"
-    
-    # Request timeout and retries
     timeout: int = 30
     max_retries: int = 3
 
 
 @dataclass
 class DecoderConfig:
-    """Decoder configuration settings."""
-    # Decoder settings
     force_hex_numbers: bool = True
 
 
@@ -140,13 +108,9 @@ class ProcessingConfig:
 
 @dataclass
 class RetentionConfig:
-    """Data retention configuration settings."""
-    # Retention periods (in days)
     raw_retention_days: int = 7
     decoded_retention_days: int = 30
     events_retention_days: int = 365
-    
-    # Sampling settings
     sampling_factor: int = 1000  # Keep 1 out of every 1000 blocks for long-term storage
 
 
@@ -210,6 +174,11 @@ class IndexerConfig:
                 "abi_directory": self.contracts.abi_directory
             },
             "streamer": {
+                "enabled": self.streamer.enabled,
+                "mode": self.streamer.mode,
+                "source_type": self.streamer.source_type,
+                "external_stream_url": self.streamer.external_stream_url,
+                "external_stream_auth": "***" if self.streamer.external_stream_auth else None,
                 "live_rpc_url": self.streamer.live_rpc_url,
                 "archive_rpc_url": self.streamer.archive_rpc_url,
                 "poll_interval": self.streamer.poll_interval,
@@ -250,6 +219,13 @@ class ConfigManager:
     This class handles loading, validating, and providing access to configuration.
     It supports loading from a config file, environment variables, and direct settings.
     """
+    _instance = None
+
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
     
     def __init__(self, 
                 config_file: Optional[str] = None,
@@ -263,6 +239,10 @@ class ConfigManager:
             env_prefix: Prefix for environment variables
             config: Pre-configured IndexerConfig instance
         """
+        # Only initialize once
+        if hasattr(self, '_initialized') and self._initialized:
+            return
+            
         self.config_file = config_file
         self.env_prefix = env_prefix
         self.config = config or IndexerConfig()
@@ -278,8 +258,7 @@ class ConfigManager:
         # Validate the configuration
         self.validate()
         
-        # Initialize configured components
-        self._setup_logging()
+        self._initialized = True
     
     def load_from_file(self, config_file: str) -> None:
         """
@@ -347,6 +326,13 @@ class ConfigManager:
         self.config.contracts.abi_directory = os.getenv(f"{self.env_prefix}ABI_DIRECTORY", self.config.contracts.abi_directory)
         
         # Streamer config
+        if enabled_str := os.getenv(f"{self.env_prefix}STREAMER_ENABLED"):
+            self.config.streamer.enabled = enabled_str.lower() in ('true', '1', 'yes')
+            
+        self.config.streamer.mode = os.getenv(f"{self.env_prefix}STREAMER_MODE", self.config.streamer.mode)
+        self.config.streamer.source_type = os.getenv(f"{self.env_prefix}STREAM_SOURCE_TYPE", self.config.streamer.source_type)
+        self.config.streamer.external_stream_url = os.getenv(f"{self.env_prefix}EXTERNAL_STREAM_URL", self.config.streamer.external_stream_url)
+        self.config.streamer.external_stream_auth = os.getenv(f"{self.env_prefix}EXTERNAL_STREAM_AUTH", self.config.streamer.external_stream_auth)
         self.config.streamer.live_rpc_url = os.getenv(f"{self.env_prefix}LIVE_RPC_URL", self.config.streamer.live_rpc_url)
         self.config.streamer.archive_rpc_url = os.getenv(f"{self.env_prefix}ARCHIVE_RPC_URL", self.config.streamer.archive_rpc_url)
         
@@ -438,6 +424,11 @@ class ConfigManager:
         
         # Streamer config
         if streamer_data := config_data.get("streamer"):
+            self.config.streamer.enabled = streamer_data.get("enabled", self.config.streamer.enabled)
+            self.config.streamer.mode = streamer_data.get("mode", self.config.streamer.mode)
+            self.config.streamer.source_type = streamer_data.get("source_type", self.config.streamer.source_type)
+            self.config.streamer.external_stream_url = streamer_data.get("external_stream_url", self.config.streamer.external_stream_url)
+            self.config.streamer.external_stream_auth = streamer_data.get("external_stream_auth", self.config.streamer.external_stream_auth)
             self.config.streamer.live_rpc_url = streamer_data.get("live_rpc_url", self.config.streamer.live_rpc_url)
             self.config.streamer.archive_rpc_url = streamer_data.get("archive_rpc_url", self.config.streamer.archive_rpc_url)
             self.config.streamer.poll_interval = streamer_data.get("poll_interval", self.config.streamer.poll_interval)
@@ -487,10 +478,13 @@ class ConfigManager:
             ValueError: If configuration is invalid
         """
         # Validate storage config
-        if self.config.storage.storage_type not in ("local", "gcs"):
+        if self.config.storage.storage_type not in ("local", "gcs", "s3"):
             raise ValueError(f"Unsupported storage type: {self.config.storage.storage_type}")
         
-        if self.config.storage.storage_type in ("gcs") and not self.config.storage.bucket_name:
+        if self.config.storage.storage_type == "gcs" and not self.config.storage.bucket_name:
+            raise ValueError(f"Bucket name is required for {self.config.storage.storage_type} storage")
+            
+        if self.config.storage.storage_type == "s3" and not self.config.storage.bucket_name:
             raise ValueError(f"Bucket name is required for {self.config.storage.storage_type} storage")
         
         if self.config.storage.storage_type == "local" and not self.config.storage.local_dir:
@@ -520,6 +514,10 @@ class ConfigManager:
             ]):
                 raise ValueError("Incomplete PostgreSQL configuration")
         
+        # Validate streamer config
+        if self.config.streamer.source_type == "external" and not self.config.streamer.external_stream_url:
+            self.logger.warning("External stream source specified but no URL provided")
+        
         # Validate contracts config
         if not self.config.contracts.contracts_file:
             # Try to find contracts file
@@ -546,239 +544,45 @@ class ConfigManager:
                 self.config.contracts.abi_directory = abi_dir
                 self.logger.info(f"Using found ABI directory: {abi_dir}")
     
-    def _setup_logging(self) -> None:
-        """
-        Set up logging based on configuration.
-        """
-        log_level = getattr(logging, self.config.logging.level.upper(), logging.INFO)
-        log_format = self.config.logging.format
-        
-        # Configure root logger
-        logging.basicConfig(
-            level=log_level,
-            format=log_format,
-            handlers=[
-                logging.StreamHandler()
-            ]
-        )
-        
-        # Add file handler if specified
-        if self.config.logging.file_path:
-            # Ensure directory exists
-            os.makedirs(os.path.dirname(self.config.logging.file_path), exist_ok=True)
-            
-            file_handler = logging.FileHandler(self.config.logging.file_path)
-            file_handler.setFormatter(logging.Formatter(log_format))
-            logging.getLogger().addHandler(file_handler)
-    
     def get_db_url(self) -> str:
         """
-        Get the database URL based on configuration.
+        Get database connection URL.
         
         Returns:
-            Database URL for SQLAlchemy
+            Database connection URL
         """
         if self.config.database.db_type == "sqlite":
             return f"sqlite:///{self.config.database.sqlite_path}"
-        else:
-            # PostgreSQL
+        elif self.config.database.db_type == "postgresql":
             return (
                 f"postgresql://{self.config.database.user}:{self.config.database.password}"
-                f"@{self.config.database.host}:{self.config.database.port}/{self.config.database.database}"
-            )
-    
-    def get_storage_handler(self):
-        """
-        Get the appropriate storage handler based on configuration.
-        
-        Returns:
-            Storage handler instance
-        """
-        from indexer.storage.handler import BlockHandler
-        from indexer.storage.local import LocalStorage
-        
-        if self.config.storage.storage_type == "local":
-            # Create local storage
-            local_storage = LocalStorage(
-                base_dir=self.config.storage.local_dir,
-                raw_prefix=self.config.storage.raw_prefix,
-                decoded_prefix=self.config.storage.decoded_prefix
-            )
-            
-            return BlockHandler(
-                storage=local_storage,
-                raw_template=self.config.storage.raw_block_template,
-                decoded_template=self.config.storage.decoded_block_template
-            )
-            
-        elif self.config.storage.storage_type == "gcs":
-            # Create GCS storage
-            from indexer.storage.gcs import GCSStorage
-            
-            gcs_storage = GCSStorage(
-                bucket_name=self.config.storage.bucket_name,
-                credentials_path=self.config.storage.credentials_path,
-                raw_prefix=self.config.storage.raw_prefix,
-                decoded_prefix=self.config.storage.decoded_prefix
-            )
-            
-            return BlockHandler(
-                storage=gcs_storage,
-                raw_template=self.config.storage.raw_block_template,
-                decoded_template=self.config.storage.decoded_block_template
-            )
-            
-        else:
-            raise ValueError(f"Unsupported storage type: {self.config.storage.storage_type}")
-    
-    def get_streamer(self):
-        """
-        Get streamer based on configuration.
-        
-        Returns:
-            Streamer instance
-        """
-        from indexer.streamer.streamer import BlockStreamer
-        from indexer.streamer.clients.rpc_client import RPCClient
-        
-        # Create RPC clients
-        live_rpc = RPCClient(
-            rpc_url=self.config.streamer.live_rpc_url,
-            timeout=self.config.streamer.timeout,
-            max_retries=self.config.streamer.max_retries
-        )
-        
-        archive_rpc = None
-        if self.config.streamer.archive_rpc_url:
-            archive_rpc = RPCClient(
-                rpc_url=self.config.streamer.archive_rpc_url,
-                timeout=self.config.streamer.timeout,
-                max_retries=self.config.streamer.max_retries
+                f"@{self.config.database.host}:{self.config.database.port}"
+                f"/{self.config.database.database}"
             )
         else:
-            # Use live RPC for archive if not specified
-            archive_rpc = live_rpc
-        
-        # Get storage handler
-        storage_handler = self.get_storage_handler()
-        
-        # Create streamer
-        return BlockStreamer(
-            live_rpc=live_rpc,
-            archive_rpc=archive_rpc,
-            storage=storage_handler,
-            poll_interval=self.config.streamer.poll_interval,
-            block_format=self.config.streamer.block_format
-        )
+            raise ValueError(f"Unsupported database type: {self.config.database.db_type}")
     
-    def get_decoder(self):
+    def get_config_value(self, path: str, default: Any = None) -> Any:
         """
-        Get decoder based on configuration.
+        Get configuration value by path.
         
+        Args:
+            path: Dot-separated path (e.g. 'storage.bucket_name')
+            default: Default value if not found
+            
         Returns:
-            Decoder instance
+            Configuration value
         """
-        from indexer.decoder.decoders.block import BlockDecoder
-        from indexer.decoder.contracts.registry import ContractRegistry
-        
-        # Create contract registry
-        registry = ContractRegistry(
-            contracts_file=self.config.contracts.contracts_file,
-            abi_directory=self.config.contracts.abi_directory
-        )
-        
-        # Create decoder
-        return BlockDecoder(
-            registry=registry,
-            force_hex_numbers=self.config.decoder.force_hex_numbers
-        )
-    
-    def get_block_registry(self):
-        """
-        Get block registry based on configuration.
-        
-        Returns:
-            Block registry instance
-        """
-        from indexer.database.registry.block_registry import BlockRegistry
-        from indexer.database.operations.session import ConnectionManager
-        
-        # Create database connection
-        db_manager = ConnectionManager(self.get_db_url())
-        
-        # Create registry
-        return BlockRegistry(db_manager)
-    
-    def get_transformer(self):
-        """
-        Get transformation manager based on configuration.
-        
-        Returns:
-            Transformation manager instance
-        """
-        from indexer.transformer.framework.manager import TransformationManager
-        from indexer.transformer.framework.transformer import BaseEventTransformer
-        
-        # Load transformers
-        transformers = []
-        
-        # Load from configuration
-        for transformer_config in self.config.transformer.transformers:
-            try:
-                module_path = transformer_config.get("module")
-                class_name = transformer_config.get("class")
-                params = transformer_config.get("params", {})
+        try:
+            parts = path.split('.')
+            value = self.config
+            
+            for part in parts:
+                value = getattr(value, part)
                 
-                if not (module_path and class_name):
-                    self.logger.warning(f"Skipping transformer with incomplete config: {transformer_config}")
-                    continue
-                
-                # Import module
-                module = importlib.import_module(module_path)
-                
-                # Get transformer class
-                transformer_class = getattr(module, class_name)
-                
-                # Instantiate transformer
-                transformer = transformer_class(**params)
-                transformers.append(transformer)
-                
-                self.logger.info(f"Loaded transformer: {class_name} from {module_path}")
-                
-            except (ImportError, AttributeError, TypeError) as e:
-                self.logger.error(f"Error loading transformer: {e}")
-        
-        # Discover transformers from directories
-        for directory in self.config.transformer.transformer_dirs:
-            try:
-                # Import directory as package
-                package = importlib.import_module(directory)
-                
-                # Find all modules in package
-                package_path = getattr(package, "__path__", [])
-                for _, module_name, is_pkg in pkgutil.iter_modules(package_path, package.__name__ + '.'):
-                    try:
-                        # Import module
-                        module = importlib.import_module(module_name)
-                        
-                        # Find transformer classes
-                        for name, obj in inspect.getmembers(module, inspect.isclass):
-                            if (issubclass(obj, BaseEventTransformer) and 
-                                obj != BaseEventTransformer and 
-                                obj.__module__ == module.__name__):
-                                # Instantiate transformer
-                                transformer = obj()
-                                transformers.append(transformer)
-                                self.logger.info(f"Discovered transformer: {name} in {module_name}")
-                                
-                    except ImportError as e:
-                        self.logger.warning(f"Error importing module {module_name}: {e}")
-                
-            except ImportError as e:
-                self.logger.error(f"Error importing package {directory}: {e}")
-        
-        # Create transformation manager
-        return TransformationManager(transformers)
+            return value
+        except (AttributeError, ValueError):
+            return default
     
     def to_dict(self) -> Dict[str, Any]:
         """
@@ -815,3 +619,6 @@ class ConfigManager:
         except Exception as e:
             self.logger.error(f"Error saving configuration to {file_path}: {e}")
             raise
+
+# Create singleton instance
+config = ConfigManager()
