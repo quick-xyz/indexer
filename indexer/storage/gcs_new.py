@@ -1,11 +1,13 @@
 
-import logging
 import os
 from google.cloud import storage
 from typing import List, Dict, Any, Optional, Tuple, Union
 from datetime import datetime, timezone
+import msgspec
 
 from ..utils.logger import get_logger
+from ..decode.model.block import Block
+from ..decode.model.evm import EvmFilteredBlock
 
 class GCSHandler:
     def __init__(self):
@@ -152,27 +154,36 @@ class GCSHandler:
             format_str = self.decoded_format()
             return f"{format_str.format(block_number)}"
 
-    def get_rpc_block(self, block_number: int) -> Optional[bytes]:
+    def get_rpc_block(self, block_number: int) -> Optional[EvmFilteredBlock]:
         block_path = self.get_blob_string("rpc", block_number)
-        blob = self.bucket.blob(block_path)
-        if not blob.exists():
+
+        if self.blob_exists(block_path):
+            data_bytes = self.download_blob_as_bytes(block_path)
+            return msgspec.json.decode(data_bytes, type=EvmFilteredBlock)
+        else:
             self.logger.warning(f"Cannot find block number {block_number} at block path {block_path}.")
             return None
-        return blob
-    
-    def get_decoded_block(self, block_number: int) -> Optional[bytes]:
+
+    def get_decoded_block(self, block_number: int) -> Optional[Block]:
         block_path = self.get_blob_string("decoded", block_number)
-        blob = self.bucket.blob(block_path)
-        if not blob.exists():
+        
+        if self.blob_exists(block_path):
+            return self.download_blob_as_bytes(block_path)
+        else:
             self.logger.warning(f"Cannot find block number {block_number} at block path {block_path}.")
             return None
-        return blob
     
-    def save_decoded_block(self, block_number: int, data: Union[bytes, str, dict]) -> str:
-        block_path = self.get_blob_string("decoded", block_number)
+    def save_decoded_block(self, block_number: int, data: Block) -> bool:
+        destination_str = self.get_blob_string("decoded", block_number)
+        encoder = msgspec.msgpack.Encoder()
+        encoded_data = encoder.encode(data)
         try:
-            self.upload_blob_from_string(data, block_path)
-            return block_path
+            return self.upload_blob_from_string(
+                encoded_data, 
+                destination_str,
+                content_type="application/json"
+            )
+        
         except Exception as e:
             self.logger.error(f"Failed to upload decoded block {block_number}: {e}")
-            return None
+            return False
