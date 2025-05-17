@@ -15,7 +15,7 @@ from indexer.decode.interfaces import BlockProcessorInterface
 from indexer.database.registry.block_registry import BlockRegistry
 from indexer.transform.framework.manager import TransformationManager
 from indexer.transform.interfaces import EventListener
-
+from ..utils.logger import get_logger
 
 class DecoderListener:
     """
@@ -35,7 +35,7 @@ class DecoderListener:
         """
         self.block_processor = block_processor
         self.block_registry = block_registry
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger(__name__)
 
 
 

@@ -4,6 +4,7 @@ import msgspec
 from typing import Any,  Optional, List, Dict
 import json
 import logging
+import sys
 import os
 
 from .types import (
@@ -53,11 +54,21 @@ class ConfigManager:
 
     def _configure_logging(self):
         """Configure logging for the configuration manager."""
+        # This initializes a basic logger for bootstrap purposes
+        # The proper logger will be initialized later by the logger module
         self.logger = logging.getLogger("indexer.config")
-        level_name = self.get_env("LOG_LEVEL", self.logger.level).upper()
-        valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
-        level = level_name if level_name in valid_levels else "INFO"
-        self.logger.setLevel(getattr(logging, level))
+        
+        if not self.logger.handlers:
+            handler = logging.StreamHandler(sys.stdout)
+            formatter = logging.Formatter("%(asctime)s - %(name)s - %(levelname)s - %(message)s")
+            handler.setFormatter(formatter)
+            self.logger.addHandler(handler)
+            
+            # Set level from environment
+            level_name = os.getenv("LOG_LEVEL", "INFO").upper()
+            valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+            level = level_name if level_name in valid_levels else "INFO"
+            self.logger.setLevel(getattr(logging, level))
 
 
     def _init_paths(self):

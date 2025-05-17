@@ -5,7 +5,7 @@ from ..interfaces import TransactionDecoderInterface
 from ..contracts.manager import ContractManager
 from ..model.evm import EvmTransaction, EvmTxReceipt
 from ..model.block import DecodedLog, EncodedLog, EncodedMethod, DecodedMethod, Transaction
-from ...utils.logging import setup_logger
+from ...utils.logger import get_logger
 from .logs import LogDecoder
 
 
@@ -24,7 +24,7 @@ class TransactionDecoder(TransactionDecoderInterface):
         self.contract_manager = contract_manager
         self.log_decoder = LogDecoder(contract_manager)
         self.w3 = Web3()
-        self.logger = setup_logger(__name__)
+        self.logger = get_logger(__name__)
 
 
     def decode_function(self, tx: EvmTransaction) -> EncodedMethod|DecodedMethod:

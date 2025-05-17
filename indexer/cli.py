@@ -10,13 +10,10 @@ from pathlib import Path
 
 from . import create_indexer
 from .factory import ComponentFactory
+from .utils.logger import get_logger
 
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
-)
-logger = logging.getLogger("indexer.cli")
+# Get configured logger
+logger = get_logger("indexer.cli")
 
 def main():
     """Main entry point for the CLI."""

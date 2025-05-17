@@ -15,12 +15,11 @@ from typing import List, Optional
 from datetime import datetime
 from sqlalchemy import desc
 
-from ...utils.env import env
 from ..db_models.status import ProcessingStatus, BlockProcess
 from ..db_models.gcs import GcsObject
 from .session import ConnectionManager
-from ...processing.factory import ComponentFactory
-
+from ...factory import ComponentFactory
+from ...utils.logger import get_logger
 
 class DatabaseManager:
     def __init__(self, db_conn: ConnectionManager):

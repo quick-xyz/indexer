@@ -15,6 +15,7 @@ from .decode.contracts.registry import ContractRegistry
 from .clients.quicknode_rpc import QuickNodeRPCClient
 from .storage.gcs_new import GCSHandler
 from .decode.decoders.blocks import BlockDecoder
+from .utils.logger import get_logger
 
 
 # TODO: Add more components when available
@@ -22,6 +23,8 @@ from .decode.decoders.blocks import BlockDecoder
 
 class ComponentFactory:
 
+    logger = get_logger("indexer.factory")
+    
     @classmethod
     def get_contract_registry(cls) -> ContractRegistry:
         registry_obj = registry.get('contract_registry')

@@ -8,7 +8,7 @@ from ..contracts.manager import ContractManager
 from .transactions import TransactionDecoder
 from ..model.block import Block
 from ..model.evm import EvmFilteredBlock,EvmHash,EvmTransaction,EvmTxReceipt
-from ...utils.logging import setup_logger
+from ...utils.logger import get_logger
 
 def hex_timestamp_to_datetime(w3: Web3,hex_timestamp):
     try:
@@ -23,7 +23,7 @@ class BlockDecoder(BlockDecoderInterface):
         self.contract_manager = contract_manager
         self.tx_decoder = TransactionDecoder(self.contract_manager)
         self.w3 = Web3()
-        self.logger = setup_logger(__name__)
+        self.logger = get_logger(__name__)
 
     def merge_tx_with_receipts(self, raw_block: EvmFilteredBlock) -> tuple[dict[EvmHash,tuple[EvmTransaction,EvmTxReceipt]],Optional[dict]]:
         tx_dict = {tx.hash: tx for tx in raw_block.transactions}

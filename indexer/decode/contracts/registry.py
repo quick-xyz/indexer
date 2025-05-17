@@ -6,7 +6,7 @@ from web3 import Web3
 from web3.contract import Contract
 
 from ..interfaces import ContractRegistryInterface
-from ...utils.logging import setup_logger
+from ...utils.logging import get_logger
 
 from ...config.types import (
     ABIConfig, 
@@ -31,7 +31,7 @@ class ContractRegistry(ContractRegistryInterface):
         self.config_manager = config_manager or config
         self.contracts: Dict[str, ContractWithABI] = {}  # Contracts keyed by address
         self.web3_contracts: Dict[str, Contract] = {}    # Web3 Contract instances
-        self.logger = setup_logger(__name__)
+        self.logger = get_logger(__name__)
         self.abi_decoder = msgspec.json.Decoder(type=ABIConfig)
         self._load_contracts_from_config()
         self._initialized = True

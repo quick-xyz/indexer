@@ -4,11 +4,11 @@ Block registry for tracking processing status.
 This module provides the block registry responsible for tracking the
 processing status of blocks throughout the indexing pipeline.
 """
-import logging
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
 from ..db_models.status import ProcessingStatus, BlockProcess
+from ...utils.logger import get_logger
 
 class BlockRegistry:
     """
@@ -27,7 +27,7 @@ class BlockRegistry:
             db_manager: Database manager for persistence
         """
         self.db = db_manager
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger(__name__)
         
     def register_block(self, block_number: int, block_hash: str, 
                       parent_hash: str, timestamp) -> None:

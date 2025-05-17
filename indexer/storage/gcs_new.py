@@ -5,6 +5,7 @@ from google.cloud import storage
 from typing import List, Dict, Any, Optional, Tuple, Union
 from datetime import datetime, timezone
 
+from ..utils.logger import get_logger
 
 class GCSHandler:
     def __init__(self):
@@ -20,7 +21,7 @@ class GCSHandler:
         self.client = None
         self._initialize_gcs_client()
         self.bucket = self._connect_to_bucket(self.bucket_name)
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger(__name__)
 
     def _initialize_gcs_client(self):
         if self.credentials_path:

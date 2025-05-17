@@ -1,9 +1,10 @@
 from web3 import Web3
 from web3.contract import Contract
-from typing import Optional, Dict
+from typing import Optional, Dict, Any
 
 from ..interfaces import ContractManagerInterface
 from .registry import ContractRegistry
+from ...utils.logger import get_logger
 
 class ContractManager(ContractManagerInterface):
     """
@@ -11,7 +12,7 @@ class ContractManager(ContractManagerInterface):
     """
     def __init__(self, registry: ContractRegistry):
         self.registry = registry
-        self.logger = setup_logger(__name__)
+        self.logger = get_logger(__name__)
         
         self.w3 = Web3()  # No provider needed for ABI decoding
         self.contract_cache: Dict[str, Contract] = {}  # address -> Contract instance

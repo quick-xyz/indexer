@@ -1,11 +1,11 @@
 """
 Implementation of transaction context for blockchain transformer.
 """
-import logging
 from typing import Dict, Any, List, Optional, Union, Set
 
 from indexer.transform.events.base import BusinessEvent
 from indexer.transform.interfaces import TransactionContext, EventTransformer
+from ...utils.logger import get_logger
 
 class TransactionContextImpl(TransactionContext):
     """
@@ -47,7 +47,7 @@ class TransactionContextImpl(TransactionContext):
         self.processed_logs: Set[str] = set()
         
         # Logger
-        self.logger = logging.getLogger(__name__)
+        self.logger = get_logger(__name__)
         
     def add_event(self, event: BusinessEvent) -> None:
         """
