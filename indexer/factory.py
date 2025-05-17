@@ -13,7 +13,7 @@ from .decode.contracts.registry import contract_registry
 from .decode.contracts.manager import ContractManager
 from .decode.contracts.registry import ContractRegistry
 from .clients.quicknode_rpc import QuickNodeRPCClient
-from .storage.gcs import GCSStorage
+from .storage.gcs_new import GCSHandler
 from .decode.decoders.blocks import BlockDecoder
 
 
@@ -60,40 +60,16 @@ class ComponentFactory:
         registry.register('rpc_client', client)
         return client
         
-    @classmethod
-    def get_storage(cls, storage_type: Optional[str] = None) -> Any:
-
-        storage = registry.get('gcs_storage')
-        
-        if storage:
-            return storage
-        
-        storage = GCSStorage(
-            raw_prefix=config.storage.storage_rpc_prefix,
-            decoded_prefix=config.storage.storage_decoded_prefix,
-            rpc_format=config.storage.storage_rpc_format,
-        )
-
-        registry.register('gcs_storage', storage)
-        return storage
 
     @classmethod
-    def get_block_handler(cls) -> 'BlockHandler':
-        handler = registry.get('block_handler')
+    def get_gcs_handler(cls) -> 'GCSHandler':
+        handler = registry.get('gcs_handler')
         if handler:
             return handler
         
-        from .storage.handler import BlockHandler
+        handler = GCSHandler()
         
-        storage = cls.get_storage()
-        
-        handler = BlockHandler(
-            storage=storage,
-            raw_format=config.storage.storage_rpc_format,
-            decoded_format=config.storage.storage_block_format
-        )
-        
-        registry.register('block_handler', handler)
+        registry.register('gcs_handler', handler)
         return handler
     
     @classmethod
