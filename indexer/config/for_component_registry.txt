@@ -1,0 +1,45 @@
+    # Component Registry Methods (migrated from IndexerEnvironment)
+    def register_component(self, name: str, component: Any) -> None:
+        """
+        Register a component for shared use.
+        
+        Args:
+            name: Component name
+            component: Component instance
+        """
+        self._components[name] = component
+        
+    def get_component(self, name: str) -> Optional[Any]:
+        """
+        Get a registered component.
+        
+        Args:
+            name: Component name
+            
+        Returns:
+            Component instance or None if not found
+        """
+        return self._components.get(name)
+    
+    def get_components_by_type(self, component_type: Type[T]) -> List[T]:
+        """
+        Get all registered components of a specific type.
+        
+        Args:
+            component_type: Component type
+            
+        Returns:
+            List of components of the specified type
+        """
+        return [comp for comp in self._components.values() if isinstance(comp, component_type)]
+    
+    def clear_components(self, names: Optional[List[str]] = None) -> None:
+        """
+        Clear registered components.
+        """
+        if names is None:
+            self._components.clear()
+        else:
+            for name in names:
+                if name in self._components:
+                    del self._components[name]
