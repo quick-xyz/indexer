@@ -14,7 +14,7 @@ from indexer.storage.interfaces import StorageInterface
 class BaseStorage(StorageInterface):
     """Base class for storage backends."""
     
-    def __init__(self, raw_prefix: str = "raw/", decoded_prefix: str = "decoded/"):
+    def __init__(self, raw_prefix, decoded_prefix):
         """
         Initialize base storage.
         
