@@ -36,6 +36,9 @@ class ContractRegistry(ContractRegistryInterface):
         self._load_contracts_from_config()
         self._initialized = True
 
+    def load_contracts(self):
+        pass
+
     def _load_contracts_from_config(self):
         """Load contracts from the config manager."""
         # Copy contracts from config manager

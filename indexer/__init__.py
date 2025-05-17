@@ -1,5 +1,5 @@
 
-from .__version__ import __version__
+# from .__version__ import __version__
 from .config.config_manager import config
 from .decode.contracts.registry import contract_registry
 from .factory import ComponentFactory

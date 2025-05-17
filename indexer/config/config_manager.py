@@ -59,7 +59,7 @@ class ConfigManager:
     def _configure_logging(self):
         """Configure logging for the configuration manager."""
         self.logger = logging.getLogger("indexer.config")
-        level_name = self.get_env("LOG_LEVEL", self.config.logging.level).upper()
+        level_name = self.get_env("LOG_LEVEL", self.logger.level).upper()
         valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
         level = level_name if level_name in valid_levels else "INFO"
         self.logger.setLevel(getattr(logging, level))
@@ -87,7 +87,7 @@ class ConfigManager:
 
     def _load_config(self):
         """Load all configuration elements."""
-        self._load_config_file()
+        self._load_config_json()
         if self.config_dict:
             self.storage = self._load_storage()
             self._load_tokens()
@@ -120,28 +120,25 @@ class ConfigManager:
     def _load_tokens(self):
         self.logger.info(f"Loading tokens config from {self.config_dict}")
         tokens_dict = self.config_dict["tokens"]
-        try:
-            for address, data in tokens_dict.items():
-                address = address.lower()
-                try:
-                    token_config = msgspec.convert(data, type=TokenConfig)
-                    self.tokens[address] = token_config
-                except msgspec.ValidationError as e:
-                    self.logger.warning(f"Invalid token config for {address}: {e}")
+        for address, data in tokens_dict.items():
+            address = address.lower()
+            try:
+                token_config = msgspec.convert(data, type=TokenConfig)
+                self.tokens[address] = token_config
+            except msgspec.ValidationError as e:
+                self.logger.warning(f"Invalid token config for {address}: {e}")
 
 
     def _load_addresses(self):
         self.logger.info(f"Loading addresses config from {self.config_dict}")
         address_dict = self.config_dict["addresses"]
-        try:
-            for address, data in address_dict.items():
-                address = address.lower()
-                try:
-                    address_config = msgspec.convert(data, type=AddressConfig)
-                    self.addresses[address] = address_config
-                except msgspec.ValidationError as e:
-                    self.logger.warning(f"Invalid addresses config for {address}: {e}")
-
+        for address, data in address_dict.items():
+            address = address.lower()
+            try:
+                address_config = msgspec.convert(data, type=AddressConfig)
+                self.addresses[address] = address_config
+            except msgspec.ValidationError as e:
+                self.logger.warning(f"Invalid addresses config for {address}: {e}")
 
     def _load_contracts(self):  
         self.logger.info(f"Loading contracts config from {self.config_dict}")
@@ -153,7 +150,7 @@ class ConfigManager:
             address = address.lower()
             try:
                 contract_config = msgspec.convert(data, type=ContractConfig)
-                abi_path = self.paths['config_dir'] / contract_config.abi_dir / contract_config.abi
+                abi_path = self.paths['abi_dir'] / contract_config.abi_dir / contract_config.abi
 
                 try:
                     with open(abi_path) as f:
