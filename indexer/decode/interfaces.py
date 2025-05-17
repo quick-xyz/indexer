@@ -87,6 +87,19 @@ class ContractRegistryInterface(ABC):
         """
         pass
 
+    @abstractmethod
+    def get_web3_contract(self, address: str, w3: Any) -> Optional[Any]:
+        """
+        Get or create a Web3 contract instance.
+        
+        Args:
+            address: Contract address
+            w3: Web3 instance
+            
+        Returns:
+            Web3 contract instance or None if not found
+        """
+        pass
 
 class ContractManagerInterface(ABC):
     """Interface for contract manager implementations."""

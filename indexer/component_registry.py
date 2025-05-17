@@ -1,15 +1,13 @@
-from typing import Any, List, Optional
+from typing import Any, Dict, List, Optional
 
 
 class ComponentRegistry:
     
     _instance = None
     
-    def __new__(cls):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance.components = {}
-        return cls._instance
+    def __init__(self):
+        """Initialize an empty registry."""
+        self.components: Dict[str, Any] = {}
     
     def register(self, name: str, component: Any) -> None:
         self.components[name] = component

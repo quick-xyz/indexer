@@ -8,7 +8,7 @@ def create_indexer(custom_config=None, config_file=None):
     
     if config_file or custom_config:
         if config_file:
-            config.load_config_file(config_file)
+            config._load_config_json(config_file)
         if custom_config:
             config.update_config(custom_config)
 

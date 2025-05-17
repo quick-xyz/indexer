@@ -37,11 +37,15 @@ class ContractRegistry(ContractRegistryInterface):
         self._initialized = True
 
     def load_contracts(self):
-        pass
+        self._load_contracts_from_config()
+        self.logger.info(f"Reloaded contracts from config manager")
 
     def _load_contracts_from_config(self):
         """Load contracts from the config manager."""
-        # Copy contracts from config manager
+        if not self.config_manager:
+            self.logger.warning("No config manager provided, can't load contracts")
+            return
+
         for address, contract in self.config_manager.contracts.items():
             self.contracts[address] = contract
 
@@ -63,14 +67,18 @@ class ContractRegistry(ContractRegistryInterface):
         if not contract_data or not contract_data.abi:
             return None
             
-        contract = w3.eth.contract(
-            address=Web3.to_checksum_address(address),
-            abi=contract_data.abi
-        )
-        
-        self.web3_contracts[address] = contract
-        
-        return contract
+        try:
+            contract = w3.eth.contract(
+                address=Web3.to_checksum_address(address),
+                abi=contract_data.abi
+            )
+            
+            self.web3_contracts[address] = contract
+            
+            return contract
+        except Exception as e:
+            self.logger.error(f"Error creating Web3 contract for {address}: {e}")
+            return None
 
     def get_abi(self, address: str) -> Optional[list]:
         """Get contract ABI by address."""

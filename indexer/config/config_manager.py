@@ -1,6 +1,3 @@
-"""
-Configuration management for the blockchain indexer.
-"""
 from dotenv import load_dotenv
 from pathlib import Path
 import msgspec
@@ -17,8 +14,6 @@ from .types import (
     ContractConfig,
     ContractWithABI,
 )
-
-from ..component_registry import registry
 
 
 class ConfigManager:
@@ -96,8 +91,12 @@ class ConfigManager:
 
 
 
-    def _load_config_json(self):
-        config_path = self.paths['config_dir'] / 'config.json'
+    def _load_config_json(self, config_path=None):
+        if config_path is None:
+            config_path = self.paths['config_dir'] / 'config.json'
+        else:
+            config_path = Path(config_path)
+        
         self.logger.info(f"Loading configuration from {config_path}")
         try:
             with open(config_path) as f:
