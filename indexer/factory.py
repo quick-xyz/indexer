@@ -14,7 +14,6 @@ from .storage.gcs import GCSStorage
 from .decode.decoders.blocks import BlockDecoder
 
 
-
 class ComponentFactory:
 
     @classmethod
@@ -26,8 +25,9 @@ class ComponentFactory:
             return storage
         
         storage = GCSStorage(
-            bucket_name=config.storage.bucket_name,
-            credentials_path=config.storage.credentials_path,
+            gcs_project=config.get_env("INDEXER_GCS_PROJECT_ID", INDEXER_GCS_PROJECT_ID),
+            bucket_name=config.get_env("INDEXER_GCS_BUCKET_NAME", INDEXER_GCS_BUCKET_NAME),
+            credentials_path=config.get_env("INDEXER_GCS_CREDENTIALS_PATH", INDEXER_GCS_CREDENTIALS_PATH),
             raw_prefix=config.storage.storage_rpc_prefix,
             decoded_prefix=config.storage.storage_decoded_prefix,
             rpc_format=config.storage.storage_rpc_format,
