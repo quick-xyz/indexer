@@ -9,90 +9,38 @@ from typing import Dict, Any, List, Optional, Union, Type, TypeVar
 from .config.config_manager import config
 from .component_registry import registry
 
-T = TypeVar('T')
+from .clients.quicknode_rpc import QuickNodeRPCClient
+from .storage.gcs import GCSStorage
+from .decode.decoders.blocks import BlockDecoder
+
+
 
 class ComponentFactory:
-    """
-    Factory for creating indexer components.
-    
-    This class provides factory methods for creating all components
-    used by the blockchain indexer, with proper dependency handling
-    and caching via the component registry.
-    """
-    
+
     @classmethod
     def get_storage(cls, storage_type: Optional[str] = None) -> Any:
-        """
-        Get or create storage backend.
+
+        storage = registry.get('gcs_storage')
         
-        Args:
-            storage_type: Storage type ("local", "gcs", "s3")
-                         If None, uses the configured type from config
-                         
-        Returns:
-            Storage backend instance
-        """
-        # Get storage type from config if not provided
-        storage_type = storage_type or config.storage.storage_type
-        
-        # Check if we already have this storage type cached
-        storage_key = f"storage_{storage_type}"
-        storage = registry.get(storage_key)
         if storage:
             return storage
         
-        # Create storage based on type
-        if storage_type == "local":
-            from .storage.local import LocalStorage
-            
-            storage = LocalStorage(
-                local_dir=config.storage.local_dir,
-                raw_prefix=config.storage.storage_rpc_prefix,
-                decoded_prefix=config.storage.storage_decoded_prefix,
-                raw_template=config.storage.storage_rpc_format,
-                decoded_template=config.storage.storage_block_format
-            )
-            
-        elif storage_type == "gcs":
-            from .storage.gcs import GCSStorage
-            
-            if not config.storage.bucket_name:
-                raise ValueError("GCS bucket name must be specified")
-                
-            storage = GCSStorage(
-                bucket_name=config.storage.bucket_name,
-                credentials_path=config.storage.credentials_path,
-                raw_prefix=config.storage.storage_rpc_prefix,
-                decoded_prefix=config.storage.storage_decoded_prefix
-            )
-            
-        elif storage_type == "s3":
-            from .storage.s3 import S3Storage
-            
-            if not config.storage.bucket_name:
-                raise ValueError("S3 bucket name must be specified")
-                
-            storage = S3Storage(
-                bucket_name=config.storage.bucket_name,
-                raw_prefix=config.storage.storage_rpc_prefix,
-                decoded_prefix=config.storage.storage_decoded_prefix
-            )
-            
-        else:
-            raise ValueError(f"Unsupported storage type: {storage_type}")
-        
-        # Cache and return
-        registry.register(storage_key, storage)
+        storage = GCSStorage(
+            bucket_name=config.storage.bucket_name,
+            credentials_path=config.storage.credentials_path,
+            raw_prefix=config.storage.storage_rpc_prefix,
+            decoded_prefix=config.storage.storage_decoded_prefix,
+            rpc_format=config.storage.storage_rpc_format,
+        )
+
+        registry.register('gcs_storage', storage)
         return storage
-    
+
+
+
+
     @classmethod
     def get_block_handler(cls) -> 'BlockHandler':
-        """
-        Get or create block handler.
-        
-        Returns:
-            Block handler instance
-        """
         handler = registry.get('block_handler')
         if handler:
             return handler
@@ -112,12 +60,6 @@ class ComponentFactory:
     
     @classmethod
     def get_block_decoder(cls) -> 'BlockDecoder':
-        """
-        Get or create block decoder.
-        
-        Returns:
-            Block decoder instance
-        """
         decoder = registry.get('block_decoder')
         if decoder:
             return decoder
@@ -150,12 +92,6 @@ class ComponentFactory:
     
     @classmethod
     def get_contract_manager(cls) -> 'ContractManager':
-        """
-        Get or create contract manager.
-        
-        Returns:
-            Contract manager instance
-        """
         manager = registry.get('contract_manager')
         if manager:
             return manager
@@ -175,12 +111,6 @@ class ComponentFactory:
     
     @classmethod
     def get_block_registry(cls) -> 'BlockRegistry':
-        """
-        Get or create block registry.
-        
-        Returns:
-            Block registry instance
-        """
         block_registry = registry.get('block_registry')
         if block_registry:
             return block_registry
@@ -196,12 +126,6 @@ class ComponentFactory:
     
     @classmethod
     def get_database_manager(cls) -> 'DatabaseManager':
-        """
-        Get or create database manager.
-        
-        Returns:
-            Database manager instance
-        """
         db_manager = registry.get('db_manager')
         if db_manager:
             return db_manager
@@ -215,17 +139,10 @@ class ComponentFactory:
         registry.register('db_manager', db_manager)
         return db_manager
     
+
+
     @classmethod
-    def get_rpc_client(cls, rpc_url: Optional[str] = None) -> 'RPCClient':
-        """
-        Get or create RPC client.
-        
-        Args:
-            rpc_url: RPC endpoint URL. If None, uses the default from config.
-            
-        Returns:
-            RPC client instance
-        """
+    def get_rpc_client(cls, rpc_url: Optional[str] = None) -> QuickNodeRPCClient:
         # Use URL-specific clients
         client_key = f"rpc_client_{rpc_url or 'default'}"
         client = registry.get(client_key)
@@ -253,12 +170,6 @@ class ComponentFactory:
     
     @classmethod
     def get_streamer(cls) -> Optional['BlockStreamerInterface']:
-        """
-        Get or create block streamer.
-        
-        Returns:
-            Block streamer instance
-        """
         streamer_key = "block_streamer"
         streamer = registry.get(streamer_key)
         if streamer:
@@ -329,12 +240,6 @@ class ComponentFactory:
     
     @classmethod
     def get_transformation_manager(cls) -> 'TransformationManager':
-        """
-        Get or create transformation manager.
-        
-        Returns:
-            Transformation manager instance
-        """
         transform_manager = registry.get('transformation_manager')
         if transform_manager:
             return transform_manager
@@ -357,12 +262,6 @@ class ComponentFactory:
     
     @classmethod
     def _load_transformers(cls, manager: 'TransformationManager') -> None:
-        """
-        Load and register transformers.
-        
-        Args:
-            manager: Transformation manager instance
-        """
         # Load explicitly configured transformers
         transformers = []  # Should come from config
         
@@ -437,12 +336,6 @@ class ComponentFactory:
     
     @classmethod
     def get_event_listeners(cls) -> List['EventListener']:
-        """
-        Get or create event listeners.
-        
-        Returns:
-            List of event listener instances
-        """
         listeners = registry.get('event_listeners')
         if listeners:
             return listeners
@@ -469,10 +362,4 @@ class ComponentFactory:
     
     @classmethod
     def get_pipeline(cls) -> 'IntegratedPipeline':
-        """
-        Get or create integrated pipeline.
-        
-        Returns:
-            Pipeline instance
-        """
         return cls.get_pipeline()
