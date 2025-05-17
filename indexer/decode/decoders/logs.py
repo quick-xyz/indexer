@@ -1,5 +1,6 @@
 from typing import Optional
 from web3 import Web3
+import msgspec
 
 from ..interfaces import LogDecoderInterface
 from ..contracts.manager import ContractManager
@@ -48,6 +49,8 @@ class LogDecoder(LogDecoderInterface):
             if not decoded_events:
                 return self.build_encoded_log(log)
 
+            decoded_log = decoded_events[0]
+            
             return DecodedLog(
                 index=self.w3.to_int(hexstr=log.logIndex),
                 removed=log.removed,
