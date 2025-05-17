@@ -17,13 +17,24 @@ from ...config.config_manager import config
 
 
 class ContractRegistry(ContractRegistryInterface):
+    _instance = None
+    
+    def __new__(cls, *args, **kwargs):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialized = False
+        return cls._instance
+
     def __init__(self, config_manager=None):
+        if hasattr(self, '_initialized') and self._initialized:
+            return
         self.config_manager = config_manager or config
         self.contracts: Dict[str, ContractWithABI] = {}  # Contracts keyed by address
         self.web3_contracts: Dict[str, Contract] = {}    # Web3 Contract instances
         self.logger = setup_logger(__name__)
         self.abi_decoder = msgspec.json.Decoder(type=ABIConfig)
         self._load_contracts_from_config()
+        self._initialized = True
 
     def _load_contracts_from_config(self):
         """Load contracts from the config manager."""
@@ -86,3 +97,5 @@ class ContractRegistry(ContractRegistryInterface):
             if address in self.web3_contracts:
                 del self.web3_contracts[address]
             self.logger.info(f"Registered contract {name or address[:8]} at {address}")
+
+contract_registry = ContractRegistry(config_manager=config)

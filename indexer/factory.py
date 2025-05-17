@@ -6,16 +6,57 @@ import importlib
 import importlib.util
 from typing import Dict, Any, List, Optional, Union, Type, TypeVar
 
+# Singletons
 from .config.config_manager import config
 from .component_registry import registry
+from .decode.contracts.registry import contract_registry, ContractRegistry
 
+# Instances
+from .decode.contracts.manager import ContractManager
 from .clients.quicknode_rpc import QuickNodeRPCClient
 from .storage.gcs import GCSStorage
 from .decode.decoders.blocks import BlockDecoder
 
 
-class ComponentFactory:
+# TODO: Add more components when available
 
+
+class ComponentFactory:
+    @classmethod
+    def get_contract_registry(cls) -> 'ContractRegistry':
+        # Singleton, doesn't need to be registered
+        return contract_registry
+    
+    @classmethod
+    def get_contract_manager(cls) -> 'ContractManager':
+        manager = registry.get('contract_manager')
+        if manager:
+            return manager
+        
+        registry_obj = cls.get_contract_registry()
+        rpc_client = cls.get_rpc_client()
+        
+        manager = ContractManager(
+            registry=registry_obj,
+        )
+        
+        registry.register('contract_manager', manager)
+        return manager
+    
+    @classmethod
+    def get_rpc_client(cls, rpc_url: Optional[str] = None) -> QuickNodeRPCClient:
+        client = registry.get('rpc_client')
+        if client:
+            return client
+        
+        if not rpc_url:
+            rpc_url = config.get_env("INDEXER_AVAX_RPC")
+
+        client = QuickNodeRPCClient(endpoint_url=rpc_url)
+
+        registry.register('rpc_client', client)
+        return client
+        
     @classmethod
     def get_storage(cls, storage_type: Optional[str] = None) -> Any:
 
@@ -25,9 +66,6 @@ class ComponentFactory:
             return storage
         
         storage = GCSStorage(
-            gcs_project=config.get_env("INDEXER_GCS_PROJECT_ID", INDEXER_GCS_PROJECT_ID),
-            bucket_name=config.get_env("INDEXER_GCS_BUCKET_NAME", INDEXER_GCS_BUCKET_NAME),
-            credentials_path=config.get_env("INDEXER_GCS_CREDENTIALS_PATH", INDEXER_GCS_CREDENTIALS_PATH),
             raw_prefix=config.storage.storage_rpc_prefix,
             decoded_prefix=config.storage.storage_decoded_prefix,
             rpc_format=config.storage.storage_rpc_format,
@@ -35,9 +73,6 @@ class ComponentFactory:
 
         registry.register('gcs_storage', storage)
         return storage
-
-
-
 
     @classmethod
     def get_block_handler(cls) -> 'BlockHandler':
@@ -64,51 +99,16 @@ class ComponentFactory:
         if decoder:
             return decoder
         
-        from .decode.decode import BlockDecoder
-        
-        contract_registry = cls.get_contract_registry()
+        contract_manager = cls.get_contract_manager()
         
         decoder = BlockDecoder(
-            contract_registry=contract_registry,
-            force_hex_numbers=True  # Should be configurable
+            contract_manager=contract_manager,
         )
         
         registry.register('block_decoder', decoder)
         return decoder
     
-    @classmethod
-    def get_contract_registry(cls) -> 'ContractRegistry':
-        contract_registry = registry.get('contract_registry')
-        if contract_registry:
-            return contract_registry
-        
-        from .decode.contracts.registry import ContractRegistry
-        
-        # ContractRegistry now uses config directly
-        contract_registry = ContractRegistry(config_manager=config)
-        
-        registry.register('contract_registry', contract_registry)
-        return contract_registry
-    
-    @classmethod
-    def get_contract_manager(cls) -> 'ContractManager':
-        manager = registry.get('contract_manager')
-        if manager:
-            return manager
-        
-        from .decode.contracts.manager import ContractManager
-        
-        registry_obj = cls.get_contract_registry()
-        rpc_client = cls.get_rpc_client()
-        
-        manager = ContractManager(
-            registry=registry_obj,
-            rpc_client=rpc_client
-        )
-        
-        registry.register('contract_manager', manager)
-        return manager
-    
+    '''
     @classmethod
     def get_block_registry(cls) -> 'BlockRegistry':
         block_registry = registry.get('block_registry')
@@ -138,105 +138,6 @@ class ComponentFactory:
         
         registry.register('db_manager', db_manager)
         return db_manager
-    
-
-
-    @classmethod
-    def get_rpc_client(cls, rpc_url: Optional[str] = None) -> QuickNodeRPCClient:
-        # Use URL-specific clients
-        client_key = f"rpc_client_{rpc_url or 'default'}"
-        client = registry.get(client_key)
-        if client:
-            return client
-        
-        # If no URL provided, get from config
-        if not rpc_url:
-            rpc_url = config.get_env("RPC_URL")
-            
-        if not rpc_url:
-            raise ValueError("No RPC URL provided or configured")
-            
-        # Determine client type based on URL
-        if "quicknode" in rpc_url:
-            from .clients.quicknode_rpc import QuickNodeRPC
-            client = QuickNodeRPC(rpc_url=rpc_url)
-        else:
-            from .clients.base_rpc import RPCClient
-            client = RPCClient(rpc_url=rpc_url)
-            
-        # Cache and return
-        registry.register(client_key, client)
-        return client
-    
-    @classmethod
-    def get_streamer(cls) -> Optional['BlockStreamerInterface']:
-        streamer_key = "block_streamer"
-        streamer = registry.get(streamer_key)
-        if streamer:
-            return streamer
-            
-        # Get streamer config
-        streamer_enabled = True  # Should come from config
-        if not streamer_enabled:
-            return None
-            
-        source_type = "internal"  # Should come from config
-        
-        # Create streamer based on source type
-        if source_type == "passive":
-            from .stream.passive import PassiveBlockSource
-            
-            block_handler = cls.get_block_handler()
-            registry = cls.get_block_registry()
-            
-            rpc_client = cls.get_rpc_client()  # Optional for validation
-            
-            streamer = PassiveBlockSource(
-                block_handler=block_handler,
-                block_registry=registry,
-                rpc_client=rpc_client
-            )
-            
-        elif source_type == "external":
-            from .stream.external import ExternalStreamAdapter
-            
-            external_url = "URL"  # Should come from config
-            if not external_url:
-                raise ValueError("External stream URL must be specified")
-                
-            storage_handler = cls.get_block_handler()
-            
-            streamer = ExternalStreamAdapter(
-                stream_url=external_url,
-                storage=storage_handler,
-                auth_token=None  # Should come from config
-            )
-            
-        else:  # Default to active internal streamer
-            from .stream.stream import BlockStreamer
-            
-            # Get RPC clients
-            live_rpc = cls.get_rpc_client(config.get_env("RPC_URL"))
-            
-            archive_rpc = None
-            archive_url = config.get_env("ARCHIVE_RPC_URL")
-            if archive_url:
-                archive_rpc = cls.get_rpc_client(archive_url)
-            
-            # Get storage handler
-            storage_handler = cls.get_block_handler()
-            
-            streamer = BlockStreamer(
-                live_rpc=live_rpc,
-                storage=storage_handler,
-                archive_rpc=archive_rpc,
-                poll_interval=5.0,  # Should come from config
-                block_format="with_receipts"  # Should come from config
-            )
-        
-        # Register and return
-        registry.register(streamer_key, streamer)
-        return streamer
     
     @classmethod
     def get_transformation_manager(cls) -> 'TransformationManager':
@@ -360,6 +261,4 @@ class ComponentFactory:
         registry.register('event_listeners', listener_list)
         return listener_list
     
-    @classmethod
-    def get_pipeline(cls) -> 'IntegratedPipeline':
-        return cls.get_pipeline()
+    '''
