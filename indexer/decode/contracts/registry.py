@@ -5,38 +5,15 @@ import msgspec
 from msgspec import Struct
 
 from ..interfaces import ContractRegistryInterface
-from ..model.types import EvmAddress
 from ...utils.logging import setup_logger
 
-class ABIConfig(Struct):
-    abi: list
-
-class TokenConfig(Struct):
-    name: str
-    symbol: str
-    type: str
-    decimals: int
-
-class AddressConfig(Struct):
-    type: str
-    name: str
-    grouping: Optional[str] = None
-    description: Optional[str] = None
-    tags: Optional[list[str]] = None    
-
-class ContractConfig(Struct):
-    name: str
-    project: str
-    type: str
-    abi_dir: str
-    abi: str
-    description: Optional[str] = None
-    version: Optional[str] = None
-    implementation: Optional[EvmAddress] = None
-
-class ContractWithABI(Struct):
-    contract_info: ContractConfig
-    abi: list
+from ...config.types import (
+    ABIConfig, 
+    TokenConfig,
+    AddressConfig,
+    ContractConfig,
+    ContractWithABI,
+)
 
 class ContractRegistry(ContractRegistryInterface):
     _instance = None

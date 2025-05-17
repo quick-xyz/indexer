@@ -14,6 +14,209 @@ import importlib
 import warnings
 
 
+@dataclass
+class StorageConfig:
+    """Storage configuration settings."""
+    storage_type: str = "local"
+    bucket_name: Optional[str] = None
+    credentials_path: Optional[str] = None
+    local_dir: Optional[str] = None
+    raw_prefix: str = "raw/"
+    decoded_prefix: str = "decoded/"
+    raw_block_template: str = "block_{block_number}.json"
+    decoded_block_template: str = "{block_number}.json"
+
+
+@dataclass
+class DatabaseConfig:
+    """Database configuration settings."""
+    db_type: str = "sqlite"
+    host: Optional[str] = None
+    port: Optional[int] = None
+    user: Optional[str] = None
+    password: Optional[str] = None
+    database: Optional[str] = None
+    sqlite_path: Optional[str] = None
+    pool_size: int = 5
+    max_overflow: int = 10
+    echo: bool = False
+
+
+@dataclass
+class LoggingConfig:
+    """Logging configuration settings."""
+    level: str = "INFO"
+    format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    file_path: Optional[str] = None
+
+
+@dataclass
+class ContractConfig:
+    """Contract registry configuration settings."""
+    contracts_file: Optional[str] = None
+    abi_directory: Optional[str] = None
+
+
+@dataclass
+class StreamerConfig:
+    """Blockchain data streamer configuration settings."""
+    enabled: bool = True
+    mode: str = "active"  # "active" (internal streaming), "passive" (use existing blocks)
+    source_type: str = "internal"  # "internal", "external", "none"
+    external_stream_url: Optional[str] = None
+    external_stream_auth: Optional[str] = None
+    live_rpc_url: str = "http://localhost:8545"
+    archive_rpc_url: Optional[str] = None
+    poll_interval: float = 5.0
+    block_format: str = "with_receipts"  # "full", "minimal", "with_receipts"
+    timeout: int = 30
+    max_retries: int = 3
+
+
+@dataclass
+class DecoderConfig:
+    """Blockchain data decoder configuration settings."""
+    force_hex_numbers: bool = True
+
+
+@dataclass
+class TransformerConfig:
+    """Transformer configuration settings."""
+    # List of transformer configurations
+    transformers: List[Dict[str, Any]] = field(default_factory=list)
+    
+    # Directory paths to discover transformers
+    transformer_dirs: List[str] = field(default_factory=list)
+    
+    # Event storage configuration
+    event_storage_type: str = "database"
+    event_table_name: str = "business_events"
+    event_file_path: Optional[str] = None
+
+
+@dataclass
+class ProcessingConfig:
+    """Block processing configuration settings."""
+    # Batch size for processing
+    batch_size: int = 100
+    
+    # Timeout for processing a single block (seconds)
+    block_timeout: int = 60
+    
+    # Number of retries for failed blocks
+    retries: int = 3
+    
+    # Whether to validate blocks before processing
+    validate: bool = True
+
+
+@dataclass
+class RetentionConfig:
+    """Data retention configuration settings."""
+    raw_retention_days: int = 7
+    decoded_retention_days: int = 30
+    events_retention_days: int = 365
+    sampling_factor: int = 1000  # Keep 1 out of every 1000 blocks for long-term storage
+
+
+@dataclass
+class IndexerConfig:
+    """Main configuration class for the blockchain indexer."""
+    # Project name
+    project_name: str = "blockchain-indexer"
+    
+    # Chain ID
+    chain_id: int = 1  # Ethereum mainnet
+    
+    # Sub-configurations
+    storage: StorageConfig = field(default_factory=StorageConfig)
+    database: DatabaseConfig = field(default_factory=DatabaseConfig)
+    logging: LoggingConfig = field(default_factory=LoggingConfig)
+    contracts: ContractConfig = field(default_factory=ContractConfig)
+    streamer: StreamerConfig = field(default_factory=StreamerConfig)
+    decoder: DecoderConfig = field(default_factory=DecoderConfig)
+    transformer: TransformerConfig = field(default_factory=TransformerConfig)
+    processing: ProcessingConfig = field(default_factory=ProcessingConfig)
+    retention: RetentionConfig = field(default_factory=RetentionConfig)
+    
+    # Additional custom config
+    custom: Dict[str, Any] = field(default_factory=dict)
+    
+    def as_dict(self) -> Dict[str, Any]:
+        """Convert config to dictionary."""
+        return {
+            "project_name": self.project_name,
+            "chain_id": self.chain_id,
+            "storage": {
+                "storage_type": self.storage.storage_type,
+                "bucket_name": self.storage.bucket_name,
+                "credentials_path": self.storage.credentials_path,
+                "local_dir": self.storage.local_dir,
+                "raw_prefix": self.storage.raw_prefix,
+                "decoded_prefix": self.storage.decoded_prefix,
+                "raw_block_template": self.storage.raw_block_template,
+                "decoded_block_template": self.storage.decoded_block_template
+            },
+            "database": {
+                "db_type": self.database.db_type,
+                "host": self.database.host,
+                "port": self.database.port,
+                "user": self.database.user,
+                "password": "***" if self.database.password else None,  # Mask password
+                "database": self.database.database,
+                "sqlite_path": self.database.sqlite_path,
+                "pool_size": self.database.pool_size,
+                "max_overflow": self.database.max_overflow,
+                "echo": self.database.echo
+            },
+            "logging": {
+                "level": self.logging.level,
+                "format": self.logging.format,
+                "file_path": self.logging.file_path
+            },
+            "contracts": {
+                "contracts_file": self.contracts.contracts_file,
+                "abi_directory": self.contracts.abi_directory
+            },
+            "streamer": {
+                "enabled": self.streamer.enabled,
+                "mode": self.streamer.mode,
+                "source_type": self.streamer.source_type,
+                "external_stream_url": self.streamer.external_stream_url,
+                "external_stream_auth": "***" if self.streamer.external_stream_auth else None,  # Mask auth
+                "live_rpc_url": self.streamer.live_rpc_url,
+                "archive_rpc_url": self.streamer.archive_rpc_url,
+                "poll_interval": self.streamer.poll_interval,
+                "block_format": self.streamer.block_format,
+                "timeout": self.streamer.timeout,
+                "max_retries": self.streamer.max_retries
+            },
+            "decoder": {
+                "force_hex_numbers": self.decoder.force_hex_numbers
+            },
+            "transformer": {
+                "transformers": self.transformer.transformers,
+                "transformer_dirs": self.transformer.transformer_dirs,
+                "event_storage_type": self.transformer.event_storage_type,
+                "event_table_name": self.transformer.event_table_name,
+                "event_file_path": self.transformer.event_file_path
+            },
+            "processing": {
+                "batch_size": self.processing.batch_size,
+                "block_timeout": self.processing.block_timeout,
+                "retries": self.processing.retries,
+                "validate": self.processing.validate
+            },
+            "retention": {
+                "raw_retention_days": self.retention.raw_retention_days,
+                "decoded_retention_days": self.retention.decoded_retention_days,
+                "events_retention_days": self.retention.events_retention_days,
+                "sampling_factor": self.retention.sampling_factor
+            },
+            "custom": self.custom
+        }
+
+
 class ConfigManager:
     """
     Manages configuration for the blockchain indexer.
@@ -30,7 +233,11 @@ class ConfigManager:
     def __init__(self, 
                 config_file: Optional[str] = None,
                 env_prefix: str = "INDEXER_",
-                 config: Optional[IndexerConfig] = None):
+                env_file: Optional[str] = None,
+                config: Optional[IndexerConfig] = None):
+        """
+        Initialize the configuration manager.
+        """
 
         if hasattr(self, '_initialized') and self._initialized:
             return

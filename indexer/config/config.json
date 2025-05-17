@@ -1,0 +1,86 @@
+{
+    "storage": {
+        "local_dir": "./data",
+        "storage_rpc_prefix": "quicknode/",
+        "storage_decoded_prefix": "decoded/",
+        "storage_rpc_format": "quicknode_avalanche-mainnet_block_with_receipts_{:012d}-{:012d}.json",
+        "storage_block_format": "{block_number}.json"
+    },
+    "tokens":{
+        "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd": {
+            "name": "Blub",
+            "symbol": "BLUB",
+            "type": "token",
+            "decimals": "18"   
+        },
+        "0x39888258d60fed9228f89e13eb57a92f1fa832eb": {
+            "name": "LFJ: BLUB-AVAX",
+            "symbol": "JLP",
+            "type": "lp_token",
+            "decimals": "18"   
+        },
+        "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7": {
+            "name": "Wrapped AVAX",
+            "symbol": "WAVAX",
+            "type": "token",
+            "decimals": "18"   
+        },
+        "0x3fc41c1ae339322ab87b6ba48e30781d88a304d4": {
+            "name": "Pharaoh: BLUB-AVAX",
+            "symbol": "",
+            "type": "lp_token",
+            "decimals": "18"   
+        }
+    },
+    "contracts":{
+        "0x45a62b090df48243f12a21897e7ed91863e2c86b": {
+            "name": "LFJ Aggregator v2.2",
+            "project": "LFJ",
+            "type": "Aggregator",
+            "abi_dir": "lfj",
+            "abi": "aggregatorv2_2.json"
+        },
+        "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc": {
+            "name": "Odos Router v2",
+            "project": "Odos",
+            "type": "Aggregator",
+            "abi_dir": "other",
+            "abi": "odos_v2.json"
+        },
+        "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd": {
+            "name": "Token: Blub",
+            "project": "Blub",
+            "type": "Token",
+            "abi_dir": "tokens",
+            "abi": "blub.json"
+        },
+        "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7": {
+            "name": "Token: WAVAX",
+            "project": "Avalanche",
+            "type": "Token",
+            "abi_dir": "tokens",
+            "abi": "wavax.json"
+        },
+        "0x39888258d60fed9228f89e13eb57a92f1fa832eb": {
+            "name": "LFJ: BLUB-AVAX",
+            "project": "LFJ",
+            "type": "LP",
+            "abi_dir": "lfj",
+            "abi": "joepair.json"
+        },
+        "0x3fc41c1ae339322ab87b6ba48e30781d88a304d4": {
+            "name": "Pharaoh: BLUB-AVAX",
+            "project": "Pharaoh",
+            "type": "LP",
+            "abi_dir": "pharaoh",
+            "abi": "pair.json"
+        }
+    },
+    "addresses":{
+        "0xe8afa8eb383ced1696c2d8ceb080f47df48f11af": {
+            "name": "Blub Treasury",
+            "type": "wallet",
+            "description": "The treasury address for the Blub project"
+        }
+    }
+}
