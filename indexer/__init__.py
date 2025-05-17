@@ -17,7 +17,6 @@ def create_indexer(custom_config=None, config_file=None):
         "contract_registry": contract_registry,
         "contract_manager": ComponentFactory.get_contract_manager(),
         "rpc": ComponentFactory.get_rpc_client(),
-        "storage": ComponentFactory.get_storage(),
-        "block_handler": ComponentFactory.get_block_handler(),
+        "gcs_handler": ComponentFactory.get_gcs_handler(),
         "block_decoder": ComponentFactory.get_block_decoder(),
     }
