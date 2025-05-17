@@ -13,20 +13,78 @@ from pathlib import Path
 import importlib
 import warnings
 
+from pathlib import Path
+
+from ..component_registry import registry
+
+
+
+
+
+
+    def _load_addresses(self):
+        addresses_file = self.config_dir / 'addresses.json'
+        self.logger.info(f"Loading addresses from {addresses_file}")
+
+        try:
+            with open(addresses_file) as f:
+                addresses_data = json.load(f)
+                
+            for address, data in addresses_data.items():
+                address = address.lower()
+                try:
+                    address_config = msgspec.convert(data, type=AddressConfig)
+                    self.addresses[address] = address_config
+                except msgspec.ValidationError as e:
+                    self.logger.warning(f"Invalid address metadata for {address}: {e}")
+                    
+            self.logger.info(f"Loaded {len(self.addresses)} addresses")
+                
+        except FileNotFoundError:
+            self.logger.warning(f"Addresses file not found: {addresses_file}")
+        except json.JSONDecodeError as e:
+            self.logger.error(f"Invalid JSON in addresses file: {e}")
+            raise
+
+    def _load_tokens(self):
+        """Load token registry."""
+        tokens_file = self.config_dir / 'tokens.json'
+        self.logger.info(f"Loading tokens from {tokens_file}")
+
+        try:
+            with open(tokens_file) as f:
+                tokens_data = json.load(f)
+                
+            for address, data in tokens_data.items():
+                address = address.lower()
+                try:
+                    token_config = msgspec.convert(data, type=TokenConfig)
+                    self.tokens[address] = token_config
+                except msgspec.ValidationError as e:
+                    self.logger.warning(f"Invalid token metadata for {address}: {e}")
+                    
+            self.logger.info(f"Loaded {len(self.tokens)} tokens")
+                
+        except FileNotFoundError:
+            self.logger.warning(f"Tokens file not found: {tokens_file}")
+        except json.JSONDecodeError as e:
+            self.logger.error(f"Invalid JSON in tokens file: {e}")
+            raise
+
 
 class ConfigManager:
     """
     Manages configuration for the blockchain indexer.
     """
-    _instance = None
-    _components = {}  # Component registry
 
-    def __new__(cls, *args, **kwargs):
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-            cls._instance._initialized = False
-        return cls._instance
-    
+
+
+
+
+
+    '''
+    OLD
+    '''
     def __init__(self, 
                 config_file: Optional[str] = None,
                 env_prefix: str = "INDEXER_",
@@ -412,10 +470,8 @@ class ConfigManager:
     def get_db_url(self) -> str:
         """
         Get database connection URL.
-        
-        Returns:
-            Database connection URL
         """
+
         if self.config.database.db_type == "sqlite":
             return f"sqlite:///{self.config.database.sqlite_path}"
         elif self.config.database.db_type == "postgresql":
@@ -523,9 +579,6 @@ class ConfigManager:
     def clear_components(self, names: Optional[List[str]] = None) -> None:
         """
         Clear registered components.
-        
-        Args:
-            names: List of component names to clear, or None to clear all
         """
         if names is None:
             self._components.clear()

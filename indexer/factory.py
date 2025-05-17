@@ -1,18 +1,11 @@
-"""
-Component factory for blockchain indexer.
-
-This module provides a factory for creating all components
-used by the blockchain indexer, with dependency injection and caching.
-"""
 import logging
 import importlib
 from typing import Dict, Any, List, Optional, Union, Type, TypeVar
 
 from .utils.env import env
 from .config import config
+from .component_registry import registry
 
-# Type variable for generic component types
-T = TypeVar('T')
 
 class ComponentFactory:
     """

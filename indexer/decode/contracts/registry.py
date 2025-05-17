@@ -1,5 +1,4 @@
 from typing import Optional, Dict, Union
-from pathlib import Path
 import json
 import msgspec
 from msgspec import Struct
@@ -9,90 +8,25 @@ from ...utils.logging import setup_logger
 
 from ...config.types import (
     ABIConfig, 
-    TokenConfig,
-    AddressConfig,
     ContractConfig,
     ContractWithABI,
 )
+from ...config.config_manager import config
+
 
 class ContractRegistry(ContractRegistryInterface):
-    _instance = None
-
-    @classmethod
-    def get_instance(cls, config_dir=None):
-        if cls._instance is None:
-            if config_dir is None:
-                from indexer.indexer.env import env
-                config_dir = env.get_path('config_dir')
-            cls._instance = cls(config_dir)
-        return cls._instance
-
-    def __init__(self, config_dir: Union[str, Path]):
-        self.config_dir = Path(config_dir)
+    """
+    Registry of contracts with their ABIs.
+    """
+    def __init__(self, config: ConfigManager):
         self.contracts: Dict[str, ContractWithABI] = {}  # Contracts keyed by address
-        self.tokens: Dict[str, TokenConfig] = {}  # Tokens keyed by address
-        self.addresses: Dict[str, AddressConfig] = {}  # Addresses keyed by address
         self.logger = setup_logger(__name__)
         self.abi_decoder = msgspec.json.Decoder(type=ABIConfig)
-        self._load_addresses()
-        self._load_tokens()
-        self._load_contracts()
+        self.load_contracts()
 
-
-    def _load_addresses(self):
-        addresses_file = self.config_dir / 'addresses.json'
-        self.logger.info(f"Loading addresses from {addresses_file}")
-
-        try:
-            with open(addresses_file) as f:
-                addresses_data = json.load(f)
-                
-            for address, data in addresses_data.items():
-                address = address.lower()
-                try:
-                    address_config = msgspec.convert(data, type=AddressConfig)
-                    self.addresses[address] = address_config
-                except msgspec.ValidationError as e:
-                    self.logger.warning(f"Invalid address metadata for {address}: {e}")
-                    
-            self.logger.info(f"Loaded {len(self.addresses)} addresses")
-                
-        except FileNotFoundError:
-            self.logger.warning(f"Addresses file not found: {addresses_file}")
-        except json.JSONDecodeError as e:
-            self.logger.error(f"Invalid JSON in addresses file: {e}")
-            raise
-
-    def _load_tokens(self):
-        """Load token registry."""
-        tokens_file = self.config_dir / 'tokens.json'
-        self.logger.info(f"Loading tokens from {tokens_file}")
-
-        try:
-            with open(tokens_file) as f:
-                tokens_data = json.load(f)
-                
-            for address, data in tokens_data.items():
-                address = address.lower()
-                try:
-                    token_config = msgspec.convert(data, type=TokenConfig)
-                    self.tokens[address] = token_config
-                except msgspec.ValidationError as e:
-                    self.logger.warning(f"Invalid token metadata for {address}: {e}")
-                    
-            self.logger.info(f"Loaded {len(self.tokens)} tokens")
-                
-        except FileNotFoundError:
-            self.logger.warning(f"Tokens file not found: {tokens_file}")
-        except json.JSONDecodeError as e:
-            self.logger.error(f"Invalid JSON in tokens file: {e}")
-            raise
-
-    def _load_contracts(self):
+    def load_contracts(self):
         """Load contract registry and ABIs."""
-        contracts_file = self.config_dir / 'contracts.json'
-        abi_directory = self.config_dir / 'abis'
-        
+
         self.logger.info(f"Loading contracts from {contracts_file}")
 
         try:
@@ -152,16 +86,7 @@ class ContractRegistry(ContractRegistryInterface):
         """Get contract ABI by address."""
         contract = self.contracts.get(address.lower())
         return contract.abi if contract else None
-
-    def get_token(self, address: str) -> Optional[TokenConfig]:
-        """Get token info by address."""
-        return self.tokens.get(address.lower())
-    
-    def get_address(self, address: str) -> Optional[AddressConfig]:
-        """Get address info by address."""
-        return self.addresses.get(address.lower())
     
     def has_contract(self, address: str) -> bool:
         """Check if address is a known contract."""
-        address = address.lower()
-        return address in self.contracts and address in self.abis
+        return address.lower() in self.contracts
