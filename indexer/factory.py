@@ -136,12 +136,6 @@ class ComponentFactory:
     
     @classmethod
     def get_contract_registry(cls) -> 'ContractRegistry':
-        """
-        Get or create contract registry.
-        
-        Returns:
-            Contract registry instance
-        """
         contract_registry = registry.get('contract_registry')
         if contract_registry:
             return contract_registry
@@ -149,7 +143,7 @@ class ComponentFactory:
         from .decode.contracts.registry import ContractRegistry
         
         # ContractRegistry now uses config directly
-        contract_registry = ContractRegistry(config)
+        contract_registry = ContractRegistry(config_manager=config)
         
         registry.register('contract_registry', contract_registry)
         return contract_registry

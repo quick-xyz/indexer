@@ -17,8 +17,10 @@ from ...config.config_manager import config
 
 
 class ContractRegistry(ContractRegistryInterface):
-    def __init__(self, config: ConfigManager):
+    def __init__(self, config_manager=None):
+        self.config_manager = config_manager or config
         self.contracts: Dict[str, ContractWithABI] = {}  # Contracts keyed by address
+        self.web3_contracts: Dict[str, Contract] = {}    # Web3 Contract instances
         self.logger = setup_logger(__name__)
         self.abi_decoder = msgspec.json.Decoder(type=ABIConfig)
         self._load_contracts_from_config()
@@ -26,16 +28,35 @@ class ContractRegistry(ContractRegistryInterface):
     def _load_contracts_from_config(self):
         """Load contracts from the config manager."""
         # Copy contracts from config manager
-        for address, contract in config.contracts.items():
+        for address, contract in self.config_manager.contracts.items():
             self.contracts[address] = contract
 
-        self.logger.info(f"Loaded {len(config.contracts)} contracts from config manager")
+        self.logger.info(f"Loaded {len(self.config_manager.contracts)} contracts from config manager")
     
 
     def get_contract(self, address: str) -> Optional[ContractWithABI]:
         """Get full contract info by address."""
         return self.contracts.get(address.lower())
     
+
+    def get_web3_contract(self, address: str, w3: Web3) -> Optional[Contract]:
+        address = address.lower()
+        
+        if address in self.web3_contracts:
+            return self.web3_contracts[address]
+            
+        contract_data = self.get_contract(address)
+        if not contract_data or not contract_data.abi:
+            return None
+            
+        contract = w3.eth.contract(
+            address=Web3.to_checksum_address(address),
+            abi=contract_data.abi
+        )
+        
+        self.web3_contracts[address] = contract
+        
+        return contract
 
     def get_abi(self, address: str) -> Optional[list]:
         """Get contract ABI by address."""
@@ -57,9 +78,11 @@ class ContractRegistry(ContractRegistryInterface):
         Register a contract in the registry.
         """
         address = address.lower()
-        config.register_contract_abi(address, abi, name, contract_type)
-        contract = config.get_contract(address)
+        self.config_manager.register_contract_abi(address, abi, name, contract_type)
+        contract = self.config_manager.get_contract(address)
 
         if contract:
             self.contracts[address] = contract
+            if address in self.web3_contracts:
+                del self.web3_contracts[address]
             self.logger.info(f"Registered contract {name or address[:8]} at {address}")
