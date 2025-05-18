@@ -1,5 +1,5 @@
 from msgspec import Struct,field
-from typing import Optional
+from typing import Optional, Any
 
 from .types import HexStr, HexInt, EvmAddress, EvmHash
 
@@ -25,7 +25,7 @@ class EvmTxReceipt(Struct):
     from_: EvmAddress = field(name="from")  # from is protected word in python
     gasUsed: HexStr
     logs: list[EvmLog]
-    logsBloom: any
+    logsBloom: Any
     status: HexInt # 1 (Success) or 2 (Failure)
     to: Optional[EvmAddress]
     transactionHash: EvmHash
@@ -34,7 +34,7 @@ class EvmTxReceipt(Struct):
 
 
 class EvmTransaction(Struct):
-    accessList: list[any]
+    accessList: list[Any]
     blockHash: EvmHash
     blockNumber: HexInt
     chainId: Optional[HexInt]
