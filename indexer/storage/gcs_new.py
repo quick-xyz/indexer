@@ -173,8 +173,7 @@ class GCSHandler:
     
     def save_decoded_block(self, block_number: int, data: Block) -> bool:
         destination_str = self.get_blob_string("decoded", block_number)
-        encoder = msgspec.msgpack.Encoder()
-        encoded_data = encoder.encode(data)
+        encoded_data = msgspec.json.encode(data)
         try:
             return self.upload_blob_from_string(
                 encoded_data, 
