@@ -34,7 +34,7 @@ class EvmTxReceipt(Struct):
 
 
 class EvmTransaction(Struct):
-    accessList: list[any,None]
+    accessList: list[any]
     blockHash: EvmHash
     blockNumber: HexInt
     chainId: Optional[HexInt]
