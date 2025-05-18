@@ -5,7 +5,7 @@ This module defines the interfaces for the integrated pipeline that
 connects all components together.
 """
 from abc import ABC, abstractmethod
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union
 
 class EventListener(ABC):
     """Interface for event listeners."""
