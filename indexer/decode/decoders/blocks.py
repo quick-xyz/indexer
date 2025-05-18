@@ -85,7 +85,7 @@ class BlockDecoder(BlockDecoderInterface):
             decoded_tx[tx_hash] = processed_tx
 
         return Block(
-            block_number=self.w3.to_int(raw_block.block),
+            block_number=self.w3.to_int(hexstr=raw_block.block),
             timestamp=hex_timestamp_to_datetime(self.w3,raw_block.timestamp),
             transactions=decoded_tx
         )
