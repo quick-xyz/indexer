@@ -13,7 +13,7 @@ class GCSHandler:
     def __init__(self):
         self.rpc_prefix = "quicknode/"
         self.decoded_prefix = "decoded/"    
-        self.rpc_format = "quicknode/quicknode_avalanche-mainnet_block_with_receipts_{:012d}-{:012d}.json"
+        self.rpc_format = "quicknode/avalanche-mainnet_block_with_receipts_{:012d}-{:012d}.json"
         self.decoded_format= "decoded/{block_number}.json"
 
         self.gcs_project = os.getenv("INDEXER_GCS_PROJECT_ID")
@@ -28,7 +28,7 @@ class GCSHandler:
     def _initialize_gcs_client(self):
         if self.credentials_path:
             os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = self.credentials_path
-            self.client = storage.Client.from_service_account_json(credentials=self.credentials_path)
+            self.client = storage.Client.from_service_account_json(json_credentials_path=self.credentials_path)
         else:
             self.client = storage.Client()
 
@@ -148,11 +148,9 @@ class GCSHandler:
 
     def get_blob_string(self, stage, block_number):
         if stage == "rpc":
-            format_str = self.rpc_format()
-            return f"{format_str.format(block_number, block_number)}"
+            return self.rpc_format.format(block_number, block_number)
         elif stage == "decoded":
-            format_str = self.decoded_format()
-            return f"{format_str.format(block_number)}"
+            return self.decoded_format.format(block_number)
 
     def get_rpc_block(self, block_number: int) -> Optional[EvmFilteredBlock]:
         block_path = self.get_blob_string("rpc", block_number)
