@@ -48,7 +48,7 @@ class EvmTransaction(Struct):
     nonce: HexInt
     r: EvmHash
     s: EvmHash
-    to: EvmAddress
+    to: Optional[EvmAddress]
     transactionIndex: HexInt
     type: HexInt
     v: HexInt
