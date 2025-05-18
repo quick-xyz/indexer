@@ -39,29 +39,28 @@ class LogDecoder(LogDecoderInterface):
         if not contract:
             return self.build_encoded_log(log)
 
-
-
-        #log_dict = msgspec.json.encode(log)
+        log_dict = msgspec.json.encode(log)
 
         try:
-            '''
             for event_abi in [abi for abi in contract.abi if abi["type"] == "event"]:
                 event_name = event_abi["name"]
                 try:
-                    processed_log = contract.events[event_name]().process_log(log)
+                    decoded_events = contract.events[event_name]().process_log(log)
                     break  
                 except Exception:
                     continue 
+
             '''
             log_dict = msgspec.json.encode(log)
             receipt = {"logs": [log_dict]}
             
             decoded_events = contract.events.process_receipt(receipt)
-
+            '''
             if not decoded_events:
                 return self.build_encoded_log(log)
 
-            decoded_log = decoded_events[0]
+            print(f"Decoded events: {decoded_events}")
+            decoded_log = decoded_events
             
             return DecodedLog(
                 index=self.w3.to_int(hexstr=log.logIndex),
