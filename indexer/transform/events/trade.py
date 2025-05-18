@@ -1,10 +1,10 @@
-from msgspec import Struct
 from datetime import datetime
 from typing import Literal
 
 from ...decode.model.evm import EvmAddress
+from .base import DomainEvent
 
-class Trade(Struct, tag=True):
+class Trade(DomainEvent, tag=True):
     timestamp: datetime
     tx_hash: str
     pool: str

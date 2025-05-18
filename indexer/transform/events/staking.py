@@ -3,8 +3,9 @@ from typing import Literal
 from msgspec import Struct
 
 from ...decode.model.evm import EvmAddress,EvmHash
+from .base import DomainEvent
 
-class Staking(Struct, tag=True):
+class Staking(DomainEvent, tag=True):
     timestamp: datetime
     tx_hash: EvmHash
     contract: EvmAddress

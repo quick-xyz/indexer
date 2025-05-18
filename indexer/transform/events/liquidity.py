@@ -1,10 +1,10 @@
 from datetime import datetime
 from typing import Literal
-from msgspec import Struct
 
 from ...decode.model.evm import EvmAddress,EvmHash
+from .base import DomainEvent
 
-class Liquidity(Struct, tag=True):
+class Liquidity(DomainEvent, tag=True):
     timestamp: datetime
     tx_hash: str
     pool: str

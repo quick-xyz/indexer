@@ -2,8 +2,9 @@ from datetime import datetime
 from typing import Literal
 
 from ...decode.model.evm import EvmAddress,EvmHash
+from .base import DomainEvent
 
-class Transfer(Struct, tag=True):
+class Transfer(DomainEvent, tag=True):
     timestamp: datetime
     tx_hash: EvmHash
     token: EvmAddress

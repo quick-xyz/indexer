@@ -7,7 +7,21 @@ connects all components together.
 from abc import ABC, abstractmethod
 from typing import Dict, Any, List, Optional
 
-
+class EventListener(ABC):
+    """Interface for event listeners."""
+    
+    @abstractmethod
+    def process_events(self, events: List[BusinessEvent], block_number: int, tx_hash: str) -> None:
+        """
+        Process business events.
+        
+        Args:
+            events: List of business events
+            block_number: Block number
+            tx_hash: Transaction hash
+        """
+        pass
+    
 class PipelineInterface(ABC):
     """Interface for integrated pipeline components."""
     

@@ -2,7 +2,9 @@ from msgspec import Struct
 from datetime import datetime
 from ...decode.model.evm import EvmAddress,EvmHash
 
-class Auction(Struct, tag=True):
+from .base import DomainEvent
+
+class Auction(DomainEvent, tag=True):
     timestamp: datetime
     tx_hash: EvmHash
     lot: int
@@ -12,22 +14,22 @@ class Auction(Struct, tag=True):
     price_avax: int
     event_tag: str = "auction"
 
-class AuctionDetailed(Auction, tag=True):
+class AuctionDetailed(DomainEvent, tag=True):
     start_price: float
     price_usd: float
     value_usd: float
 
-class LotStarted(Struct, tag=True):
+class LotStarted(DomainEvent, tag=True):
     lot: int
     start_price: float
     start_time: datetime
 
-class LotCancelled(Struct, tag=True):
+class LotCancelled(DomainEvent, tag=True):
     lot: int
     end_price: float
     end_time: datetime
 
-class ParamChange(Struct, tag=True):
+class ParamChange(DomainEvent, tag=True):
     param: str
     old_value: int
     new_value: int
