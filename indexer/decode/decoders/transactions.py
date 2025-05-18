@@ -36,10 +36,11 @@ class TransactionDecoder(TransactionDecoderInterface):
             return EncodedMethod(tx.input)
 
         try:
+
             func_obj, func_params = contract.decode_function_input(tx.input)
-            
+
             return DecodedMethod(
-                selector = func_obj.selector.hex(),
+                selector = tx.input[:10],
                 name= func_obj.fn_name,
                 args = dict(func_params),
             )
