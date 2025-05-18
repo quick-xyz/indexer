@@ -14,7 +14,7 @@ class GCSHandler:
         self.rpc_prefix = "quicknode/"
         self.decoded_prefix = "decoded/"    
         self.rpc_format = "quicknode/avalanche-mainnet_block_with_receipts_{:012d}-{:012d}.json"
-        self.decoded_format= "decoded/{block_number}.json"
+        self.decoded_format= "decoded/{}.json"
 
         self.gcs_project = os.getenv("INDEXER_GCS_PROJECT_ID")
         self.bucket_name = os.getenv("INDEXER_GCS_BUCKET_NAME")
