@@ -58,4 +58,4 @@ class EvmFilteredBlock(Struct):
     block: HexStr
     timestamp: HexInt # unix timestamp in hexadecimal
     transactions: list[Optional[EvmTransaction]]
-    receipts: list[Optional[EvmTransaction]]
+    receipts: list[Optional[EvmTxReceipt]]
