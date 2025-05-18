@@ -45,7 +45,7 @@ class LogDecoder(LogDecoderInterface):
             for event_abi in [abi for abi in contract.abi if abi["type"] == "event"]:
                 event_name = event_abi["name"]
                 try:
-                    decoded_events = contract.events[event_name]().process_log(log)
+                    decoded_events = contract.events[event_name]().process_log(log_dict)
                     break  
                 except Exception:
                     continue 
