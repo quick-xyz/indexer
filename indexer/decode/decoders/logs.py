@@ -1,6 +1,7 @@
 from typing import Optional
 from web3 import Web3
 import msgspec
+from web3._utils.events import get_event_data
 
 from ..interfaces import LogDecoderInterface
 from ..contracts.manager import ContractManager
@@ -39,40 +40,24 @@ class LogDecoder(LogDecoderInterface):
         if not contract:
             return self.build_encoded_log(log)
 
-        log_dict = msgspec.json.encode(log)
+        event_abis = [abi for abi in contract.abi if abi["type"] == "event"]
+        log_dict = msgspec.structs.asdict(log)
 
-        try:
-            for event_abi in [abi for abi in contract.abi if abi["type"] == "event"]:
-                event_name = event_abi["name"]
+        if log.address.lower() == contract.address.lower():
+            for event_abi in event_abis:
                 try:
-                    decoded_events = contract.events[event_name]().process_log(log_dict)
-                    break  
+                    event_data = get_event_data(self.w3.codec, event_abi, log_dict)
+                    return DecodedLog(
+                        index=self.w3.to_int(hexstr=log.logIndex),
+                        removed=log.removed,
+                        contract=log.address,
+                        signature=log.topics[0] if log.topics else None,
+                        name=event_data["event"],
+                        attributes=dict(event_data["args"])
+                    )
                 except Exception:
-                    continue 
+                    continue
 
-            '''
-            log_dict = msgspec.json.encode(log)
-            receipt = {"logs": [log_dict]}
-            
-            decoded_events = contract.events.process_receipt(receipt)
-            '''
-            if not decoded_events:
-                return self.build_encoded_log(log)
-
-            print(f"Decoded events: {decoded_events}")
-            decoded_log = decoded_events
-            
-            return DecodedLog(
-                index=self.w3.to_int(hexstr=log.logIndex),
-                removed=log.removed,
-                contract=log.address,
-                signature=log.topics[0] if log.topics else None,
-                name=decoded_log["event"],
-                attributes=dict(decoded_log["args"])
-            )
-
-        except Exception as e:
-            self.logger.error(f"Error decoding log in tx {log.transactionHash}: {e}")
-            return self.build_encoded_log(log)
+        return self.build_encoded_log(log)
         
 
