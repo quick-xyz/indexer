@@ -15,6 +15,7 @@ from .decode.contracts.registry import ContractRegistry
 from .clients.quicknode_rpc import QuickNodeRPCClient
 from .storage.gcs_new import GCSHandler
 from .decode.decoders.blocks import BlockDecoder
+# from .pipeline.integrated import IntegratedPipeline
 from .utils.logger import get_logger
 
 
@@ -89,6 +90,15 @@ class ComponentFactory:
         
         registry.register('block_decoder', decoder)
         return decoder
+
+    # @classmethod
+    # def get_pipeline(cls) -> 'Pipeline':
+    #     pipeline = registry.get('pipeline')
+    #     if pipeline:
+    #         return pipeline
+    #     pipeline = IntegratedPipeline()
+    #     registry.register('pipeline', pipeline)
+    #     return pipeline
     
     '''
     @classmethod

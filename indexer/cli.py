@@ -12,6 +12,8 @@ from . import create_indexer
 from .factory import ComponentFactory
 from .utils.logger import get_logger
 
+create_indexer()
+
 # Get configured logger
 logger = get_logger("indexer.cli")
 

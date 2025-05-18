@@ -11,7 +11,7 @@ from datetime import datetime, timedelta
 import json
 
 from indexer.stream.interfaces import BlockStreamerInterface
-from indexer.decode.interfaces import BlockProcessorInterface
+from indexer.pipeline.interfaces import BlockProcessorInterface
 from indexer.database.registry.block_registry import BlockRegistry
 from indexer.transform.framework.manager import TransformationManager
 from indexer.transform.interfaces import EventListener

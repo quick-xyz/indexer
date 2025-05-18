@@ -54,8 +54,6 @@ class GCSHandler:
 
         if prefix:
             conditions.append(f"name.startsWith('{prefix}')")
-        
-        filter_string = " AND ".join(conditions)
 
         blobs = self.client.list_blobs(self.bucket_name, prefix=prefix)
         
