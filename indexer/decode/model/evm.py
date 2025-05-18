@@ -57,5 +57,5 @@ class EvmTransaction(Struct):
 class EvmFilteredBlock(Struct):
     block: HexStr
     timestamp: HexInt # unix timestamp in hexadecimal
-    transactions: list[EvmTransaction,None]
-    receipts: list[EvmTxReceipt,None]
+    transactions: list[Optional[EvmTransaction]]
+    receipts: list[Optional[EvmTransaction]]
