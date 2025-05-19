@@ -1,0 +1,46 @@
+{
+    "0x45a62b090df48243f12a21897e7ed91863e2c86b": {
+        "name": "LFJ: Joe Aggregator Router v2.2",
+        "logic": {
+            "0xb35033d71cf5e13cab5eb8618260f94363dff9cf": {
+                "name": "RouterLogic",
+                "trusted_routers": []
+            },
+            "0xb0787776ff90881cec3a0b8e3e91973e6183c146": {
+                "name": "ForwarderLogic",
+                "trusted_routers": [
+                    "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
+                    "0x1dac23e41fc8ce857e86fd8c1ae5b6121c67d96d",
+                    "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc"
+                ]
+            },
+            "0xc04f291347d21dc663f7646056db22bff8ce8430": {
+                "name": "ForwarderLogic2",
+                "trusted_routers": [
+                    "0x6131b5fae19ea4f9d964eac0408e4408b66337b5",
+                    "0x1dac23e41fc8ce857e86fd8c1ae5b6121c67d96d",
+                    "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc",
+                    "0x38575264810371c15f0e5744fa2ab29cdef7245d"
+                ]
+            }
+        },
+        "routers": {
+            "0x6131b5fae19ea4f9d964eac0408e4408b66337b5": {
+                "protocol": "Kyberswap",
+                "desc": "Meta Aggregation Router v2"
+            },
+            "0x1dac23e41fc8ce857e86fd8c1ae5b6121c67d96d": {
+                "name": "OKX",
+                "desc": "Dex Aggregation Router"
+            },
+            "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc": {
+                "protocol": "Odos",
+                "desc": "RouterV2"
+            },
+            "0x38575264810371c15f0e5744fa2ab29cdef7245d": {
+                "name": "OKX",
+                "desc": "Dex Router"
+            }
+        }
+    }
+}

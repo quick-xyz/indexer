@@ -1,8 +1,14 @@
 {
+    "lfj_aggregator":{
+        "add_liq":"",
+        "remove_liq":"",
+        "swap":"0xd9373a96452b0619158a26ca13413ae8c994f583da9c4ef2d4566c74dbdf11e6"
+    },
+    
     "lfj_joepair":{
         "add_liq":"",
         "remove_liq":"",
-        "swap":""
+        "swap":"0xd9373a96452b0619158a26ca13413ae8c994f583da9c4ef2d4566c74dbdf11e6"
     },
     "lfj_lbpair":{
         "add_liq":"",
@@ -19,4 +25,122 @@
         "remove_liq":"",
         "swap":""
     }
+    "example":{
+        "0xd9373a96452b0619158a26ca13413ae8c994f583da9c4ef2d4566c74dbdf11e6":{
+            "sender":"0xc50E5f5e41b77374ad30d24De3A0e55269CC5e9F",
+            "origin_to": "lfj_aggregator",
+            "origin_function": "swapExactIn",
+            "amount_in": "86 AVAX",
+            "amount_out": "614,361.45742054806257664 BLUB",
+            "addresses":[
+                {"address": "0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7","desc":"wavax"},
+                {"address": "0x0f669808d88B2b0b3D23214DCD2a1cc6A8B1B5cd","desc":"blub"},
+                {"address": "0xB97EF9Ef8734C71904D8002F8b6Bc66Dd9c48a6E","desc":"usdc"},
+                {"address": "0x24dE8771bC5DdB3362Db529Fc3358F2df3A0E346","desc":"avUSD"},
+
+                {"address": "0x45A62B090DF48243F12A21897e7ed91863E2c86b","desc":"lfj_aggregator"},
+                {"address": "0xC04f291347D21DC663f7646056db22bFf8CE8430","desc":"forwarder_logic"},
+                {"address": "0x5f3454Fa53E5866a4f69bBc2E6B9A041092D9Ad7","desc":"unknown"},
+                {"address": "0x819Fe65A885D40493F4b91E8A10E242018758432","desc":"moelp_blub_avax"},
+                {"address": "0x88de50B233052e4Fb783d4F6db78Cc34fEa3e9FC","desc":"odos_routerv2"},
+                {"address": "0x39888258d60FED9228F89e13eb57a92F1Fa832eb","desc":"joelp_blub_avax"},
+                {"address": "0x3FC41C1AE339322Ab87b6ba48E30781D88a304d4","desc":"ClBeaconProxy_blub_avax"},
+                {"address": "0xa20c959b19F114e9C2D81547734CdC1110bd773D","desc":"ClBeaconProxy_avax_usdc"},
+                {"address": "0x68aB815b33102e50E26becD7D672822395916F67","desc":"ClBeaconProxy_avUSD_usdc"},
+                {"address": "0x01E9Bdc2555E13C6deeE92625a8211BE6c149c50","desc":"ClBeaconProxy_BLUB_avUSD"},
+            ],
+            "swap_events":[
+                {
+                    "contract": "moelp_blub_avax",
+                    "name":"swap",
+                    "sender":"unknown",
+                    "to": "odos_routerv2",
+                    "desc":"swap wavax to blub"
+                },
+                {
+                    "contract": "joelp_blub_avax",
+                    "name":"swap",
+                    "sender":"unknown",
+                    "to": "odos_routerv2",
+                    "desc":"swap wavax to blub"
+                },
+                {
+                    "contract": "ClBeaconProxy_blub_avax",
+                    "name":"swap",
+                    "sender":"unknown",
+                    "to": "odos_routerv2",
+                    "desc":"swap wavax to blub"
+                },
+                {
+                    "contract": "ClBeaconProxy_avax_usdc",
+                    "name":"swap",
+                    "sender":"unknown",
+                    "to": "unknown",
+                    "desc":"swap wavax to usdc"
+                },
+                {
+                    "contract": "ClBeaconProxy_avUSD_usdc",
+                    "name":"swap",
+                    "sender":"unknown",
+                    "to": "unknown",
+                    "desc":"swap usdc to avUSD"
+                },
+                {
+                    "contract": "ClBeaconProxy_BLUB_avUSD",
+                    "name":"swap",
+                    "sender":"unknown",
+                    "to": "odos_routerv2",
+                    "desc":"swap avUSD to BLUB"
+                },
+                {
+                    "contract": "odos_routerv2",
+                    "name":"swap",
+                    "sender":"forwarder_logic",
+                    "to": "odos_routerv2",
+                    "desc":"swap WAVAX to BLUB"
+                }
+            ],
+            "logs": [
+                {"address": "WAVAX","name": "Deposit","desc":"by lfj_aggregator"},
+                {"address": "WAVAX","name": "Transfer","desc":"from lfj_aggregator to forwarder_logic"},
+                {"address": "WAVAX","name": "Transfer","desc":"from forwarder_logic to unknown"},
+                {"address": "WAVAX","name": "Transfer","desc":"from unknown to moelp_blub_avax"},
+                {"address": "BLUB","name": "Transfer","desc":"from moelp_blub_avax to odos_routerv2"},
+                {"address": "moelp_blub_avax","name": "sync","desc":""},
+                {"address": "moelp_blub_avax","name": "swap","desc":""},
+                {"address": "WAVAX","name": "Transfer","desc":"from unknown to joelp_blub_avax"},
+                {"address": "BLUB","name": "Transfer","desc":"from joelp_blub_avax to odos_routerv2"},
+                {"address": "joelp_blub_avax","name": "sync","desc":""},
+                {"address": "joelp_blub_avax","name": "swap","desc":""},
+                {"address": "BLUB","name": "Transfer","desc":"from ClBeaconProxy_blub_avax to odos_routerv2"},
+                {"address": "WAVAX","name": "Transfer","desc":"from unknown to ClBeaconProxy_blub_avax"},
+                {"address": "ClBeaconProxy_blub_avax","name": "swap","desc":""},
+                {"address": "USDC","name": "Transfer","desc":"from ClBeaconProxy_avax_usdc to unknown"},
+                {"address": "WAVAX","name": "Transfer","desc":"from unknown to ClBeaconProxy_avax_usdc"},
+                {"address": "ClBeaconProxy_avax_usdc","name": "swap","desc":""},
+                {"address": "USDC","name": "Transfer","desc":"from DODO_avax_usdc to unknown"},
+                {"address": "WAVAX","name": "Transfer","desc":"from unknown to DODO_avax_usdc"},
+                {"address": "DODO_avax_usdc","name": "swap","desc":""},
+                {"address": "USDC","name": "Transfer","desc":"from unknown to ClBeaconProxy_avUSD_usdc"},
+                {"address": "avUSD","name": "Transfer","desc":"from ClBeaconProxy_avUSD_usdc to unknown"},
+                {"address": "ClBeaconProxy_avUSD_usdc","name": "swap","desc":""},
+                {"address": "BLUB","name": "Transfer","desc":"from ClBeaconProxy_BLUB_avUSD to odos_routerv2"},
+                {"address": "avUSD","name": "Transfer","desc":"from unknown to ClBeaconProxy_BLUB_avUSD"},
+                {"address": "ClBeaconProxy_BLUB_avUSD","name": "swap","desc":""},
+                {"address": "BLUB","name": "Transfer","desc":"from odos_routerv2 to forwarder_logic"},
+                {"address": "odos_routerv2","name": "swap","desc":""},
+                {"address": "BLUB","name": "Transfer","desc":"from forwarder_logic to sender"},
+                {"address": "lfj_aggregator","name": "SwapExactIn","desc":"from forwarder_logic to sender"},
+
+            ]
+        }
+    },
+    "lfj_agg_trusted_routers":[
+        {"address": "0x6131B5fae19EA4f9D964eAc0408E4408b66337b5","name": "kyberswap_aggregator"},
+        {"address": "0x1daC23e41Fc8ce857E86fD8C1AE5b6121C67D96d","name": "okx_aggregator"},
+        {"address": "0x88de50B233052e4Fb783d4F6db78Cc34fEa3e9FC","name": "odos_routerv2"},
+        {"address": "0x38575264810371C15F0E5744FA2Ab29cdef7245d","name": "okx_dex_router"}
+    ]
 }
+
+
