@@ -89,6 +89,7 @@ class LbPairTransformer:
         base_amount = base_amount_in - base_amount_out
         quote_amount = quote_amount_in - quote_amount_out
 
+
         direction = self.get_direction(base_amount)
 
         return Trade(

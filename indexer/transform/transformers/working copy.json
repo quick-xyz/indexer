@@ -16,7 +16,7 @@
                 {
                     "indexed": false,
                     "internalType": "uint256",
-                    "name": "amount",
+                    "name": "value",
                     "type": "uint256"
                 }
             ],
@@ -64,75 +64,6 @@
                     "type": "address"
                 },
                 {
-                    "indexed": true,
-                    "internalType": "address",
-                    "name": "recipient",
-                    "type": "address"
-                },
-                {
-                    "indexed": false,
-                    "internalType": "uint256",
-                    "name": "amount0",
-                    "type": "uint256"
-                },
-                {
-                    "indexed": false,
-                    "internalType": "uint256",
-                    "name": "amount1",
-                    "type": "uint256"
-                }
-            ],
-            "name": "Claim",
-            "type": "event"
-        },
-        {
-            "anonymous": false,
-            "inputs": [
-                {
-                    "indexed": true,
-                    "internalType": "address",
-                    "name": "sender",
-                    "type": "address"
-                },
-                {
-                    "indexed": false,
-                    "internalType": "uint256",
-                    "name": "amount0",
-                    "type": "uint256"
-                },
-                {
-                    "indexed": false,
-                    "internalType": "uint256",
-                    "name": "amount1",
-                    "type": "uint256"
-                }
-            ],
-            "name": "Fees",
-            "type": "event"
-        },
-        {
-            "anonymous": false,
-            "inputs": [
-                {
-                    "indexed": false,
-                    "internalType": "uint8",
-                    "name": "version",
-                    "type": "uint8"
-                }
-            ],
-            "name": "Initialized",
-            "type": "event"
-        },
-        {
-            "anonymous": false,
-            "inputs": [
-                {
-                    "indexed": true,
-                    "internalType": "address",
-                    "name": "sender",
-                    "type": "address"
-                },
-                {
                     "indexed": false,
                     "internalType": "uint256",
                     "name": "amount0",
@@ -146,37 +77,6 @@
                 }
             ],
             "name": "Mint",
-            "type": "event"
-        },
-        {
-            "anonymous": false,
-            "inputs": [
-                {
-                    "indexed": false,
-                    "internalType": "uint8",
-                    "name": "toFeesOld",
-                    "type": "uint8"
-                },
-                {
-                    "indexed": false,
-                    "internalType": "uint8",
-                    "name": "toTreasuryOld",
-                    "type": "uint8"
-                },
-                {
-                    "indexed": false,
-                    "internalType": "uint8",
-                    "name": "toFeesNew",
-                    "type": "uint8"
-                },
-                {
-                    "indexed": false,
-                    "internalType": "uint8",
-                    "name": "toTreasuryNew",
-                    "type": "uint8"
-                }
-            ],
-            "name": "SetFeeSplit",
             "type": "event"
         },
         {
@@ -227,15 +127,15 @@
             "inputs": [
                 {
                     "indexed": false,
-                    "internalType": "uint256",
+                    "internalType": "uint112",
                     "name": "reserve0",
-                    "type": "uint256"
+                    "type": "uint112"
                 },
                 {
                     "indexed": false,
-                    "internalType": "uint256",
+                    "internalType": "uint112",
                     "name": "reserve1",
-                    "type": "uint256"
+                    "type": "uint112"
                 }
             ],
             "name": "Sync",
@@ -259,7 +159,7 @@
                 {
                     "indexed": false,
                     "internalType": "uint256",
-                    "name": "amount",
+                    "name": "value",
                     "type": "uint256"
                 }
             ],
