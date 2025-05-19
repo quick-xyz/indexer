@@ -186,21 +186,14 @@ class PharPairTransformer:
         if log.name == "Transfer":
             events.append(self.handle_transfer(log, context))
         elif log.name == "Swap":
-            events.append(self.handle_transfer(log, context))
+            events.append(self.handle_swap(log, context))
         elif log.name == "Mint":
-            events.append(self.handle_transfer(log, context))
+            events.append(self.handle_mint(log, context))
         elif log.name == "Burn":
-            events.append(self.handle_transfer(log, context))
+            events.append(self.handle_burn(log, context))
         elif log.name == "Fees":
-            events.append(self.handle_transfer(log, context))
+            events.append(self.handle_fee(log, context))
         elif log.name == "Claim":
-            events.append(self.handle_transfer(log, context))           
+            events.append(self.handle_claim(log, context))           
 
         return events
-
-        
-
-    
-
-
-

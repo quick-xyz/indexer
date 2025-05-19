@@ -4,16 +4,16 @@ from typing import Literal
 from ...decode.model.evm import EvmAddress,EvmHash
 from .base import DomainEvent
 
-class Liquidity(DomainEvent, tag=True):
+class BinLiquidity(DomainEvent, tag=True):
     timestamp: datetime
-    tx_hash: str
-    pool: str
+    tx_hash: EvmHash
+    pool: EvmAddress
+    bin: int
     provider: EvmAddress
-    amount_base: str
-    amount_quote: str
-    amount_receipt: str
+    amount_base: int
+    amount_quote: int
     event_tag: Literal["add_lp","remove_lp"]
 
-class LiquidityDetailed(Liquidity, tag=True):
+class BinLiquidityDetailed(BinLiquidity, tag=True):
     value_avax: int
     value_usd: int

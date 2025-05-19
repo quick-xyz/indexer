@@ -1,9 +1,11 @@
-from typing import Union
+from typing import Union, List
 
 from ...decode.model.block import DecodedLog
 from ..events.base import DomainEvent
 from ..events.transfer import Transfer
 from ..events.liquidity import Liquidity
+from ..events.bin_liquidity import BinLiquidity
+from ..events.bin_transfer import BinTransfer
 from ..events.trade import Trade
 from ..events.fees import Fee
 from ..events.rewards import Rewards
@@ -36,43 +38,6 @@ class LbPairTransformer:
         else:
             return "sell"
 
-    def handle_mint(self, log: DecodedLog, context: DomainEvent) -> Liquidity:
-        if self.token_x == self.base:
-            base_amount, quote_amount = decode_amounts(log.attributes.get("amount0"))
-        elif self.token_y == self.base:
-            quote_amount, base_amount = decode_amounts(log.attributes.get("amount0"))
-        
-        return Liquidity(
-            timestamp=context.timestamp,
-            tx_hash=context.tx_hash,
-            pool=log.contract,
-            provider=log.attributes.get("provider"),
-            amount_base=base_amount,
-            amount_quote=quote_amount,
-            amount_receipt=log.attributes.get("amount_receipt"),
-            event_tag="add_lp"
-        )
-
-    def handle_burn(self, log: DecodedLog, context: DomainEvent) -> Liquidity:
-        if self.token_x == self.base:
-            base_amount = log.attributes.get("amount0")
-            quote_amount = log.attributes.get("amount1")
-        elif self.token_y == self.base:
-            base_amount = log.attributes.get("amount1")
-            quote_amount = log.attributes.get("amount0")
-        
-        return Liquidity(
-            timestamp=context.timestamp,
-            tx_hash=context.tx_hash,
-            pool=log.contract,
-            provider=log.attributes.get("sender"),
-            amount_base=base_amount,
-            amount_quote=quote_amount,
-            amount_receipt=log.attributes.get("amount_receipt"),
-            event_tag="remove_lp"
-        )
-
-
     def unpack_amounts(self, bytes) -> tuple:
         if self.token_x == self.base:
             base_amount, quote_amount = decode_amounts(bytes)
@@ -80,19 +45,63 @@ class LbPairTransformer:
             quote_amount, base_amount = decode_amounts(bytes)
 
         return base_amount, quote_amount
+    
+    def handle_deposit(self, log: DecodedLog, context: DomainEvent) -> List[BinLiquidity]:
 
-    def handle_swap(self, log: DecodedLog, context: DomainEvent) -> Trade:
+        bins = log.attributes.get("ids")
+        amounts = log.attributes.get("amounts")
+        liquidity = []
+
+        for i in bins:
+            base_amount, quote_amount = self.unpack_amounts(amounts[i])
+
+            bin_liquidity = BinLiquidity(
+                timestamp=context.timestamp,
+                tx_hash=context.tx_hash,
+                pool=log.contract,
+                id=i,
+                provider=log.attributes.get("sender"),
+                amount_base=base_amount,
+                amount_quote=quote_amount,
+                event_tag="add_lp"
+            )
+            liquidity.append(bin_liquidity)
+
+        return liquidity
+
+    def handle_withdraw(self, log: DecodedLog, context: DomainEvent) -> List[BinLiquidity]:
+        bins = log.attributes.get("ids")
+        amounts = log.attributes.get("amounts")
+        liquidity = []
+        
+        for i in bins:
+            base_amount, quote_amount = self.unpack_amounts(amounts[i])
+
+            bin_liquidity = BinLiquidity(
+                timestamp=context.timestamp,
+                tx_hash=context.tx_hash,
+                pool=log.contract,
+                id=i,
+                provider=log.attributes.get("sender"),
+                amount_base=base_amount,
+                amount_quote=quote_amount,
+                event_tag="remove_lp"
+            )
+            liquidity.append(bin_liquidity)
+
+        return liquidity
+
+    def handle_swap(self, log: DecodedLog, context: DomainEvent) -> List[DomainEvent]:
         base_amount_in, quote_amount_in = self.unpack_amounts(log.attributes.get("amountsIn"))
         base_amount_out, quote_amount_out = self.unpack_amounts(log.attributes.get("amountsOut"))
-        #base_fee, quote_fee = self.unpack_amounts(log.attributes.get("totalFees"))
+        base_amount_fee, quote_amount_fee = self.unpack_amounts(log.attributes.get("totalFees"))
 
         base_amount = base_amount_in - base_amount_out
         quote_amount = quote_amount_in - quote_amount_out
-
-
         direction = self.get_direction(base_amount)
+        events = []
 
-        return Trade(
+        trade = Trade(
             timestamp=context.timestamp,
             tx_hash=context.tx_hash,
             pool=log.contract,
@@ -103,66 +112,123 @@ class LbPairTransformer:
             quote_token= self.quote_token,
             quote_amount= quote_amount
         )
+        events.append(trade)
 
-    def handle_transfer(self, log: DecodedLog, context: DomainEvent) -> Transfer:
-        return Transfer(
-            timestamp=context.timestamp,
-            tx_hash=context.tx_hash,
-            token=log.contract,
-            amount=log.attributes.get("value"),
-            from_address=log.attributes.get("from"),
-            to_address=log.attributes.get("to")
-        )
-    
+        if base_amount_fee > 0:
+            base_fee = Fee(
+                timestamp=context.timestamp,
+                tx_hash=context.tx_hash,
+                pool=log.contract,
+                fee_type='swap',
+                payer=log.attributes.get("sender"),
+                token= self.base_token,
+                fee_amount=base_amount_fee
+            )
+            events.append(base_fee)
 
-    def handle_fee(self, log: DecodedLog, context: DomainEvent) -> Fee:
-        base_fee, quote_fee = self.unpack_amounts(log.attributes.get("totalFees"))
+        if quote_amount_fee > 0:
+            quote_fee = Fee(
+                timestamp=context.timestamp,
+                tx_hash=context.tx_hash,
+                pool=log.contract,
+                fee_type='swap',
+                payer=log.attributes.get("sender"),
+                token= self.quote_token,
+                fee_amount=base_amount_fee
+            )
+            events.append(quote_fee)
+
+        return events
+
+    def handle_transfer(self, log: DecodedLog, context: DomainEvent) -> List[Transfer]:
+        bins = log.attributes.get("ids")
+        amounts = log.attributes.get("amounts")
+        sender = log.attributes.get("sender")
+        from_address=log.attributes.get("from"),
+        to_address=log.attributes.get("to")
+
+        transfers = []
         
+        for i in bins:
+            base_amount, quote_amount = self.unpack_amounts(amounts[i])
+
+            if base_amount > 0:
+                bin_transfer = BinTransfer(
+                    timestamp=context.timestamp,
+                    tx_hash=context.tx_hash,
+                    pool=log.contract,
+                    bin=i,                
+                    token=self.base_token,
+                    amount=base_amount,
+                    from_address=from_address,
+                    to_address=to_address,
+                    event_tag="transfer"
+                )
+                transfers.append(bin_transfer)
+
+            if quote_amount > 0:
+                bin_transfer = BinTransfer(
+                    timestamp=context.timestamp,
+                    tx_hash=context.tx_hash,
+                    pool=log.contract,
+                    bin=i,                
+                    token=self.quote_token,
+                    amount=quote_amount,
+                    from_address=from_address,
+                    to_address=to_address,
+                    event_tag="transfer"
+                )
+                transfers.append(bin_transfer)
+
+        return transfers 
+    
+    def handle_comp_fee(self, log: DecodedLog, context: DomainEvent) -> List[Fee]:
+        base_amount, quote_amount = self.unpack_amounts(log.attributes.get("totalFees"))
         #base_fee_protocol, quote_fee_protocol = self.unpack_amounts(log.attributes.get("protocolFees"))
         #bin_id = log.attributes.get("id")
 
-        return Fee(
-            timestamp=context.timestamp,
-            tx_hash=context.tx_hash,
-            taker=log.attributes.get("sender"),
-            base_token=self.base_token,
-            base_amount=base_fee,
-            quote_token=self.quote_token,
-            quote_amount=quote_fee
-        )
-    
-    def handle_claim(self, log: DecodedLog, context: DomainEvent) -> Trade:
-        if self.token_x == self.base:
-            base_amount = log.attributes.get("amount0")
-            quote_amount = log.attributes.get("amount1")
-        elif self.token_y == self.base:
-            base_amount = log.attributes.get("amount1")
-            quote_amount = log.attributes.get("amount0")
+        fees = []
+        if base_amount > 0:
+            base_fee = Fee(
+                timestamp=context.timestamp,
+                tx_hash=context.tx_hash,
+                pool=log.contract,
+                fee_type='composition',
+                payer=log.attributes.get("sender"),
+                token= self.base_token,
+                fee_amount=base_amount
+            )
+            fees.append(base_fee)
 
-        return Rewards(
-            timestamp=context.timestamp,
-            tx_hash=context.tx_hash,
-            taker=log.attributes.get("sender"),
-            base_token=self.base_token,
-            base_amount=base_amount,
-            quote_token=self.quote_token,
-            quote_amount=quote_amount
-        )
+        if quote_amount > 0:
+            quote_fee = Fee(
+                timestamp=context.timestamp,
+                tx_hash=context.tx_hash,
+                pool=log.contract,
+                fee_type='swap',
+                payer=log.attributes.get("sender"),
+                token= self.quote_token,
+                fee_amount=quote_amount
+            )
+            fees.append(quote_fee)
+
+        return fees
     
     
-    def transform_log(self, log: DecodedLog, context: DomainEvent) -> Union[Liquidity, Trade, Transfer]:
-        if log.name == "Swap":
-            obj = self.handle_swap(log, context)
-        elif log.name == "TransferBatch":
-            obj = self.handle_transfer(log, context)
+    def transform_log(self, log: DecodedLog, context: DomainEvent) -> list[DomainEvent]:
+        events = []
+        if log.name == "TransferBatch":
+            events.append(self.handle_transfer(log, context))
+        elif log.name == "Swap":
+            events.append(self.handle_swap(log, context))
         elif log.name == "DepositedToBins":
-            obj = self.handle_deposit(log, context)
+            events.append(self.handle_deposit(log, context))
         elif log.name == "WithdrawnFromBins":
-            obj = self.handle_withdraw(log, context)
+            events.append(self.handle_withdraw(log, context))
         elif log.name == "CompositionFees":
-            obj = self.handle_fee(log, context)      
-        return obj
+            events.append(self.handle_comp_fee(log, context))
 
+        return events
         
 
     

@@ -121,11 +121,11 @@ class LfjPoolTransformer:
         if log.name == "Transfer":
             events.append(self.handle_transfer(log, context))
         elif log.name == "Swap":
-            events.append(self.handle_transfer(log, context))
+            events.append(self.handle_swap(log, context))
         elif log.name == "Mint":
-            events.append(self.handle_transfer(log, context))
+            events.append(self.handle_mint(log, context))
         elif log.name == "Burn":
-            events.append(self.handle_transfer(log, context))        
+            events.append(self.handle_burn(log, context))         
 
         return events
 

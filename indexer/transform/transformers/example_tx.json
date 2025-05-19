@@ -1,0 +1,22 @@
+{
+    "lfj_joepair":{
+        "add_liq":"",
+        "remove_liq":"",
+        "swap":""
+    },
+    "lfj_lbpair":{
+        "add_liq":"",
+        "remove_liq":"",
+        "swap":""
+    },
+    "phar_pair":{
+        "add_liq":"",
+        "remove_liq":"",
+        "swap":""
+    },
+    "phar_clpool":{
+        "add_liq":"",
+        "remove_liq":"",
+        "swap":""
+    }
+}
