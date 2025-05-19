@@ -18,6 +18,23 @@ class LbPairTransformer:
         self.token_x = token_x
         self.token_y = token_y
         self.base = base_token
+        self.base_token, self.quote_token = self._get_tokens()
+
+    def _get_tokens(self) -> tuple:
+        if self.token_x == self.base:
+            base_token = self.token_x
+            quote_token = self.token_y
+        elif self.token_y == self.base:
+            base_token = self.token_y
+            quote_token = self.token_x
+
+        return base_token, quote_token
+
+    def get_direction(self, base_amount: int) -> str:
+        if base_amount > 0:
+            return "buy"
+        else:
+            return "sell"
 
     def handle_mint(self, log: DecodedLog, context: DomainEvent) -> Liquidity:
         if self.token_x == self.base:
@@ -55,6 +72,7 @@ class LbPairTransformer:
             event_tag="remove_lp"
         )
 
+
     def unpack_amounts(self, bytes) -> tuple:
         if self.token_x == self.base:
             base_amount, quote_amount = decode_amounts(bytes)
@@ -66,14 +84,12 @@ class LbPairTransformer:
     def handle_swap(self, log: DecodedLog, context: DomainEvent) -> Trade:
         base_amount_in, quote_amount_in = self.unpack_amounts(log.attributes.get("amountsIn"))
         base_amount_out, quote_amount_out = self.unpack_amounts(log.attributes.get("amountsOut"))
+        #base_fee, quote_fee = self.unpack_amounts(log.attributes.get("totalFees"))
 
         base_amount = base_amount_in - base_amount_out
         quote_amount = quote_amount_in - quote_amount_out
 
-        if base_amount > 0:
-            direction = "buy"
-        else:
-            direction = "sell"
+        direction = self.get_direction(base_amount)
 
         return Trade(
             timestamp=context.timestamp,
@@ -81,11 +97,11 @@ class LbPairTransformer:
             pool=log.contract,
             taker= log.attributes.get("sender"),
             direction= direction,
-            base_token= base_token,
+            base_token= self.base_token,
             base_amount= base_amount,
-            quote_token= quote_token,
+            quote_token= self.quote_token,
             quote_amount= quote_amount
-        )   
+        )
 
     def handle_transfer(self, log: DecodedLog, context: DomainEvent) -> Transfer:
         return Transfer(
@@ -99,21 +115,19 @@ class LbPairTransformer:
     
 
     def handle_fee(self, log: DecodedLog, context: DomainEvent) -> Fee:
-        if self.token_x == self.base:
-            base_amount = log.attributes.get("amount0")
-            quote_amount = log.attributes.get("amount1")
-        elif self.token_y == self.base:
-            base_amount = log.attributes.get("amount1")
-            quote_amount = log.attributes.get("amount0")
+        base_fee, quote_fee = self.unpack_amounts(log.attributes.get("totalFees"))
+        
+        #base_fee_protocol, quote_fee_protocol = self.unpack_amounts(log.attributes.get("protocolFees"))
+        #bin_id = log.attributes.get("id")
 
         return Fee(
             timestamp=context.timestamp,
             tx_hash=context.tx_hash,
             taker=log.attributes.get("sender"),
-            base_token=self.base,
-            base_amount=base_amount,
-            quote_token=self.base,
-            quote_amount=quote_amount
+            base_token=self.base_token,
+            base_amount=base_fee,
+            quote_token=self.quote_token,
+            quote_amount=quote_fee
         )
     
     def handle_claim(self, log: DecodedLog, context: DomainEvent) -> Trade:
@@ -128,9 +142,9 @@ class LbPairTransformer:
             timestamp=context.timestamp,
             tx_hash=context.tx_hash,
             taker=log.attributes.get("sender"),
-            base_token=self.base,
+            base_token=self.base_token,
             base_amount=base_amount,
-            quote_token=self.base,
+            quote_token=self.quote_token,
             quote_amount=quote_amount
         )
     

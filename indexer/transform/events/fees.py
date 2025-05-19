@@ -7,6 +7,8 @@ from .base import DomainEvent
 class Fee(DomainEvent, tag=True):
     timestamp: datetime
     tx_hash: EvmHash
-    taker: EvmAddress
-    amount_base: int
-    amount_quote: int
+    pool: EvmAddress
+    fee_type: str
+    payer: EvmAddress
+    token: EvmAddress
+    fee_amount: int

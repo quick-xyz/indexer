@@ -9,7 +9,7 @@ class Rewards(DomainEvent, tag=True):
     timestamp: datetime
     tx_hash: str
     contract: str
-    address: EvmAddress
+    recipient: EvmAddress
     token: EvmAddress
     amount: int
     event_tag: Literal["claim_rewards","claim_fees"]
