@@ -1,7 +1,7 @@
 from typing import Union, List
 
 from ...decode.model.block import DecodedLog
-from ..events.base import DomainEvent
+from ..events.base import DomainEvent, TransactionContext
 from ..events.transfer import Transfer
 from ..events.liquidity import Liquidity
 from ..events.bin_liquidity import BinLiquidity
@@ -46,7 +46,7 @@ class LbPairTransformer:
 
         return base_amount, quote_amount
     
-    def handle_deposit(self, log: DecodedLog, context: DomainEvent) -> List[BinLiquidity]:
+    def handle_deposit(self, log: DecodedLog, context: TransactionContext) -> List[BinLiquidity]:
 
         bins = log.attributes.get("ids")
         amounts = log.attributes.get("amounts")
@@ -69,7 +69,7 @@ class LbPairTransformer:
 
         return liquidity
 
-    def handle_withdraw(self, log: DecodedLog, context: DomainEvent) -> List[BinLiquidity]:
+    def handle_withdraw(self, log: DecodedLog, context: TransactionContext) -> List[BinLiquidity]:
         bins = log.attributes.get("ids")
         amounts = log.attributes.get("amounts")
         liquidity = []
@@ -91,7 +91,7 @@ class LbPairTransformer:
 
         return liquidity
 
-    def handle_swap(self, log: DecodedLog, context: DomainEvent) -> List[DomainEvent]:
+    def handle_swap(self, log: DecodedLog, context: TransactionContext) -> List[DomainEvent]:
         base_amount_in, quote_amount_in = self.unpack_amounts(log.attributes.get("amountsIn"))
         base_amount_out, quote_amount_out = self.unpack_amounts(log.attributes.get("amountsOut"))
         base_amount_fee, quote_amount_fee = self.unpack_amounts(log.attributes.get("totalFees"))
@@ -140,7 +140,7 @@ class LbPairTransformer:
 
         return events
 
-    def handle_transfer(self, log: DecodedLog, context: DomainEvent) -> List[Transfer]:
+    def handle_transfer(self, log: DecodedLog, context: TransactionContext) -> List[Transfer]:
         bins = log.attributes.get("ids")
         amounts = log.attributes.get("amounts")
         sender = log.attributes.get("sender")
@@ -182,7 +182,7 @@ class LbPairTransformer:
 
         return transfers 
     
-    def handle_comp_fee(self, log: DecodedLog, context: DomainEvent) -> List[Fee]:
+    def handle_comp_fee(self, log: DecodedLog, context: TransactionContext) -> List[Fee]:
         base_amount, quote_amount = self.unpack_amounts(log.attributes.get("totalFees"))
         #base_fee_protocol, quote_fee_protocol = self.unpack_amounts(log.attributes.get("protocolFees"))
         #bin_id = log.attributes.get("id")
@@ -215,7 +215,7 @@ class LbPairTransformer:
         return fees
     
     
-    def transform_log(self, log: DecodedLog, context: DomainEvent) -> list[DomainEvent]:
+    def transform_log(self, log: DecodedLog, context: TransactionContext) -> list[DomainEvent]:
         events = []
         if log.name == "TransferBatch":
             events.append(self.handle_transfer(log, context))

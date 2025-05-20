@@ -1,7 +1,7 @@
 from typing import Union
 
 from ...decode.model.block import DecodedLog
-from ..events.base import DomainEvent
+from ..events.base import DomainEvent, TransactionContext
 from ..events.transfer import Transfer
 from ..events.liquidity import Liquidity
 from ..events.trade import Trade
@@ -43,7 +43,7 @@ class LfjPoolTransformer:
         else:
             return "sell"
 
-    def handle_mint(self, log: DecodedLog, context: DomainEvent) -> list[Liquidity]:
+    def handle_mint(self, log: DecodedLog, context: TransactionContext) -> list[Liquidity]:
         base_amount, quote_amount = self.get_amounts(log)
 
         liquidity = []
@@ -61,7 +61,7 @@ class LfjPoolTransformer:
         liquidity.append(mint)
         return liquidity
 
-    def handle_burn(self, log: DecodedLog, context: DomainEvent) -> list[Liquidity]:
+    def handle_burn(self, log: DecodedLog, context: TransactionContext) -> list[Liquidity]:
         base_amount, quote_amount = self.get_amounts(log)
         liquidity = []
         burn = Liquidity(
@@ -78,7 +78,7 @@ class LfjPoolTransformer:
         return liquidity
 
 
-    def handle_swap(self, log: DecodedLog, context: DomainEvent) -> list[Trade]:
+    def handle_swap(self, log: DecodedLog, context: TransactionContext) -> list[Trade]:
         if self.token0 == self.base:
             base_amount = log.attributes.get("amount0In") - log.attributes.get("amount0Out")
             quote_amount = log.attributes.get("amount1In") - log.attributes.get("amount1Out")
@@ -103,7 +103,7 @@ class LfjPoolTransformer:
         trades.append(trade)
         return trades  
 
-    def handle_transfer(self, log: DecodedLog, context: DomainEvent) -> list[Transfer]:
+    def handle_transfer(self, log: DecodedLog, context: TransactionContext) -> list[Transfer]:
         transfers = []
         transfer = Transfer(
             timestamp=context.timestamp,
@@ -116,7 +116,7 @@ class LfjPoolTransformer:
         transfers.append(transfer)
         return transfers
     
-    def transform_log(self, log: DecodedLog, context: DomainEvent) -> list[DomainEvent]:
+    def transform_log(self, log: DecodedLog, context: TransactionContext) -> list[DomainEvent]:
         events = []
         if log.name == "Transfer":
             events.append(self.handle_transfer(log, context))

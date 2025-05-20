@@ -1,7 +1,7 @@
 from typing import Union
 
 from ...decode.model.block import DecodedLog
-from ..events.base import DomainEvent
+from ..events.base import DomainEvent, TransactionContext
 from ..events.transfer import Transfer
 from ..events.liquidity import Liquidity
 from ..events.trade import Trade
@@ -19,7 +19,7 @@ class LfjPoolTransformer:
             return "removed"
 
 
-    def handle_logic_update(self, log: DecodedLog, context: DomainEvent) -> list[Liquidity]:
+    def handle_logic_update(self, log: DecodedLog, context: TransactionContext) -> list[Liquidity]:
         logic = LogicUpdate(
             timestamp=context.timestamp,
             tx_hash=context.tx_hash,
@@ -28,7 +28,7 @@ class LfjPoolTransformer:
         )
         return [logic]
 
-    def handle_swap_exact_in(self, log: DecodedLog, context: DomainEvent) -> list[Liquidity]:
+    def handle_swap_exact_in(self, log: DecodedLog, context: TransactionContext) -> list[Liquidity]:
 
 log.attributes.get("sender")
 log.attributes.get("to")
@@ -39,7 +39,7 @@ log.attributes.get("amountOut")
 
 
 
-    def handle_swap_exact_out(self, log: DecodedLog, context: DomainEvent) -> list[Liquidity]:
+    def handle_swap_exact_out(self, log: DecodedLog, context: TransactionContext) -> list[Liquidity]:
 
 log.attributes.get("sender")
 log.attributes.get("to")
@@ -50,7 +50,7 @@ log.attributes.get("amountOut")
 
 
 
-    def transform_log(self, log: DecodedLog, context: DomainEvent) -> list[DomainEvent]:
+    def transform_log(self, log: DecodedLog, context: TransactionContext) -> list[DomainEvent]:
         events = []
         if log.name == "RouterLogicUpdated":
             events.append(self.handle_transfer(log, context))

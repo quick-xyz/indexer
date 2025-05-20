@@ -1,7 +1,7 @@
 from typing import Union, Optional
 
 from ...decode.model.block import DecodedLog
-from ..events.base import DomainEvent
+from ..events.base import DomainEvent, TransactionContext
 from ..events.transfer import Transfer
 from ..events.liquidity import Liquidity
 from ..events.trade import Trade
@@ -45,7 +45,7 @@ class PharPairTransformer:
         else:
             return "sell"
             
-    def handle_mint(self, log: DecodedLog, context: DomainEvent) -> list[Liquidity]:
+    def handle_mint(self, log: DecodedLog, context: TransactionContext) -> list[Liquidity]:
         base_amount, quote_amount = self.get_amounts(log)
 
         liquidity = []
@@ -63,7 +63,7 @@ class PharPairTransformer:
         liquidity.append(mint)
         return liquidity
 
-    def handle_burn(self, log: DecodedLog, context: DomainEvent) -> list[Liquidity]:
+    def handle_burn(self, log: DecodedLog, context: TransactionContext) -> list[Liquidity]:
         base_amount, quote_amount = self.get_amounts(log)
         liquidity = []
         burn = Liquidity(
@@ -79,7 +79,7 @@ class PharPairTransformer:
         liquidity.append(burn)
         return liquidity
 
-    def handle_swap(self, log: DecodedLog, context: DomainEvent) -> list[Trade]:
+    def handle_swap(self, log: DecodedLog, context: TransactionContext) -> list[Trade]:
         if self.token0 == self.base:
             base_amount = log.attributes.get("amount0In") - log.attributes.get("amount0Out")
             quote_amount = log.attributes.get("amount1In") - log.attributes.get("amount1Out")
@@ -104,7 +104,7 @@ class PharPairTransformer:
         trades.append(trade)
         return trades
 
-    def handle_transfer(self, log: DecodedLog, context: DomainEvent) -> list[Transfer]:
+    def handle_transfer(self, log: DecodedLog, context: TransactionContext) -> list[Transfer]:
         transfers = []
         transfer = Transfer(
             timestamp=context.timestamp,
@@ -118,7 +118,7 @@ class PharPairTransformer:
         return transfers
     
 
-    def handle_fee(self, log: DecodedLog, context: DomainEvent) -> list[Fee]:
+    def handle_fee(self, log: DecodedLog, context: TransactionContext) -> list[Fee]:
         base_amount, quote_amount = self.get_amounts(log)
 
         fees = []
@@ -148,7 +148,7 @@ class PharPairTransformer:
 
         return fees
     
-    def handle_claim(self, log: DecodedLog, context: DomainEvent) -> list[Rewards]:
+    def handle_claim(self, log: DecodedLog, context: TransactionContext) -> list[Rewards]:
         base_amount, quote_amount = self.get_amounts(log)
 
         rewards = []
@@ -181,7 +181,7 @@ class PharPairTransformer:
 
     
     
-    def transform_log(self, log: DecodedLog, context: DomainEvent) -> list[DomainEvent]:
+    def transform_log(self, log: DecodedLog, context: TransactionContext) -> list[DomainEvent]:
         events = []
         if log.name == "Transfer":
             events.append(self.handle_transfer(log, context))
