@@ -9,8 +9,35 @@ from ...utils.logger import get_logger
 
 
 class LfjPoolTransformer:
-    def __init__(self, contract):
+    def __init__(self, contract,base_token):
         self.logger = get_logger(__name__)
+        self.contract = contract
+        self.base = base_token
+
+    def get_tokens_amounts(self, log: DecodedLog) -> tuple:
+        token_in = log.attributes.get("tokenIn")
+        token_out = log.attributes.get("tokenOut")
+        amount_in = log.attributes.get("amountIn")
+        amount_out = log.attributes.get("amountOut")
+
+        if token_in == self.base:
+            base_token = token_in
+            base_amount = amount_in
+            quote_token = token_out
+            quote_amount = amount_out
+        elif token_out == self.base:
+            base_token = token_out
+            base_amount = amount_out
+            quote_token = token_in
+            quote_amount = amount_in
+
+        return base_token, quote_token, base_amount, quote_amount
+
+    def get_direction(self, base_amount: int) -> str:
+        if base_amount > 0:
+            return "buy"
+        else:
+            return "sell"
 
     def process_bool(self, value: bool) -> str:
         if value:
@@ -18,51 +45,30 @@ class LfjPoolTransformer:
         else:
             return "removed"
 
-
-    def handle_logic_update(self, log: DecodedLog, context: TransactionContext) -> list[Liquidity]:
-        logic = LogicUpdate(
-            timestamp=context.timestamp,
-            tx_hash=context.tx_hash,
-            logic=log.attributes.get("routerLogic"),
-            update=self.process_bool(log.attributes.get("added"))
-        )
-        return [logic]
-
-    def handle_trade(self, log: DecodedLog, context: TransactionContext) -> list[Liquidity]:
+    def handle_trade(self, log: DecodedLog, context: TransactionContext) -> list[Trade]:
+        base_token, quote_token, base_amount, quote_amount = self.get_tokens_amounts(log)
+        direction = self.get_direction(base_amount)
 
         trade = Trade(
             timestamp=context.timestamp,
             tx_hash=context.tx_hash,
-            sender=log.attributes.get("sender"),
-            to=log.attributes.get("to"),
-            tokenIn=log.attributes.get("tokenIn"),
-            tokenOut=log.attributes.get("tokenOut"),
-            amountIn=log.attributes.get("amountIn"),
-            amountOut=log.attributes.get("amountOut")
+            router=context.contract,
+            taker=context.sender,
+            direction=direction,
+            base_token=base_token,
+            base_amount=quote_token,
+            quote_token=base_amount,
+            quote_amount=quote_amount,
+            event_tag=direction,
         )
         return [trade]
 
-
-
-
-    def handle_swap_exact_out(self, log: DecodedLog, context: TransactionContext) -> list[Liquidity]:
-
-log.attributes.get("sender")
-log.attributes.get("to")
-log.attributes.get("tokenIn")
-log.attributes.get("tokenOut")
-log.attributes.get("amountIn")
-log.attributes.get("amountOut")
-
-
-
     def transform_log(self, log: DecodedLog, context: TransactionContext) -> list[DomainEvent]:
         events = []
-        if log.name == "RouterLogicUpdated":
-            events.append(self.handle_transfer(log, context))
-        elif log.name == "SwapExactIn":
-            events.append(self.handle_swap_exact_in(log, context))
+
+        if log.name == "SwapExactIn":
+            events.append(self.handle_trade(log, context))
         elif log.name == "SwapExactOut":
-            events.append(self.handle_swap_exact_out(log, context))   
+            events.append(self.handle_trade(log, context))   
 
         return events
