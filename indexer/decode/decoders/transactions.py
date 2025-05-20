@@ -71,6 +71,7 @@ class TransactionDecoder(TransactionDecoderInterface):
                 origin_from = tx.from_,
                 origin_to = tx.to,
                 function = tx_function,
+                value= tx.value,
                 tx_success = hex_to_bool(receipt.status),
                 logs = tx_logs
             )

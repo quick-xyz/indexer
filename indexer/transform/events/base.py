@@ -10,7 +10,10 @@ class DomainEvent(Struct):
     timestamp: datetime
     tx_hash: EvmHash
 
-class TransactionContext(DomainEvent):
+class TransactionContext(Struct):
+    timestamp: datetime
+    tx_hash: EvmHash
     sender: EvmAddress
     contract: Optional[EvmAddress]
-    method: Optional[DecodedMethod]
+    function: Optional[DecodedMethod]
+    value: int

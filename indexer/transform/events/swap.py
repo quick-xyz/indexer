@@ -1,26 +1,30 @@
-from datetime import datetime
-from typing import Literal
+from typing import Literal, Optional, List
 
 from ...decode.model.evm import EvmAddress
 from .base import DomainEvent
+from .transfer import Transfer
+
 
 class Swap(DomainEvent, tag=True):
-    '''Pool swap event.'''
-    timestamp: datetime
-    tx_hash: str
-    pool: str
+    '''Unknown swap event.'''
     taker: EvmAddress
-    direction: str
-    base_token: str
+    direction: Literal["buy","sell"]
+    base_token: EvmAddress
     base_amount: int
-    quote_token: str
+    quote_token: EvmAddress
     quote_amount: int
-    event_tag: Literal["buy","sell","arbitrage","trade"] = "trade"
+    transfers: Optional[List[Transfer]] = None
 
-class SwapDetailed(Swap, tag=True):
+class PoolSwap(Swap, tag=True):
+    '''Pool swap event.'''
+    pool: EvmAddress
+
+'''
+class SwapValued(Swap, tag=True):
     price_native: int
     price_usd: int
     value_native: int
     value_usd: int
     price_method: str
     bool_arbitrage: bool
+'''

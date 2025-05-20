@@ -11,7 +11,7 @@ from ...utils.logger import get_logger
 
 from ...decode.model.block import Block,Transaction, DecodedLog
 from ...decode.model.types import EvmHash
-from ..events.base import DomainEvent
+from ..events.base import DomainEvent,TransactionContext
 
 
 class TransformationManager:
@@ -36,13 +36,22 @@ class TransformationManager:
     def transform_multi_events(self, tx: Transaction):
 
     def transform_transaction(self, tx: Transaction, time: datetime):   
-        context = DomainEvent(
+        context = TransactionContext(
             timestamp=time,
-            tx_hash=tx.tx_hash
+            tx_hash=tx.tx_hash,
+            sender=tx.origin_from,
+            contract=tx.origin_to,
+            function=tx.function,
+            value=tx.value
         )
+
         self.transform_single_logs(tx,context)
         self.transform_multi_logs(tx,context)
         self.transform_multi_events(tx,context)
+
+
+
+
 
     def transform_block(self, block: Block):  
         for tx in block.transactions:

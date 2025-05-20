@@ -35,9 +35,11 @@ class Transaction(Struct):
     origin_from: EvmAddress
     origin_to: Optional[EvmAddress]
     function: EncodedMethod | DecodedMethod
+    value: int
     tx_success: bool
     logs: dict[str,EncodedLog|DecodedLog]  # key: "{tx_hash}_{log_index}" aka log_id
     events: Optional[list[dict]] = None
+    errors: Optional[list] = None
 
 class Block(Struct):
     block_number: int

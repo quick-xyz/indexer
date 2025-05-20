@@ -1,6 +1,6 @@
 import uuid
 
-def create_event_uuid(tx_hash, timestamp, addresses, amounts):
+def generate_event_uuid(tx_hash, timestamp, addresses, amounts):
     """
     Create a deterministic UUID5 from blockchain event data
     """

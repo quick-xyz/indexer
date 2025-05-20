@@ -1,13 +1,14 @@
 from typing import Union, Optional
 
-from ...decode.model.block import DecodedLog
-from ..events.base import DomainEvent, TransactionContext
-from ..events.transfer import Transfer
-from ..events.liquidity import Liquidity
-from ..events.swap import Swap
-from ..events.fees import Fee
-from ..events.rewards import Rewards
-from ...utils.logger import get_logger
+from ....decode.model.block import DecodedLog
+from ...events.base import DomainEvent, TransactionContext
+from ...events.transfer import Transfer
+from ...events.liquidity import Liquidity
+from ...events.swap import Swap
+from ...events.fees import Fee
+from ...events.rewards import Rewards
+from ....utils.logger import get_logger
+from ....utils.event_uuid import generate_event_uuid
 
 
 class PharPairTransformer:
