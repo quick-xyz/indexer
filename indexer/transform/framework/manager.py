@@ -48,3 +48,6 @@ class TransformationManager:
         for tx in block.transactions:
             self.transform_transaction(tx, block.timestamp)
 
+    def process_tx_method(self, block: Block):
+        self.transform_block(block)
+

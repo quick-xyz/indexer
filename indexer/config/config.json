@@ -1,11 +1,4 @@
 {
-    "storage": {
-        "local_dir": "./data",
-        "storage_rpc_prefix": "quicknode/",
-        "storage_decoded_prefix": "decoded/",
-        "storage_rpc_format": "quicknode_avalanche-mainnet_block_with_receipts_{:012d}-{:012d}.json",
-        "storage_block_format": "{block_number}.json"
-    },
     "tokens":{
         "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd": {
             "name": "Blub",
@@ -48,32 +41,95 @@
             "abi": "odos_v2.json"
         },
         "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd": {
-            "name": "Token: Blub",
+            "name": "Token:BLUB",
             "project": "Blub",
             "type": "Token",
             "abi_dir": "tokens",
             "abi": "blub.json"
         },
         "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7": {
-            "name": "Token: WAVAX",
+            "name": "Token:WAVAX",
             "project": "Avalanche",
             "type": "Token",
             "abi_dir": "tokens",
             "abi": "wavax.json"
         },
         "0x39888258d60fed9228f89e13eb57a92f1fa832eb": {
-            "name": "LFJ: BLUB-AVAX",
+            "name": "LP:BLUB-AVAX",
             "project": "LFJ",
             "type": "LP",
             "abi_dir": "lfj",
             "abi": "joepair.json"
         },
+        "0xcb4c6fdcfb7d868df5f1e3d0018438205b243fd6": {
+            "name": "LB:BLUB-AVAX",
+            "project": "LFJ",
+            "type": "LP",
+            "abi_dir": "lfj",
+            "abi": "lbpair.json"
+        },
         "0x3fc41c1ae339322ab87b6ba48e30781d88a304d4": {
-            "name": "Pharaoh: BLUB-AVAX",
+            "name": "CLP:BLUB-AVAX",
+            "project": "Pharaoh",
+            "type": "LP",
+            "abi_dir": "pharaoh",
+            "abi": "clpool.json"
+        },
+        "0xa87866ba0d82155d0ff36ad06e555aebc98595ca": {
+            "name": "LP:BLUB-AVAX",
             "project": "Pharaoh",
             "type": "LP",
             "abi_dir": "pharaoh",
             "abi": "pair.json"
+        },
+        "0x60ae616a2155ee3d9a68541ba4544862310933d4": {
+            "name": "JoeRouter02",
+            "project": "LFJ",
+            "type": "Router",
+            "abi_dir": "routers",
+            "abi": "0x60ae616a2155ee3d9a68541ba4544862310933d4.json"
+        },
+        "0x18556da13313f3532c54711497a8fedac273220e": {
+            "name": "LBRouterV2.2",
+            "project": "LFJ",
+            "type": "Router",
+            "abi_dir": "routers",
+            "abi": "0x18556da13313f3532c54711497a8fedac273220e.json"
+        },
+        "0x6131b5fae19ea4f9d964eac0408e4408b66337b5": {
+            "name": "Meta Aggregation Router v2",
+            "project": "Kyberswap",
+            "type": "Router",
+            "abi_dir": "routers",
+            "abi": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5.json"
+        },
+        "0x1dac23e41fc8ce857e86fd8c1ae5b6121c67d96d": {
+            "name": "Dex Aggregation Router",
+            "project": "OKX",
+            "type": "Router",
+            "abi_dir": "routers",
+            "abi": "0x1dac23e41fc8ce857e86fd8c1ae5b6121c67d96d.json"
+        },
+        "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc": {
+            "name": "RouterV2",
+            "project": "Odos",
+            "type": "Router",
+            "abi_dir": "routers",
+            "abi": "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc.json"
+        },
+        "0xaaa78e8c4241990b4ce159e105da08129345946a": {
+            "name": "CL Position Router",
+            "project": "Pharaoh",
+            "type": "Router",
+            "abi_dir": "routers",
+            "abi": "0xaaa78e8c4241990b4ce159e105da08129345946a.json"
+        },
+        "0xaaa45c8f5ef92a000a121d102f4e89278a711faa": {
+            "name": "Router",
+            "project": "Pharaoh",
+            "type": "Router",
+            "abi_dir": "routers",
+            "abi": "0xaaa45c8f5ef92a000a121d102f4e89278a711faa.json"
         }
     },
     "addresses":{

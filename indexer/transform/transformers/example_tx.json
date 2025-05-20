@@ -6,14 +6,14 @@
     },
     
     "lfj_joepair":{
-        "add_liq":"",
+        "add_liq":"0xd4f7d7f5aaafc9d83c0d65f34b0bfae2bf0c2a080c48c0e665c43e8ffdb5daea",
         "remove_liq":"",
         "swap":"0xd9373a96452b0619158a26ca13413ae8c994f583da9c4ef2d4566c74dbdf11e6"
     },
     "lfj_lbpair":{
-        "add_liq":"",
+        "add_liq":"0xf50c97a46bb6477a230e0b9cc565b871eaca007704af88bff7e435476017a217",
         "remove_liq":"",
-        "swap":""
+        "swap":"0xfcf1c86967fde4637addd30859a3960eb35d621d649b966c27334a1a7725691c"
     },
     "phar_pair":{
         "add_liq":"",
@@ -26,7 +26,34 @@
         "swap":""
     }
     "example":{
+        "0xd4f7d7f5aaafc9d83c0d65f34b0bfae2bf0c2a080c48c0e665c43e8ffdb5daea":{
+            "notes":"example of adding liquidity to lfj_joepair",
+            "from":"0xfCc47D929Ea812f361a5Dbc7a8f2d6A81Aa4c569",
+            "origin_to": "0x60aE616a2155Ee3d9A68541Ba4544862310933d4",
+            "origin_to_notes": "LFJ: RouterV1"
+        },
+        "0xf50c97a46bb6477a230e0b9cc565b871eaca007704af88bff7e435476017a217":{
+            "notes":"example of adding liquidity to lfj_lbpair",
+            "from":"0x20e32DbB9a339a0149Dc88c704D80C61b3c25626",
+            "origin_to": "0x18556DA13313f3532c54711497A8FedAC273220E",
+            "origin_to_notes": "LFJ: LB Router v2.2"
+        },
+        
+        "0xf002c004f2bd390ff7a6bb5a1e5ccdd6ebc33af61f0364146177aee72a8ae587":{
+            "notes":"example of adding liquidity to phar_clpool",
+            "from":"0x39a81Bc996bB689ef9B4083d68E5499610d80992",
+            "origin_to": "0xaaa78e8c4241990b4ce159e105da08129345946a",
+            "origin_to_notes": "PHARAOH: Nonfungible Position Manager Proxy"
+        },
+        "0xbd3d2740a571318deeb870087ed6286dad4bd23a8051e1958fea2d9724b32900":{
+            "notes":"example of adding liquidity to phar_pair",
+            "from":"0x39a81Bc996bB689ef9B4083d68E5499610d80992",
+            "origin_to": "0xAAA45c8F5ef92a000a121d102F4e89278a711Faa",
+            "origin_to_notes": "PHARAOH: Nonfungible Position Manager Proxy"
+        },
+
         "0xd9373a96452b0619158a26ca13413ae8c994f583da9c4ef2d4566c74dbdf11e6":{
+            "notes":"example of a swap using lfj_aggregator",
             "sender":"0xc50E5f5e41b77374ad30d24De3A0e55269CC5e9F",
             "origin_to": "lfj_aggregator",
             "origin_function": "swapExactIn",
