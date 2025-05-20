@@ -6,7 +6,7 @@ from ..events.transfer import Transfer
 from ..events.liquidity import Liquidity
 from ..events.bin_liquidity import BinLiquidity
 from ..events.bin_transfer import BinTransfer
-from ..events.trade import Trade
+from ..events.swap import Swap
 from ..events.fees import Fee
 from ..events.rewards import Rewards
 from ...utils.logger import get_logger
@@ -101,7 +101,7 @@ class LbPairTransformer:
         direction = self.get_direction(base_amount)
         events = []
 
-        trade = Trade(
+        swap = Swap(
             timestamp=context.timestamp,
             tx_hash=context.tx_hash,
             pool=log.contract,
@@ -112,7 +112,7 @@ class LbPairTransformer:
             quote_token= self.quote_token,
             quote_amount= quote_amount
         )
-        events.append(trade)
+        events.append(swap)
 
         if base_amount_fee > 0:
             base_fee = Fee(
@@ -205,7 +205,7 @@ class LbPairTransformer:
                 timestamp=context.timestamp,
                 tx_hash=context.tx_hash,
                 pool=log.contract,
-                fee_type='swap',
+                fee_type='composition',
                 payer=log.attributes.get("sender"),
                 token= self.quote_token,
                 fee_amount=quote_amount

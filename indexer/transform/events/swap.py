@@ -4,11 +4,11 @@ from typing import Literal
 from ...decode.model.evm import EvmAddress
 from .base import DomainEvent
 
-class Trade(DomainEvent, tag=True):
-    '''Top level trade event. Net buy/sell.'''
+class Swap(DomainEvent, tag=True):
+    '''Pool swap event.'''
     timestamp: datetime
     tx_hash: str
-    router: str
+    pool: str
     taker: EvmAddress
     direction: str
     base_token: str
@@ -17,7 +17,7 @@ class Trade(DomainEvent, tag=True):
     quote_amount: int
     event_tag: Literal["buy","sell","arbitrage","trade"] = "trade"
 
-class TradeDetailed(Trade, tag=True):
+class SwapDetailed(Swap, tag=True):
     price_native: int
     price_usd: int
     value_native: int

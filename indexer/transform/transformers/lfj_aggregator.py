@@ -28,14 +28,20 @@ class LfjPoolTransformer:
         )
         return [logic]
 
-    def handle_swap_exact_in(self, log: DecodedLog, context: TransactionContext) -> list[Liquidity]:
+    def handle_trade(self, log: DecodedLog, context: TransactionContext) -> list[Liquidity]:
 
-log.attributes.get("sender")
-log.attributes.get("to")
-log.attributes.get("tokenIn")
-log.attributes.get("tokenOut")
-log.attributes.get("amountIn")
-log.attributes.get("amountOut")
+        trade = Trade(
+            timestamp=context.timestamp,
+            tx_hash=context.tx_hash,
+            sender=log.attributes.get("sender"),
+            to=log.attributes.get("to"),
+            tokenIn=log.attributes.get("tokenIn"),
+            tokenOut=log.attributes.get("tokenOut"),
+            amountIn=log.attributes.get("amountIn"),
+            amountOut=log.attributes.get("amountOut")
+        )
+        return [trade]
+
 
 
 

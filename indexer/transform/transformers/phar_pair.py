@@ -4,7 +4,7 @@ from ...decode.model.block import DecodedLog
 from ..events.base import DomainEvent, TransactionContext
 from ..events.transfer import Transfer
 from ..events.liquidity import Liquidity
-from ..events.trade import Trade
+from ..events.swap import Swap
 from ..events.fees import Fee
 from ..events.rewards import Rewards
 from ...utils.logger import get_logger
@@ -79,7 +79,7 @@ class PharPairTransformer:
         liquidity.append(burn)
         return liquidity
 
-    def handle_swap(self, log: DecodedLog, context: TransactionContext) -> list[Trade]:
+    def handle_swap(self, log: DecodedLog, context: TransactionContext) -> list[Swap]:
         if self.token0 == self.base:
             base_amount = log.attributes.get("amount0In") - log.attributes.get("amount0Out")
             quote_amount = log.attributes.get("amount1In") - log.attributes.get("amount1Out")
@@ -89,8 +89,8 @@ class PharPairTransformer:
 
         direction = self.get_direction(base_amount)
 
-        trades = []
-        trade = Trade(
+        swaps = []
+        swap = Swap(
             timestamp=context.timestamp,
             tx_hash=context.tx_hash,
             pool=log.contract,
@@ -101,8 +101,8 @@ class PharPairTransformer:
             quote_token= self.quote_token,
             quote_amount= quote_amount
         )
-        trades.append(trade)
-        return trades
+        swaps.append(swap)
+        return swaps
 
     def handle_transfer(self, log: DecodedLog, context: TransactionContext) -> list[Transfer]:
         transfers = []
