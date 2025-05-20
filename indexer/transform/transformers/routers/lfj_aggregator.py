@@ -1,11 +1,9 @@
 from typing import Union
 
-from ...decode.model.block import DecodedLog
-from ..events.base import DomainEvent, TransactionContext
-from ..events.transfer import Transfer
-from ..events.liquidity import Liquidity
-from ..events.trade import Trade
-from ...utils.logger import get_logger
+from ....decode.model.block import DecodedLog
+from ...events.base import DomainEvent, TransactionContext
+from ...events.trade import Trade
+from ....utils.logger import get_logger
 
 
 class LfjPoolTransformer:

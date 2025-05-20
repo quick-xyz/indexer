@@ -24,7 +24,10 @@
         "add_liq":"",
         "remove_liq":"",
         "swap":""
-    }
+    },
+    "phar_cl_router":{
+        "collect":"0x7780e109842aca13fc1d4ae3818750295f9ecbd3e868e8bea98cb74b30bb11f6"
+    },
     "example":{
         "0xd4f7d7f5aaafc9d83c0d65f34b0bfae2bf0c2a080c48c0e665c43e8ffdb5daea":{
             "notes":"example of adding liquidity to lfj_joepair",
@@ -44,6 +47,17 @@
             "from":"0x39a81Bc996bB689ef9B4083d68E5499610d80992",
             "origin_to": "0xaaa78e8c4241990b4ce159e105da08129345946a",
             "origin_to_notes": "PHARAOH: Nonfungible Position Manager Proxy"
+            "events":[
+                ("blub","Transfer","from eoa to phar_clpool"),
+                ("wavax","deposit","by phar_cl_router"),
+                ("wavax","Transfer","from phar_cl_router to phar_clpool"),
+                ("pool","mint","owner is phar_cl_router"),
+                ("phar_cl_router","Transfer","from phar_clpool to eoa"),
+                ("phar_cl_router","increaseLiquidity","token_id")
+            ],
+            "more_notes":"
+                the clrouter is the owner of the liquidity from the pool perspective and it associates back to the eoa based on who holds it
+                "
         },
         "0xbd3d2740a571318deeb870087ed6286dad4bd23a8051e1958fea2d9724b32900":{
             "notes":"example of adding liquidity to phar_pair",
