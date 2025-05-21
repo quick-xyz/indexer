@@ -14,9 +14,6 @@ class WesmolWrapperTransformer:
         self.underlying_token = base_token
 
     def handle_transfer(self, log: DecodedLog, context: TransactionContext) -> list[DomainEvent]:
-
-        staking = []
-
         transfer = Transfer(
             timestamp=context.timestamp,
             tx_hash=context.tx_hash,
@@ -39,7 +36,7 @@ class WesmolWrapperTransformer:
                 amount_receipt=log.attributes.get("value"),
                 transfers= [transfer]
             )
-            staking.append(mint)
+            return [mint]
         
         elif log.attributes.get("to") == ZERO_ADDRESS:
             burn = Staking(
@@ -54,52 +51,38 @@ class WesmolWrapperTransformer:
                 amount_receipt=log.attributes.get("value"),
                 transfers= transfers  
             )
-            staking.append(burn)
+            return [burn]
 
         else:
             return [transfer]
-        
-        return staking
 
     def handle_deposit_status(self, log: DecodedLog, context: TransactionContext) -> list[Parameters]:
-        
-        deposits = []
-        parameters = []
-
         status = Parameter(
             parameter="depositStatus",
             value_type="bool",
             new_value=log.attributes.get("enabled"),
         )
-        deposits.append(status)
 
-        parameter = Parameters(
+        parameters = Parameters(
             contract=log.contract,
-            parameters=deposits
+            parameters=[status]
         )
-        parameters.append(parameter)
 
-        return parameters
+        return [parameters]
 
     def handle_withdrawal_status(self, log: DecodedLog, context: TransactionContext) -> list[Parameters]:
-        
-        withdrawals = []
-        parameters = []
-
         status = Parameter(
             parameter="withdrawalStatus",
             value_type="bool",
             new_value=log.attributes.get("enabled"),
         )
-        withdrawals.append(status)
 
-        parameter = Parameters(
+        parameters = Parameters(
             contract=log.contract,
-            parameters=withdrawals
+            parameters=[status]
         )
-        parameters.append(parameter)
 
-        return parameters
+        return [parameters]
     
     def transform_log(self, log: DecodedLog, context: TransactionContext) -> list[DomainEvent]:
         events = []
