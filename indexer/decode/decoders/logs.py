@@ -50,7 +50,7 @@ class LogDecoder(LogDecoderInterface):
                     return DecodedLog(
                         index=self.w3.to_int(hexstr=log.logIndex),
                         removed=log.removed,
-                        contract=log.address,
+                        contract=log.address.lower(),
                         signature=log.topics[0] if log.topics else None,
                         name=event_data["event"],
                         attributes=dict(event_data["args"])
