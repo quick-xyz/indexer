@@ -1,9 +1,18 @@
 from typing import Literal, List, Optional
+from msgspec import Struct
 
 from ...decode.model.evm import EvmAddress,EvmHash
 from .base import DomainEvent
-from .position import Position
 from .transfer import Transfer
+
+
+class Position(Struct, tag=True):
+    receipt_token: EvmAddress
+    receipt_id: int
+    amount_base: int
+    amount_quote: int
+    amount_receipt: Optional[int] = None
+    custodian: Optional[EvmAddress] = None
 
 class Liquidity(DomainEvent, tag=True):
     pool: EvmAddress

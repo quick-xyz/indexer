@@ -2,8 +2,7 @@ from ....decode.model.block import DecodedLog
 from ...events.base import DomainEvent, TransactionContext
 from ...events.transfer import Transfer
 from ...events.liquidity import Liquidity
-from ...events.swap import PoolSwap
-from ...events.fees import Fee
+from ...events.trade import PoolSwap
 from ...events.rewards import Rewards
 from ....utils.logger import get_logger
 
