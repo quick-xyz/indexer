@@ -1,11 +1,9 @@
-from typing import Union
-
-from ...decode.model.block import DecodedLog
-from ..events.base import DomainEvent, TransactionContext
-from ..events.transfer import Transfer
-from ..events.liquidity import Liquidity
-from ..events.swap import Swap
-from ...utils.logger import get_logger
+from ....decode.model.block import DecodedLog
+from ...events.base import DomainEvent, TransactionContext
+from ...events.transfer import Transfer
+from ...events.liquidity import Liquidity
+from ...events.swap import PoolSwap
+from ....utils.logger import get_logger
 
 
 class LfjPoolTransformer:
@@ -52,11 +50,12 @@ class LfjPoolTransformer:
             timestamp=context.timestamp,
             tx_hash=context.tx_hash,
             pool=log.contract,
-            provider=log.attributes.get("provider"),
+            provider=log.attributes.get("sender"),
+            base_token=self.base_token,
             amount_base=base_amount,
+            quote_token=self.quote_token,
             amount_quote=quote_amount,
-            amount_receipt=log.attributes.get("amount_receipt"),
-            event_tag="add_lp"
+            liquidity_type="add_lp",
         )
         liquidity.append(mint)
         return liquidity
@@ -68,17 +67,18 @@ class LfjPoolTransformer:
             timestamp=context.timestamp,
             tx_hash=context.tx_hash,
             pool=log.contract,
-            provider=log.attributes.get("sender"),
-            amount_base=base_amount,
-            amount_quote=quote_amount,
-            amount_receipt=log.attributes.get("amount_receipt"),
-            event_tag="remove_lp"
+            provider=log.attributes.get("to"),
+            base_token=self.base_token,
+            amount_base= -(base_amount),
+            quote_token=self.quote_token,
+            amount_quote= -(quote_amount),
+            liquidity_type="remove_lp"
         )
         liquidity.append(burn)
         return liquidity
 
 
-    def handle_swap(self, log: DecodedLog, context: TransactionContext) -> list[Swap]:
+    def handle_swap(self, log: DecodedLog, context: TransactionContext) -> list[PoolSwap]:
         if self.token0 == self.base:
             base_amount = log.attributes.get("amount0In") - log.attributes.get("amount0Out")
             quote_amount = log.attributes.get("amount1In") - log.attributes.get("amount1Out")
@@ -89,11 +89,11 @@ class LfjPoolTransformer:
         direction = self.get_direction(base_amount)
 
         swaps = []
-        swap = Swap(
+        swap = PoolSwap(
             timestamp=context.timestamp,
             tx_hash=context.tx_hash,
             pool=log.contract,
-            taker= log.attributes.get("sender"),
+            taker= log.attributes.get("to"),
             direction= direction,
             base_token= self.base_token,
             base_amount= base_amount,

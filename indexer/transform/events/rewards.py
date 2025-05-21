@@ -6,13 +6,11 @@ from ...decode.model.evm import EvmAddress,EvmHash
 from .base import DomainEvent
 
 class Rewards(DomainEvent, tag=True):
-    timestamp: datetime
-    tx_hash: str
-    contract: str
+    contract: EvmAddress
     recipient: EvmAddress
     token: EvmAddress
     amount: int
-    event_tag: Literal["claim_rewards","claim_fees"]
+    reward_type: Literal["claim_rewards","claim_fees"]
 
 class RewardsDetailed(Rewards, tag=True):
     value_avax: int
