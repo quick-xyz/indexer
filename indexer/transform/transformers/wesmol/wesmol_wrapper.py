@@ -1,5 +1,3 @@
-from typing import List
-
 from ....decode.model.block import DecodedLog
 from ...events.base import DomainEvent, TransactionContext
 from ...events.transfer import Transfer
@@ -15,8 +13,8 @@ class WesmolWrapperTransformer:
         self.contract = contract
         self.underlying_token = base_token
 
-    def handle_transfer(self, log: DecodedLog, context: TransactionContext) -> List[Transfer]:
-        transfers = []
+    def handle_transfer(self, log: DecodedLog, context: TransactionContext) -> list[DomainEvent]:
+
         staking = []
 
         transfer = Transfer(
@@ -27,7 +25,6 @@ class WesmolWrapperTransformer:
             from_address=log.attributes.get("from"),
             to_address=log.attributes.get("to"),
         )
-        transfers.append(transfer)
 
         if log.attributes.get("from") == ZERO_ADDRESS:
             mint = Staking(
@@ -40,11 +37,11 @@ class WesmolWrapperTransformer:
                 event_tag="deposit",
                 receipt_token=log.contract,
                 amount_receipt=log.attributes.get("value"),
-                transfers= transfers
+                transfers= [transfer]
             )
             staking.append(mint)
-
-        if log.attributes.get("to") == ZERO_ADDRESS:
+        
+        elif log.attributes.get("to") == ZERO_ADDRESS:
             burn = Staking(
                 timestamp=context.timestamp,
                 tx_hash=context.tx_hash,
@@ -59,9 +56,12 @@ class WesmolWrapperTransformer:
             )
             staking.append(burn)
 
+        else:
+            return [transfer]
+        
         return staking
 
-    def handle_deposit_status(self, log: DecodedLog, context: TransactionContext) -> Staking:
+    def handle_deposit_status(self, log: DecodedLog, context: TransactionContext) -> list[Parameters]:
         
         deposits = []
         parameters = []
@@ -81,7 +81,7 @@ class WesmolWrapperTransformer:
 
         return parameters
 
-    def handle_withdrawal_status(self, log: DecodedLog, context: TransactionContext) -> Staking:
+    def handle_withdrawal_status(self, log: DecodedLog, context: TransactionContext) -> list[Parameters]:
         
         withdrawals = []
         parameters = []
