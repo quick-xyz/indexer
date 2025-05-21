@@ -42,7 +42,7 @@ class LbPairTransformer:
 
         return base_amount, quote_amount
     
-    def handle_deposit(self, log: DecodedLog, context: TransactionContext) -> List[BinLiquidity]:
+    def handle_deposit(self, log: DecodedLog, context: TransactionContext) -> List[Liquidity]:
 
         bins = log.attributes.get("ids")
         amounts = log.attributes.get("amounts")
@@ -80,7 +80,7 @@ class LbPairTransformer:
         liquidity.append(liq)
         return liquidity
 
-    def handle_withdraw(self, log: DecodedLog, context: TransactionContext) -> List[BinLiquidity]:
+    def handle_withdraw(self, log: DecodedLog, context: TransactionContext) -> List[Liquidity]:
         bins = log.attributes.get("ids")
         amounts = log.attributes.get("amounts")
         positions = []
