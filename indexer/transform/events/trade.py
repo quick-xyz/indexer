@@ -3,6 +3,7 @@ from typing import Literal, Optional, List
 from ...decode.model.evm import EvmAddress
 from .base import DomainEvent
 from .transfer import Transfer
+from .auction import Auction
 
 class Swap(DomainEvent, tag=True):
     '''Unknown swap event.'''
@@ -26,9 +27,9 @@ class Trade(DomainEvent, tag=True):
     base_amount: int
     quote_token: EvmAddress
     quote_amount: int
-    trade_type: Literal["arbitrage","trade"] = "trade"
+    trade_type: Literal["arbitrage","trade","auction"] = "trade"
     router: Optional[EvmAddress] = None
-    swaps: Optional[List[Swap|PoolSwap]] = None
+    swaps: Optional[List[Swap|PoolSwap|Auction]] = None
 
 class TradeDetailed(Trade, tag=True):
     price_native: int
