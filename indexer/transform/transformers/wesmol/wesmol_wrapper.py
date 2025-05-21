@@ -49,7 +49,7 @@ class WesmolWrapperTransformer:
                 event_tag="withdraw",
                 receipt_token=log.contract,
                 amount_receipt=log.attributes.get("value"),
-                transfers= transfers  
+                transfers= [transfer]  
             )
             return [burn]
 
