@@ -27,5 +27,5 @@ class Liquidity(DomainEvent, tag=True):
     custodian: Optional[EvmAddress] = None
 
 class LiquidityDetailed(Liquidity, tag=True):
-    value_avax: int
+    value_native: int
     value_usd: int

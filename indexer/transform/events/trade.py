@@ -30,12 +30,8 @@ class Trade(DomainEvent, tag=True):
     router: Optional[EvmAddress] = None
     swaps: Optional[List[Swap|PoolSwap]] = None
 
-'''
 class TradeDetailed(Trade, tag=True):
     price_native: int
     price_usd: int
     value_native: int
     value_usd: int
-    price_method: str
-    bool_arbitrage: bool
-'''

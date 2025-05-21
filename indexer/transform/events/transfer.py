@@ -17,5 +17,5 @@ class Transfer(DomainEvent, tag=True):
     batch: Optional[List[TransferIds]] = None
     
 class TransferDetailed(Transfer, tag=True):
-    value_avax: int
+    value_native: int
     value_usd: int

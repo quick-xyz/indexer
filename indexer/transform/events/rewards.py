@@ -17,5 +17,5 @@ class Rewards(DomainEvent, tag=True):
     rewards: Optional[List[Reward]] = None
 
 class RewardsDetailed(Rewards, tag=True):
-    value_avax: int
+    value_native: int
     value_usd: int
