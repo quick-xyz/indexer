@@ -9,7 +9,8 @@ class Staking(DomainEvent, tag=True):
     staker: EvmAddress
     token: EvmAddress
     amount: int
-    event_tag: Literal["deposit","withdraw"]
+    action: Literal["deposit","withdraw"]
+    staking_id: Optional[int] = None
     receipt_token: Optional[EvmAddress] = None
     receipt_id: Optional[int] = None
     amount_receipt: Optional[str] = None

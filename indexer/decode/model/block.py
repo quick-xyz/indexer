@@ -3,7 +3,8 @@ from msgspec import Struct
 from datetime import datetime
 
 from .types import HexStr,EvmAddress,EvmHash
-
+from ...transform.events.base import DomainEvent
+from ...transform.events.transfer import Transfer
 
 class EncodedLog(Struct, tag=True):
     index: int
@@ -38,6 +39,9 @@ class Transaction(Struct):
     value: int
     tx_success: bool
     logs: dict[str,EncodedLog|DecodedLog]  # key: "{tx_hash}_{log_index}" aka log_id
+    ops_logs: list[DecodedLog]  # list of logs to be stored in ops tables
+    transfers_temp: Optional[list[Transfer]] = None
+    events_temp: Optional[list[DomainEvent]] = None
     events: Optional[list[dict]] = None
     errors: Optional[list] = None
 

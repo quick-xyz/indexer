@@ -21,7 +21,7 @@ class Liquidity(DomainEvent, tag=True):
     amount_base: int
     quote_token: EvmAddress
     amount_quote: int
-    liquidity_type: Literal["add_lp","remove_lp","update_lp"]
+    action: Literal["add_lp","remove_lp","update_lp"]
     positions: Optional[List[Position]] = None
     transfers: Optional[List[Transfer]] = None
     custodian: Optional[EvmAddress] = None
