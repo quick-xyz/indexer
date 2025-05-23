@@ -31,6 +31,8 @@ class EncodedMethod(Struct, tag=True):
     data: HexStr
 
 class Transaction(Struct):
+    block: int
+    timestamp: datetime
     tx_hash: EvmHash
     index: int
     origin_from: EvmAddress

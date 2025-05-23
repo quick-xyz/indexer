@@ -1,59 +1,38 @@
 from .transformer_registry import TransformationRule, TransformationType, registry
 
 
-def initialize_event_mappings():
-    # Example: Simple 1:1 transformation
-    registry.register_transformation_rule(TransformationRule(
-        source_events=["Transfer"],
-        target_event="TokenTransferEvent",
-        transformation_type=TransformationType.ONE_TO_ONE,
-        priority=1
-    ))
-    
-    # Example: Many-to-one transformation (e.g., swap events)
-    registry.register_transformation_rule(TransformationRule(
-        source_events=["Deposit", "Withdrawal", "Swap"],
-        target_event="LiquidityChangeEvent",
-        transformation_type=TransformationType.MANY_TO_ONE,
-        requires_all_sources=False,  # Any of these events can trigger
-        priority=2
-    ))
-    
-    # Example: Contract-specific transformation
-    registry.register_transformation_rule(TransformationRule(
-        source_events=["OrderFilled"],
-        target_event="TradeExecutedEvent",
-        transformation_type=TransformationType.ONE_TO_ONE,
-        contract_address="0x1234567890abcdef1234567890abcdef12345678",
-        priority=3
-    ))
-    
-    # Example: One-to-many transformation
-    registry.register_transformation_rule(TransformationRule(
-        source_events=["LargeTransfer"],
-        target_event="MultipleAlertEvents",
-        transformation_type=TransformationType.ONE_TO_MANY,
-        priority=1
-    ))
-
-
-def register_contract_transformers():
-    """Register contract-specific transformer classes."""
-    # These would be imported from your contract_transformers directory
-    # from ..contract_transformers import ERC20Transformer, UniswapTransformer
-    
-    # Example registrations:
-    # registry.register_contract_transformer(
-    #     "0x1234567890abcdef1234567890abcdef12345678", 
-    #     ERC20Transformer
-    # )
-    # registry.register_contract_transformer(
-    #     "0xabcdef1234567890abcdef1234567890abcdef12", 
-    #     UniswapTransformer
-    # )
-    pass
-
-
 def setup_registry():
-    initialize_event_mappings()
-    register_contract_transformers()
+    """Main setup function to initialize the registry."""
+    load_config_mappings()
+
+
+def load_config_mappings():
+    """Load transformation rules and contract mappings from config file."""
+    from ..config.config_loader import config_loader
+    
+    # Load transformation rules from config
+    rules = config_loader.get_active_rules()
+    for rule_config in rules:
+        rule = TransformationRule(
+            source_events=rule_config["source_events"],
+            target_event=rule_config["target_event"],
+            transformation_type=TransformationType(rule_config["transformation_type"]),
+            contract_address=rule_config.get("contract_address"),  # None means applies to all
+            requires_transfers=rule_config.get("requires_transfers", True),
+            transfer_validation=rule_config.get("transfer_validation", True),
+            priority=rule_config.get("priority", 0)
+        )
+        registry.register_transformation_rule(rule)
+    
+    # Load contract transformer mappings from config
+    contracts = config_loader.get_active_contracts()
+    for address, contract_config in contracts.items():
+        transformer_class = config_loader.get_transformer_class(address)
+        if transformer_class:
+            registry.register_contract_transformer(address, transformer_class)
+    
+    # Load any additional transfer event types from config
+    settings = config_loader.get_settings()
+    additional_transfers = settings.get("additional_transfer_events", [])
+    for transfer_event in additional_transfers:
+        registry.add_transfer_event_type(transfer_event)

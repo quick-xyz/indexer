@@ -1,4 +1,5 @@
 from typing import Optional
+from datetime import datetime
 from web3 import Web3
 
 from ..interfaces import TransactionDecoderInterface
@@ -60,12 +61,14 @@ class TransactionDecoder(TransactionDecoderInterface):
         return logs
 
 
-    def process_tx(self, tx: EvmTransaction, receipt: EvmTxReceipt) -> Optional[Transaction]:
+    def process_tx(self, time: datetime, block_number: int, tx: EvmTransaction, receipt: EvmTxReceipt) -> Optional[Transaction]:
         try:
             tx_function = self.decode_function(tx)
             tx_logs = self.decode_receipt(receipt)
 
             return Transaction(
+                block= block_number,
+                timestamp= time,
                 tx_hash = tx.hash,
                 index = self.w3.to_int(hexstr=tx.transactionIndex),
                 origin_from = tx.from_,

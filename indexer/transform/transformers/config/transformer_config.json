@@ -1,19 +1,30 @@
 {
+  "version": "1.0",
   "contracts": {
-    "contract_address": {
-      "transformer_class": "ClassName",
-      "transformer_module": "module.path",
-      "params": {},
+    "0x1234...": {
+      "transformer_class": "LbPairTransformer",
+      "transformer_module": "contract_transformers.lb_pair",
       "active": true
     }
   },
   "transformation_rules": [
     {
-      "source_events": ["EventName"],
-      "target_event": "DomainEventName", 
+      "source_events": ["Mint"],
+      "target_event": "Liquidity",
       "transformation_type": "1:1",
-      "contract_address": "contract_address_or_null_for_all",
+      "contract_address": "0x1234...",
+      "requires_transfers": true,
+      "transfer_validation": true,
       "priority": 1,
+      "active": true
+    },
+    {
+      "source_events": ["Swap"],
+      "target_event": "Trade",
+      "transformation_type": "M:1",
+      "requires_transfers": true,
+      "transfer_validation": true,
+      "priority": 5,
       "active": true
     }
   ]
