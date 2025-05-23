@@ -1,7 +1,7 @@
 from typing import List, Dict, Any, Union
 
-from ...decode.model.block import Block,Transaction, DecodedLog
-from ..events.base import TransactionContext, DomainEvent
+from ..decode.model.block import Block,Transaction, DecodedLog
+from .events.base import TransactionContext, DomainEvent
 
 
 class TransformationManager:
