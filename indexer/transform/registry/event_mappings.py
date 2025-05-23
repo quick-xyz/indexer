@@ -2,8 +2,6 @@ from .transformer_registry import TransformationRule, TransformationType, regist
 
 
 def initialize_event_mappings():
-    """Initialize all event transformation mappings."""
-    
     # Example: Simple 1:1 transformation
     registry.register_transformation_rule(TransformationRule(
         source_events=["Transfer"],
@@ -57,6 +55,5 @@ def register_contract_transformers():
 
 
 def setup_registry():
-    """Main setup function to initialize the registry."""
     initialize_event_mappings()
     register_contract_transformers()

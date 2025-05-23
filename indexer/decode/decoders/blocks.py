@@ -76,7 +76,6 @@ class BlockDecoder(BlockDecoderInterface):
         tx_dict, diffs = self.merge_tx_with_receipts(raw_block)
 
         if diffs:
-            #add handling for diffs
             pass
 
         for tx_hash,tx_tuple in tx_dict.items():

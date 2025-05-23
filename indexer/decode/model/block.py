@@ -48,4 +48,4 @@ class Transaction(Struct):
 class Block(Struct):
     block_number: int
     timestamp: datetime
-    transactions: Optional[list[Transaction]] = None
+    transactions: Optional[dict[EvmHash,Transaction]] = None
