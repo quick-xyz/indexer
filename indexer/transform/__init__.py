@@ -2,10 +2,10 @@
 Transformer module for converting decoded blockchain events to domain events.
 """
 
-from .manager import TransformationManager
-from .registry.event_mappings import setup_registry
+from .transformation_manager import TransformationManager
+from .transformer_registry import registry
 
-# Initialize the registry when module is imported
-setup_registry()
+# Auto-initialize the registry when module is imported
+registry.setup()
 
-__all__ = ['TransformationManager']
+__all__ = ['TransformationManager', 'registry']

@@ -15,6 +15,7 @@ from .decode.contracts.registry import ContractRegistry
 from .clients.quicknode_rpc import QuickNodeRPCClient
 from .storage.gcs_new import GCSHandler
 from .decode.decoders.blocks import BlockDecoder
+from .transform.manager import TransformationManager
 # from .pipeline.integrated import IntegratedPipeline
 from .utils.logger import get_logger
 
@@ -90,6 +91,17 @@ class ComponentFactory:
         
         registry.register('block_decoder', decoder)
         return decoder
+
+    @classmethod
+    def get_transformation_manager(cls) -> 'TransformationManager':
+        manager = registry.get('transformation_manager')
+        if manager:
+            return manager
+                
+        manager = TransformationManager()
+        
+        registry.register('transformation_manager', manager)
+        return manager
 
     # @classmethod
     # def get_pipeline(cls) -> 'Pipeline':

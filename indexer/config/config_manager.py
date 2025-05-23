@@ -14,6 +14,7 @@ from .types import (
     ABIConfig,
     ContractConfig,
     ContractWithABI,
+    TransformerConfig,
 )
 
 
@@ -38,6 +39,7 @@ class ConfigManager:
         self.addresses = {}
         self.contracts = {}
         self.config_dict = {}
+        self.transformers = {}
 
         # Load environment variables and config
         self._load_env_vars()
@@ -99,6 +101,7 @@ class ConfigManager:
             self._load_tokens()
             self._load_addresses()
             self._load_contracts()
+            self._load_transformers()
 
 
 
@@ -149,6 +152,22 @@ class ConfigManager:
                 self.addresses[address] = address_config
             except msgspec.ValidationError as e:
                 self.logger.warning(f"Invalid addresses config for {address}: {e}")
+
+    def _load_transformers(self):
+        self.logger.info(f"Loading transformers config from {self.config_dict}")
+
+        contracts_dict = self.config_dict.get("contracts", {})
+
+        for address, contract_data in contracts_dict.items():
+            address = address.lower()
+
+            if "transformer" in contract_data:
+                try:
+                    transformer_config = msgspec.convert(contract_data["transformer"], type=TransformerConfig)
+                    self.transformers[address] = transformer_config
+                except msgspec.ValidationError as e:
+                    self.logger.warning(f"Invalid transformer config for {address}: {e}")
+
 
     def _load_contracts(self):  
         self.logger.info(f"Loading contracts config from {self.config_dict}")

@@ -17,6 +17,7 @@ def create_indexer(custom_config=None, config_file=None):
     rpc = ComponentFactory.get_rpc_client()
     gcs_handler = ComponentFactory.get_gcs_handler()
     block_decoder = ComponentFactory.get_block_decoder()
+    transformation_manager = ComponentFactory.get_transformation_manager() 
     components = registry
 
     return {
@@ -27,4 +28,5 @@ def create_indexer(custom_config=None, config_file=None):
         "rpc": rpc,
         "gcs_handler": gcs_handler,
         "block_decoder": block_decoder,
+        "transformer": transformation_manager,
     }

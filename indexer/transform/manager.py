@@ -1,4 +1,6 @@
-from typing import List, Dict, Any, Union
+from typing import List, Any, Dict
+from collections import defaultdict
+from .registry import transformer_registry
 
 from ..decode.model.block import Block,Transaction, DecodedLog
 from .events.base import TransactionContext, DomainEvent
@@ -13,62 +15,88 @@ class TransformationManager:
         return block
     
     def process_transaction(self, transaction: Transaction, context: TransactionContext) -> Transaction:       
+        
+        # Check if transaction has decoded logs and if it is successful
         if not self.has_decoded_logs(transaction):
             return transaction
         
         if not transaction.tx_success:
             return transaction
 
-        context = TransactionContext(
-            timestamp=transaction.timestamp,
-            tx_hash=transaction.tx_hash,
-            sender=transaction.origin_from,
-            contract=transaction.origin_to,
-            function=transaction.function,
-            value=transaction.value,
-        )
+        # Build context to pass to transformers (TODO: deprecate?)
+        context = self._create_context(transaction)
 
+        # Assemble all decoded logs
         decoded_logs = self.get_decoded_logs(transaction)
         
-        ops_logs, transfers_temp, events_temp, events, errors = [], [], [], [], []
+        transfers_temp, logs_temp = {}, {}
 
-        for log_id, log in decoded_logs.items(): 
-            transformer = registry.get_log_transformer(log.contract)
-            if not transformer:
+        contracts_in_tx = set()
+        for key, log in decoded_logs.items():
+            contracts_in_tx.add(log.contract.lower())
+            if transformer_registry.is_transfer_event(log.name):
+                transfers_temp[key] = log
+            else:
+                logs_temp[key] = log
+
+        ops_logs, events, errors = [], [], []
+        domain_events = []
+
+        for log_id, log in logs_temp.items(): 
+            mapping = registry.get_contract_mapping(log.contract)
+            if not mapping:
                 continue
-
-            rules = registry.get_triggered_rules(log.signature)
+            
             applicable_rules = [
-                rule for rule in rules
-                if rule.contract_address is None or rule.contract_address.lower() == log.contract.lower()
+                rule for rule in mapping.business_event_rules 
+                if log.name in rule.source_events
             ]
+            
             if not applicable_rules:
                 continue
- 
-            transformer = transformer()
-            # Process the log
+            
+            transformer = mapping.transformer_class()
+            
+            
+            
+            
+            mapping = registry.get_contract_mapping(log.contract)
+            if not mapping:
+                continue
+            
+            # Get applicable rules for this business event
+            applicable_rules = [
+                rule for rule in mapping.business_event_rules 
+                if log.name in rule.source_events
+            ]
+            
+            if not applicable_rules:
+                continue
+            
+            # Create transformer instance
+            transformer = mapping.transformer_class()
+            
+            # Process each rule with transfer correlation
             for rule in applicable_rules:
-                # Get the transformer for this log
-                result = transformer.transform(rule, log, context)
-                if isinstance(result, list):
-                    ops_logs.extend(result)
-                elif isinstance(result, DomainEvent):
-                    events_temp.append(result)
-                elif isinstance(result, Transfer):
-                    transfers_temp.append(result)
+                if rule.requires_transfers:
+                    # Find related transfers for this business event
+                    related_transfers = self._find_related_transfers(
+                        log, transfer_logs, rule.transfer_validation
+                    )
+                    
+                    # Create enriched domain event with transfers
+                    result = transformer.transform_with_transfers(
+                        log, related_transfers, self._create_context(transaction, block)
+                    )
                 else:
-                    errors.append(f"Unknown result type: {type(result)}")
-
-        # Store the results in the transaction
-        transaction.ops_logs = ops_logs
-        transaction.transfers_temp = transfers_temp
-        transaction.events_temp = events_temp
-        transaction.events = events
-        transaction.errors = errors
-
+                    # Simple transformation without transfers
+                    result = transformer.transform_log(
+                        log, self._create_context(transaction, block)
+                    )
+                
+                domain_events.extend(result)
         
-        return transformed_tx
-
+        return domain_events
 
 
     def get_decoded_logs(transaction: Transaction) -> dict[str, DecodedLog]:
@@ -82,3 +110,17 @@ class TransformationManager:
     def has_decoded_logs(transaction: Transaction) -> bool:
         """Check if transaction has any decoded logs."""
         return any(isinstance(log, DecodedLog) for log in transaction.logs.values())
+    
+    def _validate_transfer_amounts(self, business_log, related_transfers):
+        """Validate that transfer amounts balance correctly."""
+        pass
+    
+    def _create_context(self, transaction: Transaction) -> TransactionContext:
+        return TransactionContext(
+            timestamp=transaction.timestamp,
+            tx_hash=transaction.tx_hash,
+            sender=transaction.origin_from,
+            contract=transaction.origin_to,
+            function=transaction.function,
+            value=transaction.value,
+        )

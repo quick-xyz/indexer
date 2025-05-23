@@ -26,12 +26,18 @@ class AddressConfig(Struct):
 class ABIConfig(Struct):
     abi: list
 
+class TransformerConfig(Struct):
+    name: str
+    priorities: Optional[dict[str,int]] = None
+    description: Optional[str] = None
+
 class ContractConfig(Struct):
     name: str
     project: str
     type: str
     abi_dir: str
     abi: str
+    transformer: Optional[TransformerConfig] = None
     description: Optional[str] = None
     version: Optional[str] = None
     implementation: Optional[EvmAddress] = None

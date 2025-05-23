@@ -129,14 +129,21 @@
             "project": "Pharaoh",
             "type": "Router",
             "abi_dir": "routers",
-            "abi": "0xaaa45c8f5ef92a000a121d102f4e89278a711faa.json"
+            "abi": "0xaaa45c8f5ef92a000a121d102f4e89278a711faa.json",
+            "transformer": {
+                "name": "RouterTransformer",
+                "priorities": {
+                    "Transfer": 1,
+                    "Mint": 2
+                }
+            }
         }
     },
     "addresses":{
         "0xe8afa8eb383ced1696c2d8ceb080f47df48f11af": {
             "name": "Blub Treasury",
             "type": "wallet",
-            "description": "The treasury address for the Blub project"
+            "description": ""
         }
     }
 }
