@@ -40,7 +40,7 @@ class Transaction(Struct):
     function: EncodedMethod | DecodedMethod
     value: int
     tx_success: bool
-    logs: dict[str,EncodedLog|DecodedLog]  # key: "{tx_hash}_{log_index}" aka log_id
+    logs: dict[int,EncodedLog|DecodedLog]  # keyed by log index
     ops_logs: list[DecodedLog]  # list of logs to be stored in ops tables
     transfers_temp: Optional[list[Transfer]] = None
     events_temp: Optional[list[DomainEvent]] = None

@@ -1,0 +1,72 @@
+from abc import ABC, abstractmethod
+from typing import List, Dict, Any, Optional
+from datetime import datetime
+
+from ..domain_events.base import DomainEvent
+from ...decode.model.types import EvmAddress
+
+
+class BaseTransformer(ABC):
+    def __init__(self):
+        self.contract_address: Optional[EvmAddress] = None
+        self.name = self.__class__.__name__
+    
+    @abstractmethod
+    def process_log(self, log, transaction, block) -> List[DomainEvent]:
+        pass
+    
+
+    
+    def get_related_transfers(self, transaction, token_address: Optional[EvmAddress] = None) -> List[Any]:
+        """Find transfer events in the transaction, optionally filtered by token."""
+        decoded_logs = self.get_decoded_logs(transaction)
+        transfers = []
+        
+        for key, log in decoded_logs.items():
+            if log.name in ["Transfer", "TransferBatch", "TransferSingle"]:
+                if token_address is None or log.contract.lower() == token_address.lower():
+                    transfers.append(log)
+        
+        return transfers
+    
+    def get_related_events(self, transaction, event_names: List[str], contract_address: Optional[EvmAddress] = None) -> List[Any]:
+        """Find specific events in the transaction, optionally filtered by contract."""
+        decoded_logs = self.get_decoded_logs(transaction)
+        events = []
+        
+        for key, log in decoded_logs.items():
+            if log.name in event_names:
+                if contract_address is None or log.contract.lower() == contract_address.lower():
+                    events.append(log)
+        
+        return events
+    
+    def get_events_involving_contract(self, transaction, contract_address: EvmAddress) -> List[Any]:
+        """Get all events that involve a specific contract (as source or in data)."""
+        decoded_logs = self.get_decoded_logs(transaction)
+        events = []
+        
+        for key, log in decoded_logs.items():
+            # Event from this contract
+            if log.contract.lower() == contract_address.lower():
+                events.append(log)
+                continue
+            
+            # Event that references this contract in its data
+            if hasattr(log, 'data') and log.data:
+                for value in log.data.values():
+                    if isinstance(value, str) and value.lower() == contract_address.lower():
+                        events.append(log)
+                        break
+        
+        return events
+    
+    def validate_amounts(self, expected_total: int, actual_amounts: List[int], tolerance: float = 0.001) -> bool:
+        """Validate that amounts sum correctly within tolerance."""
+        actual_total = sum(actual_amounts)
+        if expected_total == 0:
+            return actual_total == 0
+        
+        difference = abs(expected_total - actual_total)
+        relative_error = difference / abs(expected_total)
+        return relative_error <= tolerance

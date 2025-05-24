@@ -55,7 +55,7 @@ class TransactionDecoder(TransactionDecoderInterface):
         for log in receipt.logs:
             hash = log.transactionHash
             index = self.w3.to_int(hexstr=log.logIndex)
-            log_id = f"{hash}_{index}"
+            log_id = index
             processed_log = self.log_decoder.decode(log)
             logs[log_id] = processed_log
         return logs
