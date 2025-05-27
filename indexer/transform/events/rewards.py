@@ -1,7 +1,7 @@
 from typing import Literal, Optional, List
 from msgspec import Struct
 
-from ...decode.model.evm import EvmAddress,EvmHash
+from ...decode.model.evm import EvmAddress
 from .base import DomainEvent
 
 class Reward(Struct, tag=True):
@@ -15,3 +15,13 @@ class Rewards(DomainEvent, tag=True):
     token: EvmAddress
     amount: int
     rewards: Optional[List[Reward]] = None
+
+    def _get_identifying_content(self):
+        return {
+            "event_type": "rewards",
+            "tx_salt": self.tx_hash,
+            "contract": self.contract,
+            "recipient": self.recipient,
+            "amount": self.amount,
+            "token": self.token,
+        }

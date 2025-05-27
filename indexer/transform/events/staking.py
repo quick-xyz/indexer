@@ -15,3 +15,14 @@ class Staking(DomainEvent, tag=True):
     receipt_id: Optional[int] = None
     amount_receipt: Optional[str] = None
     transfers: Optional[List[Transfer]] = None
+
+    def _get_identifying_content(self):
+        return {
+            "event_type": "staking",
+            "tx_salt": self.tx_hash,
+            "contract": self.contract,
+            "staker": self.staker,
+            "token": self.token,
+            "amount": self.amount,
+            "action": self.action,
+        }

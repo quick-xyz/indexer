@@ -1,11 +1,8 @@
-from datetime import datetime
 from msgspec import Struct
 import msgspec
-from typing import Optional
 import hashlib
 
-from ...decode.model.types import EvmHash, EvmAddress
-from ...decode.model.block import DecodedMethod
+from ...decode.model.types import EvmHash
 
 class DomainEvent(Struct):
     ''' Base class for domain events. '''
@@ -22,12 +19,3 @@ class DomainEvent(Struct):
     
     def _get_identifying_content(self):
         raise NotImplementedError
-
-
-class TransactionContext(Struct):
-    timestamp: datetime
-    tx_hash: EvmHash
-    sender: EvmAddress
-    contract: Optional[EvmAddress]
-    function: Optional[DecodedMethod]
-    value: int

@@ -13,3 +13,11 @@ class Parameter(Struct, tag=True):
 class Parameters(DomainEvent, tag=True):
     contract: EvmAddress
     parameters: List[Parameter]
+    
+    def _get_identifying_content(self):
+        return {
+            "event_type": "parameters",
+            "tx_salt": self.tx_hash,
+            "contract": self.contract,
+            "parameters": [param.parameter for param in self.parameters],
+        }

@@ -1,7 +1,7 @@
 from typing import Literal, List, Optional
 from msgspec import Struct
 
-from ...decode.model.evm import EvmAddress,EvmHash
+from ...decode.model.evm import EvmAddress
 from .base import DomainEvent
 from .transfer import Transfer
 
@@ -25,3 +25,14 @@ class Liquidity(DomainEvent, tag=True):
     positions: Optional[List[Position]] = None
     transfers: Optional[List[Transfer]] = None
     custodian: Optional[EvmAddress] = None
+
+    def _get_identifying_content(self):
+        return {
+            "event_type": "liquidity",
+            "tx_salt": self.tx_hash,
+            "pool": self.pool,
+            "provider": self.provider,
+            "amount_base": self.amount_base,
+            "amount_quote": self.amount_quote,
+            "action": self.action,
+        }
