@@ -13,24 +13,14 @@ class PharPairTransformer:
         self.contract = contract
         self.token0 = token0
         self.token1 = token1
-        self.base = base_token
-        self.base_token, self.quote_token = self._get_tokens()
-
-    def _get_tokens(self) -> tuple:
-        if self.token0 == self.base:
-            base_token = self.token0
-            quote_token = self.token1
-        elif self.token1 == self.base:
-            base_token = self.token1
-            quote_token = self.token0
-
-        return base_token, quote_token
+        self.base_token = base_token
+        self.quote_token = token1 if token0 == base_token else token0
     
     def get_amounts(self, log: DecodedLog) -> tuple:
-        if self.token0 == self.base:
+        if self.token0 == self.base_token:
             base_amount = log.attributes.get("amount0")
             quote_amount = log.attributes.get("amount1")
-        elif self.token1 == self.base:
+        elif self.token1 == self.base_token:
             base_amount = log.attributes.get("amount1")
             quote_amount = log.attributes.get("amount0")
 
@@ -79,10 +69,10 @@ class PharPairTransformer:
         return positions
 
     def handle_swap(self, log: DecodedLog, context: TransactionContext) -> list[PoolSwap]:
-        if self.token0 == self.base:
+        if self.token0 == self.base_token:
             base_amount = log.attributes.get("amount0In") - log.attributes.get("amount0Out")
             quote_amount = log.attributes.get("amount1In") - log.attributes.get("amount1Out")
-        elif self.token1 == self.base:
+        elif self.token1 == self.base_token:
             quote_amount = log.attributes.get("amount0In") - log.attributes.get("amount0Out")
             base_amount = log.attributes.get("amount1In") - log.attributes.get("amount1Out")
 

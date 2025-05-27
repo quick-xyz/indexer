@@ -15,14 +15,14 @@ class LbPairTransformer:
         self.contract = contract
         self.token_x = token_x
         self.token_y = token_y
-        self.base = base_token
-        self.base_token, self.quote_token = self._get_tokens()
+        self.base_token = base_token
+        self.quote_token = token_y if token_x == base_token else token_x
 
     def _get_tokens(self) -> tuple:
-        if self.token_x == self.base:
+        if self.token_x == self.base_token:
             base_token = self.token_x
             quote_token = self.token_y
-        elif self.token_y == self.base:
+        elif self.token_y == self.base_token:
             base_token = self.token_y
             quote_token = self.token_x
 
@@ -35,9 +35,9 @@ class LbPairTransformer:
             return "sell"
 
     def unpack_amounts(self, bytes) -> tuple:
-        if self.token_x == self.base:
+        if self.token_x == self.base_token:
             base_amount, quote_amount = decode_amounts(bytes)
-        elif self.token_y == self.base:
+        elif self.token_y == self.base_token:
             quote_amount, base_amount = decode_amounts(bytes)
 
         return base_amount, quote_amount

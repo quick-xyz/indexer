@@ -51,13 +51,3 @@ class TransformationManager:
         """Validate that transfer amounts balance correctly."""
         pass
     
-    def _create_context(self, transaction: Transaction) -> TransactionContext:
-        return TransactionContext(
-            timestamp=transaction.timestamp,
-            tx_hash=transaction.tx_hash,
-            sender=transaction.origin_from,
-            contract=transaction.origin_to,
-            function=transaction.function,
-            value=transaction.value,
-        )
-    
