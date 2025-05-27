@@ -2,7 +2,8 @@ from abc import ABC, abstractmethod
 from typing import List, Dict, Any, Optional
 from datetime import datetime
 
-from ..domain_events.base import DomainEvent
+from ..events.base import DomainEvent
+from ...decode.model.block import Block, Transaction, DecodedLog
 from ...decode.model.types import EvmAddress
 
 
@@ -15,10 +16,7 @@ class BaseTransformer(ABC):
     def process_log(self, log, transaction, block) -> List[DomainEvent]:
         pass
     
-
-    
     def get_related_transfers(self, transaction, token_address: Optional[EvmAddress] = None) -> List[Any]:
-        """Find transfer events in the transaction, optionally filtered by token."""
         decoded_logs = self.get_decoded_logs(transaction)
         transfers = []
         
@@ -29,6 +27,16 @@ class BaseTransformer(ABC):
         
         return transfers
     
+    def get_decoded_logs(transaction: Transaction) -> dict[int, DecodedLog]:
+        decoded_logs = {}
+        for index, log in transaction.logs.items():
+            if isinstance(log, DecodedLog):
+                decoded_logs[index] = log
+        return decoded_logs
+
+    def has_decoded_logs(transaction: Transaction) -> bool:
+        return any(isinstance(log, DecodedLog) for log in transaction.logs.values())
+
     def get_related_events(self, transaction, event_names: List[str], contract_address: Optional[EvmAddress] = None) -> List[Any]:
         """Find specific events in the transaction, optionally filtered by contract."""
         decoded_logs = self.get_decoded_logs(transaction)

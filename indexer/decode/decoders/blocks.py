@@ -1,5 +1,4 @@
 from web3 import Web3
-import datetime
 from typing import Optional
 
 from ..interfaces import BlockDecoderInterface
@@ -9,13 +8,6 @@ from .transactions import TransactionDecoder
 from ..model.block import Block
 from ..model.evm import EvmFilteredBlock,EvmHash,EvmTransaction,EvmTxReceipt
 from ...utils.logger import get_logger
-
-def hex_timestamp_to_datetime(w3: Web3,hex_timestamp):
-    try:
-        unix_timestamp = w3.to_int(hexstr=hex_timestamp)
-        return datetime.datetime.fromtimestamp(unix_timestamp)
-    except ValueError:
-        return "Invalid hexadecimal timestamp"
 
 
 class BlockDecoder(BlockDecoderInterface):
@@ -74,17 +66,18 @@ class BlockDecoder(BlockDecoderInterface):
         """
         decoded_tx = {}
         tx_dict, diffs = self.merge_tx_with_receipts(raw_block)
+        block_number = self.w3.to_int(hexstr=raw_block.block)
 
         if diffs:
             pass
 
         for tx_hash,tx_tuple in tx_dict.items():
             # pass tx_tuple to the transaction processor, return decoded tx object
-            processed_tx = self.tx_decoder.process_tx(tx_tuple[0],tx_tuple[1])
+            processed_tx = self.tx_decoder.process_tx(block_number,raw_block.timestamp,tx_tuple[0],tx_tuple[1])
             decoded_tx[tx_hash] = processed_tx
 
         return Block(
-            block_number=self.w3.to_int(hexstr=raw_block.block),
-            timestamp=hex_timestamp_to_datetime(self.w3,raw_block.timestamp),
+            block_number=block_number,
+            timestamp=raw_block.timestamp,
             transactions=decoded_tx
         )

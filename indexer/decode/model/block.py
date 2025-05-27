@@ -32,7 +32,7 @@ class EncodedMethod(Struct, tag=True):
 
 class Transaction(Struct):
     block: int
-    timestamp: datetime
+    timestamp: int
     tx_hash: EvmHash
     index: int
     origin_from: EvmAddress
@@ -49,5 +49,5 @@ class Transaction(Struct):
 
 class Block(Struct):
     block_number: int
-    timestamp: datetime
+    timestamp: int
     transactions: Optional[dict[EvmHash,Transaction]] = None

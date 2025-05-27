@@ -61,7 +61,7 @@ class TransactionDecoder(TransactionDecoderInterface):
         return logs
 
 
-    def process_tx(self, time: datetime, block_number: int, tx: EvmTransaction, receipt: EvmTxReceipt) -> Optional[Transaction]:
+    def process_tx(self, block_number: int, time: int, tx: EvmTransaction, receipt: EvmTxReceipt) -> Optional[Transaction]:
         try:
             tx_function = self.decode_function(tx)
             tx_logs = self.decode_receipt(receipt)
