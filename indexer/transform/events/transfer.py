@@ -15,7 +15,3 @@ class Transfer(DomainEvent, tag=True):
     to_address: EvmAddress
     transfer_type: Literal["transfer","transfer_batch"] = "transfer"
     batch: Optional[List[TransferIds]] = None
-    
-class TransferDetailed(Transfer, tag=True):
-    value_native: int
-    value_usd: int

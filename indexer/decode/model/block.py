@@ -41,13 +41,11 @@ class Transaction(Struct):
     value: int
     tx_success: bool
     logs: dict[int,EncodedLog|DecodedLog]  # keyed by log index
-    ops_logs: list[DecodedLog]  # list of logs to be stored in ops tables
-    transfers_temp: Optional[list[Transfer]] = None
-    events_temp: Optional[list[DomainEvent]] = None
-    events: Optional[list[dict]] = None
+    transfers: Optional[dict[str,Transfer]] = None # keyed by indexer hashing function
+    events: Optional[dict[str,DomainEvent]] = None # keyed by indexer hashing function
     errors: Optional[list] = None
 
 class Block(Struct):
     block_number: int
     timestamp: int
-    transactions: Optional[dict[EvmHash,Transaction]] = None
+    transactions: Optional[dict[EvmHash,Transaction]] = None # keyed by transaction hash

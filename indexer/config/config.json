@@ -132,6 +132,7 @@
             "abi": "0xaaa45c8f5ef92a000a121d102f4e89278a711faa.json",
             "transformer": {
                 "name": "RouterTransformer",
+                "type": "router",
                 "priorities": {
                     "Transfer": 1,
                     "Mint": 2

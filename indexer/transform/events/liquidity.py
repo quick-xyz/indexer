@@ -25,7 +25,3 @@ class Liquidity(DomainEvent, tag=True):
     positions: Optional[List[Position]] = None
     transfers: Optional[List[Transfer]] = None
     custodian: Optional[EvmAddress] = None
-
-class LiquidityDetailed(Liquidity, tag=True):
-    value_native: int
-    value_usd: int

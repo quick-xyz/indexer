@@ -15,7 +15,3 @@ class Staking(DomainEvent, tag=True):
     receipt_id: Optional[int] = None
     amount_receipt: Optional[str] = None
     transfers: Optional[List[Transfer]] = None
-
-class StakingDetailed(Staking, tag=True):
-    value_native: int
-    value_usd: int

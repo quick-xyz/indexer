@@ -30,9 +30,3 @@ class Trade(DomainEvent, tag=True):
     trade_type: Literal["arbitrage","trade","auction"] = "trade"
     router: Optional[EvmAddress] = None
     swaps: Optional[List[Swap|PoolSwap|Auction]] = None
-
-class TradeDetailed(Trade, tag=True):
-    price_native: int
-    price_usd: int
-    value_native: int
-    value_usd: int

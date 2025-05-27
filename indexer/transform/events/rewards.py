@@ -15,7 +15,3 @@ class Rewards(DomainEvent, tag=True):
     token: EvmAddress
     amount: int
     rewards: Optional[List[Reward]] = None
-
-class RewardsDetailed(Rewards, tag=True):
-    value_native: int
-    value_usd: int
