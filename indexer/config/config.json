@@ -12,13 +12,9 @@
             "transform": {
                 "name": "TokenTransformer",
                 "transfers": {
-                    "Transfer": 0
+                    "Transfer": 1
                 },
-                "logs": {
-                    "Mint": 2,
-                    "Burn": 2,
-                    "Swap": 5
-                },
+                "logs": {},
                 "instantiate": {
                     "contract": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
                 }
@@ -30,7 +26,7 @@
         },
         "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7": {
             "name": "WAVAX",
-            "project": "Avalanche",
+            "project": "Avax",
             "type": "token",
             "decode": {
                 "abi_dir": "tokens",
@@ -39,23 +35,30 @@
             "transform": {
                 "name": "WavaxTransformer",
                 "transfers": {
-                    "Transfer": 0
+                    "Transfer": 1
                 },
-                "logs": {
-                    "Mint": 2,
-                    "Burn": 2,
-                    "Swap": 5
-                },
+                "logs": {},
                 "instantiate": {
                     "contract": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
                 }
             },
             "token": {
-                "name": "Wrapped AVAX",
                 "symbol": "WAVAX",
                 "decimals": 18
             }
         },
+
+
+
+
+
+
+
+
+        
+
+
+
 
         "0x39888258d60fed9228f89e13eb57a92f1fa832eb": {
             "name": "JLP:BLUB-AVAX",

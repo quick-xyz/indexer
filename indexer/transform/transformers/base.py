@@ -1,10 +1,12 @@
 from abc import ABC, abstractmethod
-from typing import List, Dict, Any, Optional
-from datetime import datetime
+from typing import List, Any, Optional
+
 
 from ..events.base import DomainEvent
-from ...decode.model.block import Block, Transaction, DecodedLog
+from ...decode.model.block import Transaction, DecodedLog
 from ...decode.model.types import EvmAddress
+from ..events.transfer import Transfer
+from ...utils.logger import get_logger
 
 
 class BaseTransformer(ABC):
@@ -78,3 +80,26 @@ class BaseTransformer(ABC):
         difference = abs(expected_total - actual_total)
         relative_error = difference / abs(expected_total)
         return relative_error <= tolerance
+
+
+class TokenTransformer(BaseTransformer):
+    def __init__(self, contract):
+        self.logger = get_logger(__name__)
+        self.contract = contract
+
+    def process_transfers(self, logs: List[DecodedLog], tx: Transaction) -> List[DomainEvent]:
+        transfers = []
+
+        for log in logs:
+            if log.name == "Transfer":
+                transfer = Transfer(
+                    timestamp=tx.timestamp,
+                    tx_hash=tx.tx_hash,
+                    from_address=log.attributes.get("from").lower(),
+                    to_address=log.attributes.get("to").lower(),
+                    token=log.contract,
+                    amount=log.attributes.get("value"),
+                )
+                transfers.append(transfer)
+                
+        return transfers

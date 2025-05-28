@@ -8,6 +8,9 @@ from ..decode.model.block import DecodedLog
 
 # TRANSFORMER MODULES
 
+from .transformers.base import TokenTransformer
+from .transformers.tokens.wavax import WavaxTransformer
+
 from .transformers.pools.lb_pair import LbPairTransformer
 from .transformers.pools.lfj_pool import LfjPoolTransformer
 from .transformers.pools.phar_clpool import PharClpoolTransformer
@@ -21,6 +24,9 @@ from .transformers.wesmol.farm import FarmTransformer
 from .transformers.wesmol.wrapper import WesmolWrapperTransformer
 
 TRANSFORMER_CLASSES = {
+    "TokenTransformer": TokenTransformer,
+    "WavaxTransformer": WavaxTransformer,
+    
     "LBPairTransformer": LbPairTransformer,
     "LfjPoolTransformer": LfjPoolTransformer,
     "PharClpoolTransformer": PharClpoolTransformer,
