@@ -1,7 +1,6 @@
 from typing import Dict, Type, Optional, List, Tuple
 from dataclasses import dataclass, field
 
-from ..config.config_manager import config
 from ..config.types import TransformerConfig
 from ..decode.model.types import EvmAddress
 
@@ -29,35 +28,65 @@ TRANSFORMER_CLASSES = {
 @dataclass
 class ContractTransformer:
     """Complete configuration for a contract transformer."""
-    transformer_class: Type
-    event_priorities: Dict[str, int] = field(default_factory=dict)  # event -> priority
+    instance: object
+    transfer_priorities: Dict[str, int] = field(default_factory=dict)  # event -> priority
+    log_priorities: Dict[str, int] = field(default_factory=dict)  # event -> priority
     active: bool = True
+
 
 class TransformerRegistry:
     def __init__(self):
         self._contracts: Dict[EvmAddress, ContractTransformer] = {}
         self._initialized = False
     
-    def register_contract(self, contract_address: EvmAddress, transformer_class: Type, event_priorities: Dict[str, int] = None):
+    def register_contract(self, 
+                          contract_address: EvmAddress, 
+                          instance: object, 
+                          transfer_priorities: Dict[str, int] = None,
+                          log_priorities: Dict[str, int] = None):
         self._contracts[contract_address.lower()] = ContractTransformer(
-            transformer_class=transformer_class,
-            event_priorities=event_priorities or {}
+            instance=instance,
+            transfer_priorities=transfer_priorities or {},
+            log_priorities=log_priorities or {}
         )
     
-    def get_transformer_class(self, contract_address: EvmAddress) -> Optional[Type]:
+    def get_transformer(self, contract_address: EvmAddress) -> Optional[object]:
         config = self._contracts.get(contract_address.lower())
-        return config.transformer_class if config and config.active else None
+        return config.instance if config and config.active else None
     
-    def get_event_priority(self, contract_address: EvmAddress, event_name: str) -> int:
+    def get_transfer_priority(self, contract_address: EvmAddress, event_name: str) -> int:
+        config = self._contracts.get(contract_address.lower())
+        if config and config.active:
+            return config.transfer_priorities.get(event_name, 999)
+        return 999
+
+    def get_log_priority(self, contract_address: EvmAddress, event_name: str) -> int:
         config = self._contracts.get(contract_address.lower())
         if config and config.active:
             return config.event_priorities.get(event_name, 999)
-        return 999  # Default to very low priority
+        return 999
     
-    def get_logs_by_priority(self, decoded_logs: Dict[str, any]) -> List[Tuple[str, any]]:
-        log_items = list(decoded_logs.items())
-        return sorted(log_items, key=lambda x: self.get_event_priority(x[1].contract, x[1].name))
+    def is_transfer_event(self, contract_address: EvmAddress, event_name: str) -> bool:
+        """Check if the event is a transfer event for the given contract."""
+        config = self._contracts.get(contract_address.lower())
+        if config and config.active:
+            return event_name in config.transfer_priorities
+        return False
     
+    def get_transfers_by_contract(self, decoded_logs: Dict[str, any]) -> List[Tuple[str, any]]:
+        transfer_logs = [
+            (key, log) for key, log in decoded_logs.items()
+            if self.is_transfer_event(log.contract, log.name)
+        ]
+        return sorted(transfer_logs, key=lambda x: self.get_transfer_priority(x[1].contract, x[1].name))
+
+    def get_remaining_logs_by_priority(self, decoded_logs: Dict[str, any]) -> List[Tuple[str, any]]:
+        remaining_logs = [
+            (key, log) for key, log in decoded_logs.items()
+            if not self.is_transfer_event(log.contract, log.name)
+        ]
+        return sorted(remaining_logs, key=lambda x: self.get_log_priority(x[1].contract, x[1].name))
+
     def get_all_contracts(self) -> Dict[str, ContractTransformer]:
         return self._contracts.copy()
     
@@ -65,16 +94,25 @@ class TransformerRegistry:
         if self._initialized:
             return
         
+        from ..config.config_manager import config
+
         for address, transformer_config in config.transformers.items():
             transformer_class = TRANSFORMER_CLASSES.get(transformer_config.name)
-            if transformer_class:
-                event_priorities = {}
-                if hasattr(transformer_config, 'priorities') and transformer_config.priorities:
-                    event_priorities = transformer_config.priorities
-                
-                self.register_contract(address, transformer_class, event_priorities)
-            else:
-                print(f"Warning: Unknown transformer '{transformer_config.name}' for contract {address}")
+            if not transformer_class:
+                print(f"Warning: Unknown transformer {transformer_config.name} for contract {address}")
+                continue
+            
+            instantiate_params = getattr(transformer_config, 'instantiate', {})
+            try:
+                transformer_instance = transformer_class(**instantiate_params)
+            except Exception as e:
+                print(f"Error creating transformer instance for {address}: {e}")
+                continue
+
+            transfer_priorities = getattr(transformer_config, 'transfers', {})
+            log_priorities = getattr(transformer_config, 'logs', {})
+
+            self.register_contract(address, transformer_instance, transfer_priorities, log_priorities)
         
         self._initialized = True
 

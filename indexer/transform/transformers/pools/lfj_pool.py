@@ -1,4 +1,4 @@
-from ....decode.model.block import DecodedLog
+from ....decode.model.block import DecodedLog, Transaction
 from ...events.base import DomainEvent, TransactionContext
 from ...events.transfer import Transfer
 from ...events.liquidity import Liquidity
@@ -16,21 +16,19 @@ class LfjPoolTransformer:
         self.quote_token = token1 if token0 == base_token else token0
 
     
-    def get_amounts(self, log: DecodedLog) -> tuple:
-        if self.token0 == self.base_token:
-            base_amount = log.attributes.get("amount0")
-            quote_amount = log.attributes.get("amount1")
-        elif self.token1 == self.base_token:
-            base_amount = log.attributes.get("amount1")
-            quote_amount = log.attributes.get("amount0")
+    def get_amounts(self, log: DecodedLog) -> tuple[int, int]:
+        amount0 = log.attributes.get("amount0")
+        amount1 = log.attributes.get("amount1")
 
-        return base_amount, quote_amount
+        if self.token0 == self.base_token:
+            return amount0, amount1
+        else:
+            return amount1, amount0
+
 
     def get_direction(self, base_amount: int) -> str:
-        if base_amount > 0:
-            return "buy"
-        else:
-            return "sell"
+        return "buy" if base_amount > 0 else "sell"
+    
 
     def handle_mint(self, log: DecodedLog, context: TransactionContext) -> list[Liquidity]:
         base_amount, quote_amount = self.get_amounts(log)
@@ -120,9 +118,24 @@ class LfjPoolTransformer:
 
         return events
 
-        
 
+    def process_transfers(self, transaction: Transaction):
+        transfers = []
+        for log in transaction.logs:
+            if log.name == "Transfer" and log.contract == self.contract:
+                transfer = Transfer(
+                    timestamp=transaction.timestamp,
+                    tx_hash=transaction.hash,
+                    token=log.contract,
+                    amount=log.attributes.get("value"),
+                    from_address=log.attributes.get("from"),
+                    to_address=log.attributes.get("to")
+                )
+                transfers.append(transfer)
+        return transfers
     
+    def process_transaction(self, transaction: Transaction) -> list[DomainEvent]:
+        
 
 
 

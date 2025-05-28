@@ -5,11 +5,8 @@ from .registry import registry
 
 
 class TransformationManager:
-    """Log-priority based transformation manager."""
-
     
     def process_transaction(self, transaction, block) -> List[Any]:
-        """Process transaction by processing logs in priority order."""
         decoded_logs = self.get_decoded_logs(transaction)
         if not decoded_logs:
             return []

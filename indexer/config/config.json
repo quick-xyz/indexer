@@ -1,68 +1,94 @@
 {
-    "tokens":{
-        "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd": {
-            "name": "Blub",
-            "symbol": "BLUB",
-            "type": "token",
-            "decimals": 18
-        },
-        "0x39888258d60fed9228f89e13eb57a92f1fa832eb": {
-            "name": "LFJ: BLUB-AVAX",
-            "symbol": "JLP",
-            "type": "lp_token",
-            "decimals": 18   
-        },
-        "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7": {
-            "name": "Wrapped AVAX",
-            "symbol": "WAVAX",
-            "type": "token",
-            "decimals": 18  
-        },
-        "0x3fc41c1ae339322ab87b6ba48e30781d88a304d4": {
-            "name": "Pharaoh: BLUB-AVAX",
-            "symbol": "PLP",
-            "type": "lp_token",
-            "decimals": 18  
-        }
-    },
+    "version": "0.0.1",
     "contracts":{
-        "0x45a62b090df48243f12a21897e7ed91863e2c86b": {
-            "name": "LFJ Aggregator v2.2",
-            "project": "LFJ",
-            "type": "Aggregator",
-            "abi_dir": "lfj",
-            "abi": "aggregatorv2_2.json"
-        },
-        "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc": {
-            "name": "Odos Router v2",
-            "project": "Odos",
-            "type": "Aggregator",
-            "abi_dir": "other",
-            "abi": "odos_v2.json"
-        },
         "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd": {
-            "name": "Token:BLUB",
+            "name": "BLUB",
             "project": "Blub",
-            "type": "Token",
-            "abi_dir": "tokens",
-            "abi": "blub.json"
+            "type": "token",
+            "decode": {
+                "abi_dir": "tokens",
+                "abi": "blub.json"
+            },
+            "transform": {
+                "name": "TokenTransformer",
+                "transfers": {
+                    "Transfer": 0
+                },
+                "logs": {
+                    "Mint": 2,
+                    "Burn": 2,
+                    "Swap": 5
+                },
+                "instantiate": {
+                    "contract": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+                }
+            },
+            "token": {
+                "symbol": "BLUB",
+                "decimals": 18
+            }
         },
         "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7": {
-            "name": "Token:WAVAX",
+            "name": "WAVAX",
             "project": "Avalanche",
-            "type": "Token",
-            "abi_dir": "tokens",
-            "abi": "wavax.json"
+            "type": "token",
+            "decode": {
+                "abi_dir": "tokens",
+                "abi": "wavax.json"
+            },
+            "transform": {
+                "name": "WavaxTransformer",
+                "transfers": {
+                    "Transfer": 0
+                },
+                "logs": {
+                    "Mint": 2,
+                    "Burn": 2,
+                    "Swap": 5
+                },
+                "instantiate": {
+                    "contract": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
+                }
+            },
+            "token": {
+                "name": "Wrapped AVAX",
+                "symbol": "WAVAX",
+                "decimals": 18
+            }
         },
+
         "0x39888258d60fed9228f89e13eb57a92f1fa832eb": {
-            "name": "LP:BLUB-AVAX",
+            "name": "JLP:BLUB-AVAX",
             "project": "LFJ",
-            "type": "LP",
-            "abi_dir": "lfj",
-            "abi": "joepair.json"
+            "type": "lp",
+            "decode": {
+                "abi_dir": "lfj",
+                "abi": "joepair.json"
+            },
+            "transform": {
+                "name": "LfjPoolTransformer",
+                "transfers": {
+                    "Transfer": 1
+                },
+                "logs": {
+                    "Mint": 2,
+                    "Burn": 2,
+                    "Swap": 5
+                },
+                "instantiate": {
+                    "contract": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+                    "token0": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                    "token1": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+                    "base_token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+                }
+            },
+            "token": {
+                "symbol": "JLP",
+                "decimals": 18
+            }
         },
         "0xcb4c6fdcfb7d868df5f1e3d0018438205b243fd6": {
-            "name": "LB:BLUB-AVAX",
+            "name": "BLUB-AVAX",
             "project": "LFJ",
             "type": "LP",
             "abi_dir": "lfj",
@@ -72,8 +98,32 @@
             "name": "CLP:BLUB-AVAX",
             "project": "Pharaoh",
             "type": "LP",
-            "abi_dir": "pharaoh",
-            "abi": "clpool.json"
+            "decode": {
+                "abi_dir": "pharaoh",
+                "abi": "clpool.json"
+            },
+            "transform": {
+                "name": "PharaohPoolTransformer",
+                "transfers": {
+                    "Transfer": 0
+                },
+                "logs": {
+                    "Mint": 2,
+                    "Burn": 2,
+                    "Swap": 5
+                },
+                "instantiate": {
+                    "contract": "0x3fc41c1ae339322ab87b6ba48e30781d88a304d4",
+                    "token0": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                    "token1": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+                    "base_token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+                }
+            },
+            "token": {
+                "name": "BLUB-AVAX",
+                "symbol": "PLP",
+                "decimals": 18
+            }
         },
         "0xa87866ba0d82155d0ff36ad06e555aebc98595ca": {
             "name": "LP:BLUB-AVAX",
@@ -95,6 +145,13 @@
             "type": "Router",
             "abi_dir": "routers",
             "abi": "0x18556da13313f3532c54711497a8fedac273220e.json"
+        },
+        "0x45a62b090df48243f12a21897e7ed91863e2c86b": {
+            "name": "LFJ Aggregator v2.2",
+            "project": "LFJ",
+            "type": "Aggregator",
+            "abi_dir": "lfj",
+            "abi": "aggregatorv2_2.json"
         },
         "0x6131b5fae19ea4f9d964eac0408e4408b66337b5": {
             "name": "Meta Aggregation Router v2",
@@ -128,19 +185,25 @@
             "name": "Router",
             "project": "Pharaoh",
             "type": "Router",
-            "abi_dir": "routers",
-            "abi": "0xaaa45c8f5ef92a000a121d102f4e89278a711faa.json",
-            "transformer": {
+            "decode": {
+                "abi_dir": "routers",
+                "abi": "0xaaa45c8f5ef92a000a121d102f4e89278a711faa.json"
+            },
+            "transform": {
                 "name": "RouterTransformer",
                 "type": "router",
-                "priorities": {
-                    "Transfer": 1,
+                "transfers": {
+                    "Transfer": 0
+                    },
+                "logs": {
+
+                }
                     "Mint": 2
                 }
             }
         }
     },
-    "addresses":{
+    "address_tags":{
         "0xe8afa8eb383ced1696c2d8ceb080f47df48f11af": {
             "name": "Blub Treasury",
             "type": "wallet",

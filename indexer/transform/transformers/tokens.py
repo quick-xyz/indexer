@@ -1,31 +1,29 @@
 from typing import List
 
-from ....decode.model.block import DecodedLog
-from ...events.base import DomainEvent, TransactionContext
-from ...events.transfer import Transfer, TransferIds
-from ...events.liquidity import Liquidity, Position
-from ...events.trade import PoolSwap
-from ....utils.logger import get_logger
-from ....utils.lb_byte32_decoder import decode_amounts
+from ...decode.model.block import DecodedLog
+from ..events.base import DomainEvent
+from ..events.transfer import Transfer, TransferIds
+from ..events.liquidity import Liquidity, Position
+from ..events.trade import PoolSwap
+from ...utils.logger import get_logger
+from ...utils.lb_byte32_decoder import decode_amounts
 
+from ..events.transfer import Transfer
 
 class TokenTransformer:
-    def __init__(self, contract, decimals: int):
+    def __init__(self, contract):
         self.logger = get_logger(__name__)
         self.contract = contract
-        self.decimals = decimals
 
-    def _get_tokens(self) -> tuple:
-        if self.token_x == self.base:
-            base_token = self.token_x
-            quote_token = self.token_y
-        elif self.token_y == self.base:
-            base_token = self.token_y
-            quote_token = self.token_x
-
-        return base_token, quote_token
-
-    def get_direction(self, base_amount: int) -> str:
-        if base_amount > 0:
-            return "buy"
-        else:
+    def process_transfers(self, logs: List[DecodedLog]) -> List[DomainEvent]:
+        if log.name == "Transfer":
+            transfer = Transfer(
+                timestamp=context.timestamp,
+                tx_hash=context.tx_hash,
+                from_address=log.attributes.get("from"),
+                to_address=log.attributes.get("to"),
+                token=log.contract,
+                amount=log.attributes.get("value"),
+                decimals=self.decimals
+            )
+            return [transfer]
