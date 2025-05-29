@@ -1,4 +1,4 @@
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 from msgspec import Struct
 from datetime import datetime
 
@@ -40,12 +40,14 @@ class Transaction(Struct):
     function: EncodedMethod | DecodedMethod
     value: int
     tx_success: bool
-    logs: dict[int,EncodedLog|DecodedLog]  # keyed by log index
+    logs: Dict[int,EncodedLog|DecodedLog]  # keyed by log index
     transfers: Optional[Dict[EvmAddress,Dict[str,Transfer]]] = None # {"[token_address]": {"[event_id]": Transfer, ...}, ...}
-    events: Optional[dict[str,DomainEvent]] = None # {"[event_id]": Event, ...}
-    errors: Optional[list] = None
+    events: Optional[Dict[str,DomainEvent]] = None # {"[event_id]": Event, ...}
+    errors: Optional[List] = None
+    indexing_status: Optional[str] = None
 
 class Block(Struct):
     block_number: int
     timestamp: int
-    transactions: Optional[dict[EvmHash,Transaction]] = None # keyed by transaction hash
+    transactions: Optional[Dict[EvmHash,Transaction]] = None # keyed by transaction hash
+    indexing_status: Optional[str] = None

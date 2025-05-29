@@ -1,8 +1,10 @@
+from typing import Optional, Literal
 from msgspec import Struct
 import msgspec
 import hashlib
 
 from ...decode.model.types import EvmHash
+from ...decode.model.block import EvmAddress, DecodedMethod
 
 class DomainEvent(Struct):
     ''' Base class for domain events. '''
@@ -20,3 +22,8 @@ class DomainEvent(Struct):
     
     def _get_identifying_content(self):
         raise NotImplementedError
+
+class ProcessingError(Struct, tag=True):
+    stage: str
+    error: str
+    desc: str

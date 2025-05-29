@@ -1,8 +1,8 @@
 from abc import ABC, abstractmethod
-from typing import List, Any, Optional
+from typing import List, Any, Optional, Dict, Tuple
 
 
-from ..events.base import DomainEvent
+from ..events.base import DomainEvent, ProcessingError
 from ...decode.model.block import Transaction, DecodedLog
 from ...decode.model.types import EvmAddress
 from ..events.transfer import Transfer
@@ -15,9 +15,15 @@ class BaseTransformer(ABC):
         self.name = self.__class__.__name__
     
     @abstractmethod
-    def process_log(self, log, transaction, block) -> List[DomainEvent]:
+    def process_transfers(self, logs: List[DecodedLog], tx: Transaction) -> Tuple[Dict[str,Transfer],List[ProcessingError]]:
+        ''' Returns (transfers, errors) '''
         pass
-    
+
+    @abstractmethod
+    def process_logs(self, logs: List[DecodedLog], tx: Transaction) -> Tuple[Dict[str,Transfer],Dict[str,DomainEvent],List[ProcessingError]]:
+        ''' Returns (transfers, events, errors) '''
+        pass
+
     def get_related_transfers(self, transaction, token_address: Optional[EvmAddress] = None) -> List[Any]:
         decoded_logs = self.get_decoded_logs(transaction)
         transfers = []

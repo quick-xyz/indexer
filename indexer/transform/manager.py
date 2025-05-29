@@ -7,6 +7,7 @@ from .events.base import TransactionContext, DomainEvent
 '''
 Method: groups events by contract address and event priority. event lists are passed to transformers
 '''
+#TODO: add error handling and logging
 
 class TransformationManager:
 
@@ -14,21 +15,27 @@ class TransformationManager:
         if not self.has_decoded_logs(transaction) or not transaction.tx_success:
             return False, transaction
 
+        updated_tx = transaction.copy(deep=True)
+
         decoded_logs = self.get_decoded_logs(transaction)
+        trf_dict, event_dict, error_list = {}, {}, []
+        # TODO: handle reprocessing / existing transfers and events
 
         # PHASE 1: TRANSFERS
         transfers_by_contract = registry.get_transfers_ordered(decoded_logs)
-        transfer_events = {}
 
         for contract_address, transfer_logs in transfers_by_contract.items():
             transformer = registry.get_transformer(contract_address)
                         
             if transformer:     
                 logs_only = [log for _, log in transfer_logs]
-                transfer_events[contract_address] = transformer.process_transfers(logs_only, transaction)
-                transaction.transfers.all.update(transfer_events)
+                result, errors = transformer.process_transfers(logs_only, updated_tx)
+                trf_dict[contract_address] = {} if not result else result
+                if errors:
+                    error_list.extend(errors)
+            # TODO: handle transfers with no transformer        
         
-        transaction.transfers.unmatched = transaction.transfers.all.copy()
+        updated_tx.transfers = trf_dict
 
         # PHASE 2: EVENTS
         logs_by_priority_contract = registry.get_remaining_logs_ordered(decoded_logs)
@@ -40,10 +47,16 @@ class TransformationManager:
                 transformer = registry.get_transformer(contract_address)
                 if transformer:
                     logs_only = [log for _, log in remaining_logs]
-                    events = transformer.process_logs(logs_only, transaction)
-                    transaction.events.extend(events)
+                    transfers, events, errors = transformer.process_logs(logs_only, event_dict, updated_tx)
+                    event_dict = events
+                    updated_tx.transfers.update(transfers)
+                    if errors:
+                        error_list.extend(errors)
+
+        updated_tx.events = event_dict
+        # TODO: handle unmatched transfers and errors
   
-        return True, transaction
+        return True, updated_tx
 
     def get_decoded_logs(transaction: Transaction) -> dict[int, DecodedLog]:
         decoded_logs = {}
@@ -51,7 +64,7 @@ class TransformationManager:
             if isinstance(log, DecodedLog):
                 decoded_logs[index] = log
         return decoded_logs
-
+    
     def has_decoded_logs(transaction: Transaction) -> bool:
         """Check if transaction has any decoded logs."""
         return any(isinstance(log, DecodedLog) for log in transaction.logs.values())

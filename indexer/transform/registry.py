@@ -84,7 +84,7 @@ class TransformerRegistry:
     def get_transfers_ordered(self, decoded_logs: Dict[str, any]) -> Dict[str, List[Tuple[str, DecodedLog]]]:
         """ 
         Transfers are grouped by contract address and then ordered by priority. 
-        Returns: {contract_address: [(log_key, log), ...]} sorted by priority within each contract
+        Returns: {[contract_address]: [(log_key, log), ...]} sorted by priority within each contract
         """
         transfers_by_contract = defaultdict(list)
 
@@ -105,7 +105,7 @@ class TransformerRegistry:
     def get_remaining_logs_ordered(self, decoded_logs: Dict[str, any]) -> Dict[int, Dict[str, List[Tuple[str, any]]]]:
         """
         Remaining logs are grouped by priority and then by contract address within each priority group. 
-        Returns: {priority: {contract_address: [(log_key, log), ...]}}
+        Returns: {[priority]: {[contract_address]: [(log_key, log), ...]}}
         """
         logs_by_priority = defaultdict(lambda: defaultdict(list))
 
