@@ -47,19 +47,6 @@
                 "decimals": 18
             }
         },
-
-
-
-
-
-
-
-
-        
-
-
-
-
         "0x39888258d60fed9228f89e13eb57a92f1fa832eb": {
             "name": "JLP:BLUB-AVAX",
             "project": "LFJ",
@@ -82,7 +69,8 @@
                     "contract": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
                     "token0": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
                     "token1": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
-                    "base_token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+                    "base_token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                    "fee_collector": "0x60233142befce7d4ed73e7793ead2d6190fccaab"
                 }
             },
             "token": {
@@ -90,6 +78,15 @@
                 "decimals": 18
             }
         },
+
+
+
+
+
+
+
+
+
         "0xcb4c6fdcfb7d868df5f1e3d0018438205b243fd6": {
             "name": "BLUB-AVAX",
             "project": "LFJ",

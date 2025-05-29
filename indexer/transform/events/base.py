@@ -14,7 +14,8 @@ class DomainEvent(Struct):
         content_struct = self._get_identifying_content()
         content_bytes = msgspec.msgpack.encode(content_struct)
         hash_hex = hashlib.sha256(content_bytes).hexdigest()
-        
+        self.content_id = hash_hex[:12]
+
         return hash_hex[:12]
     
     def _get_identifying_content(self):

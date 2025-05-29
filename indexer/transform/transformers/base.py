@@ -87,8 +87,8 @@ class TokenTransformer(BaseTransformer):
         self.logger = get_logger(__name__)
         self.contract = contract
 
-    def process_transfers(self, logs: List[DecodedLog], tx: Transaction) -> List[DomainEvent]:
-        transfers = []
+    def process_transfers(self, logs: List[DecodedLog], tx: Transaction) -> dict[str,Transfer]:
+        transfers = {}
 
         for log in logs:
             if log.name == "Transfer":
@@ -100,6 +100,8 @@ class TokenTransformer(BaseTransformer):
                     token=log.contract,
                     amount=log.attributes.get("value"),
                 )
-                transfers.append(transfer)
+                key = transfer.generate_content_id()
+                
+                transfers[key] = transfer
                 
         return transfers

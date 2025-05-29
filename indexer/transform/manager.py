@@ -22,10 +22,13 @@ class TransformationManager:
 
         for contract_address, transfer_logs in transfers_by_contract.items():
             transformer = registry.get_transformer(contract_address)
-            if transformer:
+                        
+            if transformer:     
                 logs_only = [log for _, log in transfer_logs]
-                transfer_events = transformer.process_transfers(logs_only, transaction)
-                transaction.transfers.extend(transfer_events)
+                transfer_events[contract_address] = transformer.process_transfers(logs_only, transaction)
+                transaction.transfers.all.update(transfer_events)
+        
+        transaction.transfers.unmatched = transaction.transfers.all.copy()
 
         # PHASE 2: EVENTS
         logs_by_priority_contract = registry.get_remaining_logs_ordered(decoded_logs)

@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Dict
 from msgspec import Struct
 from datetime import datetime
 
@@ -41,8 +41,8 @@ class Transaction(Struct):
     value: int
     tx_success: bool
     logs: dict[int,EncodedLog|DecodedLog]  # keyed by log index
-    transfers: Optional[dict[str,Transfer]] = None # keyed by indexer hashing function
-    events: Optional[dict[str,DomainEvent]] = None # keyed by indexer hashing function
+    transfers: Optional[Dict[EvmAddress,Dict[str,Transfer]]] = None # {"[token_address]": {"[event_id]": Transfer, ...}, ...}
+    events: Optional[dict[str,DomainEvent]] = None # {"[event_id]": Event, ...}
     errors: Optional[list] = None
 
 class Block(Struct):

@@ -14,8 +14,9 @@ class Transfer(DomainEvent, tag=True):
     from_address: EvmAddress
     to_address: EvmAddress
     transfer_type: Literal["transfer","transfer_batch"] = "transfer"
+    matched: bool = False
     batch: Optional[List[TransferIds]] = None
-
+    
     def _get_identifying_content(self):
         return {
             "event_type": "transfer",

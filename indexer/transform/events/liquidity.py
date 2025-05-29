@@ -6,7 +6,7 @@ from .base import DomainEvent
 from .transfer import Transfer
 
 
-class Position(Struct, tag=True):
+class Position(DomainEvent, tag=True):
     receipt_token: EvmAddress
     receipt_id: int
     amount_base: int
