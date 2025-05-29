@@ -3,7 +3,7 @@ from typing import List, Dict, Tuple, Optional, Literal
 from ..base import BaseTransformer
 from ....decode.model.block import DecodedLog, Transaction
 from ....decode.model.types import EvmAddress
-from ...events.base import DomainEvent, TransactionContext
+from ...events.base import DomainEvent, ProcessingError
 from ...events.transfer import Transfer
 from ...events.liquidity import Liquidity, Position
 from ...events.fees import Fee
@@ -37,7 +37,7 @@ class LfjPoolTransformer(BaseTransformer):
         return "buy" if base_amount > 0 else "sell"
     
 
-    def process_transfers(self, logs: List[DecodedLog], tx: Transaction) -> dict[str,Transfer]:
+    def process_transfers(self, logs: List[DecodedLog], tx: Transaction) -> Tuple[Optional[Dict[str,Transfer]],Optional[List[ProcessingError]]]:
         transfers = {}
 
         for log in logs:
@@ -54,7 +54,7 @@ class LfjPoolTransformer(BaseTransformer):
                 
                 transfers[key] = transfer
                 
-        return transfers
+        return transfers, None
 
     
     def get_liquidity_transfers(self, tx: Transaction) -> Dict[str, List[Tuple[str,Transfer]]]:
@@ -84,7 +84,7 @@ class LfjPoolTransformer(BaseTransformer):
         remaining_transfers = context.transaction.transfers.unmatched.copy()
         liq_transfers = self
     
-    def process_events(self, logs: List[DecodedLog], tx: Transaction) -> Dict[str,DomainEvent]:
+    def process_logs(self, logs: List[DecodedLog], tx: Transaction) -> Tuple[Dict[str,Transfer],Dict[str,DomainEvent],List[ProcessingError]]:
         events = {}
 
         for log in logs:

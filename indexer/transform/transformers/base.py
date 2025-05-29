@@ -15,12 +15,12 @@ class BaseTransformer(ABC):
         self.name = self.__class__.__name__
     
     @abstractmethod
-    def process_transfers(self, logs: List[DecodedLog], tx: Transaction) -> Tuple[Dict[str,Transfer],List[ProcessingError]]:
+    def process_transfers(self, logs: List[DecodedLog], tx: Transaction) -> Tuple[Dict[str,Transfer],Optional[List[ProcessingError]]]:
         ''' Returns (transfers, errors) '''
         pass
 
     @abstractmethod
-    def process_logs(self, logs: List[DecodedLog], tx: Transaction) -> Tuple[Dict[str,Transfer],Dict[str,DomainEvent],List[ProcessingError]]:
+    def process_logs(self, logs: List[DecodedLog], tx: Transaction) -> Tuple[Dict[str,Transfer],Dict[str,DomainEvent],Optional[List[ProcessingError]]]:
         ''' Returns (transfers, events, errors) '''
         pass
 
@@ -93,7 +93,7 @@ class TokenTransformer(BaseTransformer):
         self.logger = get_logger(__name__)
         self.contract = contract
 
-    def process_transfers(self, logs: List[DecodedLog], tx: Transaction) -> dict[str,Transfer]:
+    def process_transfers(self, logs: List[DecodedLog], tx: Transaction) -> Tuple[Dict[str,Transfer],Optional[List[ProcessingError]]]:
         transfers = {}
 
         for log in logs:
@@ -110,4 +110,4 @@ class TokenTransformer(BaseTransformer):
                 
                 transfers[key] = transfer
                 
-        return transfers
+        return transfers, None

@@ -1,9 +1,10 @@
-from typing import List
+from typing import List, Dict, Tuple, Optional
 
 from ....utils.logger import get_logger
 from ....decode.model.block import DecodedLog, Transaction
 from ..base import BaseTransformer
 from ...events.transfer import Transfer
+from ...events.base import DomainEvent, ProcessingError
 
 
 class WavaxTransformer(BaseTransformer):
@@ -11,7 +12,7 @@ class WavaxTransformer(BaseTransformer):
         self.logger = get_logger(__name__)
         self.contract = contract
 
-    def process_transfers(self, logs: List[DecodedLog], tx: Transaction) -> dict[str,Transfer]:
+    def process_transfers(self, logs: List[DecodedLog], tx: Transaction) -> Tuple[Dict[str,Transfer],Optional[List[ProcessingError]]]:
         transfers = {}
 
         for log in logs:
@@ -28,4 +29,4 @@ class WavaxTransformer(BaseTransformer):
                 
                 transfers[key] = transfer
                 
-        return transfers
+        return transfers, None
