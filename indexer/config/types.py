@@ -35,7 +35,7 @@ class TransformerConfig(Struct):
     logs: Optional[Dict[str,int]] = None
 
 
-class DecodeConfig(Struct):
+class DecoderConfig(Struct):
     abi_dir: str
     abi: str
 
@@ -44,7 +44,7 @@ class ContractConfig(Struct):
     name: str
     project: str
     type: str
-    decode: DecodeConfig
+    decode: DecoderConfig
     transform: TransformerConfig
 
 
