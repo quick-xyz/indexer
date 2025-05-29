@@ -4,7 +4,7 @@ from msgspec import Struct
 from ...decode.model.evm import EvmAddress
 from .base import DomainEvent
 
-class Reward(Struct, tag=True):
+class Reward(DomainEvent, tag=True):
     reward_token: EvmAddress
     amount: int
     reward_type: Literal["claim_rewards","claim_fees"]

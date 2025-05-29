@@ -4,7 +4,7 @@ from ..base import BaseTransformer
 from ....decode.model.block import DecodedLog, Transaction
 from ....decode.model.types import EvmAddress
 from ...events.base import DomainEvent, ProcessingError
-from ...events.transfer import Transfer
+from ...events.transfer import Transfer, UnmatchedTransfer, MatchedTransfer
 from ...events.liquidity import Liquidity, Position
 from ...events.fees import Fee
 from ...events.trade import PoolSwap
@@ -13,9 +13,9 @@ from ....utils.logger import get_logger
 ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 
 class LfjPoolTransformer(BaseTransformer):
-    def __init__(self, contract, token0, token1, base_token, fee_collector):
+    def __init__(self, contract: EvmAddress, token0: EvmAddress, token1: EvmAddress, base_token: EvmAddress, fee_collector: EvmAddress):
+        super().__init__(contract_address=contract)
         self.logger = get_logger(__name__)
-        self.contract = contract
         self.token0 = token0
         self.token1 = token1
         self.base_token = base_token
@@ -42,7 +42,7 @@ class LfjPoolTransformer(BaseTransformer):
 
         for log in logs:
             if log.name == "Transfer":
-                transfer = Transfer(
+                transfer = UnmatchedTransfer(
                     timestamp=tx.timestamp,
                     tx_hash=tx.tx_hash,
                     from_address=log.attributes.get("from").lower(),
@@ -56,25 +56,25 @@ class LfjPoolTransformer(BaseTransformer):
                 
         return transfers, None
 
-    
-    def get_liquidity_transfers(self, tx: Transaction) -> Dict[str, List[Tuple[str,Transfer]]]:
-        liq_transfers = dict.fromkeys(["mints", "burns", "receipt_transfers", "deposits", "withdrawals", "underlying_transfers"])
+    def get_liquidity_transfers(self, unmatched_transfers: Dict[str,Dict[str, Transfer]]) -> Dict[str, Dict[str,Transfer]]:
+        liq_transfers = {}
 
-        for key, transfer in tx.transfers.unmatched.items():
-            if transfer.contract.lower() == self.contract.lower():
-                if transfer.from_address == ZERO_ADDRESS:
-                    liq_transfers["mints"] = (key, transfer)
-                elif transfer.to_address == ZERO_ADDRESS:
-                    liq_transfers["burns"] = (key, transfer)
-                else:
-                    liq_transfers["receipt_transfers"] = (key, transfer)
-            elif transfer.contract.lower() == self.base_token.lower() or transfer.contract.lower() == self.quote_token.lower():
-                if transfer.to_address == self.contract.lower():
-                    liq_transfers["deposits"] = (key, transfer)
-                elif transfer.from_address == self.contract.lower():
-                    liq_transfers["withdrawals"] = (key, transfer)
-                else:
-                    liq_transfers["underlying_transfers"] = (key, transfer)
+        for contract, trf_dict in unmatched_transfers.items():
+            for key, transfer in trf_dict.items():
+                if transfer.token.lower() == self.contract_address.lower():
+                    if transfer.from_address == ZERO_ADDRESS:
+                        liq_transfers["mints"][key] = transfer
+                    elif transfer.to_address == ZERO_ADDRESS:
+                        liq_transfers["burns"][key] = transfer
+                    else:
+                        liq_transfers["receipt_transfers"][key] = transfer
+                elif transfer.token.lower() == self.base_token.lower() or transfer.token.lower() == self.quote_token.lower():
+                    if transfer.to_address == self.contract_address.lower():
+                        liq_transfers["deposits"][key] = transfer
+                    elif transfer.from_address == self.contract_address.lower():
+                        liq_transfers["withdrawals"][key] = transfer
+                    else:
+                        liq_transfers["underlying_transfers"][key] = transfer
 
         return liq_transfers
     
@@ -84,8 +84,9 @@ class LfjPoolTransformer(BaseTransformer):
         remaining_transfers = context.transaction.transfers.unmatched.copy()
         liq_transfers = self
     
-    def process_logs(self, logs: List[DecodedLog], tx: Transaction) -> Tuple[Dict[str,Transfer],Dict[str,DomainEvent],List[ProcessingError]]:
-        events = {}
+    def process_logs(self, logs: List[DecodedLog], events: Dict[str,DomainEvent], tx: Transaction) -> Tuple[Dict[str,Transfer],Dict[str,DomainEvent],List[ProcessingError]]:
+
+        unmatched_transfers = self.get_unmatched_transfers(tx)
 
         for log in logs:
             if log.name == "Swap":
@@ -94,33 +95,37 @@ class LfjPoolTransformer(BaseTransformer):
 
             elif log.name == "Mint":
                 base_amount, quote_amount = self.get_amounts(log)
+                liq_transfers = self.get_liquidity_transfers(unmatched_transfers)
+
+                if liq_transfers["deposits"]:
+                    for key, transfer in liq_transfers["deposits"].items():
+                        contract = transfer.token.lower()
+                        if contract == self.base_token.lower() and transfer.amount == base_amount:
+                            base_deposit = unmatched_transfers[contract].pop(key, None)
+
+                            matched_transfers.append(base_deposit)
+                        elif contract == self.quote_token.lower() and transfer.amount == quote_amount:
+                            quote_deposit = remaining_transfers.pop(key, None)
+                            matched_transfers.append(quote_deposit)
+                else:
+                    self.logger.warning(f"No deposits found for mint in transaction {tx.tx_hash} at block {tx.block}")
+
                 
-                remaining_transfers = tx.transfers.unmatched.copy()
-                liq_transfers = self.get_liquidity_transfers(tx)
-                matched_transfers = []
-
-                # look for deposit transfers
-                for key, transfer in liq_transfers["deposits"]:
-                    if transfer.token.lower() == self.base_token.lower() and transfer.amount == base_amount:
-                        base_deposit = remaining_transfers.pop(key, None)
-                        matched_transfers.append(base_deposit)
-                    elif transfer.token.lower() == self.quote_token.lower() and transfer.amount == quote_amount:
-                        quote_deposit = remaining_transfers.pop(key, None)
-                        matched_transfers.append(quote_deposit)
+                if liq_transfers["mints"]:
+                    for key, transfer in liq_transfers["mints"].items():
+                        if transfer.to_address.lower() == self.fee_collector.lower():
+                            fee_trf = remaining_transfers.pop(key, None)
+                            matched_transfers.append(fee_trf)
+                            # Unhandled pool fee
+                        else:
+                            provider = transfer.to_address.lower()
+                            receipt_transfer = remaining_transfers.pop(key, None)
+                            matched_transfers.append(receipt_transfer)
+                            receipt_amount = receipt_transfer.amount if receipt_transfer else 0
+                else:
+                    self.logger.warning(f"No mints found for mint in transaction {tx.tx_hash} at block {tx.block}")
 
                 
-                # look for receipt mints
-                for key, transfer in liq_transfers["mints"]:
-                    if transfer.to_address.lower() == self.fee_collector.lower():
-                        fee_trf = remaining_transfers.pop(key, None)
-                        matched_transfers.append(fee_trf)
-                        # Unhandled pool fee
-                    else:
-                        provider = transfer.to_address.lower()
-                        receipt_transfer = remaining_transfers.pop(key, None)
-                        matched_transfers.append(receipt_transfer)
-                        receipt_amount = receipt_transfer.amount if receipt_transfer else 0
-
                 events = {}
 
                 mint = Position(

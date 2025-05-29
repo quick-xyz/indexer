@@ -11,7 +11,8 @@ class DomainEvent(Struct):
     timestamp: int
     tx_hash: EvmHash
     content_id: str = ""
-
+    log_index: Optional[int] = None
+    
     def generate_content_id(self) -> str:
         content_struct = self._get_identifying_content()
         content_bytes = msgspec.msgpack.encode(content_struct)

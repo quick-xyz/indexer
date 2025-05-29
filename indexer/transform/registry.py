@@ -81,7 +81,7 @@ class TransformerRegistry:
             return event_name in config.transfer_priorities
         return False
     
-    def get_transfers_ordered(self, decoded_logs: Dict[str, any]) -> Dict[str, List[Tuple[str, DecodedLog]]]:
+    def get_transfers_ordered(self, decoded_logs: Dict[str, DecodedLog]) -> Dict[str, List[Tuple[str, DecodedLog]]]:
         """ 
         Transfers are grouped by contract address and then ordered by priority. 
         Returns: {[contract_address]: [(log_key, log), ...]} sorted by priority within each contract

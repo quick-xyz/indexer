@@ -5,7 +5,7 @@ from typing import List, Any, Optional, Dict, Tuple
 from ..events.base import DomainEvent, ProcessingError
 from ...decode.model.block import Transaction, DecodedLog
 from ...decode.model.types import EvmAddress
-from ..events.transfer import Transfer
+from ..events.transfer import Transfer,UnmatchedTransfer
 from ...utils.logger import get_logger
 
 
@@ -20,9 +20,20 @@ class BaseTransformer(ABC):
         pass
 
     @abstractmethod
-    def process_logs(self, logs: List[DecodedLog], tx: Transaction) -> Tuple[Dict[str,Transfer],Dict[str,DomainEvent],Optional[List[ProcessingError]]]:
+    def process_logs(self, logs: List[DecodedLog], events: Dict[str,DomainEvent], tx: Transaction) -> Tuple[Dict[str,Transfer],Dict[str,DomainEvent],Optional[List[ProcessingError]]]:
         ''' Returns (transfers, events, errors) '''
         pass
+
+    def get_unmatched_transfers(self, tx: Transaction) -> Dict[str,Dict[str, Transfer]]:
+        unmatched_transfers = {}
+    
+        for contract, trf_dict in tx.transfers.items():
+            for key, transfer in trf_dict.items():
+                if not transfer.matched:
+                    unmatched_transfers[contract][key] = transfer
+
+        return unmatched_transfers
+
 
     def get_related_transfers(self, transaction, token_address: Optional[EvmAddress] = None) -> List[Any]:
         decoded_logs = self.get_decoded_logs(transaction)
@@ -98,7 +109,7 @@ class TokenTransformer(BaseTransformer):
 
         for log in logs:
             if log.name == "Transfer":
-                transfer = Transfer(
+                transfer = UnmatchedTransfer(
                     timestamp=tx.timestamp,
                     tx_hash=tx.tx_hash,
                     from_address=log.attributes.get("from").lower(),

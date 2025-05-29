@@ -3,7 +3,7 @@ from typing import List, Dict, Tuple, Optional
 from ....utils.logger import get_logger
 from ....decode.model.block import DecodedLog, Transaction
 from ..base import BaseTransformer
-from ...events.transfer import Transfer
+from ...events.transfer import Transfer,UnmatchedTransfer
 from ...events.base import DomainEvent, ProcessingError
 
 
@@ -17,7 +17,7 @@ class WavaxTransformer(BaseTransformer):
 
         for log in logs:
             if log.name == "Transfer":
-                transfer = Transfer(
+                transfer = UnmatchedTransfer(
                     timestamp=tx.timestamp,
                     tx_hash=tx.tx_hash,
                     from_address=log.attributes.get("src").lower(),

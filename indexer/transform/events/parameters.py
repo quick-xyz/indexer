@@ -4,7 +4,7 @@ from msgspec import Struct
 from ...decode.model.evm import EvmAddress
 from .base import DomainEvent
 
-class Parameter(Struct, tag=True):
+class Parameter(DomainEvent, tag=True):
     parameter: str
     value_type: Literal["address","string","int","bool"]
     new_value: Optional[any] = None

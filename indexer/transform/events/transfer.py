@@ -4,7 +4,7 @@ from msgspec import Struct
 from ...decode.model.evm import EvmAddress
 from .base import DomainEvent
 
-class TransferIds(Struct, tag=True):
+class TransferIds(DomainEvent, tag=True):
     id: int
     amount: int
 
@@ -14,7 +14,6 @@ class Transfer(DomainEvent, tag=True):
     from_address: EvmAddress
     to_address: EvmAddress
     transfer_type: Literal["transfer","transfer_batch"] = "transfer"
-    matched: bool = False
     batch: Optional[List[TransferIds]] = None
     
     def _get_identifying_content(self):
@@ -27,3 +26,9 @@ class Transfer(DomainEvent, tag=True):
             "amount": self.amount,
             "transfer_type": self.transfer_type,
         }
+
+class UnmatchedTransfer(Transfer, tag=True):
+    pass
+
+class MatchedTransfer(Transfer, tag=True):
+    pass
