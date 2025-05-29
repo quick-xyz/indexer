@@ -24,6 +24,7 @@ class WavaxTransformer(BaseTransformer):
                     to_address=log.attributes.get("dst").lower(),
                     token=log.contract,
                     amount=log.attributes.get("wad"),
+                    log_index=log.index
                 )
                 key = transfer.generate_content_id()
                 

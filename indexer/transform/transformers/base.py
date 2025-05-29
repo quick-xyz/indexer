@@ -116,6 +116,7 @@ class TokenTransformer(BaseTransformer):
                     to_address=log.attributes.get("to").lower(),
                     token=log.contract,
                     amount=log.attributes.get("value"),
+                    log_index=log.index
                 )
                 key = transfer.generate_content_id()
                 

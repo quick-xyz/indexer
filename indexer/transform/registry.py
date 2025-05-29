@@ -35,10 +35,9 @@ TRANSFORMER_CLASSES = {
 
 @dataclass
 class ContractTransformer:
-    """Complete configuration for a contract transformer."""
     instance: object
-    transfer_priorities: Dict[str, int] = field(default_factory=dict)  # event -> priority
-    log_priorities: Dict[str, int] = field(default_factory=dict)  # event -> priority
+    transfer_priorities: Dict[str, int] = field(default_factory=dict)  # {log_name: priority}
+    log_priorities: Dict[str, int] = field(default_factory=dict)  # {log_name: priority}
     active: bool = True
 
 
@@ -46,7 +45,8 @@ class TransformerRegistry:
     def __init__(self):
         self._contracts: Dict[EvmAddress, ContractTransformer] = {}
         self._initialized = False
-    
+
+
     def register_contract(self, 
                           contract_address: EvmAddress, 
                           instance: object, 
@@ -57,74 +57,55 @@ class TransformerRegistry:
             transfer_priorities=transfer_priorities or {},
             log_priorities=log_priorities or {}
         )
-    
+
+
     def get_transformer(self, contract_address: EvmAddress) -> Optional[object]:
         config = self._contracts.get(contract_address.lower())
         return config.instance if config and config.active else None
-    
-    def get_transfer_priority(self, contract_address: EvmAddress, event_name: str) -> int:
+
+
+    def get_transfer_priority(self, contract_address: EvmAddress, event_name: str) -> int | None:
+        """Get transfer priority if this is a transfer event, None otherwise."""
         config = self._contracts.get(contract_address.lower())
-        if config and config.active:
-            return config.transfer_priorities.get(event_name, 999)
-        return 999
+        if config and config.active and event_name in config.transfer_priorities:
+            return config.transfer_priorities[event_name]
+        return None
 
-    def get_log_priority(self, contract_address: EvmAddress, event_name: str) -> int:
+
+    def get_log_priority(self, contract_address: EvmAddress, event_name: str) -> int | None:
+        """Get log priority if this is a monitored event, None otherwise."""
         config = self._contracts.get(contract_address.lower())
-        if config and config.active:
-            return config.event_priorities.get(event_name, 999)
-        return 999
-    
-    def is_transfer_event(self, contract_address: EvmAddress, event_name: str) -> bool:
-        """Check if the event is a transfer event for the given contract."""
-        config = self._contracts.get(contract_address.lower())
-        if config and config.active:
-            return event_name in config.transfer_priorities
-        return False
-    
-    def get_transfers_ordered(self, decoded_logs: Dict[str, DecodedLog]) -> Dict[str, List[Tuple[str, DecodedLog]]]:
-        """ 
-        Transfers are grouped by contract address and then ordered by priority. 
-        Returns: {[contract_address]: [(log_key, log), ...]} sorted by priority within each contract
-        """
-        transfers_by_contract = defaultdict(list)
+        if config and config.active and event_name in config.log_priorities:
+            return config.log_priorities[event_name]
+        return None
 
-        # Group transfer events by contract address with priority
-        for key, log in decoded_logs.items():
-            if self.is_transfer_event(log.contract, log.name):
-                priority = self.get_transfer_priority(log.contract, log.name)
-                transfers_by_contract[log.contract][priority].append((key, log))
 
-        # Sort each contract's transfers by priority and return without priority
-        result = {}
-        for contract, transfers in transfers_by_contract.items():
-            sorted_transfers = sorted(transfers, key=lambda x: x[0])
-            result[contract] = [(key, log) for _, key, log in sorted_transfers]
+    def get_transfers_ordered(self, decoded_logs: Dict[str, DecodedLog]) -> Dict[EvmAddress, Dict[int, List[DecodedLog]]]:
+        transfers_by_contract = defaultdict(lambda: defaultdict(list))
 
-        return result
-           
-    def get_remaining_logs_ordered(self, decoded_logs: Dict[str, any]) -> Dict[int, Dict[str, List[Tuple[str, any]]]]:
-        """
-        Remaining logs are grouped by priority and then by contract address within each priority group. 
-        Returns: {[priority]: {[contract_address]: [(log_key, log), ...]}}
-        """
+        for _, log in decoded_logs.items():
+            priority = self.get_transfer_priority(log.contract, log.name)
+            if priority is not None:
+                transfers_by_contract[log.contract][priority].append(log)
+
+        return transfers_by_contract
+
+
+    def get_remaining_logs_ordered(self, decoded_logs: Dict[str, DecodedLog]) -> Dict[EvmAddress, Dict[int, List[DecodedLog]]]:
         logs_by_priority = defaultdict(lambda: defaultdict(list))
 
-        # Group business logs by priority, then by contract
-        for key, log in decoded_logs.items():
-            if not self.is_transfer_event(log.contract, log.name):
-                priority = self.get_log_priority(log.contract, log.name)
-                logs_by_priority[priority][log.contract].append((key, log))
-        
-        # Convert to regular dicts and sort
-        result = {}
-        for priority in sorted(logs_by_priority.keys()):
-            result[priority] = dict(logs_by_priority[priority])
+        for _, log in decoded_logs.items():
+            priority = self.get_log_priority(log.contract, log.name)
+            if priority is not None:
+                logs_by_priority[priority][log.contract].append(log)
 
-        return result
+        return logs_by_priority
+
 
     def get_all_contracts(self) -> Dict[str, ContractTransformer]:
         return self._contracts.copy()
-    
+
+
     def setup(self):
         if self._initialized:
             return

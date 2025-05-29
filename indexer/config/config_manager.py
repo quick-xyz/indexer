@@ -16,12 +16,10 @@ from .types import (
     ContractWithABI,
     TransformerConfig,
 )
+from ..decode.model.types import EvmAddress
 
 
 class ConfigManager:
-    """
-    Manages configuration for the blockchain indexer.
-    """
     _instance = None
 
     def __new__(cls, *args, **kwargs):
@@ -31,33 +29,40 @@ class ConfigManager:
         return cls._instance
 
     def __init__(self):
+        self.config_dict = {}
+        self.indexer_name = "default"
+        self.paths = {}
+        self.storage: Optional[StorageConfig] = None
+        self.addresses: Dict[EvmAddress, AddressConfig] = {}
+        self.contracts: Dict[EvmAddress, ContractWithABI] = {}
+        self.tokens: Dict[EvmAddress, TokenConfig] = {}
+        self.transformers: Dict[EvmAddress, TransformerConfig] = {}
+        self.logger = None
+    
         if hasattr(self, '_initialized') and self._initialized:
             return
+    
+        try:
+            self._load_env_vars()
+            self._configure_logging()
+            self._init_paths()
+            self._load_config_json()
+            self.indexer_name = f"{self.config_dict.get('name', 'default')}: {self.config_dict.get('version', 'v0')}"
+            self._load_storage()
+            self._load_tokens()
+            self._load_addresses()
+            self._load_contracts()
+            self._load_transformers()
+        except Exception as e:
+            self.logger.error(f"Failed to load configuration: {e}")
+            sys.exit(1)
 
-        # Initialize dictionaries for different config types
-        self.tokens = {}
-        self.addresses = {}
-        self.contracts = {}
-        self.config_dict = {}
-        self.transformers = {}
-
-        # Load environment variables and config
-        self._load_env_vars()
-        self._configure_logging()
-        self._init_paths()
-        self._load_config()
         self._initialized = True
 
-
     def _load_env_vars(self):
-        """Load environment variables from .env file."""
         load_dotenv()
 
-
     def _configure_logging(self):
-        """Configure logging for the configuration manager."""
-        # This initializes a basic logger for bootstrap purposes
-        # The proper logger will be initialized later by the logger module
         self.logger = logging.getLogger("indexer.config")
         
         if not self.logger.handlers:
@@ -66,16 +71,12 @@ class ConfigManager:
             handler.setFormatter(formatter)
             self.logger.addHandler(handler)
             
-            # Set level from environment
             level_name = os.getenv("LOG_LEVEL", "INFO").upper()
-            valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+            valid_levels = ["DEBUG", "INFO", "WARNING", "ERROR"]
             level = level_name if level_name in valid_levels else "INFO"
             self.logger.setLevel(getattr(logging, level))
 
-
     def _init_paths(self):
-        """Initialize directory paths."""
-
         current_file = Path(__file__).resolve()
         indexer_root = current_file.parents[1]
         project_root = indexer_root.parents[1]
@@ -91,19 +92,6 @@ class ConfigManager:
 
         for path_name in ['data_dir', 'log_dir', 'abi_dir']:
             os.makedirs(self.paths[path_name], exist_ok=True)
-
-
-    def _load_config(self):
-        """Load all configuration elements."""
-        self._load_config_json()
-        if self.config_dict:
-            self.storage = self._load_storage()
-            self._load_tokens()
-            self._load_addresses()
-            self._load_contracts()
-            self._load_transformers()
-
-
 
     def _load_config_json(self, config_path=None):
         if config_path is None:
@@ -124,34 +112,60 @@ class ConfigManager:
             raise
         return None
 
-
     def _load_storage(self):
-        self.logger.info(f"Loading storage config from {self.config_dict}")
+        self.logger.info(f"Loading storage config for {self.indexer_name}")
         self.storage = msgspec.convert(self.config_dict["storage"], type=StorageConfig)
         
-
-    def _load_tokens(self):
-        self.logger.info(f"Loading tokens config from {self.config_dict}")
-        tokens_dict = self.config_dict["tokens"]
-        for address, data in tokens_dict.items():
-            address = address.lower()
-            try:
-                token_config = msgspec.convert(data, type=TokenConfig)
-                self.tokens[address] = token_config
-            except msgspec.ValidationError as e:
-                self.logger.warning(f"Invalid token config for {address}: {e}")
-
-
     def _load_addresses(self):
-        self.logger.info(f"Loading addresses config from {self.config_dict}")
-        address_dict = self.config_dict["addresses"]
-        for address, data in address_dict.items():
-            address = address.lower()
+        self.logger.info(f"Loading addresses config for {self.indexer_name}")
+        self.addresses = {}
+        for address, data in self.config_dict["addresses"].items():
             try:
-                address_config = msgspec.convert(data, type=AddressConfig)
-                self.addresses[address] = address_config
+                self.addresses[address.lower()] = msgspec.convert(data, type=AddressConfig)
             except msgspec.ValidationError as e:
                 self.logger.warning(f"Invalid addresses config for {address}: {e}")
+
+    def _load_contracts(self):  
+        self.logger.info(f"Loading contracts config for {self.indexer_name}")
+
+        contract_count = 0
+        error_count = 0
+
+        for address, data in self.config_dict["contracts"].items():
+            address = address.lower()
+            try:
+                contract_config = msgspec.convert(data, type=ContractConfig)
+                abi_path = self.paths['abi_dir'] / contract_config.decode.abi_dir / contract_config.decode.abi
+
+                try:
+                    with open(abi_path) as f:
+                        abi_data = msgspec.json.decode(f.read(), type=ABIConfig)
+                        self.contracts[address] = ContractWithABI(
+                            contract_info=contract_config,
+                            abi=abi_data.abi
+                        )
+                        self.tokens[address] = TokenConfig(
+                            symbol=contract_config.name,
+                            decimals=18  # Default to 18 decimals if not specified
+                        )
+                        contract_count += 1
+                except FileNotFoundError:
+                    self.logger.warning(f"ABI file not found: {abi_path}")
+                    error_count += 1
+                except msgspec.ValidationError as e:
+                    self.logger.warning(f"Invalid ABI for {address}: {e}")
+                    error_count += 1
+                    
+            except msgspec.ValidationError as e:
+                self.logger.warning(f"Invalid contract config for {address}: {e}")
+                error_count += 1
+                
+        self.logger.info(f"Loaded {contract_count} contracts successfully. Errors: {error_count}")
+
+
+
+
+
 
     def _load_transformers(self):
         self.logger.info(f"Loading transformers config from {self.config_dict}")
@@ -167,6 +181,17 @@ class ConfigManager:
                     self.transformers[address] = transformer_config
                 except msgspec.ValidationError as e:
                     self.logger.warning(f"Invalid transformer config for {address}: {e}")
+
+    def _load_tokens(self):
+        self.logger.info(f"Loading tokens config from {self.config_dict}")
+        tokens_dict = self.config_dict["tokens"]
+        for address, data in tokens_dict.items():
+            address = address.lower()
+            try:
+                token_config = msgspec.convert(data, type=TokenConfig)
+                self.tokens[address] = token_config
+            except msgspec.ValidationError as e:
+                self.logger.warning(f"Invalid token config for {address}: {e}")
 
 
     def _load_contracts(self):  
@@ -279,5 +304,6 @@ class ConfigManager:
         }
         
         self.logger.info(f"Registered contract {name or address[:8]} at {address}")
-    
+
+
 config = ConfigManager()

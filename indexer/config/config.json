@@ -1,5 +1,12 @@
 {
-    "version": "0.0.1",
+    "name": "Blub Indexer Config",
+    "version": "v0.1",
+    "storage": {
+        "rpc_prefix": "quicknode/",
+        "decoded_prefix": "decoded/",
+        "rpc_format": "quicknode/avalanche-mainnet_block_with_receipts_{:012d}-{:012d}.json",
+        "decoded_format": "decoded/{}.json"
+    },
     "contracts":{
         "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd": {
             "name": "BLUB",
@@ -203,7 +210,7 @@
             }
         }
     },
-    "address_tags":{
+    "addresses":{
         "0xe8afa8eb383ced1696c2d8ceb080f47df48f11af": {
             "name": "Blub Treasury",
             "type": "wallet",

@@ -10,12 +10,7 @@ from ..decode.model.block import Block
 from ..decode.model.evm import EvmFilteredBlock
 
 class GCSHandler:
-    def __init__(self):
-        self.rpc_prefix = "quicknode/"
-        self.decoded_prefix = "decoded/"    
-        self.rpc_format = "quicknode/avalanche-mainnet_block_with_receipts_{:012d}-{:012d}.json"
-        self.decoded_format= "decoded/{}.json"
-
+    def __init__(self,rpc_prefix,decoded_prefix,rpc_format,decoded_format):
         self.gcs_project = os.getenv("INDEXER_GCS_PROJECT_ID")
         self.bucket_name = os.getenv("INDEXER_GCS_BUCKET_NAME")
         self.credentials_path = os.getenv("INDEXER_GCS_CREDENTIALS_PATH")
