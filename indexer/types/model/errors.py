@@ -71,7 +71,8 @@ def create_transform_error(
     message: str,
     tx_hash: Optional[EvmHash] = None,
     contract_address: Optional[EvmAddress] = None,
-    transformer_name: Optional[str] = None
+    transformer_name: Optional[str] = None,
+    log_index: Optional[int] = None
 ) -> ProcessingError:
     context = {}
     if tx_hash:
@@ -80,7 +81,9 @@ def create_transform_error(
         context["contract_address"] = contract_address
     if transformer_name:
         context["transformer_name"] = transformer_name
-    
+    if log_index:
+        context["log_index"] = log_index
+
     return ProcessingError(
         stage="transform",
         error_type=error_type,

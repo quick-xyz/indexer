@@ -27,13 +27,12 @@ class BaseTransformer(ABC):
         ''' Returns (transfers, events, errors) '''
         pass
 
-    def get_unmatched_transfers(self, tx: Transaction) -> Dict[str,Dict[str, Transfer]]:
+    def _get_unmatched_transfers(self, tx: Transaction) -> Dict[str,Dict[str, Transfer]]:
         unmatched_transfers = {}
     
-        for contract, trf_dict in tx.transfers.items():
-            for key, transfer in trf_dict.items():
-                if not transfer.matched:
-                    unmatched_transfers[contract][key] = transfer
+        for key, transfer in tx.transfers.items():
+            if isinstance(transfer, UnmatchedTransfer):
+                unmatched_transfers[transfer.token][key] = transfer
 
         return unmatched_transfers
 

@@ -34,3 +34,23 @@ class UnmatchedTransfer(Transfer, tag=True):
 
 class MatchedTransfer(Transfer, tag=True):
     pass
+
+class TransferLedger(DomainEvent, tag=True):
+    token: EvmAddress
+    address: EvmAddress
+    amount: int
+    action: Literal["sent","received"]
+    transfers: Optional[List[Transfer]] = None
+    desc: Optional[str] = None
+
+    
+    def _get_identifying_content(self):
+        return {
+            "event_type": "transfer_ledger",
+            "tx_salt": self.tx_hash,
+            "token": self.token,
+            "address": self.from_address,
+            "amount": self.to_address,
+            "action": self.total_amount,
+            "transfers": [transfer.content_id for transfer in self.transfers],
+        }

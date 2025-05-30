@@ -1,4 +1,5 @@
-from typing import List, Dict, Tuple, Optional, Literal
+from typing import List, Dict, Tuple, Optional, Literal, Any
+import msgspec
 
 from ..base import BaseTransformer
 from ....types import (
@@ -15,6 +16,10 @@ from ....types import (
     Position,
     Fee,
     PoolSwap,
+    DomainEventId,
+    ErrorId,
+    create_transform_error,
+    EvmHash,
 )
 
 
@@ -28,23 +33,65 @@ class LfjPoolTransformer(BaseTransformer):
         self.fee_collector = fee_collector.lower()
 
     
-    def get_amounts(self, log: DecodedLog) -> tuple[int, int]:
-        amount0 = log.attributes.get("amount0")
-        amount1 = log.attributes.get("amount1")
+    def get_amounts(self, log: DecodedLog) -> tuple[Optional[int], Optional[int]]:
+        try:
+            amount0 = log.attributes.get("amount0")
+            amount1 = log.attributes.get("amount1")
 
-        if self.token0 == self.base_token:
-            return amount0, amount1
-        else:
-            return amount1, amount0
+            if amount0 is None or amount1 is None:
+                return None, None
+
+            if self.token0 == self.base_token:
+                return amount0, amount1
+            else:
+                return amount1, amount0
+        except Exception:
+            return None, None
 
 
     def get_direction(self, base_amount: int) -> str:
         return "buy" if base_amount > 0 else "sell"
     
+    def _validate_attr(self, values: List[Any],tx_hash: EvmHash, log_index: int, error_dict: Dict[ErrorId,ProcessingError]) -> bool:
+        """ Validate that all required attributes are present """
+        if not all(value is not None for value in values):
+            error = create_transform_error(
+                error_type="missing_attributes",
+                message=f"Transformer missing required attributes in log",
+                tx_hash=tx_hash,
+                log_index=log_index
+            )
+            error_dict[error.error_id] = error
+            return False
+        return True
+    
+    def _create_log_exception(self, e, tx_hash: EvmHash, log_index: int, transformer_name: str, error_dict: Dict[ErrorId,ProcessingError]) -> None:
+        """ Create a ProcessingError for exceptions """
+        error = create_transform_error(
+            error_type="processing_exception",
+            message=f"Log processing exception: {str(e)}",
+            tx_hash=tx_hash,
+            log_index=log_index,
+            transformer_name=transformer_name
+        )
+        error_dict[error.error_id] = error
+        return None
+    
+    def _create_tx_exception(self, e, tx_hash: EvmHash, transformer_name: str, error_dict: Dict[ErrorId,ProcessingError]) -> None:
+        """ Create a ProcessingError for exceptions """
+        error = create_transform_error(
+            error_type="processing_exception",
+            message=f"Transaction processing exception: {str(e)}",
+            tx_hash=tx_hash,
+            transformer_name=transformer_name
+        )
+        error_dict[error.error_id] = error
+        return None
 
-    def process_transfers(self, logs: List[DecodedLog], tx: Transaction) -> Tuple[Optional[List[Transfer]],Optional[List[ProcessingError]]]:
-        transfers = []
-        errors = []
+
+    def process_transfers(self, logs: List[DecodedLog], tx: Transaction) -> Tuple[Optional[Dict[DomainEventId,Transfer]],Optional[Dict[ErrorId,ProcessingError]]]:
+        transfers = {}
+        errors = {}
 
         for log in logs:
             try:
@@ -53,12 +100,7 @@ class LfjPoolTransformer(BaseTransformer):
                     to_addr = log.attributes.get("to")
                     value = log.attributes.get("value")
                     
-                    if not all([from_addr, to_addr, value is not None]):
-                        errors.append(ProcessingError(
-                            stage="process_transfers",
-                            error="missing_attributes",
-                            desc=f"Transfer log missing attributes: {log.index}",
-                        ))
+                    if not self._validate_attr([from_addr, to_addr, value], tx.tx_hash, log.index, errors):
                         continue
 
                     transfer = UnmatchedTransfer(
@@ -70,26 +112,21 @@ class LfjPoolTransformer(BaseTransformer):
                         amount=value,
                         log_index=log.index
                     )
-                    key = transfer.generate_content_id()
-                    transfers.append(transfer)
+                    transfers[transfer.content_id] = transfer
 
             except Exception as e:
-                errors.append(ProcessingError(
-                    stage="process_transfers",
-                    error="processing_exception",
-                    desc=f"Failed to process transfer log {log.index}: {str(e)}",
-                ))
+                self._create_log_exception(e, tx.tx_hash, log.index, self.__class__.__name__, errors)
                 
         return transfers if transfers else None, errors if errors else None
 
-    def get_liquidity_transfers(self, unmatched_transfers: Dict[str,Dict[str, Transfer]]) -> Dict[str, Dict[str,Transfer]]:
+    def _get_liquidity_transfers(self, unmatched_transfers: Dict[EvmAddress,Dict[DomainEventId, Transfer]]) -> Dict[str, Dict[DomainEventId,Transfer]]:
         liq_transfers = {
             "mints": {},
             "burns": {},
             "deposits": {},
             "withdrawals": {},
-            "receipt_transfers": {},
-            "underlying_transfers": {}
+            "underlying_transfers": {},
+            "receipt_transfers": {}
         }
 
         for contract, trf_dict in unmatched_transfers.items():
@@ -108,94 +145,233 @@ class LfjPoolTransformer(BaseTransformer):
                         liq_transfers["withdrawals"][key] = transfer
                     else:
                         liq_transfers["underlying_transfers"][key] = transfer
-
         return liq_transfers
     
-    def handle_mint(self, log: DecodedLog, context: TransactionContext) -> list[DomainEvent]:
-        base_amount, quote_amount = self.get_amounts(log)
-
-        remaining_transfers = context.transaction.transfers.unmatched.copy()
-        liq_transfers = self
-    
-    def process_logs(self, logs: List[DecodedLog], events: Dict[str,DomainEvent], tx: Transaction) -> Tuple[Dict[str,Transfer],Dict[str,DomainEvent],List[ProcessingError]]:
-
-        unmatched_transfers = self.get_unmatched_transfers(tx)
-
-        for log in logs:
-            if log.name == "Swap":
-                #TODO
-                continue
-
-            elif log.name == "Mint":
-                base_amount, quote_amount = self.get_amounts(log)
-                liq_transfers = self.get_liquidity_transfers(unmatched_transfers)
-
-                if liq_transfers["deposits"]:
-                    for key, transfer in liq_transfers["deposits"].items():
-                        contract = transfer.token.lower()
-                        if contract == self.base_token.lower() and transfer.amount == base_amount:
-                            base_deposit = unmatched_transfers[contract].pop(key, None)
-
-                            matched_transfers.append(base_deposit)
-                        elif contract == self.quote_token.lower() and transfer.amount == quote_amount:
-                            quote_deposit = remaining_transfers.pop(key, None)
-                            matched_transfers.append(quote_deposit)
-                else:
-                    self.logger.warning(f"No deposits found for mint in transaction {tx.tx_hash} at block {tx.block}")
-
-                
-                if liq_transfers["mints"]:
-                    for key, transfer in liq_transfers["mints"].items():
-                        if transfer.to_address.lower() == self.fee_collector.lower():
-                            fee_trf = remaining_transfers.pop(key, None)
-                            matched_transfers.append(fee_trf)
-                            # Unhandled pool fee
-                        else:
-                            provider = transfer.to_address.lower()
-                            receipt_transfer = remaining_transfers.pop(key, None)
-                            matched_transfers.append(receipt_transfer)
-                            receipt_amount = receipt_transfer.amount if receipt_transfer else 0
-                else:
-                    self.logger.warning(f"No mints found for mint in transaction {tx.tx_hash} at block {tx.block}")
-
-                
-                events = {}
-
-                mint = Position(
-                    timestamp=tx.timestamp,
+    def _handle_mint(self, log: DecodedLog, tx: Transaction) -> Dict[str, Dict]:
+        result = {
+            "transfers": {},
+            "events": {},
+            "errors": {}
+        }
+        
+        try:
+            base_amount, quote_amount = self.get_amounts(log)
+            if not self._validate_attr([base_amount, quote_amount], tx.tx_hash, log.index, result["errors"]):
+                return result
+            
+            unmatched_transfers = self._get_unmatched_transfers(tx)
+            liq_transfers = self._get_liquidity_transfers(unmatched_transfers)
+            
+            base_deposits = [t for t in liq_transfers["deposits"].values() if t.token == self.base_token and t.amount == base_amount]
+            quote_deposits = [t for t in liq_transfers["deposits"].values() if t.token == self.quote_token and t.amount == quote_amount]
+            pool_mints = [t for t in liq_transfers["mints"].values() if t.to_address != self.fee_collector]
+            
+            if len(base_deposits) != 1:
+                error = create_transform_error(
+                    error_type="invalid_liquidity_deposit",
+                    message=f"Expected exactly 1 base token deposit, found {len(base_deposits)}",
                     tx_hash=tx.tx_hash,
-                    receipt_token= log.contract,
-                    receipt_id= 0,
-                    amount_base=base_amount,
-                    amount_quote=quote_amount,
-                    amount_receipt=receipt_amount
+                    log_index=log.index
                 )
-                key = mint.generate_content_id()
-
-                liq_in = Liquidity(
-                    timestamp=tx.timestamp,
+                if not error.context:
+                    error.context = {}
+                error.context['log_index'] = log.index
+                result["errors"][error.error_id] = error
+                return result
+                
+            if len(quote_deposits) != 1:
+                error = create_transform_error(
+                    error_type="invalid_liquidity_deposit", 
+                    message=f"Expected exactly 1 quote token deposit, found {len(quote_deposits)}",
                     tx_hash=tx.tx_hash,
-                    pool=log.contract,
-                    provider=provider,
-                    base_token=self.base_token,
-                    amount_base=base_amount,
-                    quote_token=self.quote_token,
-                    amount_quote=quote_amount,
-                    action="add_lp",
-                    positions=[mint],
-                    transfers=matched_transfers
+                    log_index=log.index
                 )
-                key = liq_in.generate_content_id()
-                events[key] = liq_in
+                result["errors"][error.error_id] = error
+                return result
+                
+            if len(pool_mints) != 1:
+                error = create_transform_error(
+                    error_type="invalid_liquidity_deposit",
+                    message=f"Expected exactly 1 receipt token mint, found {len(pool_mints)}",
+                    tx_hash=tx.tx_hash,
+                    log_index=log.index
+                )
+                result["errors"][error.error_id] = error
+                return result
+            
+            matched_transfers = {}          
+            base_matched = msgspec.convert(base_deposits[0], type=MatchedTransfer)
+            matched_transfers[base_matched.content_id] = base_matched
+            
+            quote_matched = msgspec.convert(quote_deposits[0], type=MatchedTransfer)
+            matched_transfers[quote_matched.content_id] = quote_matched
+            
+            pool_matched = msgspec.convert(pool_mints[0], type=MatchedTransfer)
+            matched_transfers[pool_matched.content_id] = pool_matched
+            
+            position = Position(
+                timestamp=tx.timestamp,
+                tx_hash=tx.tx_hash,
+                receipt_token=log.contract,
+                receipt_id=0,
+                amount_base=base_amount,
+                amount_quote=quote_amount,
+                amount_receipt=pool_mints[0].amount
+            )
 
-            elif log.name == "Burn":
-                #TODO
-                continue
-        return events
+            liquidity = Liquidity(
+                timestamp=tx.timestamp,
+                tx_hash=tx.tx_hash,
+                pool=log.contract,
+                provider=pool_mints[0].to_address.lower(),
+                base_token=self.base_token,
+                amount_base=base_amount,
+                quote_token=self.quote_token,
+                amount_quote=quote_amount,
+                action="add_lp",
+                positions=[position],
+                transfers=list(matched_transfers.values())
+            )
+            
+            result["events"][liquidity.content_id] = liquidity
+            result["transfers"] = matched_transfers
 
+        except Exception as e:
+            self._create_log_exception(e, tx.tx_hash, log.index, self.__class__.__name__, result["errors"])
+
+        return result
+    
+    def _handle_burn(self, log: DecodedLog, tx: Transaction) -> Dict[str, Dict]:
+        result = {
+            "transfers": {},
+            "events": {},
+            "errors": {}
+        }
+        
+        try:
+            base_amount, quote_amount = self.get_amounts(log)
+            if not self._validate_attr([base_amount, quote_amount], tx.tx_hash, log.index, result["errors"]):
+                return result
+            
+            unmatched_transfers = self._get_unmatched_transfers(tx)
+            liq_transfers = self._get_liquidity_transfers(unmatched_transfers)
+            
+            # Find and validate burn transfers (opposite of mint)
+            base_withdrawals = [t for t in liq_transfers["withdrawals"].values() if t.token == self.base_token and t.amount == base_amount]
+            quote_withdrawals = [t for t in liq_transfers["withdrawals"].values() if t.token == self.quote_token and t.amount == quote_amount]
+            pool_burns = [t for t in liq_transfers["burns"].values()]
+            
+            if len(base_withdrawals) != 1:
+                error = create_transform_error(
+                    error_type="invalid_liquidity_withdrawal",
+                    message=f"Expected exactly 1 base token withdrawal, found {len(base_withdrawals)}",
+                    tx_hash=tx.tx_hash,
+                    log_index=log.index
+                )
+                result["errors"][error.error_id] = error
+                return result
+                
+            if len(quote_withdrawals) != 1:
+                error = create_transform_error(
+                    error_type="invalid_liquidity_withdrawal", 
+                    message=f"Expected exactly 1 quote token withdrawal, found {len(quote_withdrawals)}",
+                    tx_hash=tx.tx_hash,
+                    log_index=log.index
+                )
+                result["errors"][error.error_id] = error
+                return result
+                
+            if len(pool_burns) != 1:
+                error = create_transform_error(
+                    error_type="invalid_liquidity_withdrawal",
+                    message=f"Expected exactly 1 receipt token burn, found {len(pool_burns)}",
+                    tx_hash=tx.tx_hash,
+                    log_index=log.index
+                )
+                result["errors"][error.error_id] = error
+                return result
+            
+            # Convert to matched transfers
+            matched_transfers = {}          
+            base_matched = msgspec.convert(base_withdrawals[0], type=MatchedTransfer)
+            matched_transfers[base_matched.content_id] = base_matched
+            
+            quote_matched = msgspec.convert(quote_withdrawals[0], type=MatchedTransfer)
+            matched_transfers[quote_matched.content_id] = quote_matched
+            
+            pool_matched = msgspec.convert(pool_burns[0], type=MatchedTransfer)
+            matched_transfers[pool_matched.content_id] = pool_matched
+            
+            # Create domain events
+            position = Position(
+                timestamp=tx.timestamp,
+                tx_hash=tx.tx_hash,
+                receipt_token=log.contract,
+                receipt_id=0,
+                amount_base=-base_amount,
+                amount_quote=-quote_amount,
+                amount_receipt=-pool_burns[0].amount
+            )
+
+            liquidity = Liquidity(
+                timestamp=tx.timestamp,
+                tx_hash=tx.tx_hash,
+                pool=log.contract,
+                provider=base_withdrawals[0].to_address.lower(),
+                base_token=self.base_token,
+                amount_base=-base_amount,
+                quote_token=self.quote_token,
+                amount_quote=-quote_amount,
+                action="remove_lp",  # Remove liquidity action
+                positions=[position],
+                transfers=matched_transfers.values()
+            )
+            
+            result["events"][liquidity.content_id] = liquidity
+            result["transfers"] = matched_transfers
+
+        except Exception as e:
+            self._create_log_exception(e, tx.tx_hash, log.index, self.__class__.__name__, result["errors"])
+
+        return result
+    
+    def process_logs(self, logs: List[DecodedLog], tx: Transaction) -> Tuple[Optional[Dict[str, Transfer]], Optional[Dict[str, DomainEvent]], Optional[Dict[str, ProcessingError]]]:
+        """ Process logs and return matched transfers, events, and errors """
+        new_events, matched_transfers, errors = {}, {}, {}
+
+        try:
+            for log in logs:
+                try:
+                    if log.name == "Swap":
+                        continue
+
+                    elif log.name == "Mint":
+                        mint_result = self._handle_mint(log, tx)
+                        if mint_result:
+                            new_events.update(mint_result["events"])
+                            matched_transfers.update(mint_result["transfers"])
+                            errors.update(mint_result["errors"])
+
+                    elif log.name == "Burn":
+                        burn_result = self._handle_burn(log, tx)
+                        if burn_result:
+                            new_events.update(burn_result["events"])
+                            matched_transfers.update(burn_result["transfers"])
+                            errors.update(burn_result["errors"])
+                
+                except Exception as e:
+                    self._create_log_exception(e, tx.tx_hash, log.index, self.__class__.__name__, errors)
+
+        except Exception as e:
+            self._create_tx_exception(e, tx.tx_hash, self.__class__.__name__, errors)
+        
+        return (
+            matched_transfers if matched_transfers else None, 
+            new_events if new_events else None, 
+            errors if errors else None
+        )
 
     
-
     def handle_swap(self, log: DecodedLog, context: TransactionContext) -> list[PoolSwap]:
         if self.token0 == self.base_token:
             base_amount = log.attributes.get("amount0In") - log.attributes.get("amount0Out")
@@ -220,36 +396,4 @@ class LfjPoolTransformer(BaseTransformer):
         )
         swaps.append(swap)
         return swaps  
-
-    def handle_transfer(self, log: DecodedLog, context: TransactionContext) -> list[Transfer]:
-        transfers = []
-        transfer = Transfer(
-            timestamp=context.timestamp,
-            tx_hash=context.tx_hash,
-            token=log.contract,
-            amount=log.attributes.get("value"),
-            from_address=log.attributes.get("from"),
-            to_address=log.attributes.get("to")
-        )
-        transfers.append(transfer)
-        return transfers
     
-    def transform_log(self, log: DecodedLog, context: TransactionContext) -> list[DomainEvent]:
-        events = []
-        if log.name == "Transfer":
-            events.append(self.handle_transfer(log, context))
-        elif log.name == "Swap":
-            events.append(self.handle_swap(log, context))
-        elif log.name == "Mint":
-            events.append(self.handle_mint(log, context))
-        elif log.name == "Burn":
-            events.append(self.handle_burn(log, context))         
-
-        return events
-
-
-    def process_transaction(self, transaction: Transaction) -> list[DomainEvent]:
-        
-
-
-

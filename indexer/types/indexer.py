@@ -4,9 +4,11 @@ from typing import Optional, Dict, List
 from msgspec import Struct
 from datetime import datetime
 
-from .new import HexStr,EvmAddress,EvmHash, DomainEventId
-from .model.base import DomainEvent, ProcessingError
+from .new import HexStr,EvmAddress,EvmHash, DomainEventId, ErrorId
+from .model.errors import ProcessingError
+from .model.base import DomainEvent
 from .model.transfer import Transfer
+
 
 
 class EncodedLog(Struct, tag=True):
@@ -44,7 +46,7 @@ class Transaction(Struct):
     value: int
     tx_success: bool
     logs: Dict[int,EncodedLog|DecodedLog]  # keyed by log index
-    transfers: Optional[Dict[EvmAddress,Transfer]] = None
+    transfers: Optional[Dict[DomainEventId,Transfer]] = None
     events: Optional[Dict[DomainEventId,DomainEvent]] = None
     errors: Optional[Dict[ErrorId,ProcessingError]] = None
     indexing_status: Optional[str] = None
