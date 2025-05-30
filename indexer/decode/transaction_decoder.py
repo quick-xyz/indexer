@@ -7,7 +7,7 @@ from ..contracts.manager import ContractManager
 from ..model.evm import EvmTransaction, EvmTxReceipt
 from ..model.block import DecodedLog, EncodedLog, EncodedMethod, DecodedMethod, Transaction
 from ...utils.logger import get_logger
-from .logs import LogDecoder
+from .log_decoder import LogDecoder
 
 
 def hex_to_bool(hex_string):

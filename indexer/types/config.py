@@ -16,7 +16,6 @@ class StorageConfig(Struct):
     decoded_prefix: str
     rpc_format: str
     decoded_format: str
-    gcs: GCSConfig
 
 class TokenConfig(Struct):
     symbol: str

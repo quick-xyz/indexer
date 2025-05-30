@@ -1,3 +1,5 @@
+# indexer/core/container.py
+
 from typing import TypeVar, Type, Callable
 import inspect
 

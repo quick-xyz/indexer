@@ -1,55 +1,55 @@
+# indexer/contracts/manager.py  
+
 from web3 import Web3
 from web3.contract import Contract
 from typing import Optional, Dict, Any
 
-from ..interfaces import ContractManagerInterface
 from .registry import ContractRegistry
-from ...utils.logger import get_logger
 
-class ContractManager(ContractManagerInterface):
+
+class ContractManager:
     """
-    Caches Web3 contract instances (subset of the registry)
+    Manages Web3 contract instances with caching
     """
+    
     def __init__(self, registry: ContractRegistry):
         self.registry = registry
-        self.logger = get_logger(__name__)
-        
         self.w3 = Web3()  # No provider needed for ABI decoding
-        self.contract_cache: Dict[str, Contract] = {}  # address -> Contract instance
-    
+        self.contract_cache: Dict[str, Contract] = {}
+
     def get_contract(self, address: str) -> Optional[Contract]:
-        """
-        Get or create Web3 contract instance for address in registry.
-        """
+        """Get or create Web3 contract instance"""
         address = address.lower()
 
         if address in self.contract_cache:
             return self.contract_cache[address]
-        
+
         try:
             contract = self.registry.get_web3_contract(address, self.w3)
             if contract:
                 self.contract_cache[address] = contract
                 return contract
-        except Exception as e:
-            self.logger.error(f"Error creating Web3 contract for {address}: {e}")
-        
+        except Exception:
+            pass
+
         return None
 
     def has_contract(self, address: str) -> bool:
+        """Check if contract exists in registry"""
         return self.registry.has_contract(address.lower())
-    
 
     def call_function(self, address: str, function_name: str, *args, **kwargs) -> Any:
+        """Call a contract function"""
         contract = self.get_contract(address)
         if not contract:
             raise ValueError(f"Contract not found: {address}")
-        
+
         try:
             func = getattr(contract.functions, function_name)
             return func(*args, **kwargs).call()
         except Exception as e:
             raise ValueError(f"Error calling function {function_name}: {str(e)}")
-        
+
     def clear_cache(self) -> None:
-        self.contract_cache.clear()    
+        """Clear the contract cache"""
+        self.contract_cache.clear()

@@ -4,7 +4,7 @@ from typing import Optional
 from ..interfaces import BlockDecoderInterface
 from ..contracts.registry import ContractRegistry
 from ..contracts.manager import ContractManager
-from .transactions import TransactionDecoder
+from .transaction_decoder import TransactionDecoder
 from ..model.block import Block
 from ..model.evm import EvmFilteredBlock,EvmHash,EvmTransaction,EvmTxReceipt
 from ...utils.logger import get_logger

@@ -21,9 +21,9 @@ def create_indexer(config_path: str = None, config_dict: dict = None,
 
 def _register_services(container: IndexerContainer):
     """Register all services in the container"""
-    from .decode.contracts.registry import ContractRegistry
-    from .decode.contracts.manager import ContractManager
-    from .decode.decoders.blocks import BlockDecoder
+    from .contracts.registry import ContractRegistry
+    from .contracts.manager import ContractManager
+    from .decode.decoders.block_decoder import BlockDecoder
     from .transform.manager import TransformationManager
     
     container.register_factory(QuickNodeRpcClient, _create_rpc_client)

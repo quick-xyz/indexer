@@ -1,3 +1,5 @@
+# indexer/core/config.py
+
 import msgspec
 from msgspec import Struct
 from typing import Dict, Optional
@@ -14,6 +16,7 @@ from ..types import (
     RpcConfig, 
     StorageConfig, 
     PathsConfig,
+    GCSConfig,
 )
 
 
@@ -36,14 +39,23 @@ class IndexerConfig(Struct):
         return cls.from_dict(config_dict, env_vars, **overrides)
         
     @classmethod
-    def from_dict(cls, config_dict: dict, env_vars: dict = None, **overrides) -> 'IndexerConfig':
+    def from_dict(cls, config_dict: dict, config_dir: Path = None,
+                  env_vars: dict = None, **overrides) -> 'IndexerConfig':
+        from dotenv import load_dotenv
+        load_dotenv()  
+        
         config_dict = {**config_dict, **overrides}
         env = env_vars or os.environ
         
+        # Default config_dir to current working directory if not provided
+        if config_dir is None:
+            config_dir = Path.cwd() / "config"
+        
         storage = msgspec.convert(config_dict["storage"], type=StorageConfig)
+        gcs = cls._create_gcs_config(env)
         
         contracts = {
-            address.lower(): cls._process_contract(address, contract_data)
+            address.lower(): cls._process_contract(contract_data,config_dir)
             for address, contract_data in config_dict["contracts"].items()
         }
                 
@@ -54,7 +66,7 @@ class IndexerConfig(Struct):
         
         rpc = cls._create_rpc_config(env)
         
-        paths = cls._create_paths()
+        paths = cls._create_paths(config_dir)
         
         return cls(
             name=config_dict["name"],
@@ -67,11 +79,11 @@ class IndexerConfig(Struct):
             paths=paths
         )
 
-    @classmethod
-    def _process_contract(cls, address: EvmAddress, contract_data: dict) -> ContractConfig:
+    @staticmethod
+    def _process_contract(contract_data: dict, config_dir: Path) -> ContractConfig:
         contract_config = msgspec.convert(contract_data, type=ContractConfig)
         
-        abi_path = cls._resolve_abi_path(contract_config)
+        abi_path = IndexerConfig._resolve_abi_path(contract_config,config_dir)
         with open(abi_path) as f:
             abi_data = msgspec.json.decode(f.read(), type=ABIConfig)
         
@@ -79,10 +91,8 @@ class IndexerConfig(Struct):
         return contract_config
 
     @staticmethod
-    def _resolve_abi_path(contract_config: ContractConfig) -> Path:
-        current_file = Path(__file__).resolve()
-        indexer_root = current_file.parents[1]
-        abi_base = indexer_root / "config" / "abis"
+    def _resolve_abi_path(contract_config: ContractConfig,config_dir: Path) -> Path:
+        abi_base = config_dir /  "abis"
         return abi_base / contract_config.decode.abi_dir / contract_config.decode.abi
         
     @staticmethod
@@ -100,20 +110,30 @@ class IndexerConfig(Struct):
     def _create_rpc_config(env: dict) -> RpcConfig:
         endpoint_url = env["INDEXER_AVAX_RPC"]
         return RpcConfig(endpoint_url=endpoint_url)
-        
+
     @staticmethod
-    def _create_paths() -> PathsConfig:
-        current_file = Path(__file__).resolve()
-        indexer_root = current_file.parents[1]
-        project_root = indexer_root.parent
-        
+    def _create_gcs_config(env: dict) -> GCSConfig:
+        project_id = env["INDEXER_GCS_PROJECT_ID"]
+        bucket_name = env["INDEXER_GCS_BUCKET_NAME"]
+        credentials_path = env.get("INDEXER_GCS_CREDENTIALS_PATH")  # Optional
+        return GCSConfig(
+            project_id=project_id,
+            bucket_name=bucket_name,
+            credentials_path=credentials_path
+        )
+
+    @staticmethod
+    def _create_paths(config_dir: Path) -> PathsConfig:       
+        # Assumes repository root is parent of config directory
+        repo_root = config_dir.parent
+
         paths = PathsConfig(
-            project_root=project_root,
-            indexer_root=indexer_root,
-            config_dir=indexer_root / 'config',
-            data_dir=project_root / 'data',
-            log_dir=project_root / 'logs',
-            abi_dir=indexer_root / 'config' / 'abis'
+            project_root=repo_root,
+            indexer_root=repo_root / 'indexer',
+            config_dir=config_dir,
+            data_dir=repo_root / 'data',
+            log_dir=repo_root / 'logs',
+            abi_dir=repo_root / 'config' / 'abis'
         )
         
         for dir_path in [paths.data_dir, paths.log_dir, paths.abi_dir]:
