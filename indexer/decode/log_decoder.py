@@ -1,19 +1,24 @@
+# indexer/decode/log_decoder.py
+
 from typing import Optional
 from web3 import Web3
 import msgspec
 from web3._utils.events import get_event_data
 
-from ..interfaces import LogDecoderInterface
-from ..contracts.manager import ContractManager
-from ..model.evm import EvmLog
-from ..model.block import DecodedLog, EncodedLog
-from ...utils.logger import get_logger
 
-class LogDecoder(LogDecoderInterface):
+from ..contracts.manager import ContractManager
+#from ...utils.logger import get_logger
+from ..types import ( 
+    EncodedLog, 
+    DecodedLog,
+    EvmLog,
+)
+
+class LogDecoder:
     def __init__(self, contract_manager: ContractManager):
         self.contract_manager = contract_manager
         self.w3 = Web3()
-        self.logger = get_logger(__name__)
+        #self.logger = get_logger(__name__)
 
     def build_encoded_log(self, log: EvmLog) -> EncodedLog:
         try:
@@ -28,7 +33,7 @@ class LogDecoder(LogDecoderInterface):
             return encoded_log
         
         except Exception as e:
-            self.logger.error(f"Error decoding log in tx {log['transactionHash']}: {e}")
+            #self.logger.error(f"Error decoding log in tx {log['transactionHash']}: {e}")
             return None
 
 

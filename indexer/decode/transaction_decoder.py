@@ -1,14 +1,20 @@
+# indexer/decode/transaction_decoder.py
+
 from typing import Optional
-from datetime import datetime
 from web3 import Web3
 
-from ..interfaces import TransactionDecoderInterface
 from ..contracts.manager import ContractManager
-from ..model.evm import EvmTransaction, EvmTxReceipt
-from ..model.block import DecodedLog, EncodedLog, EncodedMethod, DecodedMethod, Transaction
-from ...utils.logger import get_logger
 from .log_decoder import LogDecoder
-
+#from ..utils.logger import get_logger
+from ..types import (
+    EncodedMethod, 
+    DecodedMethod, 
+    EncodedLog, 
+    DecodedLog,
+    EvmTransaction,
+    EvmTxReceipt,
+    Transaction,
+)
 
 def hex_to_bool(hex_string):
     """Converts a hex string to a boolean."""
@@ -20,12 +26,12 @@ def hex_to_bool(hex_string):
         raise ValueError("Invalid hex string for boolean conversion")
 
 
-class TransactionDecoder(TransactionDecoderInterface):
+class TransactionDecoder:
     def __init__(self, contract_manager: ContractManager):
         self.contract_manager = contract_manager
         self.log_decoder = LogDecoder(contract_manager)
         self.w3 = Web3()
-        self.logger = get_logger(__name__)
+        #self.logger = get_logger(__name__)
 
 
     def decode_function(self, tx: EvmTransaction) -> EncodedMethod|DecodedMethod:
@@ -46,7 +52,7 @@ class TransactionDecoder(TransactionDecoderInterface):
                 args = dict(func_params),
             )
         except Exception as e:
-            self.logger.debug(f"Failed to decode function input for tx {tx.hash}: {str(e)}")
+            #self.logger.debug(f"Failed to decode function input for tx {tx.hash}: {str(e)}")
             return EncodedMethod(data=tx.input)
 
 

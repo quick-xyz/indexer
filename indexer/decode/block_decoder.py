@@ -1,21 +1,26 @@
+# indexer/decode/block_decoder.py
+
 from web3 import Web3
 from typing import Optional
 
-from ..interfaces import BlockDecoderInterface
 from ..contracts.registry import ContractRegistry
 from ..contracts.manager import ContractManager
 from .transaction_decoder import TransactionDecoder
-from ..model.block import Block
-from ..model.evm import EvmFilteredBlock,EvmHash,EvmTransaction,EvmTxReceipt
-from ...utils.logger import get_logger
+#from ...utils.logger import get_logger
+from ..types import (
+    Block, 
+    EvmFilteredBlock, 
+    EvmHash, 
+    EvmTransaction,
+    EvmTxReceipt,
+)
 
-
-class BlockDecoder(BlockDecoderInterface):
+class BlockDecoder:
     def __init__(self, contract_manager: ContractManager):
         self.contract_manager = contract_manager
         self.tx_decoder = TransactionDecoder(self.contract_manager)
         self.w3 = Web3()
-        self.logger = get_logger(__name__)
+        #self.logger = get_logger(__name__)
 
     def merge_tx_with_receipts(self, raw_block: EvmFilteredBlock) -> tuple[dict[EvmHash,tuple[EvmTransaction,EvmTxReceipt]],Optional[dict]]:
         tx_dict = {tx.hash: tx for tx in raw_block.transactions}
@@ -23,20 +28,20 @@ class BlockDecoder(BlockDecoderInterface):
 
         if not tx_dict:
             error_msg = f"No valid transactions found in block {self.w3.to_int(hexstr=raw_block.block)}"
-            self.logger.error(error_msg)
+            #self.logger.error(error_msg)
             raise ValueError(error_msg)
         if not receipts_dict:
             error_msg = f"No valid receipts found in block {self.w3.to_int(hexstr=raw_block.block)}"
-            self.logger.error(error_msg)
+            #self.logger.error(error_msg)
             raise ValueError(error_msg)
 
-        self.logger.info(f"Processing block: {self.w3.to_int(hexstr=raw_block.block)} with {len(tx_dict)} transactions and {len(receipts_dict)} receipts")
+        #self.logger.info(f"Processing block: {self.w3.to_int(hexstr=raw_block.block)} with {len(tx_dict)} transactions and {len(receipts_dict)} receipts")
 
         tx_list = set(tx_dict.keys())
         receipts_list = set(receipts_dict.keys())
 
         matching_hashes = tx_list & receipts_list
-        self.logger.debug(f"Found {len(matching_hashes)} matching transactions and receipts")
+        #self.logger.debug(f"Found {len(matching_hashes)} matching transactions and receipts")
 
         merged_dict = {k: (tx_dict[k], receipts_dict[k]) for k in matching_hashes}
 
@@ -47,17 +52,17 @@ class BlockDecoder(BlockDecoderInterface):
             "tx_only": (tx_list - receipts_list),
             "receipt_only": (receipts_list - tx_list)
         }     
-           
+        ''' 
         if diffs["tx_only"]:
             self.logger.warning(f"Transactions without receipts: {len(diffs['tx_only'])}")
             for tx_hash in diffs["tx_only"][:5]:  # Log first 5 for brevity
                 self.logger.debug(f"TX without receipt: {tx_hash}")
-                
+
         if diffs["receipt_only"]:
             self.logger.warning(f"Receipts without transactions: {len(diffs['receipt_only'])}")
             for receipt_hash in diffs["receipt_only"][:5]:  # Log first 5 for brevity
                 self.logger.debug(f"Receipt without TX: {receipt_hash}")
-                
+        '''       
         return merged_dict,diffs
 
     def decode_block(self, raw_block: EvmFilteredBlock) -> Block:
