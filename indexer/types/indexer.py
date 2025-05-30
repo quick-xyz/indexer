@@ -1,3 +1,5 @@
+# indexer/types/indexer.py
+
 from typing import Optional, Dict, List
 from msgspec import Struct
 from datetime import datetime

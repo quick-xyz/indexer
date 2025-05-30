@@ -1,3 +1,5 @@
+# indexer/types/model/staking.py
+
 from typing import Literal, Optional, List
 
 from ..new import EvmAddress

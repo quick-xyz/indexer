@@ -1,3 +1,5 @@
+# indexer/types/model/liquidity.py
+
 from typing import Literal, List, Optional
 
 from ..new import EvmAddress

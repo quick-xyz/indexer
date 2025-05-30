@@ -11,7 +11,7 @@ from ..types import (
     AddressConfig, 
     ABIConfig, 
     DatabaseConfig, 
-    RPCConfig, 
+    RpcConfig, 
     StorageConfig, 
     PathsConfig,
 )
@@ -24,7 +24,7 @@ class IndexerConfig(Struct):
     contracts: Dict[EvmAddress, ContractConfig] = msgspec.field(default_factory=dict)
     addresses: Dict[EvmAddress, AddressConfig] = msgspec.field(default_factory=dict)
     database: DatabaseConfig
-    rpc: RPCConfig
+    rpc: RpcConfig
     paths: Optional[PathsConfig] = None
     
     @classmethod
@@ -97,9 +97,9 @@ class IndexerConfig(Struct):
         return DatabaseConfig(url=db_url)
         
     @staticmethod
-    def _create_rpc_config(env: dict) -> RPCConfig:
+    def _create_rpc_config(env: dict) -> RpcConfig:
         endpoint_url = env["INDEXER_AVAX_RPC"]
-        return RPCConfig(endpoint_url=endpoint_url)
+        return RpcConfig(endpoint_url=endpoint_url)
         
     @staticmethod
     def _create_paths() -> PathsConfig:

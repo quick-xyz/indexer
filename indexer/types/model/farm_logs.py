@@ -1,3 +1,5 @@
+# indexer/types/model/farm_logs.py
+
 from typing import List
 
 from ..new import EvmAddress

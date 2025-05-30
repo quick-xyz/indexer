@@ -1,3 +1,5 @@
+# indexer/types/model/base.py
+
 from typing import Optional
 import hashlib
 import msgspec

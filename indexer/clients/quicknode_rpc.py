@@ -1,11 +1,11 @@
-from web3 import Web3
+# indexer/clients/quicknode_rpc.py
+
 from datetime import datetime
-from typing import List, Dict, Union, Optional, Any
-import json
+from typing import List, Dict, Union, Any
+from web3 import Web3
 
-from .interfaces import RPCClientInterface
 
-class QuickNodeRPCClient(RPCClientInterface):
+class QuickNodeRpcClient:
     """
     A client for interacting with Ethereum blockchain via QuickNode RPC.
     """
@@ -19,50 +19,25 @@ class QuickNodeRPCClient(RPCClientInterface):
             raise ConnectionError("Failed to connect to QuickNode RPC endpoint")
     
     def get_latest_block_number(self) -> int:
-        """
-        Get the latest block number on the blockchain.
-        
-        Returns:
-            Latest block number
-        """
         return self.w3.eth.block_number
     
     def get_block(self, block_number: int, full_transactions: bool = True) -> Dict[str, Any]:
-        """
-        Get a block by number.
-        
-        Args:
-            block_number: Block number
-            full_transactions: Whether to include full transaction objects
-            
-        Returns:
-            Block data
+        """ 
+        Get a block using block_number. Optionally include full transaction objects.
         """
         block = self.w3.eth.get_block(block_number, full_transactions=full_transactions)
         return dict(block)
     
     def get_transaction_receipt(self, tx_hash: str) -> Dict[str, Any]:
         """
-        Get a transaction receipt.
-        
-        Args:
-            tx_hash: Transaction hash
-            
-        Returns:
-            Transaction receipt
+        Get a transaction receipt using tx_hash.
         """
         receipt = self.w3.eth.get_transaction_receipt(tx_hash)
         return dict(receipt)
     
     def get_block_with_receipts(self, block_number: int) -> Dict[str, Any]:
         """
-        Get a block with transaction receipts.
-        
-        Args:
-            block_number: Block number
-            
-        Returns:
-            Block data with transaction receipts
+        Get a block with transaction receipts using block_number.
         """
         block = self.get_block(block_number, full_transactions=True)
         
@@ -88,7 +63,9 @@ class QuickNodeRPCClient(RPCClientInterface):
             return block
         
     def get_block_formatted(self, block_identifier: Union[int, str], full_transactions: bool = False) -> Dict:
-        """Get block with formatted data for easier reading."""
+        """
+        Get block with formatted data for easier reading.
+        """
         if isinstance(block_identifier, int):
             block = self.get_block(block_identifier, full_transactions)
         else:
@@ -110,15 +87,7 @@ class QuickNodeRPCClient(RPCClientInterface):
     
     def get_blocks_range(self, start_block: int, end_block: int, full_transactions: bool = False) -> List[Dict]:
         """
-        Get a range of blocks.
-        
-        Args:
-            start_block: Starting block number (inclusive)
-            end_block: Ending block number (inclusive)
-            full_transactions: Whether to include full transaction objects
-            
-        Returns:
-            List of block objects
+        Get a range of blocks using start and end block numbers (inclusive).
         """
         blocks = []
         for block_num in range(start_block, end_block + 1):
@@ -127,23 +96,20 @@ class QuickNodeRPCClient(RPCClientInterface):
         return blocks
     
     def get_transaction_count(self, block_identifier: Union[int, str]) -> int:
-        """Get the number of transactions in a block."""
+        """
+        Get the number of transactions in a block.
+        """
         return self.w3.eth.get_block_transaction_count(block_identifier)
     
     def get_uncle_count(self, block_identifier: Union[int, str]) -> int:
-        """Get the number of uncles in a block."""
+        """
+        Get the number of uncles in a block.
+        """
         return self.w3.eth.get_uncle_count(block_identifier)
     
     def get_block_receipts(self, block_number: int) -> List[Dict]:
         """
-        Get all transaction receipts for a block.
-        Note: This is a non-standard RPC method that might only be available on certain QuickNode plans.
-        
-        Args:
-            block_number: Block number
-            
-        Returns:
-            List of transaction receipt objects
+        Get all transaction receipts for a block (QuickNode specific).
         """
         try:
             response = self.w3.provider.make_request("eth_getBlockReceipts", [hex(block_number)])
@@ -157,13 +123,7 @@ class QuickNodeRPCClient(RPCClientInterface):
     def find_address_transactions(self, block_identifier: Union[int, str], address: str) -> List[Dict]:
         """
         Find transactions involving a specific address in a block.
-        
-        Args:
-            block_identifier: Block number or hash
-            address: Ethereum address to look for
-            
-        Returns:
-            List of transactions involving the address
+
         """
         address = address.lower()
         
@@ -196,9 +156,6 @@ class QuickNodeRPCClient(RPCClientInterface):
     def get_finalized_block(self) -> Dict:
         """
         Get the latest finalized block (post-merge Ethereum).
-        
-        Returns:
-            Dict containing finalized block details
         """
         try:
             block = self.w3.eth.get_block('finalized')
@@ -209,9 +166,6 @@ class QuickNodeRPCClient(RPCClientInterface):
     def get_finalization_status(self) -> Dict:
         """
         Get information about block finalization status.
-        
-        Returns:
-            Dict with information about latest, safe, and finalized blocks
         """
         try:
             latest = self.w3.eth.get_block('latest')
@@ -231,12 +185,6 @@ class QuickNodeRPCClient(RPCClientInterface):
     def get_gas_information(self, block_identifier: Union[int, str] = 'latest') -> Dict:
         """
         Get gas information from a block.
-        
-        Args:
-            block_identifier: Block identifier
-            
-        Returns:
-            Dict with gas information
         """
         if isinstance(block_identifier, int):
             block = self.get_block(block_identifier)

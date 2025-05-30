@@ -1,3 +1,5 @@
+# indexer/types/__init__.py
+
 # New Types
 from .new import (
     BlockID,
@@ -24,6 +26,7 @@ from .evm import (
 
 # Configuration Types
 from .config import (
+    GCSConfig,
     StorageConfig,
     TokenConfig,
     AddressConfig,
@@ -32,7 +35,7 @@ from .config import (
     ABIConfig,
     ContractConfig,
     DatabaseConfig,
-    RPCConfig,
+    RpcConfig,
     PathsConfig,
 )
 
@@ -138,6 +141,7 @@ __all__ = [
     "EvmFilteredBlock",
     
     # Configuration types
+    "GCSConfig",
     "StorageConfig",
     "TokenConfig",
     "AddressConfig",
@@ -146,7 +150,7 @@ __all__ = [
     "ABIConfig",
     "ContractConfig",
     "DatabaseConfig",
-    "RPCConfig",
+    "RpcConfig",
     "PathsConfig",
     
     # Indexer Types

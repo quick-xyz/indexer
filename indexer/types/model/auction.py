@@ -1,3 +1,5 @@
+# indexer/types/model/auction.py
+
 from ..new import EvmAddress
 from .base import DomainEvent
 

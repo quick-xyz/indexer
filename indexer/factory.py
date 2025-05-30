@@ -13,7 +13,7 @@ from .decode.contracts.registry import contract_registry
 from .decode.contracts.manager import ContractManager
 from .decode.contracts.registry import ContractRegistry
 from .clients.quicknode_rpc import QuickNodeRPCClient
-from .storage.gcs_new import GCSHandler
+from .storage.gcs_handler import GCSHandler
 from .decode.decoders.blocks import BlockDecoder
 from .transform.manager import TransformationManager
 # from .pipeline.integrated import IntegratedPipeline

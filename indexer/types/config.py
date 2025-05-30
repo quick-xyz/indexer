@@ -1,14 +1,22 @@
+# indexer/types/config.py
+
 from typing import Dict, Optional, List, Any
 from pathlib import Path
 
 from msgspec import Struct
 
 
+class GCSConfig(Struct):
+    project_id: str
+    bucket_name: str
+    credentials_path: Optional[str] = None
+
 class StorageConfig(Struct):
     rpc_prefix: str
     decoded_prefix: str
     rpc_format: str
     decoded_format: str
+    gcs: GCSConfig
 
 class TokenConfig(Struct):
     symbol: str
@@ -48,7 +56,7 @@ class DatabaseConfig(Struct):
     pool_size: int = 5
     max_overflow: int = 10
 
-class RPCConfig(Struct):
+class RpcConfig(Struct):
     endpoint_url: str
     timeout: int = 30
     max_retries: int = 3

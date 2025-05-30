@@ -1,24 +1,30 @@
+# indexer/storage/gcs_handler.py
 
 import os
-from google.cloud import storage
 from typing import List, Dict, Any, Optional, Tuple, Union
 from datetime import datetime, timezone
+from google.cloud import storage
 import msgspec
 
-from ..utils.logger import get_logger
-from ..decode.model.block import Block
-from ..decode.model.evm import EvmFilteredBlock
+from ..types import Block, EvmFilteredBlock
 
 class GCSHandler:
-    def __init__(self,rpc_prefix,decoded_prefix,rpc_format,decoded_format):
-        self.gcs_project = os.getenv("INDEXER_GCS_PROJECT_ID")
-        self.bucket_name = os.getenv("INDEXER_GCS_BUCKET_NAME")
-        self.credentials_path = os.getenv("INDEXER_GCS_CREDENTIALS_PATH")
-
+    def __init__(self,rpc_prefix: str,decoded_prefix: str,
+                 rpc_format: str,decoded_format: str,
+                 gcs_project: str, bucket_name: str,
+                 credentials_path: Optional[str] = None):
+        
+        self.rpc_prefix = rpc_prefix
+        self.decoded_prefix = decoded_prefix
+        self.rpc_format = rpc_format
+        self.decoded_format = decoded_format
+        self.gcs_project = gcs_project
+        self.bucket_name = bucket_name
+        self.credentials_path = credentials_path if credentials_path else None
+        
         self.client = None
         self._initialize_gcs_client()
         self.bucket = self._connect_to_bucket(self.bucket_name)
-        self.logger = get_logger(__name__)
 
     def _initialize_gcs_client(self):
         if self.credentials_path:
@@ -152,7 +158,7 @@ class GCSHandler:
             data_bytes = self.download_blob_as_bytes(block_path)
             return msgspec.json.decode(data_bytes, type=EvmFilteredBlock)
         else:
-            self.logger.warning(f"Cannot find block number {block_number} at block path {block_path}.")
+            #self.logger.warning(f"Cannot find block number {block_number} at block path {block_path}.")
             return None
 
     def get_decoded_block(self, block_number: int) -> Optional[Block]:
@@ -161,7 +167,7 @@ class GCSHandler:
         if self.blob_exists(block_path):
             return self.download_blob_as_bytes(block_path)
         else:
-            self.logger.warning(f"Cannot find block number {block_number} at block path {block_path}.")
+            #self.logger.warning(f"Cannot find block number {block_number} at block path {block_path}.")
             return None
     
     def save_decoded_block(self, block_number: int, data: Block) -> bool:
@@ -175,5 +181,5 @@ class GCSHandler:
             )
         
         except Exception as e:
-            self.logger.error(f"Failed to upload decoded block {block_number}: {e}")
+            #self.logger.error(f"Failed to upload decoded block {block_number}: {e}")
             return False

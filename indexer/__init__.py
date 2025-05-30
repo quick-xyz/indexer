@@ -1,32 +1,50 @@
+# indexer/__init__.py
 
-# from .__version__ import __version__
-from .config.config_manager import config
-from .decode.contracts.registry import contract_registry
-from .factory import ComponentFactory
-from .component_registry import registry
+from .core.container import IndexerContainer
+from .core.config import IndexerConfig
+from .clients.quicknode_rpc import QuickNodeRpcClient
+from .storage.gcs_handler import GCSHandler
 
-def create_indexer(custom_config=None, config_file=None):
+def create_indexer(config_path: str = None, config_dict: dict = None, 
+                  env_vars: dict = None, **overrides) -> IndexerContainer:
+    if config_path:
+        config = IndexerConfig.from_file(config_path, env_vars, **overrides)
+    elif config_dict:
+        config = IndexerConfig.from_dict(config_dict, env_vars, **overrides)
+    else:
+        raise ValueError("Must provide either config_path or config_dict")
     
-    if config_file or custom_config:
-        if config_file:
-            config._load_config_json(config_file)
-        if custom_config:
-            config.update_config(custom_config)
+    container = IndexerContainer(config)
+    _register_services(container)
+    
+    return container
 
-    contract_manager = ComponentFactory.get_contract_manager()
-    rpc = ComponentFactory.get_rpc_client()
-    gcs_handler = ComponentFactory.get_gcs_handler()
-    block_decoder = ComponentFactory.get_block_decoder()
-    transformation_manager = ComponentFactory.get_transformation_manager() 
-    components = registry
+def _register_services(container: IndexerContainer):
+    """Register all services in the container"""
+    from .decode.contracts.registry import ContractRegistry
+    from .decode.contracts.manager import ContractManager
+    from .decode.decoders.blocks import BlockDecoder
+    from .transform.manager import TransformationManager
+    
+    container.register_factory(QuickNodeRpcClient, _create_rpc_client)
+    container.register_factory(GCSHandler, _create_gcs_handler)
+    container.register_singleton(ContractRegistry, ContractRegistry)
+    container.register_singleton(ContractManager, ContractManager)
+    container.register_singleton(BlockDecoder, BlockDecoder)
+    container.register_singleton(TransformationManager, TransformationManager)
 
-    return {
-        "config": config,
-        "contract_registry": contract_registry,
-        "component_registry": components,
-        "contract_manager": contract_manager,
-        "rpc": rpc,
-        "gcs_handler": gcs_handler,
-        "block_decoder": block_decoder,
-        "transformer": transformation_manager,
-    }
+def _create_rpc_client(container: IndexerContainer) -> QuickNodeRpcClient:
+    rpc = container._config.rpc
+    return QuickNodeRpcClient(endpoint_url=rpc.endpoint_url)
+
+def _create_gcs_handler(container: IndexerContainer) -> GCSHandler:
+    storage = container._config.storage
+    return GCSHandler(
+        rpc_prefix=storage.rpc_prefix,
+        decoded_prefix=storage.decoded_prefix,
+        rpc_format=storage.rpc_format,
+        decoded_format=storage.decoded_format,
+        gcs_project=storage.gcs.project_id,
+        bucket_name=storage.gcs.bucket_name,
+        credentials_path=storage.gcs.credentials_path
+    )
