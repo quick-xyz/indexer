@@ -4,58 +4,56 @@ from pathlib import Path
 from msgspec import Struct
 
 
-class StorageConfig(Struct, frozen=True):
+class StorageConfig(Struct):
     rpc_prefix: str
     decoded_prefix: str
     rpc_format: str
     decoded_format: str
 
-class TokenConfig(Struct, frozen=True):
+class TokenConfig(Struct):
     symbol: str
     decimals: int
 
-class AddressConfig(Struct, frozen=True):
+class AddressConfig(Struct):
     name: str
     type: str
     description: str
     grouping: Optional[str] = None
     tags: Optional[List[str]] = None
 
-class DecoderConfig(Struct, frozen=True):
+class DecoderConfig(Struct):
     abi_dir: str
     abi: str
 
-class TransformerConfig(Struct, frozen=True):
+class TransformerConfig(Struct):
     name: str
     instantiate: Dict[str, Any]
     transfers: Optional[Dict[str, int]] = None
     logs: Optional[Dict[str, int]] = None
 
-class ContractConfig(Struct, frozen=True):
+class ABIConfig(Struct):
+    abi: List[Dict[str, Any]]
+
+class ContractConfig(Struct):
     name: str
     project: str
     type: str
     decode: DecoderConfig
     transform: Optional[TransformerConfig] = None
+    token: Optional[TokenConfig] = None
+    abi: Optional[List[Dict[str, Any]]] = None
 
-class ABIConfig(Struct, frozen=True):
-    abi: List[Dict[str, Any]]
-
-class ContractWithABI(Struct, frozen=True):
-    contract_info: ContractConfig
-    abi: List[Dict[str, Any]]
-
-class DatabaseConfig(Struct, frozen=True):
+class DatabaseConfig(Struct):
     url: str
     pool_size: int = 5
     max_overflow: int = 10
 
-class RPCConfig(Struct, frozen=True):
+class RPCConfig(Struct):
     endpoint_url: str
     timeout: int = 30
     max_retries: int = 3
 
-class PathsConfig(Struct, frozen=True):
+class PathsConfig(Struct):
     project_root: Path
     indexer_root: Path
     config_dir: Path
