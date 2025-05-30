@@ -1,0 +1,128 @@
+# cloudbuild.yaml
+# Google Cloud Build configuration for automated deployment
+steps:
+  # Build the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', 'gcr.io/$PROJECT_ID/blockchain-indexer:$COMMIT_SHA', '.']
+  
+  # Push the container image
+  - name: 'gcr.io/cloud-builders/docker'
+    args: ['push', 'gcr.io/$PROJECT_ID/blockchain-indexer:$COMMIT_SHA']
+  
+  # Deploy to Cloud Run
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: gcloud
+    args:
+      - 'run'
+      - 'deploy'
+      - 'blockchain-indexer'
+      - '--image'
+      - 'gcr.io/$PROJECT_ID/blockchain-indexer:$COMMIT_SHA'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--memory'
+      - '4Gi'
+      - '--cpu'
+      - '2'
+      - '--max-instances'
+      - '10'
+      - '--concurrency'
+      - '1'
+      - '--timeout'
+      - '3600'
+      - '--set-env-vars'
+      - 'ENVIRONMENT=production'
+
+images:
+  - 'gcr.io/$PROJECT_ID/blockchain-indexer:$COMMIT_SHA'
+
+options:
+  machineType: 'E2_HIGHCPU_8'
+
+---
+# cloud-run-service.yaml
+# Cloud Run service configuration
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: blockchain-indexer
+  namespace: default
+  annotations:
+    run.googleapis.com/ingress: all
+    run.googleapis.com/execution-environment: gen2
+spec:
+  template:
+    metadata:
+      annotations:
+        # CPU allocation during request processing only
+        run.googleapis.com/cpu-throttling: "false"
+        # Maximum instances
+        autoscaling.knative.dev/maxScale: "10"
+        # Minimum instances (keep at least 1 running)
+        autoscaling.knative.dev/minScale: "1"
+        # Instance timeout
+        run.googleapis.com/timeout: "3600s"
+        # VPC connector for database access
+        run.googleapis.com/vpc-access-connector: "indexer-connector"
+        run.googleapis.com/vpc-access-egress: "private-ranges-only"
+    spec:
+      containerConcurrency: 1
+      serviceAccountName: blockchain-indexer@PROJECT_ID.iam.gserviceaccount.com
+      containers:
+      - image: gcr.io/PROJECT_ID/blockchain-indexer:latest
+        resources:
+          limits:
+            cpu: "2"
+            memory: "4Gi"
+        env:
+        - name: ENVIRONMENT
+          value: "production"
+        - name: WORKERS
+          value: "3"
+        - name: INDEXER_DB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: database-config
+              key: host
+        - name: INDEXER_DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: database-config
+              key: username
+        - name: INDEXER_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: database-config
+              key: password
+        - name: INDEXER_DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: database-config
+              key: database
+        - name: INDEXER_AVAX_RPC
+          valueFrom:
+            secretKeyRef:
+              name: api-keys
+              key: rpc-endpoint
+        - name: INDEXER_GCS_PROJECT_ID
+          value: "PROJECT_ID"
+        - name: INDEXER_GCS_BUCKET_NAME
+          value: "PROJECT_ID-blockchain-data"
+        ports:
+        - containerPort: 8080
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 30
+          timeoutSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
