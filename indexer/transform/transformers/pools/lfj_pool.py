@@ -1,26 +1,31 @@
 from typing import List, Dict, Tuple, Optional, Literal
 
 from ..base import BaseTransformer
-from ....decode.model.block import DecodedLog, Transaction
-from ....decode.model.types import EvmAddress
-from ...events.base import DomainEvent, ProcessingError
-from ...events.transfer import Transfer, UnmatchedTransfer, MatchedTransfer
-from ...events.liquidity import Liquidity, Position
-from ...events.fees import Fee
-from ...events.trade import PoolSwap
-from ....utils.logger import get_logger
+from ....types import (
+    ZERO_ADDRESS,
+    DecodedLog,
+    Transaction,
+    EvmAddress,
+    DomainEvent,
+    ProcessingError,
+    Transfer,
+    UnmatchedTransfer,
+    MatchedTransfer,
+    Liquidity,
+    Position,
+    Fee,
+    PoolSwap,
+)
 
-ZERO_ADDRESS = "0x0000000000000000000000000000000000000000"
 
 class LfjPoolTransformer(BaseTransformer):
     def __init__(self, contract: EvmAddress, token0: EvmAddress, token1: EvmAddress, base_token: EvmAddress, fee_collector: EvmAddress):
-        super().__init__(contract_address=contract)
-        self.logger = get_logger(__name__)
-        self.token0 = token0
-        self.token1 = token1
-        self.base_token = base_token
-        self.quote_token = token1 if token0 == base_token else token0
-        self.fee_collector = fee_collector
+        super().__init__(contract_address=contract.lower())
+        self.token0 = token0.lower()
+        self.token1 = token1.lower()
+        self.base_token = base_token.lower()
+        self.quote_token = self.token1 if self.token0 == self.base_token else self.token0
+        self.fee_collector = fee_collector.lower()
 
     
     def get_amounts(self, log: DecodedLog) -> tuple[int, int]:
@@ -37,42 +42,69 @@ class LfjPoolTransformer(BaseTransformer):
         return "buy" if base_amount > 0 else "sell"
     
 
-    def process_transfers(self, logs: List[DecodedLog], tx: Transaction) -> Tuple[Optional[Dict[str,Transfer]],Optional[List[ProcessingError]]]:
-        transfers = {}
+    def process_transfers(self, logs: List[DecodedLog], tx: Transaction) -> Tuple[Optional[List[Transfer]],Optional[List[ProcessingError]]]:
+        transfers = []
+        errors = []
 
         for log in logs:
-            if log.name == "Transfer":
-                transfer = UnmatchedTransfer(
-                    timestamp=tx.timestamp,
-                    tx_hash=tx.tx_hash,
-                    from_address=log.attributes.get("from").lower(),
-                    to_address=log.attributes.get("to").lower(),
-                    token=log.contract,
-                    amount=log.attributes.get("value"),
-                    log_index=log.index
-                )
-                key = transfer.generate_content_id()
+            try:
+                if log.name == "Transfer":
+                    from_addr = log.attributes.get("from")
+                    to_addr = log.attributes.get("to")
+                    value = log.attributes.get("value")
+                    
+                    if not all([from_addr, to_addr, value is not None]):
+                        errors.append(ProcessingError(
+                            stage="process_transfers",
+                            error="missing_attributes",
+                            desc=f"Transfer log missing attributes: {log.index}",
+                        ))
+                        continue
+
+                    transfer = UnmatchedTransfer(
+                        timestamp=tx.timestamp,
+                        tx_hash=tx.tx_hash,
+                        from_address=from_addr.lower(),
+                        to_address=to_addr.lower(),
+                        token=log.contract,
+                        amount=value,
+                        log_index=log.index
+                    )
+                    key = transfer.generate_content_id()
+                    transfers.append(transfer)
+
+            except Exception as e:
+                errors.append(ProcessingError(
+                    stage="process_transfers",
+                    error="processing_exception",
+                    desc=f"Failed to process transfer log {log.index}: {str(e)}",
+                ))
                 
-                transfers[key] = transfer
-                
-        return transfers, None
+        return transfers if transfers else None, errors if errors else None
 
     def get_liquidity_transfers(self, unmatched_transfers: Dict[str,Dict[str, Transfer]]) -> Dict[str, Dict[str,Transfer]]:
-        liq_transfers = {}
+        liq_transfers = {
+            "mints": {},
+            "burns": {},
+            "deposits": {},
+            "withdrawals": {},
+            "receipt_transfers": {},
+            "underlying_transfers": {}
+        }
 
         for contract, trf_dict in unmatched_transfers.items():
             for key, transfer in trf_dict.items():
-                if transfer.token.lower() == self.contract_address.lower():
+                if transfer.token == self.contract_address:
                     if transfer.from_address == ZERO_ADDRESS:
                         liq_transfers["mints"][key] = transfer
                     elif transfer.to_address == ZERO_ADDRESS:
                         liq_transfers["burns"][key] = transfer
                     else:
                         liq_transfers["receipt_transfers"][key] = transfer
-                elif transfer.token.lower() == self.base_token.lower() or transfer.token.lower() == self.quote_token.lower():
-                    if transfer.to_address == self.contract_address.lower():
+                elif transfer.token == self.base_token or transfer.token == self.quote_token:
+                    if transfer.to_address == self.contract_address:
                         liq_transfers["deposits"][key] = transfer
-                    elif transfer.from_address == self.contract_address.lower():
+                    elif transfer.from_address == self.contract_address:
                         liq_transfers["withdrawals"][key] = transfer
                     else:
                         liq_transfers["underlying_transfers"][key] = transfer

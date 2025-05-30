@@ -25,7 +25,7 @@ class TransformerRegistry:
     
     def __init__(self, config: IndexerConfig):
         self.config = config
-        self._contracts: Dict[EvmAddress, ContractTransformer] = {}
+        self._transformers: Dict[EvmAddress, ContractTransformer] = {}
         self._transformer_classes = self._load_transformer_classes()
         self._setup_transformers()
 
@@ -120,7 +120,7 @@ class TransformerRegistry:
                           transfer_priorities: Dict[str, int] = None,
                           log_priorities: Dict[str, int] = None):
         """Register a transformer for a contract"""
-        self._contracts[contract_address.lower()] = ContractTransformer(
+        self._transformers[contract_address.lower()] = ContractTransformer(
             instance=instance,
             transfer_priorities=transfer_priorities or {},
             log_priorities=log_priorities or {}
@@ -128,21 +128,21 @@ class TransformerRegistry:
 
     def get_transformer(self, contract_address: EvmAddress) -> Optional[object]:
         """Get transformer instance for a contract"""
-        config = self._contracts.get(contract_address.lower())
-        return config.instance if config and config.active else None
+        transformer = self._transformers.get(contract_address.lower())
+        return transformer.instance if transformer and transformer.active else None
 
     def get_transfer_priority(self, contract_address: EvmAddress, event_name: str) -> Optional[int]:
         """Get transfer priority for a contract event"""
-        config = self._contracts.get(contract_address.lower())
-        if config and config.active and event_name in config.transfer_priorities:
-            return config.transfer_priorities[event_name]
+        transformer = self._transformers.get(contract_address.lower())
+        if transformer and transformer.active and event_name in transformer.transfer_priorities:
+            return transformer.transfer_priorities[event_name]
         return None
 
     def get_log_priority(self, contract_address: EvmAddress, event_name: str) -> Optional[int]:
         """Get log priority for a contract event"""
-        config = self._contracts.get(contract_address.lower())
-        if config and config.active and event_name in config.log_priorities:
-            return config.log_priorities[event_name]
+        transformer = self._transformers.get(contract_address.lower())
+        if transformer and transformer.active and event_name in transformer.log_priorities:
+            return transformer.log_priorities[event_name]
         return None
 
     def get_transfers_ordered(self, decoded_logs: Dict[str, DecodedLog]) -> Dict[EvmAddress, Dict[int, List[DecodedLog]]]:
@@ -169,4 +169,4 @@ class TransformerRegistry:
 
     def get_all_contracts(self) -> Dict[str, ContractTransformer]:
         """Get all registered contract transformers"""
-        return self._contracts.copy()
+        return self._transformers.copy()

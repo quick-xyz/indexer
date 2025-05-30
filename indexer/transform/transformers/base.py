@@ -1,12 +1,15 @@
 from abc import ABC, abstractmethod
 from typing import List, Any, Optional, Dict, Tuple
 
-
-from ..events.base import DomainEvent, ProcessingError
-from ...decode.model.block import Transaction, DecodedLog
-from ...decode.model.types import EvmAddress
-from ..events.transfer import Transfer,UnmatchedTransfer
-from ...utils.logger import get_logger
+from ...types import (
+    DomainEvent,
+    ProcessingError,    
+    DecodedLog,
+    Transaction,    
+    EvmAddress,    
+    Transfer,
+    UnmatchedTransfer,
+)
 
 
 class BaseTransformer(ABC):
@@ -101,7 +104,6 @@ class BaseTransformer(ABC):
 
 class TokenTransformer(BaseTransformer):
     def __init__(self, contract):
-        self.logger = get_logger(__name__)
         self.contract = contract
 
     def process_transfers(self, logs: List[DecodedLog], tx: Transaction) -> Tuple[Dict[str,Transfer],Optional[List[ProcessingError]]]:

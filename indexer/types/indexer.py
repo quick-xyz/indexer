@@ -44,9 +44,9 @@ class Transaction(Struct):
     value: int
     tx_success: bool
     logs: Dict[int,EncodedLog|DecodedLog]  # keyed by log index
-    transfers: Optional[Dict[EvmAddress,Dict[DomainEventId,Transfer]]] = None # {"[token_address]": {"[event_id]": Transfer, ...}, ...}
-    events: Optional[Dict[DomainEventId,DomainEvent]] = None # {"[event_id]": Event, ...}
-    errors: Optional[List[ProcessingError]] = None
+    transfers: Optional[Dict[EvmAddress,Transfer]] = None
+    events: Optional[Dict[DomainEventId,DomainEvent]] = None
+    errors: Optional[Dict[ErrorId,ProcessingError]] = None
     indexing_status: Optional[str] = None
 
 class Block(Struct):

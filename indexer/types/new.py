@@ -39,3 +39,6 @@ TxEventId = NewType("TxEventId", str)
 
 DomainEventId = NewType("DomainEventId", str)
 """ String that identifies a Domain Event. 12 character hash of identifying content """ 
+
+ErrorId = NewType("ErrorId", str)
+""" Error ID for processing errors """ 

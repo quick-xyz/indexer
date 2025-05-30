@@ -25,8 +25,3 @@ class DomainEvent(Struct):
     
     def _get_identifying_content(self):
         raise NotImplementedError
-
-class ProcessingError(Struct, tag=True):
-    stage: str
-    error: str
-    desc: str

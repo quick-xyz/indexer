@@ -1,0 +1,8 @@
+from .new import EvmAddress
+
+# Common Ethereum addresses
+ZERO_ADDRESS: EvmAddress = "0x0000000000000000000000000000000000000000"
+BURN_ADDRESS: EvmAddress = "0x000000000000000000000000000000000000dead"
+
+# Common values
+MAX_UINT256 = 2**256 - 1

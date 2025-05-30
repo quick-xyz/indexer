@@ -1,5 +1,7 @@
 # indexer/types/__init__.py
 
+from .constants import ZERO_ADDRESS, BURN_ADDRESS, MAX_UINT256
+
 # New Types
 from .new import (
     BlockID,
@@ -14,6 +16,7 @@ from .new import (
     ChecksumAddress,
     TxEventId,
     DomainEventId,
+    ErrorId,
 )
 
 # EVM Types
@@ -52,7 +55,14 @@ from .indexer import (
 # Model Types: Base
 from .model.base import (
     DomainEvent,
+)
+
+# Model Types: Errors
+from .model.errors import (
     ProcessingError,
+    create_decode_error,
+    create_transform_error,
+    create_rpc_error,
 )
 
 # Model Types: Auction
@@ -120,6 +130,11 @@ from .model.transfer import (
 
 
 __all__ = [
+    # Constants
+    "ZERO_ADDRESS",
+    "BURN_ADDRESS", 
+    "MAX_UINT256",
+
     # New Types
     "BlockID",
     "DateTimeStr",
@@ -133,6 +148,7 @@ __all__ = [
     "ChecksumAddress",
     "TxEventId",
     "DomainEventId",  
+    "ErrorId",
 
     # EVM types
     "EvmLog",
@@ -164,6 +180,9 @@ __all__ = [
     # Model Types
     "DomainEvent",
     "ProcessingError",
+    "create_decode_error",
+    "create_transform_error",
+    "create_rpc_error",
     "AuctionPurchase",
     "LotStarted",
     "LotCancelled",
