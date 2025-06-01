@@ -122,7 +122,6 @@ from .model.trade import (
 
 # Model Types: Transfer
 from .model.transfer import (
-    TransferIds,
     Transfer,
     UnmatchedTransfer,
     MatchedTransfer,
@@ -207,7 +206,6 @@ __all__ = [
     "Swap",
     "PoolSwap",
     "Trade",
-    "TransferIds",
     "Transfer",
     "UnmatchedTransfer",
     "MatchedTransfer",

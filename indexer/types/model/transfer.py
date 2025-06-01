@@ -1,15 +1,10 @@
 # indexer/types/model/transfer.py
 
-from typing import Literal, List, Optional
-from msgspec import Struct
+from typing import Literal, List, Optional, Dict
 
 from ..new import EvmAddress
-from .base import DomainEvent
+from .base import DomainEvent, DomainEventId
 
-
-class TransferIds(Struct, tag=True):
-    id: int
-    amount: int
 
 class Transfer(DomainEvent, tag=True):
     token: EvmAddress
@@ -17,7 +12,7 @@ class Transfer(DomainEvent, tag=True):
     from_address: EvmAddress
     to_address: EvmAddress
     transfer_type: Literal["transfer","transfer_batch"] = "transfer"
-    batch: Optional[List[TransferIds]] = None
+    batch: Optional[Dict[int,int]] = None # {id: amount}
     
     def _get_identifying_content(self):
         return {
@@ -41,7 +36,7 @@ class TransferLedger(DomainEvent, tag=True):
     address: EvmAddress
     amount: int
     action: Literal["sent","received"]
-    transfers: Optional[List[Transfer]] = None
+    transfers: Optional[Dict[DomainEventId,Transfer]] = None
     desc: Optional[str] = None
 
     

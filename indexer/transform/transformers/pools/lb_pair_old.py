@@ -18,29 +18,8 @@ class LbPairTransformer:
         self.base_token = base_token
         self.quote_token = token_y if token_x == base_token else token_x
 
-    def _get_tokens(self) -> tuple:
-        if self.token_x == self.base_token:
-            base_token = self.token_x
-            quote_token = self.token_y
-        elif self.token_y == self.base_token:
-            base_token = self.token_y
-            quote_token = self.token_x
 
-        return base_token, quote_token
 
-    def get_direction(self, base_amount: int) -> str:
-        if base_amount > 0:
-            return "buy"
-        else:
-            return "sell"
-
-    def unpack_amounts(self, bytes) -> tuple:
-        if self.token_x == self.base_token:
-            base_amount, quote_amount = decode_amounts(bytes)
-        elif self.token_y == self.base_token:
-            quote_amount, base_amount = decode_amounts(bytes)
-
-        return base_amount, quote_amount
     
     def handle_deposit(self, log: DecodedLog, context: TransactionContext) -> List[Liquidity]:
 
@@ -141,42 +120,11 @@ class LbPairTransformer:
 
         return events
 
-    def handle_transfer(self, log: DecodedLog, context: TransactionContext) -> List[Transfer]:
-        bins = log.attributes.get("ids")
-        amounts = log.attributes.get("amounts")
-        from_address=log.attributes.get("from"),
-        to_address=log.attributes.get("to")
-
-        transferids = []
-        transfers = []
-        sum_transfers = 0
-        
-        for i in bins:    
-            trf = TransferIds(
-                id=i,
-                amount=amounts[i]
-            )
-            sum_transfers += amounts[i]
-            transferids.append(trf)           
-            
-        transfer = Transfer(
-            timestamp=context.timestamp,
-            tx_hash=context.tx_hash,
-            token=self.base_token,
-            amount=sum_transfers,
-            from_address=from_address,
-            to_address=to_address,
-            transfer_type="transfer_batch",
-            batch=transferids
-        )
-        transfers.append(transfer)
-
-        return transfers 
+ 
         
     def transform_log(self, log: DecodedLog, context: TransactionContext) -> list[DomainEvent]:
         events = []
-        if log.name == "TransferBatch": #0xb2fe92672e729e807d2644bb3fbd1e88ebb5151272fc3a69dd04eedfb5468ff6
-            events.append(self.handle_transfer(log, context))
+
         elif log.name == "Swap": #0xfe8360c9a854b807ec65554738c9a9b34e416347bc77b240901e40b2249e4456
             events.append(self.handle_swap(log, context))
         elif log.name == "DepositedToBins": #0x6ed579bb7bf84583ffcde9eb005f0bbcb85d20dff7591b906ddafdc6c4f85f6e

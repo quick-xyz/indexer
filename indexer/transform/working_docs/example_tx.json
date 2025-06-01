@@ -11,9 +11,10 @@
         "swap":"0xd9373a96452b0619158a26ca13413ae8c994f583da9c4ef2d4566c74dbdf11e6"
     },
     "lfj_lbpair":{
-        "add_liq":"0xf50c97a46bb6477a230e0b9cc565b871eaca007704af88bff7e435476017a217",
-        "remove_liq":"",
-        "swap":"0xfcf1c86967fde4637addd30859a3960eb35d621d649b966c27334a1a7725691c"
+        "add_liq":"0x6ed579bb7bf84583ffcde9eb005f0bbcb85d20dff7591b906ddafdc6c4f85f6e",
+        "remove_liq":"0x06cd109690c39408a5882ba47703146dd1cffe2ca8bce98a8b91349b27731d03",
+        "swap":"0xfe8360c9a854b807ec65554738c9a9b34e416347bc77b240901e40b2249e4456",
+        "transfer": "0xb2fe92672e729e807d2644bb3fbd1e88ebb5151272fc3a69dd04eedfb5468ff6"
     },
     "phar_pair":{
         "add_liq":"0xbd3d2740a571318deeb870087ed6286dad4bd23a8051e1958fea2d9724b32900",

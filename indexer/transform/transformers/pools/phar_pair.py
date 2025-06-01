@@ -206,6 +206,9 @@ class PharPairTransformer(BaseTransformer):
             fee_collection = [t for t in liq_transfers["mints"].values() if t.to_address == self.fee_collector]
             
             matched_transfers = {}          
+            positions = {}  
+            collection = {}       
+
             base_matched = msgspec.convert(base_deposits[0], type=MatchedTransfer)            
             quote_matched = msgspec.convert(quote_deposits[0], type=MatchedTransfer)           
             pool_matched = msgspec.convert(pool_mints[0], type=MatchedTransfer)
@@ -225,6 +228,7 @@ class PharPairTransformer(BaseTransformer):
                 amount_quote=quote_amount,
                 amount_receipt=pool_mints[0].amount
             )
+            positions[position.content_id] = position
 
             liquidity = Liquidity(
                 timestamp=tx.timestamp,
@@ -236,8 +240,8 @@ class PharPairTransformer(BaseTransformer):
                 quote_token=self.quote_token,
                 amount_quote=quote_amount,
                 action="add_lp",
-                positions=[position],
-                transfers=list(matched_transfers.values())
+                positions=positions,
+                transfers=matched_transfers
             )
 
             result["events"][liquidity.content_id] = liquidity
@@ -245,6 +249,7 @@ class PharPairTransformer(BaseTransformer):
             fee_collection_matched = msgspec.convert(fee_collection[0], type=MatchedTransfer) if fee_collection else None
 
             if fee_collection_matched:
+                collection[fee_collection_matched.content_id] = fee_collection_matched
                 matched_transfers[fee_collection_matched.content_id] = fee_collection_matched
 
                 fee_received = TransferLedger(
@@ -254,7 +259,7 @@ class PharPairTransformer(BaseTransformer):
                     address=fee_collection_matched.to_address.lower(),
                     amount=fee_collection_matched.amount,
                     action="received",
-                    transfers=[fee_collection_matched],
+                    transfers=collection,
                     desc="Protocol fees collected",
                 )
 
@@ -323,7 +328,10 @@ class PharPairTransformer(BaseTransformer):
             if pool_burns[0].from_address != provider:
                 trf_receipts = [t for t in liq_transfers["receipt_transfers"].values() if t.amount == burn_amount and t.from_address == provider]
             
-            matched_transfers = {}          
+            matched_transfers = {}   
+            positions = {} 
+            collection = {}       
+
             base_matched = msgspec.convert(base_withdrawals[0], type=MatchedTransfer)            
             quote_matched = msgspec.convert(quote_withdrawals[0], type=MatchedTransfer)           
             pool_matched = msgspec.convert(pool_burns[0], type=MatchedTransfer)
@@ -358,6 +366,7 @@ class PharPairTransformer(BaseTransformer):
                 amount_quote=-quote_amount,
                 amount_receipt=-pool_burns[0].amount
             )
+            positions[position.content_id] = position
 
             liquidity = Liquidity(
                 timestamp=tx.timestamp,
@@ -369,8 +378,8 @@ class PharPairTransformer(BaseTransformer):
                 quote_token=self.quote_token,
                 amount_quote=-quote_amount,
                 action="remove_lp",
-                positions=[position],
-                transfers=list(matched_transfers.values())
+                positions=positions,
+                transfers=matched_transfers
             )
             
             result["events"][liquidity.content_id] = liquidity
@@ -378,6 +387,7 @@ class PharPairTransformer(BaseTransformer):
             fee_collection_matched = msgspec.convert(fee_collection[0], type=MatchedTransfer) if fee_collection else None
 
             if fee_collection_matched:
+                collection[fee_collection_matched.content_id] = fee_collection_matched
                 matched_transfers[fee_collection_matched.content_id] = fee_collection_matched
 
                 fee_received = TransferLedger(
@@ -387,7 +397,7 @@ class PharPairTransformer(BaseTransformer):
                     address=fee_collection_matched.to_address.lower(),
                     amount=fee_collection_matched.amount,
                     action="received",
-                    transfers=[fee_collection_matched],
+                    transfers=collection,
                     desc="Protocol fees collected",
                 )
 
@@ -459,7 +469,7 @@ class PharPairTransformer(BaseTransformer):
                 base_amount=base_amount,
                 quote_token=self.quote_token,
                 quote_amount=quote_amount,
-                transfers=list(matched_transfers.values())
+                transfers=matched_transfers
             )
             result["events"][swap.content_id] = swap
             result["transfers"] = matched_transfers

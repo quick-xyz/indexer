@@ -1,9 +1,9 @@
 # indexer/types/model/trade.py
 
-from typing import Literal, Optional, List
+from typing import Literal, Optional, List, Dict
 
 from ..new import EvmAddress
-from .base import DomainEvent
+from .base import DomainEvent, DomainEventId
 from .transfer import Transfer
 from .auction import AuctionPurchase
 
@@ -16,7 +16,7 @@ class Swap(DomainEvent, tag=True):
     base_amount: int
     quote_token: EvmAddress
     quote_amount: int
-    transfers: Optional[List[Transfer]] = None
+    transfers: Optional[Dict[DomainEventId,Transfer]] = None
 
 class PoolSwap(Swap, tag=True):
     '''Pool swap event.'''
@@ -32,7 +32,7 @@ class Trade(DomainEvent, tag=True):
     quote_amount: int
     trade_type: Literal["arbitrage","trade","auction"] = "trade"
     router: Optional[EvmAddress] = None
-    swaps: Optional[List[Swap|PoolSwap|AuctionPurchase]] = None
+    swaps: Optional[Dict[DomainEventId,Swap|PoolSwap|AuctionPurchase]] = None
 
     def _get_identifying_content(self):
         return {
