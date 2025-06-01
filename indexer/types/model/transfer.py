@@ -1,12 +1,13 @@
 # indexer/types/model/transfer.py
 
 from typing import Literal, List, Optional
+from msgspec import Struct
 
 from ..new import EvmAddress
 from .base import DomainEvent
 
 
-class TransferIds(DomainEvent, tag=True):
+class TransferIds(Struct, tag=True):
     id: int
     amount: int
 

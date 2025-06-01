@@ -1,6 +1,6 @@
 from typing import Union, Optional
 
-from ....decode.model.block import DecodedLog
+from ....decode import DecodedLog
 from ...events.base import DomainEvent, TransactionContext
 from ...events.transfer import Transfer, TransferIds
 from ...events.liquidity import Liquidity, Position

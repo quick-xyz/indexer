@@ -1,193 +1,133 @@
-from typing import List
+from typing import List, Dict, Tuple, Optional, Any
+import msgspec
 
-from ....decode.model.block import DecodedLog
-from ...events.base import DomainEvent, TransactionContext
-from ...events.transfer import Transfer, TransferIds
-from ...events.liquidity import Liquidity, Position
-from ...events.trade import PoolSwap
-from ....utils.logger import get_logger
+from ..base import BaseTransformer
+from ....types import (
+    ZERO_ADDRESS,
+    DecodedLog,
+    Transaction,
+    EvmAddress,
+    DomainEvent,
+    ProcessingError,
+    Transfer,
+    UnmatchedTransfer,
+    MatchedTransfer,
+    Liquidity,
+    Position,
+    Fee,
+    PoolSwap,
+    DomainEventId,
+    ErrorId,
+    create_transform_error,
+    EvmHash,
+    TransferLedger,
+    TransferIds,
+)
 from ....utils.lb_byte32_decoder import decode_amounts
 
 
-class LbPairTransformer:
-    def __init__(self, contract, token_x, token_y, base_token):
-        self.logger = get_logger(__name__)
-        self.contract = contract
-        self.token_x = token_x
-        self.token_y = token_y
-        self.base_token = base_token
-        self.quote_token = token_y if token_x == base_token else token_x
+class LbPairTransformer(BaseTransformer):
+    def __init__(self, contract: EvmAddress, token_x: EvmAddress, token_y: EvmAddress, base_token: EvmAddress):
+        super().__init__(contract_address=contract.lower())
+        self.token_x = token_x.lower()
+        self.token_y = token_y.lower()
+        self.base_token = base_token.lower()
+        self.quote_token = self.token_y if self.token_x == self.base_token else self.token_x
 
-    def _get_tokens(self) -> tuple:
-        if self.token_x == self.base_token:
-            base_token = self.token_x
-            quote_token = self.token_y
-        elif self.token_y == self.base_token:
-            base_token = self.token_y
-            quote_token = self.token_x
-
-        return base_token, quote_token
-
-    def get_direction(self, base_amount: int) -> str:
-        if base_amount > 0:
-            return "buy"
-        else:
-            return "sell"
-
-    def unpack_amounts(self, bytes) -> tuple:
-        if self.token_x == self.base_token:
-            base_amount, quote_amount = decode_amounts(bytes)
-        elif self.token_y == self.base_token:
-            quote_amount, base_amount = decode_amounts(bytes)
-
-        return base_amount, quote_amount
+    def _validate_attr(self, values: List[Any],tx_hash: EvmHash, log_index: int, error_dict: Dict[ErrorId,ProcessingError]) -> bool:
+        """ Validate that all required attributes are present """
+        if not all(value is not None for value in values):
+            error = create_transform_error(
+                error_type="missing_attributes",
+                message=f"Transformer missing required attributes in log",
+                tx_hash=tx_hash,
+                log_index=log_index
+            )
+            error_dict[error.error_id] = error
+            return False
+        return True
     
-    def handle_deposit(self, log: DecodedLog, context: TransactionContext) -> List[Liquidity]:
-
-        bins = log.attributes.get("ids")
-        amounts = log.attributes.get("amounts")
-        positions = []
-        liquidity = []
-        sum_base = 0
-        sum_quote = 0
-
-        for i in bins:
-            base_amount, quote_amount = self.unpack_amounts(amounts[i])
-
-            bin_liquidity = Position(
-                receipt_token=log.contract,
-                receipt_id=i,
-                amount_base=base_amount,
-                amount_quote=quote_amount,
-            )
-            sum_base += base_amount
-            sum_quote += quote_amount
-
-            positions.append(bin_liquidity)
-
-        liq = Liquidity(
-            timestamp=context.timestamp,
-            tx_hash=context.tx_hash,
-            pool=log.contract,
-            provider=log.attributes.get("to"),
-            base_token=self.base_token,
-            amount_base=sum_base,
-            quote_token=self.quote_token,
-            amount_quote=sum_quote,
-            liquidity_type="add_lp",
-            positions=positions
+    def _create_log_exception(self, e, tx_hash: EvmHash, log_index: int, transformer_name: str, error_dict: Dict[ErrorId,ProcessingError]) -> None:
+        """ Create a ProcessingError for exceptions """
+        error = create_transform_error(
+            error_type="processing_exception",
+            message=f"Log processing exception: {str(e)}",
+            tx_hash=tx_hash,
+            log_index=log_index,
+            transformer_name=transformer_name
         )
-        liquidity.append(liq)
-        return liquidity
-
-    def handle_withdraw(self, log: DecodedLog, context: TransactionContext) -> List[Liquidity]:
-        bins = log.attributes.get("ids")
-        amounts = log.attributes.get("amounts")
-        positions = []
-        liquidity = []
-        sum_base = 0
-        sum_quote = 0
-        
-        for i in bins:
-            base_amount, quote_amount = self.unpack_amounts(amounts[i])
-
-            bin_liquidity = Position(
-                receipt_token=log.contract,
-                receipt_id=i,
-                amount_base=-(base_amount),
-                amount_quote=-(quote_amount),
-            )
-            sum_base += base_amount
-            sum_quote += quote_amount
-
-            positions.append(bin_liquidity)
-
-        liq = Liquidity(
-            timestamp=context.timestamp,
-            tx_hash=context.tx_hash,
-            pool=log.contract,
-            provider=log.attributes.get("to"),
-            base_token=self.base_token,
-            amount_base=-(sum_base),
-            quote_token=self.quote_token,
-            amount_quote=-(sum_quote),
-            liquidity_type="remove_lp",
-            positions=positions
-        )
-        liquidity.append(liq)
-        return liquidity
-
-    def handle_swap(self, log: DecodedLog, context: TransactionContext) -> List[DomainEvent]:
-        base_amount_in, quote_amount_in = self.unpack_amounts(log.attributes.get("amountsIn"))
-        base_amount_out, quote_amount_out = self.unpack_amounts(log.attributes.get("amountsOut"))
-
-        base_amount = base_amount_in - base_amount_out
-        quote_amount = quote_amount_in - quote_amount_out
-        direction = self.get_direction(base_amount)
-        events = []
-
-        swap = PoolSwap(
-            timestamp=context.timestamp,
-            tx_hash=context.tx_hash,
-            pool=log.contract,
-            taker= log.attributes.get("to"),
-            direction= direction,
-            base_token= self.base_token,
-            base_amount= base_amount,
-            quote_token= self.quote_token,
-            quote_amount= quote_amount
-        )
-        events.append(swap)
-
-        return events
-
-    def handle_transfer(self, log: DecodedLog, context: TransactionContext) -> List[Transfer]:
-        bins = log.attributes.get("ids")
-        amounts = log.attributes.get("amounts")
-        from_address=log.attributes.get("from"),
-        to_address=log.attributes.get("to")
-
-        transferids = []
-        transfers = []
-        sum_transfers = 0
-        
-        for i in bins:    
-            trf = TransferIds(
-                id=i,
-                amount=amounts[i]
-            )
-            sum_transfers += amounts[i]
-            transferids.append(trf)           
-            
-        transfer = Transfer(
-            timestamp=context.timestamp,
-            tx_hash=context.tx_hash,
-            token=self.base_token,
-            amount=sum_transfers,
-            from_address=from_address,
-            to_address=to_address,
-            transfer_type="transfer_batch",
-            batch=transferids
-        )
-        transfers.append(transfer)
-
-        return transfers 
-        
-    def transform_log(self, log: DecodedLog, context: TransactionContext) -> list[DomainEvent]:
-        events = []
-        if log.name == "TransferBatch":
-            events.append(self.handle_transfer(log, context))
-        elif log.name == "Swap":
-            events.append(self.handle_swap(log, context))
-        elif log.name == "DepositedToBins":
-            events.append(self.handle_deposit(log, context))
-        elif log.name == "WithdrawnFromBins":
-            events.append(self.handle_withdraw(log, context))
-
-        return events
-        
-
+        error_dict[error.error_id] = error
+        return None
     
+    def _create_tx_exception(self, e, tx_hash: EvmHash, transformer_name: str, error_dict: Dict[ErrorId,ProcessingError]) -> None:
+        """ Create a ProcessingError for exceptions """
+        error = create_transform_error(
+            error_type="processing_exception",
+            message=f"Transaction processing exception: {str(e)}",
+            tx_hash=tx_hash,
+            transformer_name=transformer_name
+        )
+        error_dict[error.error_id] = error
+        return None
+    
+    def _unpack_amounts(self, bytes: bytes) -> tuple[Optional[int], Optional[int]]:
+        try:
+            amounts_x, amounts_y = decode_amounts(bytes)
 
+            if self.token_x == self.base_token:
+                return amounts_x, amounts_y
+            else:
+                return amounts_y, amounts_x
+        except Exception:
+            return None, None
+        
+    def process_transfers(self, logs: List[DecodedLog], tx: Transaction) -> Tuple[Optional[Dict[DomainEventId,Transfer]],Optional[Dict[ErrorId,ProcessingError]]]:
+        transfers = {}
+        errors = {}
 
+        for log in logs:
+            try:
+                if log.name == "TransferBatch":
+                    from_addr = log.attributes.get("from")
+                    to_addr = log.attributes.get("to")
+                    amounts = log.attributes.get("amounts")
+                    bins = log.attributes.get("ids")
+                    
+                    if not len(amounts) == len(bins):
+                        error = create_transform_error(
+                            error_type= "invalid_lb_transfer",
+                            message = f"LB Transfer Batch: Expected amounts and bins to have the same length, got {len(amounts)} and {len(bins)}",
+                            tx_hash = tx.tx_hash,
+                            log_index = log.index
+                        )
+                        errors[error.id] = error
+                        continue
+                    if not self._validate_attr([from_addr, to_addr, amounts, bins], tx.tx_hash, log.index, errors):
+                        continue
 
+                    transferids = []
+                    sum_transfers = 0
+                    
+                    for i in bins:    
+                        trf = TransferIds(
+                            id=i,
+                            amount=amounts[i]
+                        )
+                        sum_transfers += amounts[i]
+                        transferids.append(trf)  
+
+                    transfer = UnmatchedTransfer(
+                        timestamp=tx.timestamp,
+                        tx_hash=tx.tx_hash,
+                        from_address=from_addr.lower(),
+                        to_address=to_addr.lower(),
+                        token=log.contract,
+                        amount=value,
+                        log_index=log.index
+                    )
+                    transfers[transfer.content_id] = transfer
+
+            except Exception as e:
+                self._create_log_exception(e, tx.tx_hash, log.index, self.__class__.__name__, errors)
+                
+        return transfers if transfers else None, errors if errors else None

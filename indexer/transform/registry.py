@@ -47,9 +47,9 @@ class TransformerRegistry:
             
         try:
             # Import pool transformers
-            from .transformers.pools.lb_pair import LbPairTransformer
+            from .transformers.pools.lb_pair_old import LbPairTransformer
             from .transformers.pools.lfj_pool import LfjPoolTransformer
-            from .transformers.pools.phar_clpool import PharClpoolTransformer
+            from .transformers.pools.phar_clpool_old import PharClpoolTransformer
             from .transformers.pools.phar_pair import PharPairTransformer
             transformer_classes.update({
                 "LBPairTransformer": LbPairTransformer,
