@@ -16,9 +16,9 @@
         "swap":"0xfcf1c86967fde4637addd30859a3960eb35d621d649b966c27334a1a7725691c"
     },
     "phar_pair":{
-        "add_liq":"",
-        "remove_liq":"",
-        "swap":""
+        "add_liq":"0xbd3d2740a571318deeb870087ed6286dad4bd23a8051e1958fea2d9724b32900",
+        "remove_liq":"0x4d47c8a3370ce9e6b02fa6e46f87e923d7d76077f0f18abcfbef9c79a20f98ae",
+        "swap":"0xe18f01e0c509763d67786ff35e46ebe4423f3b3045e89f125792ce6d0a2e3344"
     },
     "phar_clpool":{
         "add_liq":"0x9f43bb0ff93f1d95981c88964378ac5cb543f06519d2aa09bf703194dbcae4f1",
