@@ -504,7 +504,7 @@ class LfjPoolTransformer(BaseTransformer):
                 
         return transfers if transfers else None, errors if errors else None
     
-    def process_logs(self, logs: List[DecodedLog], tx: Transaction) -> Tuple[Optional[Dict[str, Transfer]], Optional[Dict[str, DomainEvent]], Optional[Dict[str, ProcessingError]]]:
+    def process_logs(self, logs: List[DecodedLog], tx: Transaction) -> Tuple[Optional[Dict[DomainEventId,Transfer]], Optional[Dict[DomainEventId, DomainEvent]], Optional[Dict[ErrorId,ProcessingError]]]:
         """ Process logs and return matched transfers, events, and errors """
         new_events, matched_transfers, errors = {}, {}, {}
 

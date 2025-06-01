@@ -508,8 +508,8 @@ class LbPairTransformer(BaseTransformer):
 
             for log in swap_logs:
                 try:
-                    base_amount_in, quote_amount_in = self.unpack_amounts(log.attributes.get("amountsIn"))
-                    base_amount_out, quote_amount_out = self.unpack_amounts(log.attributes.get("amountsOut"))
+                    base_amount_in, quote_amount_in = self._unpack_amounts(log.attributes.get("amountsIn"))
+                    base_amount_out, quote_amount_out = self._unpack_amounts(log.attributes.get("amountsOut"))
                     base_amount = base_amount_in - base_amount_out
                     quote_amount = quote_amount_in - quote_amount_out
                     bin = log.attributes.get("id")
@@ -610,7 +610,7 @@ class LbPairTransformer(BaseTransformer):
                             tx_hash = tx.tx_hash,
                             log_index = log.index
                         )
-                        errors[error.id] = error
+                        errors[error.error_id] = error
                         continue
                     if not self._validate_attr([from_addr, to_addr, amounts, bins], tx.tx_hash, log.index, errors):
                         continue
@@ -639,7 +639,7 @@ class LbPairTransformer(BaseTransformer):
                 
         return transfers if transfers else None, errors if errors else None
 
-    def process_logs(self, logs: List[DecodedLog], tx: Transaction) -> Tuple[Optional[Dict[str, Transfer]], Optional[Dict[str, DomainEvent]], Optional[Dict[str, ProcessingError]]]:
+    def process_logs(self, logs: List[DecodedLog], tx: Transaction) -> Tuple[Optional[Dict[DomainEventId,Transfer]], Optional[Dict[DomainEventId, DomainEvent]], Optional[Dict[ErrorId,ProcessingError]]]:
         """ Process logs and return matched transfers, events, and errors """
         new_events, matched_transfers, errors = {}, {}, {}
 
