@@ -17,6 +17,7 @@ class Swap(DomainEvent, tag=True):
     quote_token: EvmAddress
     quote_amount: int
     transfers: Optional[Dict[DomainEventId,Transfer]] = None
+    batch: Optional[Dict[int,int]] = None  # {id: {base: amount, quote: amount}}
 
 class PoolSwap(Swap, tag=True):
     '''Pool swap event.'''

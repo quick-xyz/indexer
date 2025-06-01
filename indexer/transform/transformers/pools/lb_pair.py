@@ -14,13 +14,11 @@ from ....types import (
     MatchedTransfer,
     Liquidity,
     Position,
-    Fee,
     PoolSwap,
     DomainEventId,
     ErrorId,
     create_transform_error,
     EvmHash,
-    TransferLedger,
 )
 from ....utils.lb_byte32_decoder import decode_amounts
 
@@ -79,6 +77,24 @@ class LbPairTransformer(BaseTransformer):
                 return amounts_y, amounts_x
         except Exception:
             return None, None
+
+    def _get_swap_transfers(self, unmatched_transfers: Dict[EvmAddress,Dict[DomainEventId, Transfer]]) -> Dict[str, Dict[DomainEventId,Transfer]]:
+        swap_transfers = {
+            "base_swaps": {},
+            "quote_swaps": {},
+        }
+
+        for contract, trf_dict in unmatched_transfers.items():
+            for key, transfer in trf_dict.items():
+                if not (transfer.from_address == self.contract_address or transfer.to_address == self.contract_address):
+                    continue
+                
+                if transfer.token == self.base_token:
+                    swap_transfers["base_swaps"][key] = transfer
+                elif transfer.token == self.quote_token:
+                    swap_transfers["quote_swaps"][key] = transfer
+
+        return swap_transfers
 
     def _get_liquidity_transfers(self, unmatched_transfers: Dict[EvmAddress,Dict[DomainEventId, Transfer]]) -> Dict[str, Dict[DomainEventId,Transfer]]:
         liq_transfers = {
@@ -352,7 +368,7 @@ class LbPairTransformer(BaseTransformer):
             router = log.attributes.get("to").lower()
             provider = pool_burns[0].from_address.lower()
             base_router_transfers, quote_router_transfers = [], []
-            
+
             if provider != router:
                 base_router_transfers = [t for t in liq_transfers["underlying_transfers"].values() 
                                     if t.token == self.base_token and t.from_address == router and t.to_address == provider and t.amount == base_withdrawals[0].amount]
@@ -362,7 +378,7 @@ class LbPairTransformer(BaseTransformer):
             if len(base_router_transfers) > 1:
                 error = create_transform_error(
                     error_type="invalid_liquidity_withdrawal",
-                    message=f"Expected at most 1 base token final transfer, found {len(base_router_transfers)}",
+                    message=f"Expected at most 1 base token router transfer, found {len(base_router_transfers)}",
                     tx_hash=tx.tx_hash,
                     log_index=log.index
                 )
@@ -372,7 +388,7 @@ class LbPairTransformer(BaseTransformer):
             if len(quote_router_transfers) > 1:
                 error = create_transform_error(
                     error_type="invalid_liquidity_withdrawal",
-                    message=f"Expected at most 1 base token final transfer, found {len(quote_router_transfers)}",
+                    message=f"Expected at most 1 base token router transfer, found {len(quote_router_transfers)}",
                     tx_hash=tx.tx_hash,
                     log_index=log.index
                 )
@@ -467,6 +483,114 @@ class LbPairTransformer(BaseTransformer):
 
         return result
     
+    def _handle_swap(self, swap_logs: List[DecodedLog], tx: Transaction) -> Dict[str, Dict]:
+        result = {
+            "transfers": {},
+            "events": {},
+            "errors": {}
+        }
+
+
+        try:
+            if not swap_logs:
+                return result
+            
+            taker = swap_logs[0].attributes.get("to").lower()
+            
+            if not self._validate_attr([taker], tx.tx_hash, swap_logs[0].index, result["errors"]):
+                return result
+            
+            unmatched_transfers = self._get_unmatched_transfers(tx)
+            swap_transfers = self._get_swap_transfers(unmatched_transfers)
+
+            net_base_amount, net_quote_amount = 0, 0
+            swap_batch = {}
+
+            for log in swap_logs:
+                try:
+                    base_amount_in, quote_amount_in = self.unpack_amounts(log.attributes.get("amountsIn"))
+                    base_amount_out, quote_amount_out = self.unpack_amounts(log.attributes.get("amountsOut"))
+                    base_amount = base_amount_in - base_amount_out
+                    quote_amount = quote_amount_in - quote_amount_out
+                    bin = log.attributes.get("id")
+
+                    if not self._validate_attr([base_amount, quote_amount, bin], tx.tx_hash, log.index, result["errors"]):
+                        return result
+                    
+                    net_base_amount += base_amount
+                    net_quote_amount += quote_amount
+
+                    swap_batch[bin] = {
+                        "base": base_amount,
+                        "quote": quote_amount
+                    }
+                
+                except Exception as e:
+                    self._create_log_exception(e, tx.tx_hash, log.index, self.__class__.__name__, result["errors"])
+                    return result
+                
+            direction = "buy" if base_amount > 0 else "sell"
+            base_swaps = [t for t in swap_transfers["base_swaps"].values() if t.amount == abs(net_base_amount)]
+            quote_swaps = [t for t in swap_transfers["quote_swaps"].values() if t.amount == abs(net_quote_amount)]
+
+            if len(base_swaps) != 1:
+                error = create_transform_error(
+                    error_type="invalid_swap",
+                    message=f"Expected exactly 1 net base token transfer, found {len(base_swaps)}",
+                    tx_hash=tx.tx_hash,
+                    log_index=swap_logs[0].index
+                )
+                result["errors"][error.error_id] = error
+                return result
+
+            if len(quote_swaps) != 1:
+                error = create_transform_error(
+                    error_type="invalid_swap",
+                    message=f"Expected exactly 1 net quote token transfer, found {len(quote_swaps)}",
+                    tx_hash=tx.tx_hash,
+                    log_index=swap_logs[0].index
+                )
+                result["errors"][error.error_id] = error
+                return result
+
+            base_matched = msgspec.convert(base_swaps[0], type=MatchedTransfer)
+            quote_matched = msgspec.convert(quote_swaps[0], type=MatchedTransfer)
+            
+            matched_transfers = {
+                base_matched.content_id: base_matched,
+                quote_matched.content_id: quote_matched
+            }
+
+            pool_swap = PoolSwap(
+                timestamp=tx.timestamp,
+                tx_hash=tx.tx_hash,
+                pool=self.contract_address,
+                taker=taker,
+                direction=direction,
+                base_token=self.base_token,
+                base_amount=net_base_amount,
+                quote_token=self.quote_token,
+                quote_amount=net_quote_amount,
+                transfers=matched_transfers,
+                batch=swap_batch
+            )
+
+            result["events"][pool_swap.content_id] = pool_swap
+            result["transfers"] = matched_transfers
+
+        except Exception as e:
+            error = create_transform_error(
+                error_type="processing_exception",
+                message=f"Exception in swap handling: {str(e)}",
+                tx_hash=tx.tx_hash,
+                log_index=swap_logs[0].index if swap_logs else 0,
+                transformer_name=self.__class__.__name__
+            )
+            result["errors"][error.error_id] = error
+
+        return result
+
+
     def process_transfers(self, logs: List[DecodedLog], tx: Transaction) -> Tuple[Optional[Dict[DomainEventId,Transfer]],Optional[Dict[ErrorId,ProcessingError]]]:
         transfers = {}
         errors = {}
@@ -520,31 +644,34 @@ class LbPairTransformer(BaseTransformer):
         new_events, matched_transfers, errors = {}, {}, {}
 
         try:
-            for log in logs:
-                try:
-                    if log.name == "Swap":
-                        swap_result = self._handle_swap(log, tx)
-                        if swap_result:
-                            new_events.update(swap_result["events"])
-                            matched_transfers.update(swap_result["transfers"])
-                            errors.update(swap_result["errors"])
+            swap_logs = [log for log in logs if log.name == "Swap"]
 
-                    elif log.name == "DepositedToBins":
-                        mint_result = self._handle_mint(log, tx)
-                        if mint_result:
-                            new_events.update(mint_result["events"])
-                            matched_transfers.update(mint_result["transfers"])
-                            errors.update(mint_result["errors"])
+            if swap_logs:
+                swap_result = self._handle_swap(swap_logs, tx)
+                if swap_result:
+                    new_events.update(swap_result["events"])
+                    matched_transfers.update(swap_result["transfers"])
+                    errors.update(swap_result["errors"])
 
-                    elif log.name == "WithdrawnFromBins":
-                        burn_result = self._handle_burn(log, tx)
-                        if burn_result:
-                            new_events.update(burn_result["events"])
-                            matched_transfers.update(burn_result["transfers"])
-                            errors.update(burn_result["errors"])
-                
-                except Exception as e:
-                    self._create_log_exception(e, tx.tx_hash, log.index, self.__class__.__name__, errors)
+            else:
+                for log in logs:
+                    try:
+                        if log.name == "DepositedToBins":
+                            mint_result = self._handle_mint(log, tx)
+                            if mint_result:
+                                new_events.update(mint_result["events"])
+                                matched_transfers.update(mint_result["transfers"])
+                                errors.update(mint_result["errors"])
+
+                        elif log.name == "WithdrawnFromBins":
+                            burn_result = self._handle_burn(log, tx)
+                            if burn_result:
+                                new_events.update(burn_result["events"])
+                                matched_transfers.update(burn_result["transfers"])
+                                errors.update(burn_result["errors"])
+                    
+                    except Exception as e:
+                        self._create_log_exception(e, tx.tx_hash, log.index, self.__class__.__name__, errors)
 
         except Exception as e:
             self._create_tx_exception(e, tx.tx_hash, self.__class__.__name__, errors)
