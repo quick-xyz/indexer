@@ -24,7 +24,8 @@ class TokenConfig(Struct):
 class AddressConfig(Struct):
     name: str
     type: str
-    description: str
+    description: Optional[str] = None
+    project: Optional[str] = None
     grouping: Optional[str] = None
     tags: Optional[List[str]] = None
 

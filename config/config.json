@@ -178,25 +178,36 @@
 
 
 
-
+        "0xaaa78e8c4241990b4ce159e105da08129345946a": {
+            "name": "CL Position Manager",
+            "project": "Pharaoh",
+            "type": "nfp_manager",
+            "decode": {
+                "abi_dir": "pharaoh",
+                "abi": "clpool.json"
+            },
+            "transform": {
+                "name": "PharClpoolTransformer",
+                "transfers": {
+                    "Transfer": 1
+                },
+                "logs": {
+                    "Mint": 1,
+                    "Burn": 3,
+                    "Swap": 5
+                },
+                "instantiate": {
+                    "contract": "0x3fc41c1ae339322ab87b6ba48e30781d88a304d4",
+                    "token0": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                    "token1": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+                    "base_token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                    "nfp_manager": "0xaaa78e8c4241990b4ce159e105da08129345946a"
+                }
+            },
+            "token":{}
+        },
 
         
-
-
-        "0x60ae616a2155ee3d9a68541ba4544862310933d4": {
-            "name": "JoeRouter02",
-            "project": "LFJ",
-            "type": "Router",
-            "abi_dir": "routers",
-            "abi": "0x60ae616a2155ee3d9a68541ba4544862310933d4.json"
-        },
-        "0x18556da13313f3532c54711497a8fedac273220e": {
-            "name": "LBRouterV2.2",
-            "project": "LFJ",
-            "type": "Router",
-            "abi_dir": "routers",
-            "abi": "0x18556da13313f3532c54711497a8fedac273220e.json"
-        },
         "0x45a62b090df48243f12a21897e7ed91863e2c86b": {
             "name": "LFJ Aggregator v2.2",
             "project": "LFJ",
@@ -225,40 +236,49 @@
             "abi_dir": "routers",
             "abi": "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc.json"
         },
-        "0xaaa78e8c4241990b4ce159e105da08129345946a": {
-            "name": "CL Position Router",
-            "project": "Pharaoh",
-            "type": "Router",
-            "abi_dir": "routers",
-            "abi": "0xaaa78e8c4241990b4ce159e105da08129345946a.json"
-        },
-        "0xaaa45c8f5ef92a000a121d102f4e89278a711faa": {
-            "name": "Router",
-            "project": "Pharaoh",
-            "type": "Router",
-            "decode": {
-                "abi_dir": "routers",
-                "abi": "0xaaa45c8f5ef92a000a121d102f4e89278a711faa.json"
-            },
-            "transform": {
-                "name": "RouterTransformer",
-                "type": "router",
-                "transfers": {
-                    "Transfer": 0
-                    },
-                "logs": {
 
-                }
-                    "Mint": 2
-                }
-            }
-        }
-    },
+
     "addresses":{
         "0xe8afa8eb383ced1696c2d8ceb080f47df48f11af": {
-            "name": "Blub Treasury",
-            "type": "wallet",
-            "description": ""
+            "name": "Treasury",
+            "type": "Wallet",
+            "project": "Blub"
+        },
+        "0x60ae616a2155ee3d9a68541ba4544862310933d4": {
+            "name": "JoeRouter02",
+            "type": "Router",
+            "project": "LFJ"
+        },
+        "0x18556da13313f3532c54711497a8fedac273220e": {
+            "name": "LBRouterV2.2",
+            "type": "Router",
+            "project": "LFJ"
+        },
+        "0xaaa45c8f5ef92a000a121d102f4e89278a711faa": {
+            "name": "V1Router",
+            "type": "Router",
+            "project": "Pharaoh"
+        },
+        "0x38575264810371c15f0e5744fa2ab29cdef7245d": {
+            "name": "Dex Router",
+            "type": "Router",
+            "project": "OKX"
+        },
+        "0xb35033d71cf5e13cab5eb8618260f94363dff9cf": {
+            "name": "RouterLogic",
+            "type": "Logic",
+            "project": "LFJ"
+        },
+        "0xb0787776ff90881cec3a0b8e3e91973e6183c146": {
+            "name": "ForwarderLogic",
+            "type": "Logic",
+            "project": "LFJ"
+        },
+        "0xc04f291347d21dc663f7646056db22bff8ce8430": {
+            "name": "ForwarderLogic2",
+            "type": "Logic",
+            "project": "LFJ"
         }
     }
-}
+
+
