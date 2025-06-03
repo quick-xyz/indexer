@@ -24,14 +24,17 @@ from ....types import (
     EvmHash,
 )
 
-
+'''
+TODO: Handle the NFP Manager on Mints/Burns/Collects
+'''
 class PharClpoolTransformer(BaseTransformer):   
-    def __init__(self, contract: EvmAddress, token0: EvmAddress, token1: EvmAddress, base_token: EvmAddress):
+    def __init__(self, contract: EvmAddress, token0: EvmAddress, token1: EvmAddress, base_token: EvmAddress, nfp_manager: EvmAddress):
         super().__init__(contract_address=contract.lower())
         self.token0 = token0.lower()
         self.token1 = token1.lower()
         self.base_token = base_token.lower()
         self.quote_token = self.token1 if self.token0 == self.base_token else self.token0
+        self.nfp_manager = nfp_manager.lower()
 
     def get_amounts(self, log: DecodedLog) -> tuple[Optional[int], Optional[int]]:
         """Extract base and quote amounts from log attributes"""

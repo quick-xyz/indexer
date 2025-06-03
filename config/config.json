@@ -68,8 +68,8 @@
                     "Transfer": 1
                 },
                 "logs": {
-                    "Mint": 2,
-                    "Burn": 2,
+                    "Mint": 1,
+                    "Burn": 3,
                     "Swap": 5
                 },
                 "instantiate": {
@@ -85,60 +85,104 @@
                 "decimals": 18
             }
         },
-
-
-
-
-
-
-
-
-
         "0xcb4c6fdcfb7d868df5f1e3d0018438205b243fd6": {
-            "name": "BLUB-AVAX",
+            "name": "LB:BLUB-AVAX",
             "project": "LFJ",
-            "type": "LP",
-            "abi_dir": "lfj",
-            "abi": "lbpair.json"
+            "type": "lp",
+            "decode": {
+                "abi_dir": "lfj",
+                "abi": "lbpair.json"
+            },
+            "transform": {
+                "name": "LbPairTransformer",
+                "transfers": {
+                    "TransferBatch": 1
+                },
+                "logs": {
+                    "DepositedToBins": 1,
+                    "WithdrawnFromBins": 3,
+                    "Swap": 5
+                },
+                "instantiate": {
+                    "contract": "0xcb4c6fdcfb7d868df5f1e3d0018438205b243fd6",
+                    "token_x": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                    "token_y": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+                    "base_token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+                }
+            },
+            "token": {
+                "symbol": "LBT",
+                "decimals": 18
+            }
+        },
+        "0xa87866ba0d82155d0ff36ad06e555aebc98595ca": {
+            "name": "PLP:BLUB-AVAX",
+            "project": "Pharaoh",
+            "type": "lp",
+            "decode": {
+                "abi_dir": "pharaoh",
+                "abi": "pair.json"
+            },
+            "transform": {
+                "name": "PharPairTransformer",
+                "transfers": {
+                    "Transfer": 1
+                },
+                "logs": {
+                    "Mint": 1,
+                    "Burn": 3,
+                    "Swap": 5
+                },
+                "instantiate": {
+                    "contract": "0xa87866ba0d82155d0ff36ad06e555aebc98595ca",
+                    "token0": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                    "token1": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+                    "base_token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                    "nfp_manager": "0xaaa78e8c4241990b4ce159e105da08129345946a"
+                }
+            },
+
+            "token": {
+                "symbol": "PLP",
+                "decimals": 18
+            }
         },
         "0x3fc41c1ae339322ab87b6ba48e30781d88a304d4": {
-            "name": "CLP:BLUB-AVAX",
+            "name": "PCL:BLUB-AVAX",
             "project": "Pharaoh",
-            "type": "LP",
+            "type": "lp",
             "decode": {
                 "abi_dir": "pharaoh",
                 "abi": "clpool.json"
             },
             "transform": {
-                "name": "PharaohPoolTransformer",
+                "name": "PharClpoolTransformer",
                 "transfers": {
-                    "Transfer": 0
+                    "Transfer": 1
                 },
                 "logs": {
-                    "Mint": 2,
-                    "Burn": 2,
+                    "Mint": 1,
+                    "Burn": 3,
                     "Swap": 5
                 },
                 "instantiate": {
                     "contract": "0x3fc41c1ae339322ab87b6ba48e30781d88a304d4",
                     "token0": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
                     "token1": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
-                    "base_token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+                    "base_token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                    "nfp_manager": "0xaaa78e8c4241990b4ce159e105da08129345946a"
                 }
             },
-            "token": {
-                "name": "BLUB-AVAX",
-                "symbol": "PLP",
-                "decimals": 18
-            }
+            "token":{}
         },
-        "0xa87866ba0d82155d0ff36ad06e555aebc98595ca": {
-            "name": "LP:BLUB-AVAX",
-            "project": "Pharaoh",
-            "type": "LP",
-            "abi_dir": "pharaoh",
-            "abi": "pair.json"
-        },
+
+
+
+
+
+        
+
+
         "0x60ae616a2155ee3d9a68541ba4544862310933d4": {
             "name": "JoeRouter02",
             "project": "LFJ",
