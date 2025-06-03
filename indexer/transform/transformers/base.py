@@ -99,28 +99,3 @@ class BaseTransformer(ABC):
         difference = abs(expected_total - actual_total)
         relative_error = difference / abs(expected_total)
         return relative_error <= tolerance
-
-
-class TokenTransformer(BaseTransformer):
-    def __init__(self, contract):
-        self.contract = contract
-
-    def process_transfers(self, logs: List[DecodedLog], tx: Transaction) -> Tuple[Dict[str,Transfer],Optional[List[ProcessingError]]]:
-        transfers = {}
-
-        for log in logs:
-            if log.name == "Transfer":
-                transfer = UnmatchedTransfer(
-                    timestamp=tx.timestamp,
-                    tx_hash=tx.tx_hash,
-                    from_address=log.attributes.get("from").lower(),
-                    to_address=log.attributes.get("to").lower(),
-                    token=log.contract,
-                    amount=log.attributes.get("value"),
-                    log_index=log.index
-                )
-                key = transfer.generate_content_id()
-                
-                transfers[key] = transfer
-                
-        return transfers, None

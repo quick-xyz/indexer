@@ -1,72 +1,69 @@
-from typing import Union
+# indexer/transform/transformers/routers/lfj_aggregator.py
 
-from ....decode.model.block import DecodedLog
-from ...events.base import DomainEvent, TransactionContext
-from ...events.trade import Trade
-from ....utils.logger import get_logger
+from typing import List, Dict, Tuple, Optional
+from .base_router import BaseRouterTransformer
+from ....types import (
+    DecodedLog,
+    Transaction,
+    EvmAddress,
+    Transfer,
+    DomainEvent,
+    ProcessingError,
+    DomainEventId,
+    ErrorId,
+)
 
 
-class LfjPoolTransformer:
-    def __init__(self, contract,base_token):
-        self.logger = get_logger(__name__)
-        self.contract = contract
-        self.base = base_token
-
-    def get_tokens_amounts(self, log: DecodedLog) -> tuple:
-        token_in = log.attributes.get("tokenIn")
-        token_out = log.attributes.get("tokenOut")
-        amount_in = log.attributes.get("amountIn")
-        amount_out = log.attributes.get("amountOut")
-
-        if token_in == self.base:
-            base_token = token_in
-            base_amount = amount_in
-            quote_token = token_out
-            quote_amount = amount_out
-        elif token_out == self.base:
-            base_token = token_out
-            base_amount = amount_out
-            quote_token = token_in
-            quote_amount = amount_in
-
-        return base_token, quote_token, base_amount, quote_amount
-
-    def get_direction(self, base_amount: int) -> str:
-        if base_amount > 0:
-            return "buy"
-        else:
-            return "sell"
-
-    def process_bool(self, value: bool) -> str:
-        if value:
-            return "added"
-        else:
-            return "removed"
-
-    def handle_trade(self, log: DecodedLog, context: TransactionContext) -> list[Trade]:
-        base_token, quote_token, base_amount, quote_amount = self.get_tokens_amounts(log)
-        direction = self.get_direction(base_amount)
-
-        trade = Trade(
-            timestamp=context.timestamp,
-            tx_hash=context.tx_hash,
-            router=context.contract,
-            taker=context.sender,
-            direction=direction,
-            base_token=base_token,
-            base_amount=quote_token,
-            quote_token=base_amount,
-            quote_amount=quote_amount,
-            event_tag=direction,
+class LfjAggregatorTransformer(BaseRouterTransformer):
+    """
+    LFJ Aggregator transformer - operates in aggregator mode to handle meta-aggregation.
+    
+    This transformer aggregates both PoolSwap events and Trade events from other routers
+    into comprehensive Trade events that represent the full user trading experience.
+    
+    Key Features:
+    - Aggregates PoolSwap events from constituent pools
+    - Aggregates Trade events from other routers (meta-aggregation)
+    - Creates reconciling Swap events for any unaccounted amounts
+    - Validates that constituent events sum to aggregator totals
+    """
+    
+    def __init__(self, contract: EvmAddress, wnative: EvmAddress):
+        super().__init__(
+            contract=contract,
+            wnative=wnative,
+            aggregation_mode="aggregator",  # Aggregates both PoolSwaps and Trades
+            trade_type="trade"
         )
-        return [trade]
 
-    def transform_log(self, log: DecodedLog, context: TransactionContext) -> list[DomainEvent]:
-        events = []
+    def process_logs(self, logs: List[DecodedLog], tx: Transaction) -> Tuple[Optional[Dict[DomainEventId, Transfer]], Optional[Dict[DomainEventId, DomainEvent]], Optional[Dict[ErrorId, ProcessingError]]]:
+        """
+        Process LFJ Aggregator logs.
+        
+        Handles:
+        - SwapExactIn: User specifies exact input amount, receives variable output
+        - SwapExactOut: User specifies exact output amount, pays variable input
+        """
+        new_events, matched_transfers, errors = {}, {}, {}
 
-        if log.name == "SwapExactIn":
-            events.append(self.handle_trade(log, context))
-        elif log.name == "SwapExactOut":
-            events.append(self.handle_trade(log, context))   
+        try:
+            for log in logs:
+                try:
+                    if log.name in ["SwapExactIn", "SwapExactOut"]:
+                        swap_result = self._handle_swap_event(log, tx, log.name)
+                        if swap_result:
+                            new_events.update(swap_result["events"])
+                            matched_transfers.update(swap_result["transfers"])
+                            errors.update(swap_result["errors"])
+                
+                except Exception as e:
+                    self._create_log_exception(e, tx.tx_hash, log.index, self.__class__.__name__, errors)
 
-        return events
+        except Exception as e:
+            self._create_tx_exception(e, tx.tx_hash, self.__class__.__name__, errors)
+        
+        return (
+            matched_transfers if matched_transfers else None, 
+            new_events if new_events else None, 
+            errors if errors else None
+        )

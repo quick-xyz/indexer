@@ -14,7 +14,7 @@ from ....types import (
     create_transform_error,
 )
 
-class WavaxTransformer(BaseTransformer):
+class TokenTransformer(BaseTransformer):
     def __init__(self, contract: str):
         super().__init__(contract_address=EvmAddress(str(contract).lower()))
 
@@ -50,10 +50,10 @@ class WavaxTransformer(BaseTransformer):
         for log in logs:
             try:
                 if log.name == "Transfer":
-                    from_addr = EvmAddress(str(log.attributes.get("src")).lower())
-                    to_addr = EvmAddress(str(log.attributes.get("dst")).lower())
-                    value = int(log.attributes.get("wad"))
-                    
+                    from_addr = EvmAddress(str(log.attributes.get("from")).lower())
+                    to_addr = EvmAddress(str(log.attributes.get("to")).lower())
+                    value = int(log.attributes.get("value"))   
+                                    
                     if not self._validate_attr([from_addr, to_addr, value], tx.tx_hash, log.index, errors):
                         continue
 
@@ -72,3 +72,4 @@ class WavaxTransformer(BaseTransformer):
                 self._create_log_exception(e, tx.tx_hash, log.index, self.__class__.__name__, errors)
                 
         return transfers if transfers else None, errors if errors else None
+    

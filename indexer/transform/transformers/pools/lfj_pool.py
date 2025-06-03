@@ -25,19 +25,19 @@ from ....types import (
 
 
 class LfjPoolTransformer(BaseTransformer):
-    def __init__(self, contract: EvmAddress, token0: EvmAddress, token1: EvmAddress, base_token: EvmAddress, fee_collector: EvmAddress):
-        super().__init__(contract_address=contract.lower())
-        self.token0 = token0.lower()
-        self.token1 = token1.lower()
-        self.base_token = base_token.lower()
+    def __init__(self, contract: str, token0: str, token1: str, base_token: str, fee_collector: str):
+        super().__init__(contract_address=EvmAddress(str(contract).lower()))
+        self.token0 = EvmAddress(str(token0).lower())
+        self.token1 = EvmAddress(str(token1).lower())
+        self.base_token = EvmAddress(str(base_token).lower())
         self.quote_token = self.token1 if self.token0 == self.base_token else self.token0
-        self.fee_collector = fee_collector.lower()
+        self.fee_collector = EvmAddress(str(fee_collector).lower())
 
     
     def get_amounts(self, log: DecodedLog) -> tuple[Optional[int], Optional[int]]:
         try:
-            amount0 = log.attributes.get("amount0")
-            amount1 = log.attributes.get("amount1")
+            amount0 = int(log.attributes.get("amount0"))
+            amount1 = int(log.attributes.get("amount1"))
 
             if amount0 is None or amount1 is None:
                 return None, None
@@ -51,8 +51,8 @@ class LfjPoolTransformer(BaseTransformer):
 
     def get_in_out_amounts(self, log: DecodedLog) -> tuple[Optional[int], Optional[int]]:
         try:            
-            amount0 = log.attributes.get("amount0In") - log.attributes.get("amount0Out")
-            amount1 = log.attributes.get("amount1In") - log.attributes.get("amount1Out")
+            amount0 = int(log.attributes.get("amount0In")) - int(log.attributes.get("amount0Out"))
+            amount1 = int(log.attributes.get("amount1In")) - int(log.attributes.get("amount1Out"))
             
             if self.token0 == self.base_token:
                 return amount0, amount1
@@ -452,7 +452,7 @@ class LfjPoolTransformer(BaseTransformer):
                 quote_matched.content_id: quote_matched
             }
 
-            taker = log.attributes.get("to").lower()
+            taker = EvmAddress(str(log.attributes.get("to")).lower())
             swap = PoolSwap(
                 timestamp=tx.timestamp,
                 tx_hash=tx.tx_hash,
@@ -481,9 +481,9 @@ class LfjPoolTransformer(BaseTransformer):
         for log in logs:
             try:
                 if log.name == "Transfer":
-                    from_addr = log.attributes.get("from")
-                    to_addr = log.attributes.get("to")
-                    value = log.attributes.get("value")
+                    from_addr = EvmAddress(str(log.attributes.get("from")).lower())
+                    to_addr = EvmAddress(str(log.attributes.get("to")).lower())
+                    value = EvmAddress(str(log.attributes.get("value")).lower())
                     
                     if not self._validate_attr([from_addr, to_addr, value], tx.tx_hash, log.index, errors):
                         continue
@@ -491,8 +491,8 @@ class LfjPoolTransformer(BaseTransformer):
                     transfer = UnmatchedTransfer(
                         timestamp=tx.timestamp,
                         tx_hash=tx.tx_hash,
-                        from_address=from_addr.lower(),
-                        to_address=to_addr.lower(),
+                        from_address=from_addr,
+                        to_address=to_addr,
                         token=log.contract,
                         amount=value,
                         log_index=log.index

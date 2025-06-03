@@ -24,11 +24,11 @@ from ....utils.lb_byte32_decoder import decode_amounts
 
 
 class LbPairTransformer(BaseTransformer):
-    def __init__(self, contract: EvmAddress, token_x: EvmAddress, token_y: EvmAddress, base_token: EvmAddress):
-        super().__init__(contract_address=contract.lower())
-        self.token_x = token_x.lower()
-        self.token_y = token_y.lower()
-        self.base_token = base_token.lower()
+    def __init__(self, contract: EvmAddress, token_x: str, token_y: str, base_token: str):
+        super().__init__(contract_address=EvmAddress(str(contract).lower()))
+        self.token_x = EvmAddress(str(token_x).lower())
+        self.token_y = EvmAddress(str(token_y).lower())
+        self.base_token = EvmAddress(str(base_token).lower())
         self.quote_token = self.token_y if self.token_x == self.base_token else self.token_x
 
     def _validate_attr(self, values: List[Any],tx_hash: EvmHash, log_index: int, error_dict: Dict[ErrorId,ProcessingError]) -> bool:
@@ -133,9 +133,9 @@ class LbPairTransformer(BaseTransformer):
         }
         
         try:
-            provider = log.attributes.get("to").lower()
-            amounts = log.attributes.get("amounts")
-            bins = log.attributes.get("ids")
+            provider = EvmAddress(str(log.attributes.get("to")).lower())
+            amounts = list(log.attributes.get("amounts"))
+            bins = list(log.attributes.get("ids"))
 
             if len(amounts) != len(bins):
                 error = create_transform_error(
@@ -312,8 +312,8 @@ class LbPairTransformer(BaseTransformer):
         }
         
         try:
-            amounts = log.attributes.get("amounts")
-            bins = log.attributes.get("ids")
+            amounts = list(log.attributes.get("amounts"))
+            bins = list(log.attributes.get("ids"))
 
             if len(amounts) != len(bins):
                 error = create_transform_error(
@@ -365,7 +365,7 @@ class LbPairTransformer(BaseTransformer):
                 result["errors"][error.error_id] = error
                 return result
             
-            router = log.attributes.get("to").lower()
+            router = EvmAddress(str(log.attributes.get("to")).lower())
             provider = pool_burns[0].from_address.lower()
             base_router_transfers, quote_router_transfers = [], []
 
@@ -508,11 +508,11 @@ class LbPairTransformer(BaseTransformer):
 
             for log in swap_logs:
                 try:
-                    base_amount_in, quote_amount_in = self._unpack_amounts(log.attributes.get("amountsIn"))
-                    base_amount_out, quote_amount_out = self._unpack_amounts(log.attributes.get("amountsOut"))
+                    base_amount_in, quote_amount_in = self._unpack_amounts(str(log.attributes.get("amountsIn")))
+                    base_amount_out, quote_amount_out = self._unpack_amounts(str(log.attributes.get("amountsOut")))
                     base_amount = base_amount_in - base_amount_out
                     quote_amount = quote_amount_in - quote_amount_out
-                    bin = log.attributes.get("id")
+                    bin = int(log.attributes.get("id"))
 
                     if not self._validate_attr([base_amount, quote_amount, bin], tx.tx_hash, log.index, result["errors"]):
                         return result
@@ -598,10 +598,10 @@ class LbPairTransformer(BaseTransformer):
         for log in logs:
             try:
                 if log.name == "TransferBatch":
-                    from_addr = log.attributes.get("from").lower()
-                    to_addr = log.attributes.get("to").lower()
-                    amounts = log.attributes.get("amounts")
-                    bins = log.attributes.get("ids")
+                    from_addr = EvmAddress(str(log.attributes.get("from")).lower())
+                    to_addr = EvmAddress(str(log.attributes.get("to")).lower())
+                    amounts = list(log.attributes.get("amounts"))
+                    bins = list(log.attributes.get("ids"))
                     
                     if not len(amounts) == len(bins):
                         error = create_transform_error(
@@ -619,8 +619,9 @@ class LbPairTransformer(BaseTransformer):
                     sum_transfers = 0
                     
                     for i in bins:    
-                        transferids[i] = amounts[i]
-                        sum_transfers += amounts[i]
+                        amount = int(amounts[i])
+                        transferids[i] = amount
+                        sum_transfers += amount
 
                     transfer = UnmatchedTransfer(
                         timestamp=tx.timestamp,

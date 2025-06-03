@@ -11,7 +11,7 @@
         "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd": {
             "name": "BLUB",
             "project": "Blub",
-            "type": "token",
+            "type": "Token",
             "decode": {
                 "abi_dir": "tokens",
                 "abi": "blub.json"
@@ -34,7 +34,7 @@
         "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7": {
             "name": "WAVAX",
             "project": "Avax",
-            "type": "token",
+            "type": "Token",
             "decode": {
                 "abi_dir": "tokens",
                 "abi": "wavax.json"
@@ -57,9 +57,9 @@
         "0x39888258d60fed9228f89e13eb57a92f1fa832eb": {
             "name": "JLP:BLUB-AVAX",
             "project": "LFJ",
-            "type": "lp",
+            "type": "Pool",
             "decode": {
-                "abi_dir": "lfj",
+                "abi_dir": "pools",
                 "abi": "joepair.json"
             },
             "transform": {
@@ -88,9 +88,9 @@
         "0xcb4c6fdcfb7d868df5f1e3d0018438205b243fd6": {
             "name": "LB:BLUB-AVAX",
             "project": "LFJ",
-            "type": "lp",
+            "type": "Pool",
             "decode": {
-                "abi_dir": "lfj",
+                "abi_dir": "pools",
                 "abi": "lbpair.json"
             },
             "transform": {
@@ -118,9 +118,9 @@
         "0xa87866ba0d82155d0ff36ad06e555aebc98595ca": {
             "name": "PLP:BLUB-AVAX",
             "project": "Pharaoh",
-            "type": "lp",
+            "type": "Pool",
             "decode": {
-                "abi_dir": "pharaoh",
+                "abi_dir": "pools",
                 "abi": "pair.json"
             },
             "transform": {
@@ -150,9 +150,9 @@
         "0x3fc41c1ae339322ab87b6ba48e30781d88a304d4": {
             "name": "PCL:BLUB-AVAX",
             "project": "Pharaoh",
-            "type": "lp",
+            "type": "Pool",
             "decode": {
-                "abi_dir": "pharaoh",
+                "abi_dir": "pools",
                 "abi": "clpool.json"
             },
             "transform": {
@@ -181,9 +181,9 @@
         "0xaaa78e8c4241990b4ce159e105da08129345946a": {
             "name": "CL Position Manager",
             "project": "Pharaoh",
-            "type": "nfp_manager",
+            "type": "Router_NFP",
             "decode": {
-                "abi_dir": "pharaoh",
+                "abi_dir": "routers",
                 "abi": "clpool.json"
             },
             "transform": {
@@ -209,31 +209,55 @@
 
         
         "0x45a62b090df48243f12a21897e7ed91863e2c86b": {
-            "name": "LFJ Aggregator v2.2",
+            "name": "LFJ Aggregator v2",
             "project": "LFJ",
             "type": "Aggregator",
-            "abi_dir": "lfj",
-            "abi": "aggregatorv2_2.json"
+            "abi_dir": "aggregators",
+            "abi": "aggregatorv2_2.json",
+
+            "name": "Aggregator v2_2",
+            "project": "LFJ",
+            "type": "Aggregator",
+            "decode": {
+                "abi_dir": "aggregators",
+                "abi": "lfj_agg.json"
+            },
+            "transform": {
+                "name": "LfjAggregatorTransformer",
+                "transfers": {},
+                "logs": {
+                    "SwapExactIn": 9,
+                    "SwapExactOut": 9
+                },
+                "instantiate": {
+                    "contract": "0x3fc41c1ae339322ab87b6ba48e30781d88a304d4",
+                    "token0": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                    "token1": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+                    "base_token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                    "nfp_manager": "0xaaa78e8c4241990b4ce159e105da08129345946a"
+                }
+            },
+            "token":{}
         },
         "0x6131b5fae19ea4f9d964eac0408e4408b66337b5": {
             "name": "Meta Aggregation Router v2",
             "project": "Kyberswap",
-            "type": "Router",
-            "abi_dir": "routers",
+            "type": "Aggregator",
+            "abi_dir": "aggregators",
             "abi": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5.json"
         },
         "0x1dac23e41fc8ce857e86fd8c1ae5b6121c67d96d": {
             "name": "Dex Aggregation Router",
             "project": "OKX",
-            "type": "Router",
-            "abi_dir": "routers",
+            "type": "Aggregator",
+            "abi_dir": "aggregators",
             "abi": "0x1dac23e41fc8ce857e86fd8c1ae5b6121c67d96d.json"
         },
         "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc": {
             "name": "RouterV2",
             "project": "Odos",
-            "type": "Router",
-            "abi_dir": "routers",
+            "type": "Aggregator",
+            "abi_dir": "rouaggregatorsers",
             "abi": "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc.json"
         },
 
@@ -266,17 +290,17 @@
         },
         "0xb35033d71cf5e13cab5eb8618260f94363dff9cf": {
             "name": "RouterLogic",
-            "type": "Logic",
+            "type": "AggLogic",
             "project": "LFJ"
         },
         "0xb0787776ff90881cec3a0b8e3e91973e6183c146": {
             "name": "ForwarderLogic",
-            "type": "Logic",
+            "type": "AggLogic",
             "project": "LFJ"
         },
         "0xc04f291347d21dc663f7646056db22bff8ce8430": {
             "name": "ForwarderLogic2",
-            "type": "Logic",
+            "type": "AggLogic",
             "project": "LFJ"
         }
     }
