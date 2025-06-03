@@ -63,9 +63,6 @@ class PharPairTransformer(BaseTransformer):
                 return amount1, amount0
         except Exception:
             return None, None
-            
-    def get_direction(self, base_amount: int) -> str:
-        return "buy" if base_amount > 0 else "sell"
     
     def _validate_attr(self, values: List[Any],tx_hash: EvmHash, log_index: int, error_dict: Dict[ErrorId,ProcessingError]) -> bool:
         """ Validate that all required attributes are present """
@@ -423,7 +420,7 @@ class PharPairTransformer(BaseTransformer):
             if not self._validate_attr([base_amount, quote_amount], tx.tx_hash, log.index, result["errors"]):
                 return result
 
-            direction = self.get_direction(base_amount)
+            direction = "buy" if base_amount > 0 else "sell"
             unmatched_transfers = self._get_unmatched_transfers(tx)
             swap_transfers = self._get_swap_transfers(unmatched_transfers)
             

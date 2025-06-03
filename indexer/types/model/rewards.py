@@ -1,9 +1,9 @@
 # indexer/types/model/rewards.py
 
-from typing import Literal, Optional, List
+from typing import Literal, Optional, Dict
 
 from ..new import EvmAddress
-from .base import DomainEvent
+from .base import DomainEvent, DomainEventId
 
 
 class Reward(DomainEvent, tag=True):
@@ -16,7 +16,7 @@ class RewardSet(DomainEvent, tag=True):
     recipient: EvmAddress
     token: EvmAddress
     amount: int
-    rewards: Optional[List[Reward]] = None
+    rewards: Optional[Dict[DomainEventId,Reward]] = None
 
     def _get_identifying_content(self):
         return {

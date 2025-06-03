@@ -22,9 +22,11 @@
         "swap":"0xe18f01e0c509763d67786ff35e46ebe4423f3b3045e89f125792ce6d0a2e3344"
     },
     "phar_clpool":{
+        "pair":"0x3fc41c1ae339322ab87b6ba48e30781d88a304d4",
         "add_liq":"0x9f43bb0ff93f1d95981c88964378ac5cb543f06519d2aa09bf703194dbcae4f1",
         "remove_liq":"0x7dc296bcc527482a01fe3e2c54ee13b7f6c5c5bb376e2f860f6e589cc536d9cd",
-        "swap":"0xb2989baa9044b83103c8d82b49e3636f0676db5562cfc9988659dc52c58e4165"
+        "swap":"0xb2989baa9044b83103c8d82b49e3636f0676db5562cfc9988659dc52c58e4165",
+        "collect":"0x7e5255c0e30895c3931a8183e07cd07f27324920d310ad8d06ea10b4a1ed07b7"
     },
     "phar_cl_router":{
         "collect":"0x7780e109842aca13fc1d4ae3818750295f9ecbd3e868e8bea98cb74b30bb11f6"
