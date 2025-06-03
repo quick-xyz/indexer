@@ -28,6 +28,7 @@ class IndexerConfig(Struct):
     addresses: Dict[EvmAddress, AddressConfig] = msgspec.field(default_factory=dict)
     database: DatabaseConfig
     rpc: RpcConfig
+    gcs: GCSConfig
     paths: Optional[PathsConfig] = None
     
     @classmethod
@@ -53,13 +54,13 @@ class IndexerConfig(Struct):
         
         storage = msgspec.convert(config_dict["storage"], type=StorageConfig)
         gcs = cls._create_gcs_config(env)
-        
+
         contracts = {
-            address.lower(): cls._process_contract(contract_data,config_dir)
+            str(address).lower(): cls._process_contract(contract_data,config_dir)
             for address, contract_data in config_dict["contracts"].items()
         }
                 
-        addresses = {addr.lower(): msgspec.convert(data, type=AddressConfig)
+        addresses = {str(addr).lower(): msgspec.convert(data, type=AddressConfig)
                     for addr, data in config_dict.get("addresses", {}).items()}
                         
         database = cls._create_database_config(env)
@@ -72,6 +73,7 @@ class IndexerConfig(Struct):
             name=config_dict["name"],
             version=config_dict["version"],
             storage=storage,
+            gcs=gcs,
             contracts=contracts,
             addresses=addresses,
             database=database,

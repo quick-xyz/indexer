@@ -1,7 +1,7 @@
 # indexer/transform/transformers/routers/generic_router.py
 
 from typing import List, Dict, Tuple, Optional, Any
-from .base_router import BaseRouterTransformer
+from .router_base import BaseRouterTransformer
 from ....types import (
     DecodedLog,
     Transaction,

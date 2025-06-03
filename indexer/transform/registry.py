@@ -1,28 +1,27 @@
 # indexer/transform/registry.py
 
 from typing import Dict, Optional, List
-from dataclasses import dataclass, field
+from dataclasses import field
 from collections import defaultdict
-import importlib
+from msgspec import Struct
 
 from ..core.config import IndexerConfig
+
+from .transformers import *
 from ..types import (
     EvmAddress, 
-    IndexerConfig,
     DecodedLog,
 )
 
-@dataclass
-class ContractTransformer:
-    instance: object
+
+class ContractTransformer(Struct):
+    instance: BaseTransformer
     transfer_priorities: Dict[str, int] = field(default_factory=dict)
     log_priorities: Dict[str, int] = field(default_factory=dict)
     active: bool = True
 
 
-class TransformerRegistry:
-    """Registry for transformer instances and their configurations"""
-    
+class TransformerRegistry:    
     def __init__(self, config: IndexerConfig):
         self.config = config
         self._transformers: Dict[EvmAddress, ContractTransformer] = {}
@@ -30,57 +29,16 @@ class TransformerRegistry:
         self._setup_transformers()
 
     def _load_transformer_classes(self) -> Dict[str, type]:
-        """Dynamically load transformer classes"""
-        # Base transformer classes - could be made configurable
         transformer_classes = {}
         
         try:
-            # Import base transformers
-            from .transformers.base import TokenTransformer
-            from .transformers.tokens.wavax import WavaxTransformer
             transformer_classes.update({
                 "TokenTransformer": TokenTransformer,
                 "WavaxTransformer": WavaxTransformer,
-            })
-        except ImportError:
-            pass
-            
-        try:
-            # Import pool transformers
-            from .transformers.pools.lb_pair import LbPairTransformer
-            from .transformers.pools.lfj_pool import LfjPoolTransformer
-            from .transformers.pools.phar_clpool import PharClpoolTransformer
-            from .transformers.pools.phar_pair import PharPairTransformer
-            transformer_classes.update({
-                "LBPairTransformer": LbPairTransformer,
                 "LfjPoolTransformer": LfjPoolTransformer,
-                "PharClpoolTransformer": PharClpoolTransformer,
+                "LbPairTransformer": LbPairTransformer,
                 "PharPairTransformer": PharPairTransformer,
-            })
-        except ImportError:
-            pass
-
-        ''' 
-        try:
-            # Import router transformers
-            from .transformers.routers.lfj_aggregator import LfjAggregatorTransformer
-            from .transformers.routers.phar_cl_manager import PharClManagerTransformer
-            transformer_classes.update({
-                "LfjAggregatorTransformer": LfjAggregatorTransformer,
-                "PharClManagerTransformer": PharClManagerTransformer,
-            })
-        except ImportError:
-            pass
-        '''     
-        try:
-            # Import wesmol transformers
-            from .transformers.wesmol.auction import AuctionTransformer
-            from .transformers.wesmol.farm import FarmTransformer
-            from .transformers.wesmol.wrapper import WesmolWrapperTransformer
-            transformer_classes.update({
-                "AuctionTransformer": AuctionTransformer,
-                "FarmTransformer": FarmTransformer,
-                "WesmolWrapperTransformer": WesmolWrapperTransformer,
+                "PharClPoolTransformer": PharClPoolTransformer,
             })
         except ImportError:
             pass
@@ -88,7 +46,6 @@ class TransformerRegistry:
         return transformer_classes
 
     def _setup_transformers(self):
-        """Setup transformers from configuration"""
         for address, contract in self.config.contracts.items():
             if not contract.transform:
                 continue
@@ -120,7 +77,7 @@ class TransformerRegistry:
                           transfer_priorities: Dict[str, int] = None,
                           log_priorities: Dict[str, int] = None):
         """Register a transformer for a contract"""
-        self._transformers[contract_address.lower()] = ContractTransformer(
+        self._transformers[contract_address] = ContractTransformer(
             instance=instance,
             transfer_priorities=transfer_priorities or {},
             log_priorities=log_priorities or {}
@@ -168,5 +125,4 @@ class TransformerRegistry:
         return logs_by_priority
 
     def get_all_contracts(self) -> Dict[str, ContractTransformer]:
-        """Get all registered contract transformers"""
         return self._transformers.copy()

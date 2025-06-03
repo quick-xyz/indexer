@@ -1,7 +1,7 @@
 from typing import List, Dict, Tuple, Optional, Any
 import msgspec
 
-from ..base import BaseTransformer
+from .pool_base import PoolTransformer
 from ....types import (
     ZERO_ADDRESS,
     DecodedLog,
@@ -24,14 +24,9 @@ from ....types import (
 )
 
 
-class LfjPoolTransformer(BaseTransformer):
+class LfjPoolTransformer(PoolTransformer):
     def __init__(self, contract: str, token0: str, token1: str, base_token: str, fee_collector: str):
-        super().__init__(contract_address=EvmAddress(str(contract).lower()))
-        self.token0 = EvmAddress(str(token0).lower())
-        self.token1 = EvmAddress(str(token1).lower())
-        self.base_token = EvmAddress(str(base_token).lower())
-        self.quote_token = self.token1 if self.token0 == self.base_token else self.token0
-        self.fee_collector = EvmAddress(str(fee_collector).lower())
+        super().__init__(contract,token0,token1,base_token,fee_collector)
 
     
     def get_amounts(self, log: DecodedLog) -> tuple[Optional[int], Optional[int]]:
@@ -61,41 +56,9 @@ class LfjPoolTransformer(BaseTransformer):
         except Exception:
             return None, None
     
-    def _validate_attr(self, values: List[Any],tx_hash: EvmHash, log_index: int, error_dict: Dict[ErrorId,ProcessingError]) -> bool:
-        """ Validate that all required attributes are present """
-        if not all(value is not None for value in values):
-            error = create_transform_error(
-                error_type="missing_attributes",
-                message=f"Transformer missing required attributes in log",
-                tx_hash=tx_hash,
-                log_index=log_index
-            )
-            error_dict[error.error_id] = error
-            return False
-        return True
+
     
-    def _create_log_exception(self, e, tx_hash: EvmHash, log_index: int, transformer_name: str, error_dict: Dict[ErrorId,ProcessingError]) -> None:
-        """ Create a ProcessingError for exceptions """
-        error = create_transform_error(
-            error_type="processing_exception",
-            message=f"Log processing exception: {str(e)}",
-            tx_hash=tx_hash,
-            log_index=log_index,
-            transformer_name=transformer_name
-        )
-        error_dict[error.error_id] = error
-        return None
-    
-    def _create_tx_exception(self, e, tx_hash: EvmHash, transformer_name: str, error_dict: Dict[ErrorId,ProcessingError]) -> None:
-        """ Create a ProcessingError for exceptions """
-        error = create_transform_error(
-            error_type="processing_exception",
-            message=f"Transaction processing exception: {str(e)}",
-            tx_hash=tx_hash,
-            transformer_name=transformer_name
-        )
-        error_dict[error.error_id] = error
-        return None
+
 
     def _get_swap_transfers(self, unmatched_transfers: Dict[EvmAddress,Dict[DomainEventId, Transfer]]) -> Dict[str, Dict[DomainEventId,Transfer]]:
         swap_transfers = {

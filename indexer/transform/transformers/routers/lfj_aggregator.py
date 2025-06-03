@@ -1,7 +1,7 @@
 # indexer/transform/transformers/routers/lfj_aggregator.py
 
 from typing import List, Dict, Tuple, Optional
-from .base_router import BaseRouterTransformer
+from .router_base import BaseRouterTransformer
 from ....types import (
     DecodedLog,
     Transaction,

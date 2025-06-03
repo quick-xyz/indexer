@@ -27,7 +27,7 @@ from ....types import (
 '''
 TODO: Handle the NFP Manager on Mints/Burns/Collects
 '''
-class PharClpoolTransformer(BaseTransformer):   
+class PharClPoolTransformer(BaseTransformer):   
     def __init__(self, contract: EvmAddress, token0: EvmAddress, token1: EvmAddress, base_token: EvmAddress, nfp_manager: EvmAddress):
         super().__init__(contract_address=contract.lower())
         self.token0 = token0.lower()
