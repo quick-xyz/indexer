@@ -50,20 +50,47 @@ class TransformationManager:
     def _process_transfers(self, decoded_logs: Dict[int, DecodedLog], transaction: Transaction) -> None:
         transfers_by_contract = self.registry.get_transfers_ordered(decoded_logs)
 
+        print(f"🔍 _process_transfers starting with {len(transfers_by_contract)} contracts")
+        
         for contract_address, transfer_logs in transfers_by_contract.items():
+            print(f"   Processing contract {contract_address}")
             transformer = self.registry.get_transformer(contract_address)
             
             if transformer:
+                print(f"     Transformer found: {type(transformer).__name__}")
+                
                 for priority, log_list in sorted(transfer_logs.items()):
+                    print(f"     Processing priority {priority} with {len(log_list)} logs")
+                    
                     try:
                         transfers, errors = transformer.process_transfers(log_list, transaction)
                         
+                        print(f"     Transformer returned:")
+                        print(f"       transfers: {transfers is not None} ({len(transfers) if transfers else 0} items)")
+                        print(f"       errors: {errors is not None} ({len(errors) if errors else 0} items)")
+                        
                         if transfers:
+                            print(f"     Adding {len(transfers)} transfers to transaction")
+                            before_count = len(transaction.transfers) if transaction.transfers else 0
                             transaction.transfers.update(transfers)
+                            after_count = len(transaction.transfers) if transaction.transfers else 0
+                            print(f"     Transaction transfers: {before_count} → {after_count}")
+                            
+                            # Debug each transfer
+                            for transfer_id, transfer in transfers.items():
+                                print(f"       Added: {transfer_id} - {transfer.token} {transfer.amount}")
+                        else:
+                            print(f"     No transfers to add")
+                            
                         if errors:
+                            print(f"     Adding {len(errors)} errors to transaction")
                             transaction.errors.update(errors)
                             
                     except Exception as e:
+                        print(f"     💥 Exception in transfer processing: {type(e).__name__}: {e}")
+                        import traceback
+                        traceback.print_exc()
+                        
                         error = create_transform_error(
                             error_type="transfer_processing_exception",
                             message=f"Exception in transfer processing: {str(e)}",
@@ -72,6 +99,18 @@ class TransformationManager:
                             transformer_name=transformer.__class__.__name__
                         )
                         transaction.errors[error.error_id] = error
+            else:
+                print(f"     No transformer found for {contract_address}")
+                            
+        print(f"🔍 _process_transfers completed:")
+        print(f"   Input decoded_logs: {len(decoded_logs)}")
+        print(f"   transfers_by_contract: {len(transfers_by_contract)}")
+        print(f"   Final transaction.transfers: {len(transaction.transfers) if transaction.transfers else 0}")
+        
+        if transaction.transfers:
+            print(f"   Final transfers breakdown:")
+            for transfer_id, transfer in transaction.transfers.items():
+                print(f"     {transfer_id}: {transfer.token} {transfer.amount} {transfer.from_address} → {transfer.to_address}")
 
 
     def _process_events(self, decoded_logs: Dict[int, DecodedLog], transaction: Transaction) -> None:

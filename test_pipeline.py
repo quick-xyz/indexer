@@ -185,6 +185,23 @@ def test_transformation(container, decoded_block: Block):
             print(f"   Processing transaction {tx_hash[:10]}...")
             
             processed, transformed_tx = transform_manager.process_transaction(transaction)
+
+            # Add this right after the transform_manager.process_transaction() call:
+
+            print(f"     Processed: {processed}")
+            print(f"     Transfers: {len(transformed_tx.transfers) if transformed_tx.transfers else 0}")
+            print(f"     Events: {len(transformed_tx.events) if transformed_tx.events else 0}")
+            print(f"     Errors: {len(transformed_tx.errors) if transformed_tx.errors else 0}")
+
+            # Show the actual transfer objects if any exist
+            if transformed_tx.transfers:
+                print(f"     Transfer details:")
+                for transfer_id, transfer in transformed_tx.transfers.items():
+                    print(f"       {transfer_id}: {transfer.token} {transfer.amount} {transfer.from_address} → {transfer.to_address}")
+            else:
+                print(f"     ⚠️  No transfers created despite having Transfer logs")
+
+
             transformed_transactions[tx_hash] = transformed_tx
             
             if processed:

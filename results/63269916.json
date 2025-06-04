@@ -407,9 +407,127 @@
                 }
             },
             "origin_to": "0x45a62b090df48243f12a21897e7ed91863e2c86b",
-            "transfers": {},
+            "transfers": {
+                "616b9fcc5e4d": {
+                    "type": "UnmatchedTransfer",
+                    "timestamp": "0x683fca31",
+                    "tx_hash": "0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b",
+                    "log_index": 4,
+                    "content_id": "616b9fcc5e4d",
+                    "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+                    "amount": 16424948551223205287,
+                    "from_address": "0xb5fa743b43e44e2cb74c200c81f274b0ca8e9d34",
+                    "to_address": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7",
+                    "transfer_type": "transfer",
+                    "batch": null
+                },
+                "01b21d8f2302": {
+                    "type": "UnmatchedTransfer",
+                    "timestamp": "0x683fca31",
+                    "tx_hash": "0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b",
+                    "log_index": 10,
+                    "content_id": "01b21d8f2302",
+                    "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+                    "amount": 72513796347297425,
+                    "from_address": "0xeed1c0ba2c17855288c3a2b36f3b5068346fa2bd",
+                    "to_address": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7",
+                    "transfer_type": "transfer",
+                    "batch": null
+                },
+                "3d28fd1fa4c9": {
+                    "type": "UnmatchedTransfer",
+                    "timestamp": "0x683fca31",
+                    "tx_hash": "0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b",
+                    "log_index": 13,
+                    "content_id": "3d28fd1fa4c9",
+                    "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+                    "amount": 60283450357135453,
+                    "from_address": "0x12b50bfaa528f967cd7f249c78b44ee3818e972d",
+                    "to_address": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7",
+                    "transfer_type": "transfer",
+                    "batch": null
+                },
+                "915195cf3837": {
+                    "type": "UnmatchedTransfer",
+                    "timestamp": "0x683fca31",
+                    "tx_hash": "0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b",
+                    "log_index": 16,
+                    "content_id": "915195cf3837",
+                    "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+                    "amount": 34142193024484402,
+                    "from_address": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7",
+                    "to_address": "0x819fe65a885d40493f4b91e8a10e242018758432",
+                    "transfer_type": "transfer",
+                    "batch": null
+                },
+                "87b41bd26fdf": {
+                    "type": "UnmatchedTransfer",
+                    "timestamp": "0x683fca31",
+                    "tx_hash": "0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b",
+                    "log_index": 20,
+                    "content_id": "87b41bd26fdf",
+                    "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+                    "amount": 16523603604903153763,
+                    "from_address": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7",
+                    "to_address": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+                    "transfer_type": "transfer",
+                    "batch": null
+                }
+            },
             "events": {},
             "errors": {
+                "b3ac74ec1611": {
+                    "stage": "transform",
+                    "error_type": "processing_exception",
+                    "message": "Log processing exception: can't serialize ints < -2**63 or > 2**64 - 1",
+                    "status": "unresolved",
+                    "attempts": 0,
+                    "error_id": "b3ac74ec1611",
+                    "context": {
+                        "tx_hash": "0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b",
+                        "transformer_name": "TokenTransformer",
+                        "log_index": 17
+                    }
+                },
+                "4171e4d97cab": {
+                    "stage": "transform",
+                    "error_type": "processing_exception",
+                    "message": "Log processing exception: can't serialize ints < -2**63 or > 2**64 - 1",
+                    "status": "unresolved",
+                    "attempts": 0,
+                    "error_id": "4171e4d97cab",
+                    "context": {
+                        "tx_hash": "0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b",
+                        "transformer_name": "TokenTransformer",
+                        "log_index": 21
+                    }
+                },
+                "ea2d4064826e": {
+                    "stage": "transform",
+                    "error_type": "processing_exception",
+                    "message": "Log processing exception: can't serialize ints < -2**63 or > 2**64 - 1",
+                    "status": "unresolved",
+                    "attempts": 0,
+                    "error_id": "ea2d4064826e",
+                    "context": {
+                        "tx_hash": "0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b",
+                        "transformer_name": "TokenTransformer",
+                        "log_index": 24
+                    }
+                },
+                "6678c3f0084e": {
+                    "stage": "transform",
+                    "error_type": "processing_exception",
+                    "message": "Log processing exception: can't serialize ints < -2**63 or > 2**64 - 1",
+                    "status": "unresolved",
+                    "attempts": 0,
+                    "error_id": "6678c3f0084e",
+                    "context": {
+                        "tx_hash": "0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b",
+                        "transformer_name": "TokenTransformer",
+                        "log_index": 27
+                    }
+                },
                 "eea92d346e1a": {
                     "stage": "transform",
                     "error_type": "invalid_swap_transfers",
@@ -421,6 +539,55 @@
                         "tx_hash": "0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b",
                         "log_index": 23
                     }
+                },
+                "2240140d7eb6": {
+                    "stage": "transform",
+                    "error_type": "unmatched_transfers",
+                    "message": "Found 5 unmatched transfers after processing",
+                    "status": "unresolved",
+                    "attempts": 0,
+                    "error_id": "2240140d7eb6",
+                    "context": {
+                        "tx_hash": "0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b",
+                        "unmatched_transfers": [
+                            {
+                                "transfer_id": "616b9fcc5e4d",
+                                "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+                                "amount": 16424948551223205287,
+                                "from": "0xb5fa743b43e44e2cb74c200c81f274b0ca8e9d34",
+                                "to": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7"
+                            },
+                            {
+                                "transfer_id": "01b21d8f2302",
+                                "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+                                "amount": 72513796347297425,
+                                "from": "0xeed1c0ba2c17855288c3a2b36f3b5068346fa2bd",
+                                "to": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7"
+                            },
+                            {
+                                "transfer_id": "3d28fd1fa4c9",
+                                "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+                                "amount": 60283450357135453,
+                                "from": "0x12b50bfaa528f967cd7f249c78b44ee3818e972d",
+                                "to": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7"
+                            },
+                            {
+                                "transfer_id": "915195cf3837",
+                                "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+                                "amount": 34142193024484402,
+                                "from": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7",
+                                "to": "0x819fe65a885d40493f4b91e8a10e242018758432"
+                            },
+                            {
+                                "transfer_id": "87b41bd26fdf",
+                                "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+                                "amount": 16523603604903153763,
+                                "from": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7",
+                                "to": "0x39888258d60fed9228f89e13eb57a92f1fa832eb"
+                            }
+                        ],
+                        "unmatched_count": 5
+                    }
                 }
             },
             "indexing_status": null,
@@ -429,11 +596,11 @@
     },
     "indexing_status": "error",
     "processing_metadata": {
-        "error_count": 1,
+        "error_count": 6,
         "retry_count": 0,
         "last_error": null,
         "started_at": null,
-        "completed_at": "2025-06-04T17:15:09.637892",
+        "completed_at": "2025-06-04T19:25:31.774732",
         "error_stage": "transform"
     }
 }
