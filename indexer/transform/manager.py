@@ -1,6 +1,7 @@
 # indexer/transform/manager.py
 
 from typing import Tuple, Dict, List, Optional
+import msgspec
 
 from .registry import TransformerRegistry
 from ..types import (
@@ -25,7 +26,7 @@ class TransformationManager:
         if not self._has_decoded_logs(transaction) or not transaction.tx_success:
             return False, transaction
 
-        updated_tx = transaction.copy(deep=True)
+        updated_tx = msgspec.convert(transaction, type=type(transaction))
         decoded_logs = self._get_decoded_logs(transaction)
 
         if not updated_tx.transfers:

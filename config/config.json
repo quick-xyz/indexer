@@ -181,7 +181,7 @@
             "type": "Router_NFP",
             "decode": {
                 "abi_dir": "routers",
-                "abi": "clpool.json"
+                "abi": "phar_nfp.json"
             },
             "transform": {
                 "name": "PharClpoolTransformer",

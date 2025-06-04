@@ -24,11 +24,11 @@ class IndexerConfig(Struct):
     name: str
     version: str
     storage: StorageConfig
-    contracts: Dict[EvmAddress, ContractConfig] = msgspec.field(default_factory=dict)
-    addresses: Dict[EvmAddress, AddressConfig] = msgspec.field(default_factory=dict)
     database: DatabaseConfig
     rpc: RpcConfig
     gcs: GCSConfig
+    contracts: Dict[EvmAddress, ContractConfig] = msgspec.field(default_factory=dict)
+    addresses: Dict[EvmAddress, AddressConfig] = msgspec.field(default_factory=dict)
     paths: Optional[PathsConfig] = None
     
     @classmethod

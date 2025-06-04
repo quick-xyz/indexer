@@ -8,6 +8,7 @@ import json
 import os
 from pathlib import Path
 from typing import Dict, Any
+import msgspec
 
 # Ensure we can import the indexer
 import sys
@@ -15,6 +16,10 @@ sys.path.append(str(Path(__file__).parent))
 
 from indexer import create_indexer
 from indexer.types import EvmFilteredBlock, Block
+from indexer.clients.quicknode_rpc import QuickNodeRpcClient
+from indexer.storage.gcs_handler import GCSHandler
+from indexer.decode.block_decoder import BlockDecoder
+from indexer.transform.manager import TransformationManager
 
 
 def test_config_loading():
@@ -34,10 +39,10 @@ def test_config_loading():
         print("✅ Indexer container created successfully")
         
         # Test dependency injection
-        rpc_client = container.get_rpc_client(container)
-        storage_handler = container.get_storage_handler(container)
-        block_decoder = container.get_block_decoder(container)
-        transform_manager = container.get_transformation_manager(container)
+        rpc_client = container.get(QuickNodeRpcClient)
+        storage_handler = container.get(GCSHandler)
+        block_decoder = container.get(BlockDecoder)
+        transform_manager = container.get(TransformationManager)
         
         print("✅ All services resolved from container")
         print(f"   - RPC Client: {type(rpc_client).__name__}")
@@ -57,7 +62,7 @@ def test_gcs_connection(container):
     print("\n=== Test 2: GCS Connection ===")
     
     try:
-        storage_handler = container.get_storage_handler(container)
+        storage_handler = container.get(GCSHandler)
         
         # Test basic connection
         print("Testing GCS connection...")
@@ -96,7 +101,7 @@ def test_block_retrieval(container, block_number: int):
     print(f"\n=== Test 3: Block Retrieval (Block {block_number}) ===")
     
     try:
-        storage_handler = container.get_storage_handler(container)
+        storage_handler = container.get(GCSHandler)
         
         # Get raw block from GCS
         print(f"Retrieving block {block_number} from GCS...")
@@ -127,7 +132,7 @@ def test_block_decoding(container, raw_block: EvmFilteredBlock):
     print(f"\n=== Test 4: Block Decoding ===")
     
     try:
-        block_decoder = container.get_block_decoder(container)
+        block_decoder = container.get(BlockDecoder)
         
         print("Decoding block...")
         decoded_block = block_decoder.decode_block(raw_block)
@@ -164,7 +169,7 @@ def test_transformation(container, decoded_block: Block):
     print(f"\n=== Test 5: Transformation ===")
     
     try:
-        transform_manager = container.get_transformation_manager(container)
+        transform_manager = container.get(TransformationManager)
         
         if not decoded_block.transactions:
             print("⚠️  No transactions to transform")
@@ -194,7 +199,7 @@ def test_transformation(container, decoded_block: Block):
                 total_errors += len(transformed_tx.errors)
         
         # Update block with transformed transactions
-        transformed_block = decoded_block.copy(deep=True)
+        transformed_block = msgspec.convert(decoded_block, type=Block)
         transformed_block.transactions = transformed_transactions
         
         print(f"✅ Transformation completed")
@@ -202,8 +207,38 @@ def test_transformation(container, decoded_block: Block):
         print(f"   Total transfers: {total_transfers}")
         print(f"   Total events: {total_events}")
         print(f"   Total errors: {total_errors}")
-        
+
+        print("Debug: Transformation errors:")
+        for tx_hash, tx in transformed_block.transactions.items():
+            if tx.errors:
+                for error_id, error in tx.errors.items():
+                    print(f"  Error: {error.message}")
+                    print(f"  Type: {error.error_type}")
+                    if error.context:
+                        print(f"  Context: {error.context}")
+
+        print(f"\n🔍 Debug: All logs breakdown:")
+        decoded_contracts = set()
+        undecoded_contracts = set()
+
+        for log_index, log in transaction.logs.items():
+            if hasattr(log, 'name'):  # DecodedLog
+                print(f"   ✅ Log {log_index}: {log.name} from {log.contract}")
+                decoded_contracts.add(log.contract)
+            else:  # EncodedLog  
+                print(f"   ❌ Log {log_index}: Undecoded from {log.contract}")
+                undecoded_contracts.add(log.contract)
+
+        print(f"\n📊 Summary:")
+        print(f"   Decoded contracts: {len(decoded_contracts)}")
+        for addr in sorted(decoded_contracts):
+            print(f"     {addr}")
+        print(f"   Undecoded contracts: {len(undecoded_contracts)}")
+        for addr in sorted(undecoded_contracts):
+            print(f"     {addr}")
+
         return transformed_block
+        
         
     except Exception as e:
         print(f"❌ Transformation failed: {e}")
@@ -215,7 +250,7 @@ def test_storage(container, transformed_block: Block):
     print(f"\n=== Test 6: Storage ===")
     
     try:
-        storage_handler = container.get_storage_handler(container)
+        storage_handler = container.get(GCSHandler)
         
         print(f"Storing transformed block {transformed_block.block_number}...")
         
@@ -267,7 +302,7 @@ def main():
     try:
         # Phase 1: Setup
         container = test_config_loading()
-        test_gcs_connection(container)
+        # test_gcs_connection(container) # Validated, not needed for every run
         
         # Phase 2: Data Pipeline
         raw_block = test_block_retrieval(container, test_block_number)

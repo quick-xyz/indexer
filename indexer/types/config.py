@@ -18,8 +18,8 @@ class StorageConfig(Struct):
     decoded_format: str
 
 class TokenConfig(Struct):
-    symbol: str
-    decimals: int
+    symbol: Optional[str] = None
+    decimals: Optional[int] = None
 
 class AddressConfig(Struct):
     name: str
