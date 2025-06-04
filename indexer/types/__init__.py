@@ -44,6 +44,9 @@ from .config import (
 
 # Indexer Types
 from .indexer import (
+    BlockStatus,
+    TransactionStatus,
+    ProcessingMetadata,
     EncodedLog,
     DecodedLog,
     DecodedMethod,
@@ -170,6 +173,9 @@ __all__ = [
     "PathsConfig",
     
     # Indexer Types
+    "BlockStatus",
+    "TransactionStatus",
+    "ProcessingMetadata",
     "EncodedLog",
     "DecodedLog",
     "DecodedMethod",

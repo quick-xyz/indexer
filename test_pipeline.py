@@ -9,13 +9,14 @@ import os
 from pathlib import Path
 from typing import Dict, Any
 import msgspec
+from datetime import datetime
 
 # Ensure we can import the indexer
 import sys
 sys.path.append(str(Path(__file__).parent))
 
 from indexer import create_indexer
-from indexer.types import EvmFilteredBlock, Block
+from indexer.types import EvmFilteredBlock, Block, ProcessingMetadata, BlockStatus, TransactionStatus
 from indexer.clients.quicknode_rpc import QuickNodeRpcClient
 from indexer.storage.gcs_handler import GCSHandler
 from indexer.decode.block_decoder import BlockDecoder
@@ -66,10 +67,9 @@ def test_gcs_connection(container):
         
         # Test basic connection
         print("Testing GCS connection...")
-        blobs = storage_handler.list_blobs(prefix=storage_handler.rpc_prefix)
+        blobs = storage_handler.list_blobs(prefix=storage_handler.storage_config.rpc_prefix)
         print(f"✅ Connected to GCS bucket: {storage_handler.bucket_name}")
-        print(f"   Found {len(blobs)} RPC blobs with prefix '{storage_handler.rpc_prefix}'")
-        
+        print(f"   Found {len(blobs)} RPC blobs with prefix '{storage_handler.storage_config.rpc_prefix}'")    
         # List some available blocks for reference
         rpc_blocks = []
         for blob in blobs[:10]:  # Just check first 10
@@ -246,30 +246,79 @@ def test_transformation(container, decoded_block: Block):
 
 
 def test_storage(container, transformed_block: Block):
-    """Test 6: Store transformed block back to GCS"""
+    """Test 6: Store transformed block with proper processing flow"""
     print(f"\n=== Test 6: Storage ===")
     
     try:
         storage_handler = container.get(GCSHandler)
         
-        print(f"Storing transformed block {transformed_block.block_number}...")
-        
-        success = storage_handler.save_decoded_block(
-            transformed_block.block_number, 
-            transformed_block
+        # Check if block has any errors
+        has_errors = any(
+            tx.errors for tx in transformed_block.transactions.values() 
+            if tx.errors
         )
         
-        if success:
-            print(f"✅ Block {transformed_block.block_number} stored successfully")
+        error_count = sum(
+            len(tx.errors) for tx in transformed_block.transactions.values()
+            if tx.errors
+        )
+        
+        # Set processing metadata
+        from datetime import datetime
+        if not transformed_block.processing_metadata:
+            transformed_block.processing_metadata = ProcessingMetadata()
             
-            # Verify by reading it back
-            stored_block = storage_handler.get_decoded_block(transformed_block.block_number)
-            if stored_block:
-                print("✅ Verification: Block successfully read back from storage")
+        transformed_block.processing_metadata.completed_at = datetime.utcnow().isoformat()
+        transformed_block.processing_metadata.error_count = error_count
+        
+        if has_errors:
+            print(f"⚠️  Block has {error_count} errors - storing in processing/")
+            transformed_block.processing_metadata.error_stage = "transform"
+            
+            success = storage_handler.save_processing_block(
+                transformed_block.block_number, 
+                transformed_block
+            )
+            
+            if success:
+                print(f"✅ Block {transformed_block.block_number} stored in processing/ (has errors)")
+                print("   💡 Block will remain in processing/ until errors are resolved")
             else:
-                print("⚠️  Warning: Could not read block back from storage")
+                print(f"❌ Failed to store block in processing/")
+                
         else:
-            print(f"❌ Failed to store block {transformed_block.block_number}")
+            print(f"✅ Block processed successfully - storing in complete/")
+            
+            success = storage_handler.save_complete_block(
+                transformed_block.block_number, 
+                transformed_block
+            )
+            
+            if success:
+                print(f"✅ Block {transformed_block.block_number} stored in complete/")
+                print("   🧹 Removed from processing/ (if it existed)")
+                
+                # Verify by reading back
+                if has_errors:
+                    stored_block = storage_handler.get_processing_block(transformed_block.block_number)
+                    if stored_block:
+                        print("✅ Verification: Block successfully read back from processing/")
+                else:
+                    stored_block = storage_handler.get_complete_block(transformed_block.block_number)
+                    if stored_block:
+                        print("✅ Verification: Block successfully read back from complete/")
+            else:
+                print(f"❌ Failed to store block in complete/")
+        
+        # Show processing summary
+        summary = storage_handler.get_processing_summary()
+        print(f"\n📊 Processing Summary:")
+        print(f"   Processing: {summary['processing_count']} blocks")
+        print(f"   Complete: {summary['complete_count']} blocks")
+        if summary['latest_complete']:
+            print(f"   Latest complete: {summary['latest_complete']}")
+        if summary['oldest_processing']:
+            print(f"   Oldest processing: {summary['oldest_processing']}")
             
         return success
         

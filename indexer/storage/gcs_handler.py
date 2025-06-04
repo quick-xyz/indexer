@@ -6,22 +6,17 @@ from datetime import datetime, timezone
 from google.cloud import storage
 import msgspec
 
-from ..types import Block, EvmFilteredBlock
+from ..types import Block, EvmFilteredBlock, StorageConfig
 
 class GCSHandler:
-    def __init__(self,rpc_prefix: str,decoded_prefix: str,
-                 rpc_format: str,decoded_format: str,
-                 gcs_project: str, bucket_name: str,
+    def __init__(self, storage_config: StorageConfig, gcs_project: str, bucket_name: str,
                  credentials_path: Optional[str] = None):
         
-        self.rpc_prefix = rpc_prefix
-        self.decoded_prefix = decoded_prefix
-        self.rpc_format = rpc_format
-        self.decoded_format = decoded_format
+        self.storage_config = storage_config
         self.gcs_project = gcs_project
         self.bucket_name = bucket_name
         self.credentials_path = credentials_path if credentials_path else None
-        
+
         self.client = None
         self._initialize_gcs_client()
         self.bucket = self._connect_to_bucket(self.bucket_name)
@@ -147,9 +142,11 @@ class GCSHandler:
 
     def get_blob_string(self, stage, block_number):
         if stage == "rpc":
-            return self.rpc_format.format(block_number, block_number)
-        elif stage == "decoded":
-            return self.decoded_format.format(block_number)
+            return self.storage_config.rpc_format.format(block_number, block_number)
+        elif stage == "processing":
+            return self.storage_config.processing_format.format(block_number)
+        elif stage == "complete":
+            return self.storage_config.complete_format.format(block_number)
 
     def get_rpc_block(self, block_number: int) -> Optional[EvmFilteredBlock]:
         block_path = self.get_blob_string("rpc", block_number)
@@ -161,17 +158,14 @@ class GCSHandler:
             #self.logger.warning(f"Cannot find block number {block_number} at block path {block_path}.")
             return None
 
-    def get_decoded_block(self, block_number: int) -> Optional[Block]:
-        block_path = self.get_blob_string("decoded", block_number)
+    def save_processing_block(self, block_number: int, data: Block) -> bool:
+        has_errors = any(
+            tx.errors for tx in data.transactions.values() 
+            if tx.errors
+        )
+        data.indexing_status = "error" if has_errors else "processing"
         
-        if self.blob_exists(block_path):
-            return self.download_blob_as_bytes(block_path)
-        else:
-            #self.logger.warning(f"Cannot find block number {block_number} at block path {block_path}.")
-            return None
-    
-    def save_decoded_block(self, block_number: int, data: Block) -> bool:
-        destination_str = self.get_blob_string("decoded", block_number)
+        destination_str = self.storage_config.processing_format.format(block_number)
         encoded_data = msgspec.json.encode(data)
         try:
             return self.upload_blob_from_string(
@@ -179,7 +173,86 @@ class GCSHandler:
                 destination_str,
                 content_type="application/json"
             )
-        
         except Exception as e:
-            #self.logger.error(f"Failed to upload decoded block {block_number}: {e}")
             return False
+        
+    def save_complete_block(self, block_number: int, data: Block) -> bool:
+        data.indexing_status = "complete"
+        
+        destination_str = self.storage_config.complete_format.format(block_number)
+        encoded_data = msgspec.json.encode(data)
+        
+        try:
+            success = self.upload_blob_from_string(
+                encoded_data, 
+                destination_str,
+                content_type="application/json"
+            )
+            
+            if success:
+                processing_path = self.storage_config.processing_format.format(block_number)
+                if self.blob_exists(processing_path):
+                    self.delete_blob(processing_path)
+                    
+            return success
+            
+        except Exception as e:
+            return False
+        
+    def get_processing_block(self, block_number: int) -> Optional[Block]:
+        block_path = self.storage_config.processing_format.format(block_number)
+        
+        if self.blob_exists(block_path):
+            data_bytes = self.download_blob_as_bytes(block_path)
+            return msgspec.json.decode(data_bytes, type=Block)
+        return None
+
+    def get_complete_block(self, block_number: int) -> Optional[Block]:
+        block_path = self.storage_config.complete_format.format(block_number)
+        
+        if self.blob_exists(block_path):
+            data_bytes = self.download_blob_as_bytes(block_path)
+            return msgspec.json.decode(data_bytes, type=Block)
+        return None
+    
+    def list_processing_blocks(self) -> List[int]:
+        blobs = self.list_blobs(prefix="processing/")
+        block_numbers = []
+        
+        for blob in blobs:
+            if blob.name.endswith('.json'):
+                try:
+                    filename = blob.name.split('/')[-1]
+                    block_num_str = filename.replace('block_', '').replace('.json', '')
+                    block_numbers.append(int(block_num_str))
+                except:
+                    continue
+                    
+        return sorted(block_numbers)
+
+    def list_complete_blocks(self) -> List[int]:
+        blobs = self.list_blobs(prefix="complete/")
+        block_numbers = []
+        
+        for blob in blobs:
+            if blob.name.endswith('.json'):
+                try:
+                    filename = blob.name.split('/')[-1]
+                    block_num_str = filename.replace('block_', '').replace('.json', '')
+                    block_numbers.append(int(block_num_str))
+                except:
+                    continue
+                    
+        return sorted(block_numbers)
+
+    def get_processing_summary(self) -> Dict[str, Any]:
+        processing_blocks = self.list_processing_blocks()
+        complete_blocks = self.list_complete_blocks()
+        
+        return {
+            "processing_count": len(processing_blocks),
+            "complete_count": len(complete_blocks),
+            "processing_blocks": processing_blocks[:10],  # Sample
+            "latest_complete": max(complete_blocks) if complete_blocks else None,
+            "oldest_processing": min(processing_blocks) if processing_blocks else None,
+        }

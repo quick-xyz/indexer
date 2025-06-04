@@ -68,18 +68,14 @@ def _create_rpc_client(container: IndexerContainer) -> QuickNodeRpcClient:
 def _create_gcs_handler(container: IndexerContainer) -> GCSHandler:
     """Create GCS handler from config"""
     config = container._config
-    storage = config.storage
     
-    # GCS config comes from environment via config
     return GCSHandler(
-        rpc_prefix=storage.rpc_prefix,
-        decoded_prefix=storage.decoded_prefix,
-        rpc_format=storage.rpc_format,
-        decoded_format=storage.decoded_format,
+        storage_config=config.storage,
         gcs_project=config.gcs.project_id,
         bucket_name=config.gcs.bucket_name,
         credentials_path=config.gcs.credentials_path
     )
+
 
 # Optional: Convenience functions for common usage patterns
 def get_rpc_client(container: IndexerContainer) -> QuickNodeRpcClient:

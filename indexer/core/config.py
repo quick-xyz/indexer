@@ -18,7 +18,8 @@ from ..types import (
     PathsConfig,
     GCSConfig,
 )
-
+from .container import IndexerContainer
+from ..storage.gcs_handler import GCSHandler
 
 class IndexerConfig(Struct):
     name: str

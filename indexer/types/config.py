@@ -13,9 +13,11 @@ class GCSConfig(Struct):
 
 class StorageConfig(Struct):
     rpc_prefix: str
-    decoded_prefix: str
+    processing_prefix: str
+    complete_prefix: str
     rpc_format: str
-    decoded_format: str
+    processing_format: str
+    complete_format: str
 
 class TokenConfig(Struct):
     symbol: Optional[str] = None
