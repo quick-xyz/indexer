@@ -6,7 +6,7 @@ from ..new import EvmAddress
 from .base import DomainEvent, DomainEventId
 
 
-class Transfer(DomainEvent, tag=True):
+class Transfer(DomainEvent, tag=True, kw_only=True):
     token: EvmAddress
     amount: int
     from_address: EvmAddress
@@ -25,13 +25,13 @@ class Transfer(DomainEvent, tag=True):
             "transfer_type": self.transfer_type,
         }
 
-class UnmatchedTransfer(Transfer, tag=True):
+class UnmatchedTransfer(Transfer, tag=True, kw_only=True):
     pass
 
-class MatchedTransfer(Transfer, tag=True):
+class MatchedTransfer(Transfer, tag=True, kw_only=True):
     pass
 
-class TransferLedger(DomainEvent, tag=True):
+class TransferLedger(DomainEvent, tag=True, kw_only=True):
     token: EvmAddress
     address: EvmAddress
     amount: int

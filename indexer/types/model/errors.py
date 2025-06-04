@@ -9,13 +9,13 @@ from ..new import ErrorId, EvmAddress, EvmHash
 
 
 class ProcessingError(Struct):
-    error_id: Optional[ErrorId] = None
     stage: str  # "rpc", "decode", "transform", "storage"
     error_type: str  # "missing_data", "decode_failed", "validation_failed"
     message: str
-    context: Optional[Dict[str, Any]] = None  # tx_hash, log_index, contract_address, etc.
     status: Literal["unresolved", "resolved"] = "unresolved"
     attempts: int = 0
+    error_id: Optional[ErrorId] = None
+    context: Optional[Dict[str, Any]] = None  # tx_hash, log_index, contract_address, etc.
 
     def __post_init__(self) -> None:
         if not self.error_id:

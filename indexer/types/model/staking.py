@@ -7,7 +7,7 @@ from .base import DomainEvent
 from .transfer import Transfer
 
 
-class Staking(DomainEvent, tag=True):
+class Staking(DomainEvent, tag=True, kw_only=True):
     contract: EvmAddress
     staker: EvmAddress
     token: EvmAddress

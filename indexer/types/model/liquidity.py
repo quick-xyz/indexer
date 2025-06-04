@@ -7,7 +7,7 @@ from .base import DomainEvent, DomainEventId
 from .transfer import Transfer
 
 
-class Position(DomainEvent, tag=True):
+class Position(DomainEvent, tag=True, kw_only=True):
     receipt_token: EvmAddress
     receipt_id: int
     amount_base: int
@@ -26,7 +26,7 @@ class Position(DomainEvent, tag=True):
             "amount_receipt": self.amount_receipt if self.amount_receipt is not None else 0,
         }
 
-class Liquidity(DomainEvent, tag=True):
+class Liquidity(DomainEvent, tag=True, kw_only=True):
     pool: EvmAddress
     provider: EvmAddress
     base_token: EvmAddress

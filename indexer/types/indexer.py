@@ -41,7 +41,6 @@ class Transaction(Struct):
     tx_hash: EvmHash
     index: int
     origin_from: EvmAddress
-    origin_to: Optional[EvmAddress]
     function: EncodedMethod | DecodedMethod
     value: int
     tx_success: bool
@@ -50,6 +49,7 @@ class Transaction(Struct):
     events: Optional[Dict[DomainEventId,DomainEvent]] = None
     errors: Optional[Dict[ErrorId,ProcessingError]] = None
     indexing_status: Optional[str] = None
+    origin_to: Optional[EvmAddress] = None
 
 class Block(Struct):
     block_number: int

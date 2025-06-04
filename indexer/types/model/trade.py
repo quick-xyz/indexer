@@ -8,7 +8,7 @@ from .transfer import Transfer
 from .auction import AuctionPurchase
 
 
-class Swap(DomainEvent, tag=True):
+class Swap(DomainEvent, tag=True, kw_only=True):
     '''Unknown swap event.'''
     taker: EvmAddress
     direction: Literal["buy","sell"]
@@ -19,11 +19,11 @@ class Swap(DomainEvent, tag=True):
     transfers: Optional[Dict[DomainEventId,Transfer]] = None
     batch: Optional[Dict[int,int]] = None  # {id: {base: amount, quote: amount}}
 
-class PoolSwap(Swap, tag=True):
+class PoolSwap(Swap, tag=True, kw_only=True):
     '''Pool swap event.'''
     pool: EvmAddress
 
-class Trade(DomainEvent, tag=True):
+class Trade(DomainEvent, tag=True, kw_only=True):
     '''Top level trade event. Net buy/sell.'''
     taker: EvmAddress
     direction: Literal["buy","sell"]

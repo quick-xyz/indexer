@@ -6,7 +6,7 @@ from ..new import EvmAddress
 from .base import DomainEvent
 
 
-class FarmAdd(DomainEvent, tag=True):
+class FarmAdd(DomainEvent, tag=True, kw_only=True):
     contract: EvmAddress
     farm_id: int
     reward_rate: int
@@ -24,7 +24,7 @@ class FarmAdd(DomainEvent, tag=True):
             "rewarder_address": self.rewarder_address,
         }
 
-class FarmSet(DomainEvent, tag=True):
+class FarmSet(DomainEvent, tag=True, kw_only=True):
     contract: EvmAddress
     farm_id: int
     reward_rate: int
@@ -42,7 +42,7 @@ class FarmSet(DomainEvent, tag=True):
             "overwrite": self.overwrite,
         }
 
-class FarmDeposit(DomainEvent, tag=True):
+class FarmDeposit(DomainEvent, tag=True, kw_only=True):
     contract: EvmAddress
     farm_id: int
     staker: EvmAddress
@@ -58,7 +58,7 @@ class FarmDeposit(DomainEvent, tag=True):
             "amount": self.amount,
         }
 
-class FarmWithdraw(DomainEvent, tag=True):
+class FarmWithdraw(DomainEvent, tag=True, kw_only=True):
     contract: EvmAddress
     farm_id: int
     staker: EvmAddress
@@ -74,7 +74,7 @@ class FarmWithdraw(DomainEvent, tag=True):
             "amount": self.amount,
         }
 
-class UpdateFarm(DomainEvent, tag=True):
+class UpdateFarm(DomainEvent, tag=True, kw_only=True):
     contract: EvmAddress
     farm_id: int
     last_reward_timestamp: int
@@ -92,7 +92,7 @@ class UpdateFarm(DomainEvent, tag=True):
             "acc_reward_per_share": self.acc_reward_per_share,
         }
 
-class FarmHarvest(DomainEvent, tag=True):
+class FarmHarvest(DomainEvent, tag=True, kw_only=True):
     contract: EvmAddress
     farm_id: int
     staker: EvmAddress
@@ -110,7 +110,7 @@ class FarmHarvest(DomainEvent, tag=True):
             "amount_owed": self.amount_owed,
         }
 
-class FarmBatchHarvest(DomainEvent, tag=True):
+class FarmBatchHarvest(DomainEvent, tag=True, kw_only=True):
     contract: EvmAddress
     farm_ids: List[int]
 
@@ -122,7 +122,7 @@ class FarmBatchHarvest(DomainEvent, tag=True):
             "farm_ids": self.farm_ids,
         }
 
-class FarmEmergencyWithdraw(DomainEvent, tag=True):
+class FarmEmergencyWithdraw(DomainEvent, tag=True, kw_only=True):
     contract: EvmAddress
     farm_id: int
     staker: EvmAddress
@@ -138,7 +138,7 @@ class FarmEmergencyWithdraw(DomainEvent, tag=True):
             "amount": self.amount,
         }
 
-class FarmSkim(DomainEvent, tag=True):
+class FarmSkim(DomainEvent, tag=True, kw_only=True):
     contract: EvmAddress
     token: EvmAddress
     to: EvmAddress

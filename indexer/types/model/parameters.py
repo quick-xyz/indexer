@@ -6,13 +6,13 @@ from ..new import EvmAddress
 from .base import DomainEvent
 
 
-class Parameter(DomainEvent, tag=True):
+class Parameter(DomainEvent, tag=True, kw_only=True):
     parameter: str
     value_type: Literal["address","string","int","bool"]
     new_value: Optional[any] = None
     old_value: Optional[any] = None
 
-class ParameterSet(DomainEvent, tag=True):
+class ParameterSet(DomainEvent, tag=True, kw_only=True):
     contract: EvmAddress
     parameters: List[Parameter]
     

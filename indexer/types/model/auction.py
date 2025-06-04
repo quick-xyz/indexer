@@ -4,7 +4,7 @@ from ..new import EvmAddress
 from .base import DomainEvent
 
 
-class AuctionPurchase(DomainEvent, tag=True):
+class AuctionPurchase(DomainEvent, tag=True, kw_only=True):
     lot: int
     buyer: EvmAddress
     amount_base: int
@@ -22,7 +22,7 @@ class AuctionPurchase(DomainEvent, tag=True):
             "price": self.price,
         }
 
-class LotStarted(DomainEvent, tag=True):
+class LotStarted(DomainEvent, tag=True, kw_only=True):
     lot: int
     start_price: int
     start_time: int
@@ -36,7 +36,7 @@ class LotStarted(DomainEvent, tag=True):
             "start_time": self.start_time,
         }
 
-class LotCancelled(DomainEvent, tag=True):
+class LotCancelled(DomainEvent, tag=True, kw_only=True):
     lot: int
     end_price: int
 

@@ -8,12 +8,12 @@ from msgspec import Struct
 from ..new import EvmHash, DomainEventId
 
 
-class DomainEvent(Struct):
+class DomainEvent(Struct, kw_only=True):
     ''' Base class for domain events. '''
-    content_id: Optional[DomainEventId] = None
     timestamp: int
     tx_hash: EvmHash
     log_index: Optional[int] = None
+    content_id: Optional[DomainEventId] = None
 
     def __post_init__(self) -> None:
         if not self.content_id:

@@ -6,12 +6,12 @@ from ..new import EvmAddress
 from .base import DomainEvent, DomainEventId
 
 
-class Reward(DomainEvent, tag=True):
+class Reward(DomainEvent, tag=True, kw_only=True):
     reward_token: EvmAddress
     amount: int
     reward_type: Literal["claim_rewards","claim_fees"]
 
-class RewardSet(DomainEvent, tag=True):
+class RewardSet(DomainEvent, tag=True, kw_only=True):
     contract: EvmAddress
     recipient: EvmAddress
     token: EvmAddress

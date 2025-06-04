@@ -6,7 +6,7 @@ from ..new import EvmAddress
 from .base import DomainEvent
 
 
-class Fee(DomainEvent, tag=True):
+class Fee(DomainEvent, tag=True, kw_only=True):
     pool: EvmAddress
     fee_type: str
     token: EvmAddress
