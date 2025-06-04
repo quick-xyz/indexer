@@ -195,13 +195,13 @@ class BaseTransformer(ABC):
                 return False
         return True
 
-    def _validate_transfer_count(self, transfers: List[Transfer], expected_count: int,
+    def _validate_transfer_count(self, transfers: List[Transfer], name: str, expected_count: int,
                                 tx_hash: EvmHash, log_index: int, error_type: str,
                                 error_dict: Dict[ErrorId, ProcessingError]) -> bool:
         if len(transfers) != expected_count:
             error = create_transform_error(
                 error_type=error_type,
-                message=f"Expected {expected_count} transfers, found {len(transfers)}",
+                message=f"Expected exactly {expected_count} {name} transfers, found {len(transfers)}",
                 tx_hash=tx_hash,
                 log_index=log_index
             )

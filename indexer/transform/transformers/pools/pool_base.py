@@ -1,7 +1,6 @@
+# indexer/transform/transformers/pools/pool_base.py
 
-from abc import ABC, abstractmethod
-from typing import List, Any, Optional, Dict, Tuple
-import msgspec
+from typing import List, Optional, Dict, Tuple
 
 from ..base import BaseTransformer
 from ....types import (
@@ -9,15 +8,14 @@ from ....types import (
     DecodedLog,
     Transaction,
     EvmAddress,
-    DomainEvent,
     ProcessingError,
     Transfer,
-    UnmatchedTransfer,
     MatchedTransfer,
     DomainEventId,
     ErrorId,
     create_transform_error,
     EvmHash,
+    Position,
 )
 
 
@@ -89,10 +87,7 @@ class PoolTransformer(BaseTransformer):
         return liq_transfers
 
     def _get_swap_transfers(self, unmatched_transfers: Dict[DomainEventId, Transfer]) -> Dict[str, Dict[DomainEventId, Transfer]]:
-        swap_transfers = {
-            "base_swaps": {},
-            "quote_swaps": {},
-        }
+        swap_transfers = {"base_swaps": {},"quote_swaps": {}}
 
         for key, transfer in unmatched_transfers.items():
             if not (transfer.from_address == self.contract_address or transfer.to_address == self.contract_address):
@@ -104,3 +99,111 @@ class PoolTransformer(BaseTransformer):
                 swap_transfers["quote_swaps"][key] = transfer
 
         return swap_transfers
+    
+    def _validate_bin_consistency(self, amounts: List, bins: List, transfer_bins: List, 
+                                 tx_hash: EvmHash, log_index: int, error_dict: Dict[ErrorId, ProcessingError]) -> bool:
+        if len(amounts) != len(bins):
+            error = create_transform_error(
+                error_type="invalid_lb_transfer",
+                message=f"LB: Expected amounts and bins to have the same length, got {len(amounts)} and {len(bins)}",
+                tx_hash=tx_hash,
+                log_index=log_index
+            )
+            error_dict[error.error_id] = error
+            return False
+
+        if transfer_bins != bins:
+            error = create_transform_error(
+                error_type="invalid_lb_transfer",
+                message="Transfer bins do not match event bins",
+                tx_hash=tx_hash,
+                log_index=log_index
+            )
+            error_dict[error.error_id] = error
+            return False
+
+        return True
+
+    def _unpack_lb_amounts(self, amounts: bytes) -> Tuple[int, int]:
+        try:
+            if isinstance(amounts, str):
+                amounts = amounts.replace("0x", "")
+                packed_amounts = bytes.fromhex(amounts)
+            else:
+                packed_amounts = amounts
+            
+            amounts_x = int.from_bytes(packed_amounts, byteorder="big") & (2 ** 128 - 1)
+            amounts_y = int.from_bytes(packed_amounts, byteorder="big") >> 128
+
+            if self.token0 == self.base_token:
+                return amounts_x, amounts_y
+            else:
+                return amounts_y, amounts_x
+        except Exception:
+            return None, None
+
+
+    def _create_positions_from_bins(self, bins: List[int], amounts: List, bin_amounts: Dict, 
+                                   tx: Transaction, log: DecodedLog, negative: bool = False) -> Tuple[Dict, int, int, int]:
+        positions = {}
+        sum_base, sum_quote, sum_receipt = 0, 0, 0
+        multiplier = -1 if negative else 1
+
+        for i, bin_id in enumerate(bins):
+            base_amount, quote_amount = self._unpack_lb_amounts(amounts[i])
+            receipt_amount = bin_amounts[bin_id]
+
+            position = Position(
+                timestamp=tx.timestamp,
+                tx_hash=tx.tx_hash,
+                receipt_token=log.contract,
+                receipt_id=bin_id,
+                amount_base=base_amount * multiplier,
+                amount_quote=quote_amount * multiplier,
+                amount_receipt=receipt_amount * multiplier,
+            )
+            positions[position.content_id] = position
+            
+            sum_base += base_amount
+            sum_quote += quote_amount
+            sum_receipt += receipt_amount
+
+        return positions, sum_base, sum_quote, sum_receipt
+
+    def _aggregate_swap_logs(self, swap_logs: List[DecodedLog]) -> Tuple[int, int, Dict]:
+        net_base_amount, net_quote_amount = 0, 0
+        swap_batch = {}
+
+        for log in swap_logs:
+            base_amount_in, quote_amount_in = self._unpack_lb_amounts(log.attributes.get("amountsIn"))
+            base_amount_out, quote_amount_out = self._unpack_lb_amounts(log.attributes.get("amountsOut"))
+
+            base_amount = base_amount_in - base_amount_out
+            quote_amount = quote_amount_in - quote_amount_out
+            bin_id = int(log.attributes.get("id"))
+            
+            swap_batch[bin_id] = {"base": base_amount, "quote": quote_amount}
+            net_base_amount += base_amount
+            net_quote_amount += quote_amount
+
+        return net_base_amount, net_quote_amount, swap_batch
+
+    def _handle_batch_transfers(self, transfers_to_match: List[Transfer]) -> Dict[DomainEventId, MatchedTransfer]:
+        return self._create_matched_transfers_dict(transfers_to_match)
+
+    def _validate_transfer_counts_flexible(self, transfer_groups: List[Tuple], tx_hash: EvmHash, log_index: int, 
+                                         error_type: str, error_dict: Dict[ErrorId, ProcessingError]) -> bool:
+        for transfers, name, expected, is_max in transfer_groups:
+            if is_max:
+                if len(transfers) > expected:
+                    error = create_transform_error(
+                        error_type=error_type,
+                        message=f"Expected at most {expected} {name}, found {len(transfers)}",
+                        tx_hash=tx_hash, log_index=log_index
+                    )
+                    error_dict[error.error_id] = error
+                    return False
+            else:
+                if not self._validate_transfer_count(transfers, name, expected, tx_hash, log_index, error_type, error_dict):
+                    return False
+        return True

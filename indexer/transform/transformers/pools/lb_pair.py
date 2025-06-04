@@ -20,7 +20,6 @@ from ....types import (
     create_transform_error,
     EvmHash,
 )
-from ....utils.lb_byte32_decoder import decode_amounts
 
 
 class LbPairTransformer(BaseTransformer):
