@@ -175,9 +175,6 @@
             },
             "token":{}
         },
-
-
-
         "0xaaa78e8c4241990b4ce159e105da08129345946a": {
             "name": "CL Position Manager",
             "project": "Pharaoh",
@@ -206,15 +203,7 @@
             },
             "token":{}
         },
-
-        
         "0x45a62b090df48243f12a21897e7ed91863e2c86b": {
-            "name": "LFJ Aggregator v2",
-            "project": "LFJ",
-            "type": "Aggregator",
-            "abi_dir": "aggregators",
-            "abi": "aggregatorv2_2.json",
-
             "name": "Aggregator v2_2",
             "project": "LFJ",
             "type": "Aggregator",
@@ -229,13 +218,7 @@
                     "SwapExactIn": 9,
                     "SwapExactOut": 9
                 },
-                "instantiate": {
-                    "contract": "0x3fc41c1ae339322ab87b6ba48e30781d88a304d4",
-                    "token0": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
-                    "token1": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
-                    "base_token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
-                    "nfp_manager": "0xaaa78e8c4241990b4ce159e105da08129345946a"
-                }
+                "instantiate": {}
             },
             "token":{}
         },
@@ -243,25 +226,51 @@
             "name": "Meta Aggregation Router v2",
             "project": "Kyberswap",
             "type": "Aggregator",
-            "abi_dir": "aggregators",
-            "abi": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5.json"
+            "decode": {
+                "abi_dir": "aggregators",
+                "abi":  "0x6131b5fae19ea4f9d964eac0408e4408b66337b5.json"
+            },
+            "transform": {
+                "name": "",
+                "transfers": {},
+                "logs": {},
+                "instantiate": {}
+            },
+            "token":{}
         },
         "0x1dac23e41fc8ce857e86fd8c1ae5b6121c67d96d": {
             "name": "Dex Aggregation Router",
             "project": "OKX",
             "type": "Aggregator",
-            "abi_dir": "aggregators",
-            "abi": "0x1dac23e41fc8ce857e86fd8c1ae5b6121c67d96d.json"
+            "decode": {
+                "abi_dir": "aggregators",
+                "abi":  "0x1dac23e41fc8ce857e86fd8c1ae5b6121c67d96d.json"
+            },
+            "transform": {
+                "name": "",
+                "transfers": {},
+                "logs": {},
+                "instantiate": {}
+            },
+            "token":{}
         },
         "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc": {
             "name": "RouterV2",
             "project": "Odos",
             "type": "Aggregator",
-            "abi_dir": "rouaggregatorsers",
-            "abi": "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc.json"
-        },
-
-
+            "decode": {
+                "abi_dir": "aggregators",
+                "abi":  "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc.json"
+            },
+            "transform": {
+                "name": "",
+                "transfers": {},
+                "logs": {},
+                "instantiate": {}
+            },
+            "token":{}
+        }
+    },
     "addresses":{
         "0xe8afa8eb383ced1696c2d8ceb080f47df48f11af": {
             "name": "Treasury",
@@ -304,5 +313,6 @@
             "project": "LFJ"
         }
     }
+}
 
 
