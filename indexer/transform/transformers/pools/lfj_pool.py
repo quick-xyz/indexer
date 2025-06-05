@@ -20,6 +20,7 @@ from ....types import (
     create_transform_error,
     TransferLedger,
 )
+from ....utils.amounts import amount_to_str, amount_to_int, compare_amounts
 
 
 class LfjPoolTransformer(PoolTransformer):
@@ -54,9 +55,9 @@ class LfjPoolTransformer(PoolTransformer):
             liq_transfers = self._get_liquidity_transfers(unmatched_transfers)
             
             base_deposits = [t for t in liq_transfers["deposits"].values() 
-                           if t.token == self.base_token and t.amount == base_amount]
+                           if t.token == self.base_token and compare_amounts(t.amount, base_amount) == 0]
             quote_deposits = [t for t in liq_transfers["deposits"].values() 
-                            if t.token == self.quote_token and t.amount == quote_amount]
+                            if t.token == self.quote_token and compare_amounts(t.amount, quote_amount) == 0]
             pool_mints = [t for t in liq_transfers["mints"].values() 
                          if t.to_address != self.fee_collector]
             fee_collection = [t for t in liq_transfers["mints"].values() 
@@ -122,9 +123,9 @@ class LfjPoolTransformer(PoolTransformer):
             liq_transfers = self._get_liquidity_transfers(unmatched_transfers)
             
             base_withdrawals = [t for t in liq_transfers["withdrawals"].values() 
-                              if t.token == self.base_token and t.amount == base_amount]
+                              if t.token == self.base_token and compare_amounts(t.amount, base_amount) == 0]
             quote_withdrawals = [t for t in liq_transfers["withdrawals"].values() 
-                               if t.token == self.quote_token and t.amount == quote_amount]
+                               if t.token == self.quote_token and compare_amounts(t.amount, quote_amount) == 0]
             pool_burns = list(liq_transfers["burns"].values())
             fee_collection = [t for t in liq_transfers["mints"].values() 
                             if t.to_address == self.fee_collector]
@@ -141,7 +142,7 @@ class LfjPoolTransformer(PoolTransformer):
             receipt_transfers = []
             if pool_burns[0].from_address != provider:
                 receipt_transfers = [t for t in liq_transfers["receipt_transfers"].values() 
-                                   if t.amount == pool_burns[0].amount and t.from_address == provider]
+                                   if compare_amounts(t.amount, pool_burns[0].amount) == 0 and t.from_address == provider]
                 if receipt_transfers and len(receipt_transfers) != 1:
                     error = create_transform_error(
                         error_type="invalid_liquidity_withdrawal",
@@ -159,9 +160,9 @@ class LfjPoolTransformer(PoolTransformer):
                 tx_hash=tx.tx_hash,
                 receipt_token=log.contract,
                 receipt_id=0,
-                amount_base=-base_amount,
-                amount_quote=-quote_amount,
-                amount_receipt=-pool_burns[0].amount
+                amount_base=amount_to_str(-amount_to_int(base_amount)),
+                amount_quote=amount_to_str(-amount_to_int(quote_amount)),
+                amount_receipt=amount_to_str(-amount_to_int(pool_burns[0].amount))
             )
 
             liquidity = Liquidity(
@@ -170,9 +171,9 @@ class LfjPoolTransformer(PoolTransformer):
                 pool=log.contract,
                 provider=provider,
                 base_token=self.base_token,
-                amount_base=-base_amount,
+                amount_base=amount_to_str(-amount_to_int(base_amount)),
                 quote_token=self.quote_token,
-                amount_quote=-quote_amount,
+                amount_quote=amount_to_str(-amount_to_int(quote_amount)),
                 action="remove_lp",
                 positions={position.content_id: position},
                 transfers=matched_transfers
@@ -204,8 +205,8 @@ class LfjPoolTransformer(PoolTransformer):
             unmatched_transfers = self._get_unmatched_transfers(tx)
             swap_transfers = self._get_swap_transfers(unmatched_transfers)
             
-            base_swaps = [t for t in swap_transfers["base_swaps"].values() if t.amount == abs(base_amount)]
-            quote_swaps = [t for t in swap_transfers["quote_swaps"].values() if t.amount == abs(quote_amount)]
+            base_swaps = [t for t in swap_transfers["base_swaps"].values() if compare_amounts(t.amount, amount_to_str(abs(amount_to_int(base_amount)))) == 0]
+            quote_swaps = [t for t in swap_transfers["quote_swaps"].values() if compare_amounts(t.amount, amount_to_str(abs(amount_to_int(quote_amount)))) == 0]
 
             for transfers, name in [(base_swaps, "base_swaps"), (quote_swaps, "quote_swaps")]:
                 if not self._validate_transfer_count(transfers, name, 1, tx.tx_hash, log.index, 

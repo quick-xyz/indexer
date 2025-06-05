@@ -8,11 +8,11 @@ from .base import DomainEvent, DomainEventId
 
 class Transfer(DomainEvent, tag=True, kw_only=True):
     token: EvmAddress
-    amount: int
+    amount: str
     from_address: EvmAddress
     to_address: EvmAddress
     transfer_type: Literal["transfer","transfer_batch"] = "transfer"
-    batch: Optional[Dict[int,int]] = None # {id: amount}
+    batch: Optional[Dict[int,str]] = None
     
     def _get_identifying_content(self):
         return {
@@ -34,7 +34,7 @@ class MatchedTransfer(Transfer, tag=True, kw_only=True):
 class TransferLedger(DomainEvent, tag=True, kw_only=True):
     token: EvmAddress
     address: EvmAddress
-    amount: int
+    amount: str
     action: Literal["sent","received"]
     transfers: Optional[Dict[DomainEventId,Transfer]] = None
     desc: Optional[str] = None

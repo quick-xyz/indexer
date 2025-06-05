@@ -7,9 +7,9 @@ from .base import DomainEvent
 class AuctionPurchase(DomainEvent, tag=True, kw_only=True):
     lot: int
     buyer: EvmAddress
-    amount_base: int
-    amount_quote: int
-    price: int
+    amount_base: str
+    amount_quote: str
+    price: str
 
     def _get_identifying_content(self):
         return {
@@ -24,7 +24,7 @@ class AuctionPurchase(DomainEvent, tag=True, kw_only=True):
 
 class LotStarted(DomainEvent, tag=True, kw_only=True):
     lot: int
-    start_price: int
+    start_price: str
     start_time: int
 
     def _get_identifying_content(self):
@@ -38,7 +38,7 @@ class LotStarted(DomainEvent, tag=True, kw_only=True):
 
 class LotCancelled(DomainEvent, tag=True, kw_only=True):
     lot: int
-    end_price: int
+    end_price: str
 
     def _get_identifying_content(self):
         return {

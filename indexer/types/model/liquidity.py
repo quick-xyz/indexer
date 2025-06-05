@@ -10,9 +10,9 @@ from .transfer import Transfer
 class Position(DomainEvent, tag=True, kw_only=True):
     receipt_token: EvmAddress
     receipt_id: int
-    amount_base: int
-    amount_quote: int
-    amount_receipt: Optional[int] = None
+    amount_base: str
+    amount_quote: str
+    amount_receipt: Optional[str] = None
     custodian: Optional[EvmAddress] = None
 
     def _get_identifying_content(self):
@@ -23,16 +23,16 @@ class Position(DomainEvent, tag=True, kw_only=True):
             "receipt_id": self.receipt_id,
             "amount_base": self.amount_base,
             "amount_quote": self.amount_quote,
-            "amount_receipt": self.amount_receipt if self.amount_receipt is not None else 0,
+            "amount_receipt": self.amount_receipt if self.amount_receipt is not None else "0",
         }
 
 class Liquidity(DomainEvent, tag=True, kw_only=True):
     pool: EvmAddress
     provider: EvmAddress
     base_token: EvmAddress
-    amount_base: int
+    amount_base: str
     quote_token: EvmAddress
-    amount_quote: int
+    amount_quote: str
     action: Literal["add_lp","remove_lp","update_lp"]
     positions: Optional[Dict[DomainEventId,Position]] = None
     transfers: Optional[Dict[DomainEventId,Transfer]] = None

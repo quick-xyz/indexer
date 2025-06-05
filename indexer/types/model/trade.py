@@ -13,11 +13,11 @@ class Swap(DomainEvent, tag=True, kw_only=True):
     taker: EvmAddress
     direction: Literal["buy","sell"]
     base_token: EvmAddress
-    base_amount: int
+    base_amount: str
     quote_token: EvmAddress
-    quote_amount: int
+    quote_amount: str
     transfers: Optional[Dict[DomainEventId,Transfer]] = None
-    batch: Optional[Dict[int,int]] = None  # {id: {base: amount, quote: amount}}
+    batch: Optional[Dict[int,Dict[str,str]]] = None
 
 class PoolSwap(Swap, tag=True, kw_only=True):
     '''Pool swap event.'''
@@ -28,9 +28,9 @@ class Trade(DomainEvent, tag=True, kw_only=True):
     taker: EvmAddress
     direction: Literal["buy","sell"]
     base_token: EvmAddress
-    base_amount: int
+    base_amount: str
     quote_token: EvmAddress
-    quote_amount: int
+    quote_amount: str
     trade_type: Literal["arbitrage","trade","auction"] = "trade"
     router: Optional[EvmAddress] = None
     swaps: Optional[Dict[DomainEventId,Swap|PoolSwap|AuctionPurchase]] = None

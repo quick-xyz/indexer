@@ -10,7 +10,7 @@ class Fee(DomainEvent, tag=True, kw_only=True):
     pool: EvmAddress
     fee_type: str
     token: EvmAddress
-    fee_amount: int
+    fee_amount: str
     payer: Optional[EvmAddress]
 
     def _get_identifying_content(self):

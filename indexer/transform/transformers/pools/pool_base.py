@@ -17,6 +17,7 @@ from ....types import (
     EvmHash,
     Position,
 )
+from ....utils.amounts import amount_to_int, amount_to_str, abs_amount
 
 
 class PoolTransformer(BaseTransformer):
@@ -32,10 +33,10 @@ class PoolTransformer(BaseTransformer):
         if self.base_token not in [self.token0, self.token1]:
             raise ValueError(f"Base token {self.base_token} must be one of the pool tokens")
 
-    def get_amounts(self, log: DecodedLog) -> Tuple[Optional[int], Optional[int]]:
+    def get_amounts(self, log: DecodedLog) -> Tuple[Optional[str], Optional[str]]:
         try:
-            amount0 = int(log.attributes.get("amount0"))
-            amount1 = int(log.attributes.get("amount1"))
+            amount0 = amount_to_str(log.attributes.get("amount0"))
+            amount1 = amount_to_str(log.attributes.get("amount1"))
 
             if amount0 is None or amount1 is None:
                 return None, None
@@ -44,10 +45,15 @@ class PoolTransformer(BaseTransformer):
         except Exception:
             return None, None
 
-    def get_in_out_amounts(self, log: DecodedLog) -> Tuple[Optional[int], Optional[int]]:
+    def get_in_out_amounts(self, log: DecodedLog) -> Tuple[Optional[str], Optional[str]]:
         try:            
-            amount0 = int(log.attributes.get("amount0In", 0)) - int(log.attributes.get("amount0Out", 0))
-            amount1 = int(log.attributes.get("amount1In", 0)) - int(log.attributes.get("amount1Out", 0))
+            amount0_in = amount_to_int(log.attributes.get("amount0In", 0))
+            amount0_out = amount_to_int(log.attributes.get("amount0Out", 0))
+            amount1_in = amount_to_int(log.attributes.get("amount1In", 0))
+            amount1_out = amount_to_int(log.attributes.get("amount1Out", 0))
+            
+            amount0 = amount_to_str(amount0_in - amount0_out)
+            amount1 = amount_to_str(amount1_in - amount1_out)
             
             if self.token0 == self.base_token:
                 return amount0, amount1
@@ -124,7 +130,7 @@ class PoolTransformer(BaseTransformer):
 
         return True
 
-    def _unpack_lb_amounts(self, amounts: bytes) -> Tuple[int, int]:
+    def _unpack_lb_amounts(self, amounts: bytes) -> Tuple[str, str]:
         try:
             if isinstance(amounts, str):
                 amounts = amounts.replace("0x", "")
@@ -136,41 +142,43 @@ class PoolTransformer(BaseTransformer):
             amounts_y = int.from_bytes(packed_amounts, byteorder="big") >> 128
 
             if self.token0 == self.base_token:
-                return amounts_x, amounts_y
+                return amount_to_str(amounts_x), amount_to_str(amounts_y)
             else:
-                return amounts_y, amounts_x
+                return amount_to_str(amounts_y), amount_to_str(amounts_x)
         except Exception:
             return None, None
 
 
     def _create_positions_from_bins(self, bins: List[int], amounts: List, bin_amounts: Dict, 
-                                   tx: Transaction, log: DecodedLog, negative: bool = False) -> Tuple[Dict, int, int, int]:
+                                   tx: Transaction, log: DecodedLog, negative: bool = False) -> Tuple[Dict, str, str, str]:
         positions = {}
         sum_base, sum_quote, sum_receipt = 0, 0, 0
         multiplier = -1 if negative else 1
 
         for i, bin_id in enumerate(bins):
-            base_amount, quote_amount = self._unpack_lb_amounts(amounts[i])
-            receipt_amount = bin_amounts[bin_id]
+            base_amount_int, quote_amount_int = self._unpack_lb_amounts(amounts[i])
+            base_amount_int = amount_to_int(base_amount_int)
+            quote_amount_int = amount_to_int(quote_amount_int)
+            receipt_amount = amount_to_int(bin_amounts[bin_id])
 
             position = Position(
                 timestamp=tx.timestamp,
                 tx_hash=tx.tx_hash,
                 receipt_token=log.contract,
                 receipt_id=bin_id,
-                amount_base=base_amount * multiplier,
-                amount_quote=quote_amount * multiplier,
-                amount_receipt=receipt_amount * multiplier,
+                amount_base=amount_to_str(base_amount_int * multiplier),
+                amount_quote=amount_to_str(quote_amount_int * multiplier),
+                amount_receipt=amount_to_str(receipt_amount * multiplier),
             )
             positions[position.content_id] = position
             
-            sum_base += base_amount
-            sum_quote += quote_amount
+            sum_base += base_amount_int
+            sum_quote += quote_amount_int
             sum_receipt += receipt_amount
 
-        return positions, sum_base, sum_quote, sum_receipt
+        return positions, amount_to_str(sum_base), amount_to_str(sum_quote), amount_to_str(sum_receipt)
 
-    def _aggregate_swap_logs(self, swap_logs: List[DecodedLog]) -> Tuple[int, int, Dict]:
+    def _aggregate_swap_logs(self, swap_logs: List[DecodedLog]) -> Tuple[str, str, Dict]:
         net_base_amount, net_quote_amount = 0, 0
         swap_batch = {}
 
@@ -178,15 +186,20 @@ class PoolTransformer(BaseTransformer):
             base_amount_in, quote_amount_in = self._unpack_lb_amounts(log.attributes.get("amountsIn"))
             base_amount_out, quote_amount_out = self._unpack_lb_amounts(log.attributes.get("amountsOut"))
 
+            base_amount_in = amount_to_int(base_amount_in)
+            quote_amount_in = amount_to_int(quote_amount_in)
+            base_amount_out = amount_to_int(base_amount_out)
+            quote_amount_out = amount_to_int(quote_amount_out)
+
             base_amount = base_amount_in - base_amount_out
             quote_amount = quote_amount_in - quote_amount_out
             bin_id = int(log.attributes.get("id"))
             
-            swap_batch[bin_id] = {"base": base_amount, "quote": quote_amount}
+            swap_batch[bin_id] = {"base": amount_to_str(base_amount), "quote": amount_to_str(quote_amount)}
             net_base_amount += base_amount
             net_quote_amount += quote_amount
 
-        return net_base_amount, net_quote_amount, swap_batch
+        return amount_to_str(net_base_amount), amount_to_str(net_quote_amount), swap_batch
 
     def _handle_batch_transfers(self, transfers_to_match: List[Transfer]) -> Dict[DomainEventId, MatchedTransfer]:
         return self._create_matched_transfers_dict(transfers_to_match)

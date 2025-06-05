@@ -8,14 +8,14 @@ from .base import DomainEvent, DomainEventId
 
 class Reward(DomainEvent, tag=True, kw_only=True):
     reward_token: EvmAddress
-    amount: int
+    amount: str
     reward_type: Literal["claim_rewards","claim_fees"]
 
 class RewardSet(DomainEvent, tag=True, kw_only=True):
     contract: EvmAddress
     recipient: EvmAddress
     token: EvmAddress
-    amount: int
+    amount: str
     rewards: Optional[Dict[DomainEventId,Reward]] = None
 
     def _get_identifying_content(self):

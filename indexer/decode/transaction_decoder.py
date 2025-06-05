@@ -14,6 +14,7 @@ from ..types import (
     EvmTxReceipt,
     Transaction,
 )
+from ..utils.amounts import amount_to_str
 
 def hex_to_bool(hex_string: str) -> bool:
     """Convert hex string to boolean"""
@@ -71,7 +72,7 @@ class TransactionDecoder:
                 origin_from=tx.from_,
                 origin_to=tx.to,
                 function=tx_function,
-                value=tx.value,
+                value=amount_to_str(tx.value),  # Convert to string
                 tx_success=hex_to_bool(receipt.status),
                 logs=tx_logs
             )

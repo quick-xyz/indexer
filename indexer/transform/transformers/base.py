@@ -19,6 +19,7 @@ from ...types import (
     create_transform_error,
     EvmHash,
 )
+from ...utils.amounts import amount_to_int, amount_to_str, is_positive, is_zero, compare_amounts
 
 
 class BaseTransformer(ABC):
@@ -119,9 +120,9 @@ class BaseTransformer(ABC):
         try:
             from_addr = EvmAddress(str(log.attributes.get("from", "")).lower())
             to_addr = EvmAddress(str(log.attributes.get("to", "")).lower())
-            value = int(log.attributes.get("value", 0))
+            value = amount_to_str(log.attributes.get("value", 0))
             
-            if not from_addr or not to_addr or value <= 0:
+            if not from_addr or not to_addr or is_zero(value):
                 return None
                 
             return UnmatchedTransfer(
@@ -129,7 +130,7 @@ class BaseTransformer(ABC):
                 tx_hash=transaction.tx_hash,
                 log_index=log.index,
                 token=log.contract.lower(),
-                amount=value,
+                amount=value,  # Now a string
                 from_address=from_addr,
                 to_address=to_addr
             )
@@ -148,20 +149,20 @@ class BaseTransformer(ABC):
         return matched_transfers
     
 
-    def _get_swap_direction(self, base_amount: int) -> str:
-        return "buy" if base_amount > 0 else "sell"
+    def _get_swap_direction(self, base_amount: str) -> str:
+        return "buy" if is_positive(base_amount) else "sell"
 
-    def _get_base_quote_amounts(self, amount0: int, amount1: int, token0: EvmAddress, 
-                               token1: EvmAddress, base_token: EvmAddress) -> Tuple[int, int]:
+    def _get_base_quote_amounts(self, amount0: str, amount1: str, token0: EvmAddress, 
+                               token1: EvmAddress, base_token: EvmAddress) -> Tuple[str, str]:
         if token0 == base_token:
-            return abs(amount0), abs(amount1)
+            return amount_to_str(abs(amount_to_int(amount0))), amount_to_str(abs(amount_to_int(amount1)))
         elif token1 == base_token:
-            return abs(amount1), abs(amount0)
+            return amount_to_str(abs(amount_to_int(amount1))), amount_to_str(abs(amount_to_int(amount0)))
         else:
-            return None, None # Neither token matches base
+            return None, None
 
     def _calculate_net_amounts_by_token(self, transfers: List[Transfer], 
-                                      contract_address: EvmAddress) -> Dict[EvmAddress, int]:
+                                      contract_address: EvmAddress) -> Dict[EvmAddress, str]:
         """
         Calculate net amounts by token from a list of transfers.
         
@@ -173,13 +174,12 @@ class BaseTransformer(ABC):
         for transfer in transfers:
             token = transfer.token
             if token not in net_amounts:
-                net_amounts[token] = 0
+                net_amounts[token] = "0"
                 
-            # Add for transfers TO contract, subtract for transfers FROM contract
             if transfer.to_address == contract_address.lower():
-                net_amounts[token] += transfer.amount
+                net_amounts[token] = amount_to_str(amount_to_int(net_amounts[token]) + amount_to_int(transfer.amount))
             elif transfer.from_address == contract_address.lower():
-                net_amounts[token] -= transfer.amount
+                net_amounts[token] = amount_to_str(amount_to_int(net_amounts[token]) - amount_to_int(transfer.amount))
                 
         return net_amounts
 
@@ -189,9 +189,9 @@ class BaseTransformer(ABC):
                 return False
         return True
 
-    def _validate_amounts(self, *amounts: int) -> bool:
+    def _validate_amounts(self, *amounts: str) -> bool:
         for amount in amounts:
-            if not isinstance(amount, int) or amount <= 0:
+            if not isinstance(amount, str) or not is_positive(amount):
                 return False
         return True
 
@@ -251,8 +251,11 @@ class BaseTransformer(ABC):
             log_index
         )
 
-    def _sum_transfer_amounts(self, transfers: List[Transfer]) -> int:
-        return sum(t.amount for t in transfers)
+    def _sum_transfer_amounts(self, transfers: List[Transfer]) -> str:
+        total = 0
+        for t in transfers:
+            total += amount_to_int(t.amount)
+        return amount_to_str(total)
 
     def _create_transfer_summary(self, transfers: List[Transfer]) -> Dict[DomainEventId, Transfer]:
         # TODO
@@ -275,10 +278,10 @@ class BaseTransformer(ABC):
             return [t for t in transfers if t.from_address == self.contract_address]
 
     def _find_transfers_by_criteria(self, transfers: List[Transfer], token: EvmAddress,
-                                  amount: int, from_addr: Optional[EvmAddress] = None,
+                                  amount: str, from_addr: Optional[EvmAddress] = None,
                                   to_addr: Optional[EvmAddress] = None) -> List[Transfer]:
         """Find transfers matching specific criteria"""
-        filtered = [t for t in transfers if t.token == token.lower() and t.amount == amount]
+        filtered = [t for t in transfers if t.token == token.lower() and compare_amounts(t.amount, amount) == 0]
         
         if from_addr:
             filtered = [t for t in filtered if t.from_address == from_addr.lower()]

@@ -46,7 +46,7 @@ class FarmDeposit(DomainEvent, tag=True, kw_only=True):
     contract: EvmAddress
     farm_id: int
     staker: EvmAddress
-    amount: int
+    amount: str
 
     def _get_identifying_content(self):
         return {
@@ -62,7 +62,7 @@ class FarmWithdraw(DomainEvent, tag=True, kw_only=True):
     contract: EvmAddress
     farm_id: int
     staker: EvmAddress
-    amount: int
+    amount: str
 
     def _get_identifying_content(self):
         return {
@@ -78,8 +78,8 @@ class UpdateFarm(DomainEvent, tag=True, kw_only=True):
     contract: EvmAddress
     farm_id: int
     last_reward_timestamp: int
-    deposit_balance: int
-    acc_reward_per_share: int
+    deposit_balance: str
+    acc_reward_per_share: str
 
     def _get_identifying_content(self):
         return {
@@ -96,8 +96,8 @@ class FarmHarvest(DomainEvent, tag=True, kw_only=True):
     contract: EvmAddress
     farm_id: int
     staker: EvmAddress
-    amount_received: int
-    amount_owed: int
+    amount_received: str
+    amount_owed: str
 
     def _get_identifying_content(self):
         return {
@@ -126,7 +126,7 @@ class FarmEmergencyWithdraw(DomainEvent, tag=True, kw_only=True):
     contract: EvmAddress
     farm_id: int
     staker: EvmAddress
-    amount: int
+    amount: str
 
     def _get_identifying_content(self):
         return {
@@ -142,7 +142,7 @@ class FarmSkim(DomainEvent, tag=True, kw_only=True):
     contract: EvmAddress
     token: EvmAddress
     to: EvmAddress
-    amount: int
+    amount: str
 
     def _get_identifying_content(self):
         return {

@@ -51,7 +51,7 @@ class Transaction(Struct):
     index: int
     origin_from: EvmAddress
     function: EncodedMethod | DecodedMethod
-    value: int
+    value: str  # Changed from int to str
     tx_success: bool
     logs: Dict[int,EncodedLog|DecodedLog]  # keyed by log index
     origin_to: Optional[EvmAddress] = None

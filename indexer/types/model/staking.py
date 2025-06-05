@@ -11,7 +11,7 @@ class Staking(DomainEvent, tag=True, kw_only=True):
     contract: EvmAddress
     staker: EvmAddress
     token: EvmAddress
-    amount: int
+    amount: str
     action: Literal["deposit","withdraw"]
     staking_id: Optional[int] = None
     receipt_token: Optional[EvmAddress] = None

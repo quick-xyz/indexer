@@ -14,12 +14,13 @@ from ....types import (
     ErrorId,
     EvmAddress,
 )
+from ....utils.amounts import amount_to_str, is_zero
 
 class TokenTransformer(BaseTransformer):   
     def __init__(self, contract: str):
         super().__init__(contract_address=contract)
 
-    def _get_transfer_attributes(self, log: DecodedLog) -> Tuple[str, str, int]:
+    def _get_transfer_attributes(self, log: DecodedLog) -> Tuple[str, str, str]:
         """
         Extract transfer attributes from log. 
         Override in subclasses for different attribute naming.
@@ -29,7 +30,7 @@ class TokenTransformer(BaseTransformer):
         """
         from_addr = str(log.attributes.get("from", ""))
         to_addr = str(log.attributes.get("to", ""))
-        value = int(log.attributes.get("value", 0))
+        value = amount_to_str(log.attributes.get("value", 0))
         return from_addr, to_addr, value
 
     def process_transfers(self, logs: List[DecodedLog], tx: Transaction) -> Tuple[
@@ -42,12 +43,11 @@ class TokenTransformer(BaseTransformer):
             try:
                 if log.name == "Transfer":
                     from_addr, to_addr, value = self._get_transfer_attributes(log)
-                    
-                    # Validate and normalize addresses
+                
                     from_addr = EvmAddress(from_addr.lower()) if from_addr else ""
                     to_addr = EvmAddress(to_addr.lower()) if to_addr else ""
                     
-                    if not from_addr or not to_addr or value <= 0:
+                    if not from_addr or not to_addr or is_zero(value):
                         continue
                         
                     transfer = UnmatchedTransfer(

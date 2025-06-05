@@ -17,6 +17,7 @@ from ....types import (
     ErrorId,
     create_transform_error,
 )
+from ....utils.amounts import amount_to_str, amount_to_int, compare_amounts
 
 
 class LbPairTransformer(PoolTransformer):
@@ -79,11 +80,11 @@ class LbPairTransformer(PoolTransformer):
 
     def _validate_and_create_lb_positions(self, amounts: List, bins: List, pool_operations: List,
                                         tx: Transaction, log: DecodedLog, is_mint: bool,
-                                        error_dict: Dict) -> Tuple[Optional[Dict], int, int, int]:
+                                        error_dict: Dict) -> Tuple[Optional[Dict], str, str, str]:
         operation_amounts = pool_operations[0].batch
         operation_bins = list(operation_amounts.keys())
         if not self._validate_bin_consistency(amounts, bins, operation_bins, tx.tx_hash, log.index, error_dict):
-            return None, 0, 0, 0
+            return None, "0", "0", "0"
 
         positions, sum_base, sum_quote, sum_receipt = self._create_positions_from_bins(
             bins, amounts, operation_amounts, tx, log, negative=not is_mint
@@ -92,15 +93,15 @@ class LbPairTransformer(PoolTransformer):
         return positions, sum_base, sum_quote, sum_receipt
 
     def _calculate_net_amounts(self, base_transfers: List, quote_transfers: List, 
-                             refunds: List) -> Tuple[int, int]:
-        base_amount = base_transfers[0].amount if base_transfers else 0
-        quote_amount = quote_transfers[0].amount if quote_transfers else 0
+                             refunds: List) -> Tuple[str, str]:
+        base_amount = base_transfers[0].amount if base_transfers else "0"
+        quote_amount = quote_transfers[0].amount if quote_transfers else "0"
         
         for refund in refunds:
             if refund.token == self.base_token:
-                base_amount -= refund.amount
+                base_amount = amount_to_str(amount_to_int(base_amount) - amount_to_int(refund.amount))
             elif refund.token == self.quote_token:
-                quote_amount -= refund.amount
+                quote_amount = amount_to_str(amount_to_int(quote_amount) - amount_to_int(refund.amount))
                 
         return base_amount, quote_amount
 
@@ -131,7 +132,7 @@ class LbPairTransformer(PoolTransformer):
 
             net_base, net_quote = self._calculate_net_amounts(base_deposits, quote_deposits, refunds)
 
-            if not (sum_base == net_base and sum_quote == net_quote and sum_receipt == pool_mints[0].amount):
+            if not (compare_amounts(sum_base, net_base) == 0 and compare_amounts(sum_quote, net_quote) == 0 and compare_amounts(sum_receipt, pool_mints[0].amount) == 0):
                 error = create_transform_error(
                     error_type="invalid_liquidity_deposit_transfers",
                     message="Sum of amounts in positions does not match net deposit transfer amounts",
@@ -191,11 +192,11 @@ class LbPairTransformer(PoolTransformer):
                 base_router_transfers = [t for t in liq_transfers["underlying_transfers"].values() 
                                        if t.token == self.base_token and t.from_address == router and 
                                           t.to_address == provider and base_withdrawals and 
-                                          t.amount == base_withdrawals[0].amount]
+                                          compare_amounts(t.amount, base_withdrawals[0].amount) == 0]
                 quote_router_transfers = [t for t in liq_transfers["underlying_transfers"].values() 
                                         if t.token == self.quote_token and t.from_address == router and 
                                            t.to_address == provider and quote_withdrawals and 
-                                           t.amount == quote_withdrawals[0].amount]
+                                           compare_amounts(t.amount, quote_withdrawals[0].amount) == 0]
                 
                 router_transfer_groups = [
                     (base_router_transfers, "base_router_transfers", 1, True),
@@ -213,10 +214,10 @@ class LbPairTransformer(PoolTransformer):
             if positions is None:  
                 return result
 
-            expected_base = base_withdrawals[0].amount if base_withdrawals else 0
-            expected_quote = quote_withdrawals[0].amount if quote_withdrawals else 0
+            expected_base = base_withdrawals[0].amount if base_withdrawals else "0"
+            expected_quote = quote_withdrawals[0].amount if quote_withdrawals else "0"
             
-            if not (sum_base == expected_base and sum_quote == expected_quote and sum_receipt == pool_burns[0].amount):
+            if not (compare_amounts(sum_base, expected_base) == 0 and compare_amounts(sum_quote, expected_quote) == 0 and compare_amounts(sum_receipt, pool_burns[0].amount) == 0):
                 error = create_transform_error(
                     error_type="invalid_liquidity_withdrawal_transfers",
                     message="Sum of amounts in positions does not match withdrawal transfer amounts",
@@ -234,9 +235,9 @@ class LbPairTransformer(PoolTransformer):
                 pool=log.contract,
                 provider=provider,
                 base_token=self.base_token,
-                amount_base=-sum_base,
+                amount_base=amount_to_str(-amount_to_int(sum_base)),
                 quote_token=self.quote_token,
-                amount_quote=-sum_quote,
+                amount_quote=amount_to_str(-amount_to_int(sum_quote)),
                 action="remove_lp",
                 positions=positions,
                 transfers=matched_transfers
@@ -268,8 +269,8 @@ class LbPairTransformer(PoolTransformer):
                 
             direction = self._get_swap_direction(net_base_amount)
             
-            base_swaps = [t for t in swap_transfers["base_swaps"].values() if t.amount == abs(net_base_amount)]
-            quote_swaps = [t for t in swap_transfers["quote_swaps"].values() if t.amount == abs(net_quote_amount)]
+            base_swaps = [t for t in swap_transfers["base_swaps"].values() if compare_amounts(t.amount, amount_to_str(abs(amount_to_int(net_base_amount)))) == 0]
+            quote_swaps = [t for t in swap_transfers["quote_swaps"].values() if compare_amounts(t.amount, amount_to_str(abs(amount_to_int(net_quote_amount)))) == 0]
 
             for transfers, name in [(base_swaps, "base_swaps"), (quote_swaps, "quote_swaps")]:
                 if not self._validate_transfer_count(transfers, name, 1, tx.tx_hash, swap_logs[0].index, 
@@ -315,7 +316,7 @@ class LbPairTransformer(PoolTransformer):
                 if log.name == "TransferBatch":
                     from_addr = EvmAddress(str(log.attributes.get("from")).lower())
                     to_addr = EvmAddress(str(log.attributes.get("to")).lower())
-                    amounts = [int(amt) for amt in log.attributes.get("amounts")]  
+                    amounts = [amount_to_str(amt) for amt in log.attributes.get("amounts")]  
                     bins = [int(bin_id) for bin_id in log.attributes.get("ids")] 
 
                     if not len(amounts) == len(bins):
@@ -335,15 +336,15 @@ class LbPairTransformer(PoolTransformer):
                     sum_transfers = 0
                     
                     for i, bin_id in enumerate(bins):   
-                        amount = int(amounts[i])
+                        amount = amounts[i]
                         transferids[bin_id] = amount
-                        sum_transfers += amount
+                        sum_transfers += amount_to_int(amount)
 
                     transfer = UnmatchedTransfer(
                         timestamp=tx.timestamp,
                         tx_hash=tx.tx_hash,
                         token=log.contract,
-                        amount=sum_transfers,
+                        amount=amount_to_str(sum_transfers),
                         from_address=from_addr,
                         to_address=to_addr,
                         transfer_type="transfer_batch",
