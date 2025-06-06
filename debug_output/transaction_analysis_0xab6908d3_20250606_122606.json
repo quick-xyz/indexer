@@ -1,0 +1,552 @@
+{
+  "metadata": {
+    "tx_hash": "0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b",
+    "block_number": 63269916,
+    "analysis_time": "2025-06-06T12:26:06.696680",
+    "indexer": {
+      "name": "Blub Indexer Config",
+      "version": "v0.1"
+    }
+  },
+  "transaction": {
+    "hash": "0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b",
+    "success": true,
+    "from": "0x9c7ad86e0836d72809d33dfe5673b1141382963f",
+    "to": "0x45a62b090df48243f12a21897e7ed91863e2c86b",
+    "value": "0",
+    "total_logs": 29,
+    "decoded_logs": 13,
+    "logs": {
+      "0": {
+        "type": "encoded",
+        "contract": "0x7698a5311da174a95253ce86c21ca7272b9b05f8",
+        "signature": "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+        "topics_count": 3
+      },
+      "1": {
+        "type": "encoded",
+        "contract": "0x7698a5311da174a95253ce86c21ca7272b9b05f8",
+        "signature": "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925",
+        "topics_count": 3
+      },
+      "2": {
+        "type": "encoded",
+        "contract": "0x7698a5311da174a95253ce86c21ca7272b9b05f8",
+        "signature": "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+        "topics_count": 3
+      },
+      "3": {
+        "type": "encoded",
+        "contract": "0x7698a5311da174a95253ce86c21ca7272b9b05f8",
+        "signature": "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+        "topics_count": 3
+      },
+      "4": {
+        "type": "decoded",
+        "name": "Transfer",
+        "contract": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+        "attributes": {
+          "src": "0xb5FA743b43E44E2Cb74c200C81F274b0cA8e9d34",
+          "dst": "0x5f3454Fa53E5866a4f69bBc2E6B9A041092D9Ad7",
+          "wad": "16424948551223205287"
+        },
+        "transformer": {
+          "exists": true,
+          "name": "WavaxTransformer",
+          "transfer_priority": 1,
+          "log_priority": null
+        }
+      },
+      "5": {
+        "type": "encoded",
+        "contract": "0x7698a5311da174a95253ce86c21ca7272b9b05f8",
+        "signature": "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+        "topics_count": 3
+      },
+      "6": {
+        "type": "encoded",
+        "contract": "0xb5fa743b43e44e2cb74c200c81f274b0ca8e9d34",
+        "signature": "0x112c256902bf554b6ed882d2936687aaeb4225e8cd5b51303c90ca6cf43a8602",
+        "topics_count": 2
+      },
+      "7": {
+        "type": "encoded",
+        "contract": "0xb5fa743b43e44e2cb74c200c81f274b0ca8e9d34",
+        "signature": "0xcf2aa50876cdfbb541206f89af0ee78d44a2abf8d328e37fa4917f982149848a",
+        "topics_count": 1
+      },
+      "8": {
+        "type": "encoded",
+        "contract": "0xb5fa743b43e44e2cb74c200c81f274b0ca8e9d34",
+        "signature": "0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822",
+        "topics_count": 3
+      },
+      "9": {
+        "type": "encoded",
+        "contract": "0x7698a5311da174a95253ce86c21ca7272b9b05f8",
+        "signature": "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+        "topics_count": 3
+      },
+      "10": {
+        "type": "decoded",
+        "name": "Transfer",
+        "contract": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+        "attributes": {
+          "src": "0xeED1C0BA2c17855288c3a2B36f3b5068346fA2Bd",
+          "dst": "0x5f3454Fa53E5866a4f69bBc2E6B9A041092D9Ad7",
+          "wad": "72513796347297425"
+        },
+        "transformer": {
+          "exists": true,
+          "name": "WavaxTransformer",
+          "transfer_priority": 1,
+          "log_priority": null
+        }
+      },
+      "11": {
+        "type": "encoded",
+        "contract": "0xeed1c0ba2c17855288c3a2b36f3b5068346fa2bd",
+        "signature": "0x1c411e9a96e071241c2f21f7726b17ae89e3cab4c78be50e062b03a9fffbbad1",
+        "topics_count": 1
+      },
+      "12": {
+        "type": "encoded",
+        "contract": "0xeed1c0ba2c17855288c3a2b36f3b5068346fa2bd",
+        "signature": "0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822",
+        "topics_count": 3
+      },
+      "13": {
+        "type": "decoded",
+        "name": "Transfer",
+        "contract": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+        "attributes": {
+          "src": "0x12b50bFaA528F967cD7f249C78b44Ee3818e972D",
+          "dst": "0x5f3454Fa53E5866a4f69bBc2E6B9A041092D9Ad7",
+          "wad": "60283450357135453"
+        },
+        "transformer": {
+          "exists": true,
+          "name": "WavaxTransformer",
+          "transfer_priority": 1,
+          "log_priority": null
+        }
+      },
+      "14": {
+        "type": "encoded",
+        "contract": "0x7698a5311da174a95253ce86c21ca7272b9b05f8",
+        "signature": "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+        "topics_count": 3
+      },
+      "15": {
+        "type": "encoded",
+        "contract": "0x12b50bfaa528f967cd7f249c78b44ee3818e972d",
+        "signature": "0xc42079f94a6350d7e6235f29174924f928cc2ac818eb64fed8004e115fbcca67",
+        "topics_count": 3
+      },
+      "16": {
+        "type": "decoded",
+        "name": "Transfer",
+        "contract": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+        "attributes": {
+          "src": "0x5f3454Fa53E5866a4f69bBc2E6B9A041092D9Ad7",
+          "dst": "0x819Fe65A885D40493F4b91E8A10E242018758432",
+          "wad": "34142193024484402"
+        },
+        "transformer": {
+          "exists": true,
+          "name": "WavaxTransformer",
+          "transfer_priority": 1,
+          "log_priority": null
+        }
+      },
+      "17": {
+        "type": "decoded",
+        "name": "Transfer",
+        "contract": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+        "attributes": {
+          "from": "0x819Fe65A885D40493F4b91E8A10E242018758432",
+          "to": "0x88de50B233052e4Fb783d4F6db78Cc34fEa3e9FC",
+          "value": "458225724081576277927"
+        },
+        "transformer": {
+          "exists": true,
+          "name": "TokenTransformer",
+          "transfer_priority": 1,
+          "log_priority": null
+        }
+      },
+      "18": {
+        "type": "encoded",
+        "contract": "0x819fe65a885d40493f4b91e8a10e242018758432",
+        "signature": "0x1c411e9a96e071241c2f21f7726b17ae89e3cab4c78be50e062b03a9fffbbad1",
+        "topics_count": 1
+      },
+      "19": {
+        "type": "encoded",
+        "contract": "0x819fe65a885d40493f4b91e8a10e242018758432",
+        "signature": "0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822",
+        "topics_count": 3
+      },
+      "20": {
+        "type": "decoded",
+        "name": "Transfer",
+        "contract": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+        "attributes": {
+          "src": "0x5f3454Fa53E5866a4f69bBc2E6B9A041092D9Ad7",
+          "dst": "0x39888258d60FED9228F89e13eb57a92F1Fa832eb",
+          "wad": "16523603604903153763"
+        },
+        "transformer": {
+          "exists": true,
+          "name": "WavaxTransformer",
+          "transfer_priority": 1,
+          "log_priority": null
+        }
+      },
+      "21": {
+        "type": "decoded",
+        "name": "Transfer",
+        "contract": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+        "attributes": {
+          "from": "0x39888258d60FED9228F89e13eb57a92F1Fa832eb",
+          "to": "0x88de50B233052e4Fb783d4F6db78Cc34fEa3e9FC",
+          "value": "222017001126843812823170"
+        },
+        "transformer": {
+          "exists": true,
+          "name": "TokenTransformer",
+          "transfer_priority": 1,
+          "log_priority": null
+        }
+      },
+      "22": {
+        "type": "decoded",
+        "name": "Sync",
+        "contract": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+        "attributes": {
+          "reserve0": "54858567393713431405946789",
+          "reserve1": "4087121051970652429364"
+        },
+        "transformer": {
+          "exists": true,
+          "name": "LfjPoolTransformer",
+          "transfer_priority": null,
+          "log_priority": null
+        }
+      },
+      "23": {
+        "type": "decoded",
+        "name": "Swap",
+        "contract": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+        "attributes": {
+          "sender": "0x5f3454Fa53E5866a4f69bBc2E6B9A041092D9Ad7",
+          "to": "0x88de50B233052e4Fb783d4F6db78Cc34fEa3e9FC",
+          "amount0In": "0",
+          "amount1In": "16523603604903153763",
+          "amount0Out": "222017001126843812823170",
+          "amount1Out": "0"
+        },
+        "transformer": {
+          "exists": true,
+          "name": "LfjPoolTransformer",
+          "transfer_priority": null,
+          "log_priority": 5
+        }
+      },
+      "24": {
+        "type": "decoded",
+        "name": "Transfer",
+        "contract": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+        "attributes": {
+          "from": "0x88de50B233052e4Fb783d4F6db78Cc34fEa3e9FC",
+          "to": "0xC04f291347D21DC663f7646056db22bFf8CE8430",
+          "value": "222475226850925389101097"
+        },
+        "transformer": {
+          "exists": true,
+          "name": "TokenTransformer",
+          "transfer_priority": 1,
+          "log_priority": null
+        }
+      },
+      "25": {
+        "type": "decoded",
+        "name": "Swap",
+        "contract": "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc",
+        "attributes": {
+          "sender": "0xC04f291347D21DC663f7646056db22bFf8CE8430",
+          "inputAmount": "202554224488205644005734",
+          "inputToken": "0x7698A5311DA174A95253Ce86C21ca7272b9B05f8",
+          "amountOut": "222475226850925389101097",
+          "outputToken": "0x0f669808d88B2b0b3D23214DCD2a1cc6A8B1B5cd",
+          "slippage": -5434427351,
+          "referralCode": 1061215132
+        },
+        "transformer": {
+          "exists": false,
+          "name": null,
+          "transfer_priority": null,
+          "log_priority": null
+        }
+      },
+      "26": {
+        "type": "encoded",
+        "contract": "0x7698a5311da174a95253ce86c21ca7272b9b05f8",
+        "signature": "0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925",
+        "topics_count": 3
+      },
+      "27": {
+        "type": "decoded",
+        "name": "Transfer",
+        "contract": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+        "attributes": {
+          "from": "0xC04f291347D21DC663f7646056db22bFf8CE8430",
+          "to": "0x9c7ad86e0836d72809d33DFe5673b1141382963f",
+          "value": "222475226850925389101097"
+        },
+        "transformer": {
+          "exists": true,
+          "name": "TokenTransformer",
+          "transfer_priority": 1,
+          "log_priority": null
+        }
+      },
+      "28": {
+        "type": "decoded",
+        "name": "SwapExactIn",
+        "contract": "0x45a62b090df48243f12a21897e7ed91863e2c86b",
+        "attributes": {
+          "sender": "0x9c7ad86e0836d72809d33DFe5673b1141382963f",
+          "to": "0x9c7ad86e0836d72809d33DFe5673b1141382963f",
+          "tokenIn": "0x7698A5311DA174A95253Ce86C21ca7272b9B05f8",
+          "tokenOut": "0x0f669808d88B2b0b3D23214DCD2a1cc6A8B1B5cd",
+          "amountIn": "202554224488205644005734",
+          "amountOut": "222475226850925389101097"
+        },
+        "transformer": {
+          "exists": false,
+          "name": null,
+          "transfer_priority": null,
+          "log_priority": null
+        }
+      }
+    }
+  },
+  "transformation": {
+    "processed": true,
+    "transfers": {
+      "aab231fa5f95": {
+        "type": "UnmatchedTransfer",
+        "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+        "amount": "16424948551223205287",
+        "from_address": "0xb5fa743b43e44e2cb74c200c81f274b0ca8e9d34",
+        "to_address": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7",
+        "transfer_type": "transfer",
+        "log_index": 4
+      },
+      "9fd7f491685c": {
+        "type": "UnmatchedTransfer",
+        "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+        "amount": "72513796347297425",
+        "from_address": "0xeed1c0ba2c17855288c3a2b36f3b5068346fa2bd",
+        "to_address": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7",
+        "transfer_type": "transfer",
+        "log_index": 10
+      },
+      "04c3468962f1": {
+        "type": "UnmatchedTransfer",
+        "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+        "amount": "60283450357135453",
+        "from_address": "0x12b50bfaa528f967cd7f249c78b44ee3818e972d",
+        "to_address": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7",
+        "transfer_type": "transfer",
+        "log_index": 13
+      },
+      "6d9c7aa33f6e": {
+        "type": "UnmatchedTransfer",
+        "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+        "amount": "34142193024484402",
+        "from_address": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7",
+        "to_address": "0x819fe65a885d40493f4b91e8a10e242018758432",
+        "transfer_type": "transfer",
+        "log_index": 16
+      },
+      "c9320d33e0f3": {
+        "type": "UnmatchedTransfer",
+        "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+        "amount": "16523603604903153763",
+        "from_address": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7",
+        "to_address": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+        "transfer_type": "transfer",
+        "log_index": 20
+      },
+      "c648667ea718": {
+        "type": "UnmatchedTransfer",
+        "token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+        "amount": "458225724081576277927",
+        "from_address": "0x819fe65a885d40493f4b91e8a10e242018758432",
+        "to_address": "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc",
+        "transfer_type": "transfer",
+        "log_index": 17
+      },
+      "042b69dc84e7": {
+        "type": "UnmatchedTransfer",
+        "token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+        "amount": "222017001126843812823170",
+        "from_address": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+        "to_address": "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc",
+        "transfer_type": "transfer",
+        "log_index": 21
+      },
+      "4acc5bc9ad18": {
+        "type": "UnmatchedTransfer",
+        "token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+        "amount": "222475226850925389101097",
+        "from_address": "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc",
+        "to_address": "0xc04f291347d21dc663f7646056db22bff8ce8430",
+        "transfer_type": "transfer",
+        "log_index": 24
+      },
+      "15174ed6a601": {
+        "type": "UnmatchedTransfer",
+        "token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+        "amount": "222475226850925389101097",
+        "from_address": "0xc04f291347d21dc663f7646056db22bff8ce8430",
+        "to_address": "0x9c7ad86e0836d72809d33dfe5673b1141382963f",
+        "transfer_type": "transfer",
+        "log_index": 27
+      }
+    },
+    "events": {},
+    "errors": {
+      "d05044ff8fe1": {
+        "error_type": "swap_processing_exception",
+        "message": "Exception in swap processing: NotImplementedError: ",
+        "stage": "transform",
+        "context": {
+          "tx_hash": "0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b",
+          "transformer_name": "LfjPoolTransformer",
+          "log_index": 23,
+          "exception_type": "NotImplementedError",
+          "exception_message": "",
+          "traceback": "Traceback (most recent call last):\n  File \"/Users/josh/progekt/indexer/indexer/indexer/transform/transformers/pools/lfj_pool.py\", line 284, in _handle_swap\n    swap = PoolSwap(\n           ^^^^^^^^^\n  File \"/Users/josh/progekt/indexer/indexer/indexer/types/model/base.py\", line 20, in __post_init__\n    self.content_id = self._generate_content_id()\n                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/josh/progekt/indexer/indexer/indexer/types/model/base.py\", line 23, in _generate_content_id\n    content_struct = self._get_identifying_content()\n                     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/Users/josh/progekt/indexer/indexer/indexer/types/model/base.py\", line 31, in _get_identifying_content\n    raise NotImplementedError\nNotImplementedError\n",
+          "log_attributes": {
+            "sender": "0x5f3454Fa53E5866a4f69bBc2E6B9A041092D9Ad7",
+            "to": "0x88de50B233052e4Fb783d4F6db78Cc34fEa3e9FC",
+            "amount0In": "0",
+            "amount1In": "16523603604903153763",
+            "amount0Out": "222017001126843812823170",
+            "amount1Out": "0"
+          },
+          "transformer_state": {
+            "contract_address": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+            "base_token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+            "quote_token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+            "token0": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+            "token1": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
+          }
+        }
+      },
+      "8b60db7d46fc": {
+        "error_type": "unmatched_transfers",
+        "message": "Found 9 unmatched transfers after processing",
+        "stage": "transform",
+        "context": {
+          "tx_hash": "0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b",
+          "unmatched_transfers": [
+            {
+              "transfer_id": "aab231fa5f95",
+              "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+              "amount": "16424948551223205287",
+              "from": "0xb5fa743b43e44e2cb74c200c81f274b0ca8e9d34",
+              "to": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7"
+            },
+            {
+              "transfer_id": "9fd7f491685c",
+              "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+              "amount": "72513796347297425",
+              "from": "0xeed1c0ba2c17855288c3a2b36f3b5068346fa2bd",
+              "to": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7"
+            },
+            {
+              "transfer_id": "04c3468962f1",
+              "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+              "amount": "60283450357135453",
+              "from": "0x12b50bfaa528f967cd7f249c78b44ee3818e972d",
+              "to": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7"
+            },
+            {
+              "transfer_id": "6d9c7aa33f6e",
+              "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+              "amount": "34142193024484402",
+              "from": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7",
+              "to": "0x819fe65a885d40493f4b91e8a10e242018758432"
+            },
+            {
+              "transfer_id": "c9320d33e0f3",
+              "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+              "amount": "16523603604903153763",
+              "from": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7",
+              "to": "0x39888258d60fed9228f89e13eb57a92f1fa832eb"
+            },
+            {
+              "transfer_id": "c648667ea718",
+              "token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+              "amount": "458225724081576277927",
+              "from": "0x819fe65a885d40493f4b91e8a10e242018758432",
+              "to": "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc"
+            },
+            {
+              "transfer_id": "042b69dc84e7",
+              "token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+              "amount": "222017001126843812823170",
+              "from": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+              "to": "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc"
+            },
+            {
+              "transfer_id": "4acc5bc9ad18",
+              "token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+              "amount": "222475226850925389101097",
+              "from": "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc",
+              "to": "0xc04f291347d21dc663f7646056db22bff8ce8430"
+            },
+            {
+              "transfer_id": "15174ed6a601",
+              "token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+              "amount": "222475226850925389101097",
+              "from": "0xc04f291347d21dc663f7646056db22bff8ce8430",
+              "to": "0x9c7ad86e0836d72809d33dfe5673b1141382963f"
+            }
+          ],
+          "unmatched_count": 9
+        }
+      }
+    }
+  },
+  "errors": [],
+  "summary": {
+    "total_logs": 29,
+    "decoded_logs": 13,
+    "transfers_created": 9,
+    "events_created": 0,
+    "transformation_errors": 2,
+    "has_exception": false,
+    "contracts_involved": [
+      "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+      "0x12b50bfaa528f967cd7f249c78b44ee3818e972d",
+      "0x819fe65a885d40493f4b91e8a10e242018758432",
+      "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+      "0xeed1c0ba2c17855288c3a2b36f3b5068346fa2bd",
+      "0x7698a5311da174a95253ce86c21ca7272b9b05f8",
+      "0x45a62b090df48243f12a21897e7ed91863e2c86b",
+      "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc",
+      "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+      "0xb5fa743b43e44e2cb74c200c81f274b0ca8e9d34"
+    ],
+    "transformers_used": [
+      "TokenTransformer",
+      "LfjPoolTransformer",
+      "WavaxTransformer"
+    ]
+  }
+}

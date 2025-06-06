@@ -6,15 +6,35 @@ Utility functions for handling string amounts in blockchain operations
 from typing import Union
 
 
-def amount_to_int(amount: Union[str, int]) -> int:
-    """Convert string amount to int for calculations"""
+def amount_to_int(amount: Union[str, int, None]) -> int:
+    """Convert amount to int with robust type handling"""
+    if amount is None:
+        return 0
     if isinstance(amount, str):
+        if amount.strip() == "":
+            return 0
         return int(amount)
-    return amount
+    if isinstance(amount, (int, float)):
+        return int(amount)
+    # Handle any other numeric types
+    try:
+        return int(amount)
+    except (ValueError, TypeError):
+        return 0
 
 
-def amount_to_str(amount: Union[str, int]) -> str:
-    """Convert amount to string for storage"""
+def amount_to_str(amount: Union[str, int, None]) -> str:
+    """Convert amount to string with robust type handling"""
+    if amount is None:
+        return "0"
+    if isinstance(amount, str):
+        if amount.strip() == "":
+            return "0"
+        try:
+            int(amount)
+            return amount
+        except ValueError:
+            return "0"
     return str(amount)
 
 

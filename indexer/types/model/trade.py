@@ -19,9 +19,30 @@ class Swap(DomainEvent, tag=True, kw_only=True):
     transfers: Optional[Dict[DomainEventId,Transfer]] = None
     batch: Optional[Dict[int,Dict[str,str]]] = None
 
+    def _get_identifying_content(self):
+        return {
+            "event_type": "swap",
+            "tx_salt": self.tx_hash,
+            "taker": self.taker,
+            "direction": self.direction,
+            "base_amount": self.base_amount,
+            "quote_amount": self.quote_amount,
+        }
+
 class PoolSwap(Swap, tag=True, kw_only=True):
     '''Pool swap event.'''
     pool: EvmAddress
+
+    def _get_identifying_content(self):
+        return {
+            "event_type": "pool_swap",
+            "tx_salt": self.tx_hash,
+            "pool": self.pool,
+            "taker": self.taker,
+            "direction": self.direction,
+            "base_amount": self.base_amount,
+            "quote_amount": self.quote_amount,
+        }
 
 class Trade(DomainEvent, tag=True, kw_only=True):
     '''Top level trade event. Net buy/sell.'''

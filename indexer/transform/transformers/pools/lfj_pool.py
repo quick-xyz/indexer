@@ -2,6 +2,7 @@
 
 from typing import List, Dict, Tuple, Optional
 import msgspec
+import traceback
 
 from .pool_base import PoolTransformer
 from ....types import (
@@ -20,7 +21,7 @@ from ....types import (
     create_transform_error,
     TransferLedger,
 )
-from ....utils.amounts import amount_to_str, amount_to_int, compare_amounts
+from ....utils.amounts import amount_to_str, amount_to_int, compare_amounts, abs_amount
 
 
 class LfjPoolTransformer(PoolTransformer):
@@ -221,63 +222,119 @@ class LfjPoolTransformer(PoolTransformer):
         return result
 
     def _handle_swap(self, log: DecodedLog, tx: Transaction) -> Dict[str, Dict]:
-        result = {"transfers": {}, "events": {}, "errors": {}}
-        
-        self.log_info("Processing swap operation", 
-                     tx_hash=tx.tx_hash, 
-                     log_index=log.index)
-        
-        try:
-            base_amount, quote_amount = self.get_in_out_amounts(log)
-            taker = EvmAddress(str(log.attributes.get("to")).lower())
-
-            if not self._validate_attr([taker, base_amount, quote_amount], tx.tx_hash, log.index, result["errors"]):
-                return result
-
-            direction = self._get_swap_direction(base_amount)
-            unmatched_transfers = self._get_unmatched_transfers(tx)
-            swap_transfers = self._get_swap_transfers(unmatched_transfers)
+            result = {"transfers": {}, "events": {}, "errors": {}}
             
-            base_swaps = [t for t in swap_transfers["base_swaps"].values() if compare_amounts(t.amount, amount_to_str(abs(amount_to_int(base_amount)))) == 0]
-            quote_swaps = [t for t in swap_transfers["quote_swaps"].values() if compare_amounts(t.amount, amount_to_str(abs(amount_to_int(quote_amount)))) == 0]
+            self.log_info("Processing swap operation", 
+                        tx_hash=tx.tx_hash, 
+                        log_index=log.index)
+            
+            try:
+                base_amount, quote_amount = self.get_in_out_amounts(log)
+                
+                self.log_debug("Swap amounts extracted",
+                            tx_hash=tx.tx_hash,
+                            log_index=log.index,
+                            base_amount=base_amount,
+                            quote_amount=quote_amount,
+                            log_attributes=dict(log.attributes))
+                
+                taker = EvmAddress(str(log.attributes.get("to", "")).lower())
 
-            for transfers, name in [(base_swaps, "base_swaps"), (quote_swaps, "quote_swaps")]:
-                if not self._validate_transfer_count(transfers, name, 1, tx.tx_hash, log.index, 
-                                                   "invalid_swap_transfers", result["errors"]):
+                if not self._validate_attr([taker, base_amount, quote_amount], tx.tx_hash, log.index, result["errors"]):
+                    self.log_warning("Swap validation failed", 
+                                tx_hash=tx.tx_hash, 
+                                log_index=log.index,
+                                taker=taker,
+                                base_amount=base_amount,
+                                quote_amount=quote_amount)
                     return result
 
-            matched_transfers = self._create_matched_transfers_dict(base_swaps + quote_swaps)
+                direction = self._get_swap_direction(base_amount)
+                unmatched_transfers = self._get_unmatched_transfers(tx)
+                swap_transfers = self._get_swap_transfers(unmatched_transfers)
+                
+                self.log_debug("Swap transfer matching",
+                            tx_hash=tx.tx_hash,
+                            log_index=log.index,
+                            direction=direction,
+                            base_swaps_available=len(swap_transfers["base_swaps"]),
+                            quote_swaps_available=len(swap_transfers["quote_swaps"]))
+                
+                base_amount_abs = abs_amount(base_amount)
+                quote_amount_abs = abs_amount(quote_amount)
+                
+                base_swaps = [t for t in swap_transfers["base_swaps"].values() if compare_amounts(t.amount, base_amount_abs) == 0]
+                quote_swaps = [t for t in swap_transfers["quote_swaps"].values() if compare_amounts(t.amount, quote_amount_abs) == 0]
 
-            swap = PoolSwap(
-                timestamp=tx.timestamp,
-                tx_hash=tx.tx_hash,
-                pool=log.contract,
-                taker=taker,
-                direction=direction,
-                base_token=self.base_token,
-                base_amount=base_amount,
-                quote_token=self.quote_token,
-                quote_amount=quote_amount,
-                transfers=matched_transfers
-            )
-            result["events"][swap.content_id] = swap
-            result["transfers"] = matched_transfers
-            
-            self.log_info("Swap operation completed successfully",
-                         swap_id=swap.content_id,
-                         direction=direction,
-                         taker=taker,
-                         tx_hash=tx.tx_hash)
+                self.log_debug("Transfer matching results",
+                            tx_hash=tx.tx_hash,
+                            log_index=log.index,
+                            expected_base=base_amount_abs,
+                            expected_quote=quote_amount_abs,
+                            base_matches=len(base_swaps),
+                            quote_matches=len(quote_swaps))
 
-        except Exception as e:
-            self.log_error("Exception in swap handling",
-                          error=str(e),
-                          exception_type=type(e).__name__,
-                          tx_hash=tx.tx_hash,
-                          log_index=log.index)
-            self._create_log_exception(e, tx.tx_hash, log.index, self.__class__.__name__, result["errors"])
+                for transfers, name in [(base_swaps, "base_swaps"), (quote_swaps, "quote_swaps")]:
+                    if not self._validate_transfer_count(transfers, name, 1, tx.tx_hash, log.index, 
+                                                    "invalid_swap_transfers", result["errors"]):
+                        return result
 
-        return result
+                matched_transfers = self._create_matched_transfers_dict(base_swaps + quote_swaps)
+
+                swap = PoolSwap(
+                    timestamp=tx.timestamp,
+                    tx_hash=tx.tx_hash,
+                    pool=log.contract,
+                    taker=taker,
+                    direction=direction,
+                    base_token=self.base_token,
+                    base_amount=base_amount,
+                    quote_token=self.quote_token,
+                    quote_amount=quote_amount,
+                    transfers=matched_transfers
+                )
+                result["events"][swap.content_id] = swap
+                result["transfers"] = matched_transfers
+                
+                self.log_info("Swap operation completed successfully",
+                            swap_id=swap.content_id,
+                            direction=direction,
+                            taker=taker,
+                            tx_hash=tx.tx_hash)
+
+            except Exception as e:
+                error_details = {
+                    "exception_type": type(e).__name__,
+                    "exception_message": str(e),
+                    "traceback": traceback.format_exc(),
+                    "log_attributes": dict(log.attributes) if hasattr(log, 'attributes') else {},
+                    "transformer_state": {
+                        "contract_address": self.contract_address,
+                        "base_token": self.base_token,
+                        "quote_token": self.quote_token,
+                        "token0": self.token0,
+                        "token1": self.token1
+                    }
+                }
+                
+                self.log_error("Exception in swap handling",
+                            tx_hash=tx.tx_hash,
+                            log_index=log.index,
+                            **error_details)
+                
+                error = create_transform_error(
+                    error_type="swap_processing_exception",
+                    message=f"Exception in swap processing: {type(e).__name__}: {str(e)}",
+                    tx_hash=tx.tx_hash,
+                    log_index=log.index,
+                    transformer_name=self.__class__.__name__
+                )
+                error.context = error.context or {}
+                error.context.update(error_details)
+                
+                result["errors"][error.error_id] = error
+
+            return result
 
     def process_transfers(self, logs: List[DecodedLog], tx: Transaction) -> Tuple[Optional[Dict[DomainEventId,Transfer]],Optional[Dict[ErrorId,ProcessingError]]]:
         transfers, errors = {}, {}

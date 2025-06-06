@@ -1,0 +1,39 @@
+{
+  "metadata": {
+    "block_number": 63269916,
+    "analysis_time": "2025-06-06T11:11:51.480786"
+  },
+  "block": {
+    "number": 63269916,
+    "transactions": 1,
+    "receipts": 1
+  },
+  "transactions": {
+    "0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b": {
+      "success": true,
+      "from": "0x9c7ad86e0836d72809d33dfe5673b1141382963f",
+      "to": "0x45a62b090df48243f12a21897e7ed91863e2c86b",
+      "total_logs": 29,
+      "decoded_logs": 13,
+      "contracts": [
+        "0xeed1c0ba2c17855288c3a2b36f3b5068346fa2bd",
+        "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+        "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+        "0x12b50bfaa528f967cd7f249c78b44ee3818e972d",
+        "0xb5fa743b43e44e2cb74c200c81f274b0ca8e9d34",
+        "0x45a62b090df48243f12a21897e7ed91863e2c86b",
+        "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc",
+        "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+        "0x7698a5311da174a95253ce86c21ca7272b9b05f8",
+        "0x819fe65a885d40493f4b91e8a10e242018758432"
+      ]
+    }
+  },
+  "summary": {
+    "total_transactions": 1,
+    "successful_transactions": 1,
+    "total_logs": 29,
+    "decoded_logs": 13
+  },
+  "errors": []
+}

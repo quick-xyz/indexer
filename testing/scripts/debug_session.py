@@ -1,14 +1,17 @@
 # testing/scripts/debug_session.py
+#!/usr/bin/env python3
 """
-Interactive Debug Session for Blockchain Indexer
+Enhanced Debug Session for Blockchain Indexer
 
-Provides an interactive environment for debugging transformation issues
-using the indexer's architecture and logging system.
+Now generates structured output files for analysis and sharing.
 """
 
 import sys
+import json
+import traceback
 from pathlib import Path
 from typing import Optional
+from datetime import datetime
 
 # Add project root to Python path
 PROJECT_ROOT = Path(__file__).parent.parent.parent
@@ -23,12 +26,16 @@ from indexer.transform.manager import TransformationManager
 from indexer.transform.registry import TransformerRegistry
 
 
-class DebugSession:
-    """Interactive debugging session using indexer architecture"""
+class EnhancedDebugSession:
+    """Interactive debugging session with file output capabilities"""
     
     def __init__(self, config_path: str = None):
         self.testing_env = get_testing_environment(config_path, log_level="DEBUG")
         self.logger = self.testing_env.get_logger("debug.session")
+        
+        # Create output directory
+        self.output_dir = PROJECT_ROOT / "debug_output"
+        self.output_dir.mkdir(exist_ok=True)
         
         # Get services
         self.storage_handler = self.testing_env.get_service(GCSHandler)
@@ -36,318 +43,368 @@ class DebugSession:
         self.transform_manager = self.testing_env.get_service(TransformationManager)
         self.transformer_registry = self.testing_env.get_service(TransformerRegistry)
         
-        print("🔧 BLOCKCHAIN INDEXER DEBUG SESSION")
-        print("=" * 50)
+        print("🔧 ENHANCED BLOCKCHAIN INDEXER DEBUG SESSION")
+        print("=" * 60)
+        print(f"📁 Output directory: {self.output_dir}")
         print("Services loaded and ready for debugging")
         print()
     
-    def quick_block_check(self, block_number: int):
-        """Quick check of a block's transformation potential"""
-        print(f"🔍 Quick check for block {block_number}")
-        print("-" * 30)
+    def analyze_transaction_to_file(self, tx_hash: str, block_number: int) -> str:
+        """Deep analysis of a specific transaction with file output"""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_file = self.output_dir / f"transaction_analysis_{tx_hash[:10]}_{timestamp}.json"
         
-        # Get raw block
-        raw_block = self.storage_handler.get_rpc_block(block_number)
-        if not raw_block:
-            print(f"❌ Block {block_number} not found")
-            return
-        
-        print(f"✅ Block found: {len(raw_block.transactions)} transactions")
-        
-        # Decode block
-        decoded_block = self.block_decoder.decode_block(raw_block)
-        decoded_tx_count = len(decoded_block.transactions) if decoded_block.transactions else 0
-        print(f"✅ Decoded: {decoded_tx_count} transactions")
-        
-        if not decoded_block.transactions:
-            print("⚠️  No transactions to analyze")
-            return
-        
-        # Analyze first transaction
-        first_tx_hash = next(iter(decoded_block.transactions.keys()))
-        first_tx = decoded_block.transactions[first_tx_hash]
-        
-        total_logs = len(first_tx.logs)
-        decoded_logs = sum(1 for log in first_tx.logs.values() if hasattr(log, 'name'))
-        
-        print(f"📄 First TX {first_tx_hash[:10]}...:")
-        print(f"   Logs: {total_logs} (decoded: {decoded_logs})")
-        print(f"   Success: {first_tx.tx_success}")
-        
-        # Show decoded log details
-        if decoded_logs > 0:
-            print("   Decoded events:")
-            for log_idx, log in first_tx.logs.items():
-                if hasattr(log, 'name'):
-                    print(f"     {log_idx}: {log.name} from {log.contract[:10]}...")
-        
-        return decoded_block
-    
-    def analyze_transaction(self, tx_hash: str, block_number: Optional[int] = None):
-        """Deep analysis of a specific transaction"""
         print(f"🔬 Analyzing transaction {tx_hash}")
-        print("-" * 40)
+        print(f"📄 Output file: {output_file}")
+        print("-" * 60)
         
-        # If block number provided, get the transaction from that block
-        if block_number:
+        analysis = {
+            "metadata": {
+                "tx_hash": tx_hash,
+                "block_number": block_number,
+                "analysis_time": datetime.now().isoformat(),
+                "indexer": {
+                    "name": self.testing_env.config.name,
+                    "version": self.testing_env.config.version
+                }
+            },
+            "transaction": {},
+            "transformation": {},
+            "errors": [],
+            "summary": {}
+        }
+        
+        try:
+            # Get transaction from block
             raw_block = self.storage_handler.get_rpc_block(block_number)
-            if raw_block:
-                decoded_block = self.block_decoder.decode_block(raw_block)
-                if decoded_block.transactions and tx_hash in decoded_block.transactions:
-                    transaction = decoded_block.transactions[tx_hash]
-                else:
-                    print(f"❌ Transaction {tx_hash} not found in block {block_number}")
-                    return
-            else:
-                print(f"❌ Block {block_number} not found")
-                return
-        else:
-            print("❌ Block number required for transaction analysis")
-            return
-        
-        print(f"📄 Transaction Details:")
-        print(f"   Hash: {transaction.tx_hash}")
-        print(f"   Success: {transaction.tx_success}")
-        print(f"   From: {transaction.origin_from}")
-        print(f"   To: {transaction.origin_to}")
-        print(f"   Logs: {len(transaction.logs)}")
-        
-        # Show all logs
-        decoded_logs = {}
-        for log_idx, log in transaction.logs.items():
-            if hasattr(log, 'name'):
-                decoded_logs[log_idx] = log
-                print(f"   📋 Log {log_idx}: {log.name} from {log.contract}")
-                
-                # Check if transformer exists for this contract
-                transformer = self.transformer_registry.get_transformer(log.contract)
-                if transformer:
-                    transformer_name = type(transformer).__name__
-                    print(f"       🔧 Transformer: {transformer_name}")
-                    
-                    # Check event priorities
-                    transfer_priority = self.transformer_registry.get_transfer_priority(log.contract, log.name)
-                    log_priority = self.transformer_registry.get_log_priority(log.contract, log.name)
-                    
-                    if transfer_priority is not None:
-                        print(f"       📤 Transfer priority: {transfer_priority}")
-                    if log_priority is not None:
-                        print(f"       📋 Log priority: {log_priority}")
-                else:
-                    print(f"       ❌ No transformer found")
-        
-        # Run transformation and analyze results
-        print(f"\n🔄 Running transformation...")
-        processed, transformed_tx = self.transform_manager.process_transaction(transaction)
-        
-        transfer_count = len(transformed_tx.transfers) if transformed_tx.transfers else 0
-        event_count = len(transformed_tx.events) if transformed_tx.events else 0
-        error_count = len(transformed_tx.errors) if transformed_tx.errors else 0
-        
-        print(f"✅ Transformation complete:")
-        print(f"   Processed: {processed}")
-        print(f"   Transfers: {transfer_count}")
-        print(f"   Events: {event_count}")
-        print(f"   Errors: {error_count}")
-        
-        # Show detailed results
-        if transformed_tx.transfers:
-            print(f"\n📤 Transfers created:")
-            for transfer_id, transfer in transformed_tx.transfers.items():
-                transfer_type = type(transfer).__name__
-                print(f"   {transfer_id}: {transfer_type}")
-                print(f"     Token: {transfer.token}")
-                print(f"     Amount: {transfer.amount}")
-                print(f"     {transfer.from_address} → {transfer.to_address}")
-        
-        if transformed_tx.events:
-            print(f"\n🎯 Events created:")
-            for event_id, event in transformed_tx.events.items():
-                event_type = type(event).__name__
-                print(f"   {event_id}: {event_type}")
-        
-        if transformed_tx.errors:
-            print(f"\n❌ Errors:")
-            for error_id, error in transformed_tx.errors.items():
-                print(f"   {error_id}: {error.error_type}")
-                print(f"     {error.message}")
-    
-    def test_transformer(self, contract_address: str, block_number: int):
-        """Test a specific transformer with a block"""
-        print(f"🔧 Testing transformer for {contract_address}")
-        print("-" * 50)
-        
-        # Get transformer
-        transformer = self.transformer_registry.get_transformer(contract_address)
-        if not transformer:
-            print(f"❌ No transformer found for {contract_address}")
-            return
-        
-        transformer_name = type(transformer).__name__
-        print(f"✅ Found transformer: {transformer_name}")
-        
-        # Get transformer configuration
-        all_transformers = self.transformer_registry.get_all_contracts()
-        transformer_config = all_transformers.get(contract_address.lower())
-        
-        if transformer_config:
-            print(f"📋 Configuration:")
-            print(f"   Transfer events: {transformer_config.transfer_priorities}")
-            print(f"   Log events: {transformer_config.log_priorities}")
-            print(f"   Active: {transformer_config.active}")
-        
-        # Get block and find relevant transactions
-        raw_block = self.storage_handler.get_rpc_block(block_number)
-        if not raw_block:
-            print(f"❌ Block {block_number} not found")
-            return
-        
-        decoded_block = self.block_decoder.decode_block(raw_block)
-        if not decoded_block.transactions:
-            print(f"⚠️  No transactions in block")
-            return
-        
-        # Find transactions with logs from this contract
-        relevant_txs = []
-        for tx_hash, transaction in decoded_block.transactions.items():
+            if not raw_block:
+                analysis["errors"].append(f"Block {block_number} not found")
+                self._save_analysis(output_file, analysis)
+                return str(output_file)
+            
+            decoded_block = self.block_decoder.decode_block(raw_block)
+            if not decoded_block.transactions or tx_hash not in decoded_block.transactions:
+                analysis["errors"].append(f"Transaction {tx_hash} not found in block {block_number}")
+                self._save_analysis(output_file, analysis)
+                return str(output_file)
+            
+            transaction = decoded_block.transactions[tx_hash]
+            
+            # Analyze transaction structure
+            analysis["transaction"] = {
+                "hash": transaction.tx_hash,
+                "success": transaction.tx_success,
+                "from": transaction.origin_from,
+                "to": transaction.origin_to,
+                "value": transaction.value,
+                "total_logs": len(transaction.logs),
+                "decoded_logs": sum(1 for log in transaction.logs.values() if hasattr(log, 'name')),
+                "logs": {}
+            }
+            
+            # Analyze each log
             for log_idx, log in transaction.logs.items():
-                if hasattr(log, 'contract') and log.contract.lower() == contract_address.lower():
-                    relevant_txs.append((tx_hash, transaction))
-                    break
-        
-        print(f"📄 Found {len(relevant_txs)} transactions with {contract_address} activity")
-        
-        # Test transformer on each relevant transaction
-        for tx_hash, transaction in relevant_txs[:3]:  # Test first 3
-            print(f"\n   Testing TX {tx_hash[:10]}...")
+                if hasattr(log, 'name'):
+                    # Decoded log
+                    transformer = self.transformer_registry.get_transformer(log.contract)
+                    transformer_info = {
+                        "exists": transformer is not None,
+                        "name": type(transformer).__name__ if transformer else None,
+                        "transfer_priority": None,
+                        "log_priority": None
+                    }
+                    
+                    if transformer:
+                        transformer_info["transfer_priority"] = self.transformer_registry.get_transfer_priority(log.contract, log.name)
+                        transformer_info["log_priority"] = self.transformer_registry.get_log_priority(log.contract, log.name)
+                    
+                    analysis["transaction"]["logs"][str(log_idx)] = {
+                        "type": "decoded",
+                        "name": log.name,
+                        "contract": log.contract,
+                        "attributes": dict(log.attributes),
+                        "transformer": transformer_info
+                    }
+                else:
+                    # Encoded log
+                    analysis["transaction"]["logs"][str(log_idx)] = {
+                        "type": "encoded",
+                        "contract": log.contract,
+                        "signature": log.signature,
+                        "topics_count": len(log.topics) if log.topics else 0
+                    }
+            
+            # Run transformation and capture detailed results
+            print("🔄 Running transformation...")
             
             try:
                 processed, transformed_tx = self.transform_manager.process_transaction(transaction)
                 
-                transfer_count = len(transformed_tx.transfers) if transformed_tx.transfers else 0
-                event_count = len(transformed_tx.events) if transformed_tx.events else 0
-                error_count = len(transformed_tx.errors) if transformed_tx.errors else 0
+                # Capture transformation results
+                analysis["transformation"] = {
+                    "processed": processed,
+                    "transfers": {},
+                    "events": {},
+                    "errors": {}
+                }
                 
-                print(f"     Result: Processed={processed}, Transfers={transfer_count}, Events={event_count}, Errors={error_count}")
+                # Analyze transfers
+                if transformed_tx.transfers:
+                    for transfer_id, transfer in transformed_tx.transfers.items():
+                        analysis["transformation"]["transfers"][transfer_id] = {
+                            "type": type(transfer).__name__,
+                            "token": transfer.token,
+                            "amount": transfer.amount,
+                            "from_address": transfer.from_address,
+                            "to_address": transfer.to_address,
+                            "transfer_type": getattr(transfer, 'transfer_type', 'transfer'),
+                            "log_index": transfer.log_index
+                        }
                 
+                # Analyze events
+                if transformed_tx.events:
+                    for event_id, event in transformed_tx.events.items():
+                        analysis["transformation"]["events"][event_id] = {
+                            "type": type(event).__name__,
+                            "timestamp": event.timestamp,
+                            "log_index": getattr(event, 'log_index', None)
+                        }
+                
+                # Analyze errors
                 if transformed_tx.errors:
                     for error_id, error in transformed_tx.errors.items():
-                        print(f"     ❌ {error.error_type}: {error.message}")
-                        
-            except Exception as e:
-                print(f"     💥 Exception: {e}")
-    
-    def interactive_menu(self):
-        """Interactive debugging menu"""
-        while True:
-            print(f"\n🔧 DEBUG MENU")
-            print("-" * 20)
-            print("1. Quick block check")
-            print("2. Analyze specific transaction")
-            print("3. Test specific transformer")
-            print("4. List available transformers")
-            print("5. Check storage summary")
-            print("0. Exit")
-            
-            try:
-                choice = input("\nSelect option: ").strip()
+                        analysis["transformation"]["errors"][error_id] = {
+                            "error_type": error.error_type,
+                            "message": error.message,
+                            "stage": error.stage,
+                            "context": error.context
+                        }
                 
-                if choice == "0":
-                    print("👋 Goodbye!")
-                    break
-                elif choice == "1":
-                    block_num = int(input("Enter block number: "))
-                    self.quick_block_check(block_num)
-                elif choice == "2":
-                    tx_hash = input("Enter transaction hash: ").strip()
-                    block_num = int(input("Enter block number: "))
-                    self.analyze_transaction(tx_hash, block_num)
-                elif choice == "3":
-                    contract = input("Enter contract address: ").strip()
-                    block_num = int(input("Enter block number: "))
-                    self.test_transformer(contract, block_num)
-                elif choice == "4":
-                    self.list_transformers()
-                elif choice == "5":
-                    self.check_storage_summary()
-                else:
-                    print("❌ Invalid option")
-                    
-            except ValueError:
-                print("❌ Invalid input")
-            except KeyboardInterrupt:
-                print("\n👋 Goodbye!")
-                break
             except Exception as e:
-                print(f"❌ Error: {e}")
+                analysis["transformation"]["exception"] = {
+                    "type": type(e).__name__,
+                    "message": str(e),
+                    "traceback": traceback.format_exc()
+                }
+                print(f"❌ Transformation exception: {e}")
+            
+            # Generate summary
+            analysis["summary"] = {
+                "total_logs": len(transaction.logs),
+                "decoded_logs": len([log for log in transaction.logs.values() if hasattr(log, 'name')]),
+                "transfers_created": len(analysis["transformation"].get("transfers", {})),
+                "events_created": len(analysis["transformation"].get("events", {})),
+                "transformation_errors": len(analysis["transformation"].get("errors", {})),
+                "has_exception": "exception" in analysis["transformation"],
+                "contracts_involved": list(set(log.contract for log in transaction.logs.values() if hasattr(log, 'contract'))),
+                "transformers_used": list(set(
+                    analysis["transaction"]["logs"][str(idx)]["transformer"]["name"]
+                    for idx, log_data in analysis["transaction"]["logs"].items()
+                    if log_data["type"] == "decoded" and log_data["transformer"]["exists"]
+                ))
+            }
+            
+        except Exception as e:
+            analysis["errors"].append({
+                "type": type(e).__name__,
+                "message": str(e),
+                "traceback": traceback.format_exc()
+            })
+        
+        # Save analysis to file
+        self._save_analysis(output_file, analysis)
+        
+        # Print summary
+        print(f"\n📊 ANALYSIS SUMMARY:")
+        print(f"   Total logs: {analysis['summary'].get('total_logs', 0)}")
+        print(f"   Decoded logs: {analysis['summary'].get('decoded_logs', 0)}")
+        print(f"   Transfers created: {analysis['summary'].get('transfers_created', 0)}")
+        print(f"   Events created: {analysis['summary'].get('events_created', 0)}")
+        print(f"   Transformation errors: {analysis['summary'].get('transformation_errors', 0)}")
+        
+        if analysis['summary'].get('has_exception'):
+            print(f"   ❌ Has transformation exception")
+        
+        print(f"\n📄 Full analysis saved to: {output_file}")
+        
+        return str(output_file)
     
-    def list_transformers(self):
-        """List all available transformers"""
-        print(f"\n🔧 AVAILABLE TRANSFORMERS")
-        print("-" * 30)
+    def _save_analysis(self, output_file: Path, analysis: dict):
+        """Save analysis to JSON file with pretty formatting"""
+        try:
+            with open(output_file, 'w') as f:
+                json.dump(analysis, f, indent=2, default=str)
+            print(f"✅ Analysis saved to {output_file}")
+        except Exception as e:
+            print(f"❌ Failed to save analysis: {e}")
+    
+    def quick_block_analysis_to_file(self, block_number: int) -> str:
+        """Quick block analysis with file output"""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_file = self.output_dir / f"block_analysis_{block_number}_{timestamp}.json"
+        
+        print(f"🔍 Quick analysis for block {block_number}")
+        print(f"📄 Output file: {output_file}")
+        print("-" * 40)
+        
+        analysis = {
+            "metadata": {
+                "block_number": block_number,
+                "analysis_time": datetime.now().isoformat()
+            },
+            "block": {},
+            "transactions": {},
+            "summary": {},
+            "errors": []
+        }
+        
+        try:
+            # Get raw block
+            raw_block = self.storage_handler.get_rpc_block(block_number)
+            if not raw_block:
+                analysis["errors"].append(f"Block {block_number} not found")
+                self._save_analysis(output_file, analysis)
+                return str(output_file)
+            
+            analysis["block"] = {
+                "number": block_number,
+                "transactions": len(raw_block.transactions),
+                "receipts": len(raw_block.receipts)
+            }
+            
+            # Decode block
+            decoded_block = self.block_decoder.decode_block(raw_block)
+            
+            if decoded_block.transactions:
+                for tx_hash, transaction in decoded_block.transactions.items():
+                    total_logs = len(transaction.logs)
+                    decoded_logs = sum(1 for log in transaction.logs.values() if hasattr(log, 'name'))
+                    
+                    analysis["transactions"][tx_hash] = {
+                        "success": transaction.tx_success,
+                        "from": transaction.origin_from,
+                        "to": transaction.origin_to,
+                        "total_logs": total_logs,
+                        "decoded_logs": decoded_logs,
+                        "contracts": list(set(log.contract for log in transaction.logs.values() if hasattr(log, 'contract')))
+                    }
+            
+            analysis["summary"] = {
+                "total_transactions": len(decoded_block.transactions) if decoded_block.transactions else 0,
+                "successful_transactions": sum(1 for tx in decoded_block.transactions.values() if tx.tx_success) if decoded_block.transactions else 0,
+                "total_logs": sum(len(tx.logs) for tx in decoded_block.transactions.values()) if decoded_block.transactions else 0,
+                "decoded_logs": sum(
+                    sum(1 for log in tx.logs.values() if hasattr(log, 'name'))
+                    for tx in decoded_block.transactions.values()
+                ) if decoded_block.transactions else 0
+            }
+            
+        except Exception as e:
+            analysis["errors"].append({
+                "type": type(e).__name__,
+                "message": str(e),
+                "traceback": traceback.format_exc()
+            })
+        
+        self._save_analysis(output_file, analysis)
+        
+        print(f"📊 Block Summary:")
+        print(f"   Transactions: {analysis['summary'].get('total_transactions', 0)}")
+        print(f"   Total logs: {analysis['summary'].get('total_logs', 0)}")
+        print(f"   Decoded logs: {analysis['summary'].get('decoded_logs', 0)}")
+        print(f"\n📄 Full analysis saved to: {output_file}")
+        
+        return str(output_file)
+    
+    def transformer_performance_report(self) -> str:
+        """Generate transformer performance report"""
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_file = self.output_dir / f"transformer_report_{timestamp}.json"
+        
+        print(f"⚡ Generating transformer performance report")
+        print(f"📄 Output file: {output_file}")
+        print("-" * 50)
+        
+        report = {
+            "metadata": {
+                "report_time": datetime.now().isoformat(),
+                "indexer": {
+                    "name": self.testing_env.config.name,
+                    "version": self.testing_env.config.version
+                }
+            },
+            "transformers": {},
+            "summary": {}
+        }
         
         all_transformers = self.transformer_registry.get_all_contracts()
         
         for address, transformer_config in all_transformers.items():
             transformer_name = type(transformer_config.instance).__name__
-            active_status = "✅" if transformer_config.active else "❌"
             
-            print(f"{active_status} {transformer_name}")
-            print(f"   Contract: {address}")
-            print(f"   Transfer events: {list(transformer_config.transfer_priorities.keys())}")
-            print(f"   Log events: {list(transformer_config.log_priorities.keys())}")
-            print()
-    
-    def check_storage_summary(self):
-        """Check storage processing summary"""
-        print(f"\n📊 STORAGE SUMMARY")
-        print("-" * 20)
+            report["transformers"][address] = {
+                "name": transformer_name,
+                "active": transformer_config.active,
+                "transfer_events": dict(transformer_config.transfer_priorities),
+                "log_events": dict(transformer_config.log_priorities),
+                "methods": {
+                    "process_transfers": hasattr(transformer_config.instance, 'process_transfers'),
+                    "process_logs": hasattr(transformer_config.instance, 'process_logs')
+                }
+            }
         
-        summary = self.storage_handler.get_processing_summary()
+        report["summary"] = {
+            "total_contracts": len(all_transformers),
+            "active_transformers": sum(1 for t in all_transformers.values() if t.active),
+            "transformer_types": list(set(type(t.instance).__name__ for t in all_transformers.values()))
+        }
         
-        print(f"Processing blocks: {summary['processing_count']}")
-        print(f"Complete blocks: {summary['complete_count']}")
+        self._save_analysis(output_file, report)
         
-        if summary['latest_complete']:
-            print(f"Latest complete: {summary['latest_complete']}")
-        if summary['oldest_processing']:
-            print(f"Oldest processing: {summary['oldest_processing']}")
+        print(f"📊 Transformer Summary:")
+        print(f"   Total contracts: {report['summary']['total_contracts']}")
+        print(f"   Active transformers: {report['summary']['active_transformers']}")
+        print(f"   Transformer types: {', '.join(report['summary']['transformer_types'])}")
+        print(f"\n📄 Full report saved to: {output_file}")
         
-        if summary.get('processing_blocks'):
-            print(f"Sample processing blocks: {summary['processing_blocks'][:5]}")
+        return str(output_file)
 
 
 def main():
-    """Main debug session"""
-    print("Starting debug session...")
+    """Main debug session with file output"""
+    print("Starting enhanced debug session with file output...")
     
     try:
-        debug_session = DebugSession()
+        debug_session = EnhancedDebugSession()
         
         if len(sys.argv) > 1:
             # Command line mode
             command = sys.argv[1]
             
-            if command == "check" and len(sys.argv) > 2:
-                block_number = int(sys.argv[2])
-                debug_session.quick_block_check(block_number)
-            elif command == "analyze" and len(sys.argv) > 3:
+            if command == "analyze" and len(sys.argv) > 3:
                 tx_hash = sys.argv[2]
                 block_number = int(sys.argv[3])
-                debug_session.analyze_transaction(tx_hash, block_number)
-            elif command == "test" and len(sys.argv) > 3:
-                contract = sys.argv[2]
-                block_number = int(sys.argv[3])
-                debug_session.test_transformer(contract, block_number)
+                output_file = debug_session.analyze_transaction_to_file(tx_hash, block_number)
+                print(f"\n🎯 Use this file to share the analysis: {output_file}")
+                
+            elif command == "block" and len(sys.argv) > 2:
+                block_number = int(sys.argv[2])
+                output_file = debug_session.quick_block_analysis_to_file(block_number)
+                print(f"\n🎯 Use this file to share the analysis: {output_file}")
+                
+            elif command == "transformers":
+                output_file = debug_session.transformer_performance_report()
+                print(f"\n🎯 Use this file to share the report: {output_file}")
+                
             else:
                 print("Usage:")
-                print("  python testing/scripts/debug_session.py check <block_number>")
                 print("  python testing/scripts/debug_session.py analyze <tx_hash> <block_number>")
-                print("  python testing/scripts/debug_session.py test <contract_address> <block_number>")
-                print("  python testing/scripts/debug_session.py  # Interactive mode")
+                print("  python testing/scripts/debug_session.py block <block_number>")
+                print("  python testing/scripts/debug_session.py transformers")
+                print("\nAll commands generate JSON files in debug_output/ directory")
         else:
-            # Interactive mode
-            debug_session.interactive_menu()
+            print("Enhanced debug session - generates analysis files")
+            print("Run with 'analyze', 'block', or 'transformers' commands")
             
     except Exception as e:
         print(f"❌ Debug session failed: {e}")
