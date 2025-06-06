@@ -46,6 +46,10 @@ class LfjPoolTransformer(PoolTransformer):
     def _handle_mint(self, log: DecodedLog, tx: Transaction) -> Dict[str, Dict]:
         result = {"transfers": {}, "events": {}, "errors": {}}
         
+        self.log_info("Processing mint operation", 
+                     tx_hash=tx.tx_hash, 
+                     log_index=log.index)
+        
         try:
             base_amount, quote_amount = self.get_amounts(log)
             if not self._validate_attr([base_amount, quote_amount], tx.tx_hash, log.index, result["errors"]):
@@ -105,14 +109,28 @@ class LfjPoolTransformer(PoolTransformer):
                 result["events"][fee_event.content_id] = fee_event
             
             result["transfers"] = matched_transfers
+            
+            self.log_info("Mint operation completed successfully",
+                         liquidity_id=liquidity.content_id,
+                         provider=provider,
+                         tx_hash=tx.tx_hash)
 
         except Exception as e:
+            self.log_error("Exception in mint handling",
+                          error=str(e),
+                          exception_type=type(e).__name__,
+                          tx_hash=tx.tx_hash,
+                          log_index=log.index)
             self._create_log_exception(e, tx.tx_hash, log.index, self.__class__.__name__, result["errors"])
 
         return result
     
     def _handle_burn(self, log: DecodedLog, tx: Transaction) -> Dict[str, Dict]:
         result = {"transfers": {}, "events": {}, "errors": {}}
+        
+        self.log_info("Processing burn operation", 
+                     tx_hash=tx.tx_hash, 
+                     log_index=log.index)
         
         try:
             base_amount, quote_amount = self.get_amounts(log)
@@ -186,27 +204,35 @@ class LfjPoolTransformer(PoolTransformer):
                 result["events"][fee_event.content_id] = fee_event
             
             result["transfers"] = matched_transfers
+            
+            self.log_info("Burn operation completed successfully",
+                         liquidity_id=liquidity.content_id,
+                         provider=provider,
+                         tx_hash=tx.tx_hash)
 
         except Exception as e:
+            self.log_error("Exception in burn handling",
+                          error=str(e),
+                          exception_type=type(e).__name__,
+                          tx_hash=tx.tx_hash,
+                          log_index=log.index)
             self._create_log_exception(e, tx.tx_hash, log.index, self.__class__.__name__, result["errors"])
 
         return result
 
     def _handle_swap(self, log: DecodedLog, tx: Transaction) -> Dict[str, Dict]:
         result = {"transfers": {}, "events": {}, "errors": {}}
-        print(f"🔍 _handle_swap starting for log {log.index}")
+        
+        self.log_info("Processing swap operation", 
+                     tx_hash=tx.tx_hash, 
+                     log_index=log.index)
         
         try:
             base_amount, quote_amount = self.get_in_out_amounts(log)
-            print(f"   Amounts: base={base_amount}, quote={quote_amount}")
-
             taker = EvmAddress(str(log.attributes.get("to")).lower())
-            print(f"   Taker: {taker}")
 
             if not self._validate_attr([taker, base_amount, quote_amount], tx.tx_hash, log.index, result["errors"]):
-                print(f"   ❌ Validation failed")
                 return result
-            print(f"   ✅ Validation passed")
 
             direction = self._get_swap_direction(base_amount)
             unmatched_transfers = self._get_unmatched_transfers(tx)
@@ -236,14 +262,29 @@ class LfjPoolTransformer(PoolTransformer):
             )
             result["events"][swap.content_id] = swap
             result["transfers"] = matched_transfers
+            
+            self.log_info("Swap operation completed successfully",
+                         swap_id=swap.content_id,
+                         direction=direction,
+                         taker=taker,
+                         tx_hash=tx.tx_hash)
 
         except Exception as e:
+            self.log_error("Exception in swap handling",
+                          error=str(e),
+                          exception_type=type(e).__name__,
+                          tx_hash=tx.tx_hash,
+                          log_index=log.index)
             self._create_log_exception(e, tx.tx_hash, log.index, self.__class__.__name__, result["errors"])
 
         return result
 
     def process_transfers(self, logs: List[DecodedLog], tx: Transaction) -> Tuple[Optional[Dict[DomainEventId,Transfer]],Optional[Dict[ErrorId,ProcessingError]]]:
         transfers, errors = {}, {}
+
+        self.log_info("Starting transfer processing", 
+                     tx_hash=tx.tx_hash,
+                     log_count=len(logs))
 
         for log in logs:
             try:
@@ -253,11 +294,20 @@ class LfjPoolTransformer(PoolTransformer):
                         transfers[transfer.content_id] = transfer
             except Exception as e:
                 self._create_log_exception(e, tx.tx_hash, log.index, self.__class__.__name__, errors)
+        
+        self.log_info("Transfer processing completed", 
+                     tx_hash=tx.tx_hash,
+                     transfers_created=len(transfers),
+                     errors_created=len(errors))
                 
         return transfers if transfers else None, errors if errors else None
     
     def process_logs(self, logs: List[DecodedLog], tx: Transaction) -> Tuple[Optional[Dict[DomainEventId,Transfer]], Optional[Dict[DomainEventId, DomainEvent]], Optional[Dict[ErrorId,ProcessingError]]]:
         new_events, matched_transfers, errors = {}, {}, {}
+
+        self.log_info("Starting log processing", 
+                     tx_hash=tx.tx_hash,
+                     log_count=len(logs))
 
         try:
             handler_map = {
@@ -280,6 +330,12 @@ class LfjPoolTransformer(PoolTransformer):
 
         except Exception as e:
             self._create_tx_exception(e, tx.tx_hash, self.__class__.__name__, errors)
+        
+        self.log_info("Log processing completed", 
+                     tx_hash=tx.tx_hash,
+                     final_events=len(new_events),
+                     final_matched_transfers=len(matched_transfers),
+                     final_errors=len(errors))
         
         return (
             matched_transfers if matched_transfers else None, 

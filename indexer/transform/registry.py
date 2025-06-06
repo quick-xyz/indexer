@@ -6,6 +6,7 @@ from collections import defaultdict
 from msgspec import Struct
 
 from ..core.config import IndexerConfig
+from ..core.mixins import LoggingMixin
 
 from .transformers import *
 from ..types import (
@@ -21,12 +22,19 @@ class ContractTransformer(Struct):
     active: bool = True
 
 
-class TransformerRegistry:    
+class TransformerRegistry(LoggingMixin):    
     def __init__(self, config: IndexerConfig):
         self.config = config
         self._transformers: Dict[EvmAddress, ContractTransformer] = {}
         self._transformer_classes = self._load_transformer_classes()
+        
+        self.log_info("TransformerRegistry initializing", 
+                     contract_count=len(config.contracts))
+        
         self._setup_transformers()
+        
+        self.log_info("TransformerRegistry initialized", 
+                     active_transformers=len(self._transformers))
 
     def _load_transformer_classes(self) -> Dict[str, type]:
         transformer_classes = {}
@@ -40,65 +48,88 @@ class TransformerRegistry:
                 "PharPairTransformer": PharPairTransformer,
                 "PharClPoolTransformer": PharClPoolTransformer,
             })
-            print(f"🔍 Loaded transformer classes: {list(transformer_classes.keys())}")
+            self.log_info("Transformer classes loaded successfully", 
+                         class_count=len(transformer_classes),
+                         classes=list(transformer_classes.keys()))
+            
         except ImportError as e:
-            print(f"❌ Failed to import transformer classes: {e}")
+            self.log_error("Failed to import transformer classes", 
+                          error=str(e),
+                          exception_type=type(e).__name__)
             
         return transformer_classes
 
     def _setup_transformers(self):
-        print(f"🔍 Setting up transformers for {len(self.config.contracts)} contracts")
+        self.log_debug("Setting up transformers", contract_count=len(self.config.contracts))
+        
+        setup_stats = {'successful': 0, 'failed': 0, 'skipped': 0}
+        
         for address, contract in self.config.contracts.items():
-            print(f"   Processing contract {address}: {contract.name}")
+            contract_context = {'contract_address': address, 'contract_name': contract.name}
+            
+            self.log_debug("Processing contract", **contract_context)
+            
             if not contract.transform:
-                print(f"     ❌ No transform config")
+                self.log_debug("No transform config - skipping", **contract_context)
+                setup_stats['skipped'] += 1
                 continue
                 
             transformer_config = contract.transform
-            print(f"     Transform name: {transformer_config.name}")
+            transformer_context = {**contract_context, 'transformer_name': transformer_config.name}
+            
+            self.log_debug("Creating transformer", **transformer_context)
+            
             transformer_class = self._transformer_classes.get(transformer_config.name)
-            print(f"     Transformer class found: {transformer_class}")
             
             if not transformer_class:
-                print(f"     ❌ Transformer class '{transformer_config.name}' not found")
-                print(f"     Available classes: {list(self._transformer_classes.keys())}")
+                self.log_error("Transformer class not found", 
+                              available_classes=list(self._transformer_classes.keys()),
+                              **transformer_context)
+                setup_stats['failed'] += 1
                 continue
                 
             try:
                 instantiate_params = transformer_config.instantiate or {}
-                print(f"     Instantiate params: {instantiate_params}")
+                self.log_debug("Instantiating transformer", 
+                              params=instantiate_params,
+                              **transformer_context)
+                
                 transformer_instance = transformer_class(**instantiate_params)
-                print(f"     ✅ Transformer created: {transformer_instance}")
 
-                # Verify it has required methods
-                if not hasattr(transformer_instance, 'process_transfers'):
-                    raise AttributeError("Missing process_transfers method")
-                if not hasattr(transformer_instance, 'process_logs'):
-                    raise AttributeError("Missing process_logs method")
+                # Verify required methods
+                required_methods = ['process_transfers', 'process_logs']
+                for method_name in required_methods:
+                    if not hasattr(transformer_instance, method_name):
+                        raise AttributeError(f"Missing required method: {method_name}")
                     
-                print(f"     ✅ Transformer methods validated")
+                self.log_debug("Transformer methods validated", **transformer_context)
+                
                 self.register_contract(
                     address,
                     transformer_instance,
                     transformer_config.transfers or {},
                     transformer_config.logs or {}
                 )
-                print(f"     ✅ Transformer registered for {address}")
                 
-            except TypeError as e:
-                print(f"     ❌ TypeError in transformer instantiation: {e}")
-                print(f"     Check constructor signature for {transformer_config.name}")
-                continue
-            except AttributeError as e:
-                print(f"     ❌ AttributeError: {e}")
-                print(f"     Transformer {transformer_config.name} missing required methods")
+                self.log_info("Transformer registered successfully", **transformer_context)
+                setup_stats['successful'] += 1
+                
+            except (TypeError, AttributeError) as e:
+                self.log_error("Transformer instantiation failed", 
+                              error=str(e),
+                              exception_type=type(e).__name__,
+                              **transformer_context)
+                setup_stats['failed'] += 1
                 continue
             except Exception as e:
-                print(f"     ❌ Unexpected error creating transformer: {type(e).__name__}: {e}")
-                import traceback
-                traceback.print_exc()
+                self.log_error("Unexpected error creating transformer", 
+                              error=str(e),
+                              exception_type=type(e).__name__,
+                              **transformer_context)
+                setup_stats['failed'] += 1
                 continue
-        print(f"🔍 Final registered transformers: {list(self._transformers.keys())}")
+                
+        self.log_info("Transformer setup completed", **setup_stats)
 
     def register_contract(self, 
                           contract_address: EvmAddress, 
@@ -119,23 +150,26 @@ class TransformerRegistry:
 
     def get_transfer_priority(self, contract_address: EvmAddress, event_name: str) -> Optional[int]:
         """Get transfer priority for a contract event"""
-        print(f"     🔍 get_transfer_priority({contract_address}, {event_name})")
+        
         transformer = self._transformers.get(contract_address.lower())
-        print(f"       Transformer found: {transformer}")
-
+        
         if transformer and transformer.active:
-            print(f"       Transformer active: {transformer.active}")
-            print(f"       Transfer priorities: {transformer.transfer_priorities}")
-            
             if event_name in transformer.transfer_priorities:
                 priority = transformer.transfer_priorities[event_name]
-                print(f"       ✅ Found priority {priority} for {event_name}")
+                self.log_debug("Transfer priority found", 
+                              contract_address=contract_address,
+                              event_name=event_name,
+                              priority=priority)
                 return priority
             else:
-                print(f"       ❌ Event '{event_name}' not in transfer_priorities: {list(transformer.transfer_priorities.keys())}")
+                self.log_debug("Event not in transfer priorities", 
+                              contract_address=contract_address,
+                              event_name=event_name,
+                              available_events=list(transformer.transfer_priorities.keys()))
         else:
-            print(f"       ❌ No active transformer found")
-            print(f"       Available transformers: {list(self._transformers.keys())}")
+            self.log_debug("No active transformer found", 
+                          contract_address=contract_address,
+                          available_transformers=list(self._transformers.keys()))
         
         return None
 
@@ -150,20 +184,40 @@ class TransformerRegistry:
         """Group transfer logs by contract and priority"""
         transfers_by_contract = defaultdict(lambda: defaultdict(list))
 
-        print(f"🔍 get_transfers_ordered debug:")
-        print(f"   Input decoded_logs: {len(decoded_logs)}")
+        self.log_debug("Ordering transfers", input_log_count=len(decoded_logs))
+
+        priority_stats = {'found': 0, 'not_found': 0}
 
         for log_key, log in decoded_logs.items():
-            print(f"   Checking log {log_key}: {log.name} from {log.contract}")
+            log_context = {
+                'log_key': log_key, 
+                'event_name': log.name, 
+                'contract_address': log.contract
+            }
+            
+            self.log_debug("Checking log for transfer priority", **log_context)
+            
             priority = self.get_transfer_priority(log.contract, log.name)
-            print(f"     Transfer priority: {priority}")
 
             if priority is not None:
-                print(f"     ✅ Adding to transfers_by_contract[{log.contract}][{priority}]")
+                self.log_debug("Adding to transfers by contract", 
+                              priority=priority, **log_context)
                 transfers_by_contract[log.contract][priority].append(log)
+                priority_stats['found'] += 1
             else:
-                print(f"     ❌ No transfer priority found")
-        print(f"   Final transfers_by_contract: {dict(transfers_by_contract)}")        
+                self.log_debug("No transfer priority found", **log_context)
+                priority_stats['not_found'] += 1
+                
+        result_summary = {
+            contract: {priority: len(logs) for priority, logs in priorities.items()}
+            for contract, priorities in transfers_by_contract.items()
+        }
+        
+        self.log_info("Transfer ordering completed", 
+                     contracts_with_transfers=len(transfers_by_contract),
+                     priority_distribution=result_summary,
+                     **priority_stats)
+        
         return transfers_by_contract
 
     def get_remaining_logs_ordered(self, decoded_logs: Dict[str, DecodedLog]) -> Dict[int, Dict[EvmAddress, List[DecodedLog]]]:
