@@ -116,6 +116,9 @@ class TransformationManager:
     def _process_events(self, decoded_logs: Dict[int, DecodedLog], transaction: Transaction) -> None:
         logs_by_priority_contract = self.registry.get_remaining_logs_ordered(decoded_logs)
 
+        print(f"🔍 _process_events debug:")
+        print(f"   logs_by_priority_contract: {dict(logs_by_priority_contract)}")
+
         for priority in sorted(logs_by_priority_contract.keys()):
             for contract_address, log_list in logs_by_priority_contract[priority].items():
                 transformer = self.registry.get_transformer(contract_address)

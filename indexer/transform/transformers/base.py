@@ -139,7 +139,21 @@ class BaseTransformer(ABC):
             return None
 
     def _convert_to_matched_transfer(self, transfer: Transfer) -> MatchedTransfer:
-        return msgspec.convert(transfer, type=MatchedTransfer)
+        print(f"🔍 Converting transfer: {type(transfer)} -> MatchedTransfer")
+        print(f"   Transfer data: {transfer}")
+        #return msgspec.convert(transfer, type=MatchedTransfer)
+        return MatchedTransfer(
+            timestamp=transfer.timestamp,
+            tx_hash=transfer.tx_hash,
+            log_index=transfer.log_index,
+            content_id=transfer.content_id,
+            token=transfer.token,
+            amount=transfer.amount,
+            from_address=transfer.from_address,
+            to_address=transfer.to_address,
+            transfer_type=getattr(transfer, 'transfer_type', 'transfer'),
+            batch=getattr(transfer, 'batch', None)
+        )
 
     def _create_matched_transfers_dict(self, transfers: List[Transfer]) -> Dict[DomainEventId, MatchedTransfer]:
         matched_transfers = {}

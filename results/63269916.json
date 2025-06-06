@@ -1,4 +1,4 @@
-{
+\{
     "block_number": 63269916,
     "timestamp": "0x683fca31",
     "transactions": {
@@ -408,185 +408,214 @@
             },
             "origin_to": "0x45a62b090df48243f12a21897e7ed91863e2c86b",
             "transfers": {
-                "616b9fcc5e4d": {
+                "aab231fa5f95": {
                     "type": "UnmatchedTransfer",
                     "timestamp": "0x683fca31",
                     "tx_hash": "0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b",
                     "log_index": 4,
-                    "content_id": "616b9fcc5e4d",
+                    "content_id": "aab231fa5f95",
                     "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
-                    "amount": 16424948551223205287,
+                    "amount": "16424948551223205287",
                     "from_address": "0xb5fa743b43e44e2cb74c200c81f274b0ca8e9d34",
                     "to_address": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7",
                     "transfer_type": "transfer",
                     "batch": null
                 },
-                "01b21d8f2302": {
+                "9fd7f491685c": {
                     "type": "UnmatchedTransfer",
                     "timestamp": "0x683fca31",
                     "tx_hash": "0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b",
                     "log_index": 10,
-                    "content_id": "01b21d8f2302",
+                    "content_id": "9fd7f491685c",
                     "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
-                    "amount": 72513796347297425,
+                    "amount": "72513796347297425",
                     "from_address": "0xeed1c0ba2c17855288c3a2b36f3b5068346fa2bd",
                     "to_address": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7",
                     "transfer_type": "transfer",
                     "batch": null
                 },
-                "3d28fd1fa4c9": {
+                "04c3468962f1": {
                     "type": "UnmatchedTransfer",
                     "timestamp": "0x683fca31",
                     "tx_hash": "0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b",
                     "log_index": 13,
-                    "content_id": "3d28fd1fa4c9",
+                    "content_id": "04c3468962f1",
                     "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
-                    "amount": 60283450357135453,
+                    "amount": "60283450357135453",
                     "from_address": "0x12b50bfaa528f967cd7f249c78b44ee3818e972d",
                     "to_address": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7",
                     "transfer_type": "transfer",
                     "batch": null
                 },
-                "915195cf3837": {
+                "6d9c7aa33f6e": {
                     "type": "UnmatchedTransfer",
                     "timestamp": "0x683fca31",
                     "tx_hash": "0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b",
                     "log_index": 16,
-                    "content_id": "915195cf3837",
+                    "content_id": "6d9c7aa33f6e",
                     "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
-                    "amount": 34142193024484402,
+                    "amount": "34142193024484402",
                     "from_address": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7",
                     "to_address": "0x819fe65a885d40493f4b91e8a10e242018758432",
                     "transfer_type": "transfer",
                     "batch": null
                 },
-                "87b41bd26fdf": {
+                "c9320d33e0f3": {
                     "type": "UnmatchedTransfer",
                     "timestamp": "0x683fca31",
                     "tx_hash": "0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b",
                     "log_index": 20,
-                    "content_id": "87b41bd26fdf",
+                    "content_id": "c9320d33e0f3",
                     "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
-                    "amount": 16523603604903153763,
+                    "amount": "16523603604903153763",
                     "from_address": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7",
                     "to_address": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+                    "transfer_type": "transfer",
+                    "batch": null
+                },
+                "c648667ea718": {
+                    "type": "UnmatchedTransfer",
+                    "timestamp": "0x683fca31",
+                    "tx_hash": "0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b",
+                    "log_index": 17,
+                    "content_id": "c648667ea718",
+                    "token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                    "amount": "458225724081576277927",
+                    "from_address": "0x819fe65a885d40493f4b91e8a10e242018758432",
+                    "to_address": "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc",
+                    "transfer_type": "transfer",
+                    "batch": null
+                },
+                "042b69dc84e7": {
+                    "type": "UnmatchedTransfer",
+                    "timestamp": "0x683fca31",
+                    "tx_hash": "0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b",
+                    "log_index": 21,
+                    "content_id": "042b69dc84e7",
+                    "token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                    "amount": "222017001126843812823170",
+                    "from_address": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+                    "to_address": "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc",
+                    "transfer_type": "transfer",
+                    "batch": null
+                },
+                "4acc5bc9ad18": {
+                    "type": "UnmatchedTransfer",
+                    "timestamp": "0x683fca31",
+                    "tx_hash": "0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b",
+                    "log_index": 24,
+                    "content_id": "4acc5bc9ad18",
+                    "token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                    "amount": "222475226850925389101097",
+                    "from_address": "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc",
+                    "to_address": "0xc04f291347d21dc663f7646056db22bff8ce8430",
+                    "transfer_type": "transfer",
+                    "batch": null
+                },
+                "15174ed6a601": {
+                    "type": "UnmatchedTransfer",
+                    "timestamp": "0x683fca31",
+                    "tx_hash": "0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b",
+                    "log_index": 27,
+                    "content_id": "15174ed6a601",
+                    "token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                    "amount": "222475226850925389101097",
+                    "from_address": "0xc04f291347d21dc663f7646056db22bff8ce8430",
+                    "to_address": "0x9c7ad86e0836d72809d33dfe5673b1141382963f",
                     "transfer_type": "transfer",
                     "batch": null
                 }
             },
             "events": {},
             "errors": {
-                "b3ac74ec1611": {
+                "ffd21296187d": {
                     "stage": "transform",
                     "error_type": "processing_exception",
-                    "message": "Log processing exception: can't serialize ints < -2**63 or > 2**64 - 1",
+                    "message": "Log processing exception: Expected `object`, got `UnmatchedTransfer`",
                     "status": "unresolved",
                     "attempts": 0,
-                    "error_id": "b3ac74ec1611",
+                    "error_id": "ffd21296187d",
                     "context": {
                         "tx_hash": "0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b",
-                        "transformer_name": "TokenTransformer",
-                        "log_index": 17
-                    }
-                },
-                "4171e4d97cab": {
-                    "stage": "transform",
-                    "error_type": "processing_exception",
-                    "message": "Log processing exception: can't serialize ints < -2**63 or > 2**64 - 1",
-                    "status": "unresolved",
-                    "attempts": 0,
-                    "error_id": "4171e4d97cab",
-                    "context": {
-                        "tx_hash": "0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b",
-                        "transformer_name": "TokenTransformer",
-                        "log_index": 21
-                    }
-                },
-                "ea2d4064826e": {
-                    "stage": "transform",
-                    "error_type": "processing_exception",
-                    "message": "Log processing exception: can't serialize ints < -2**63 or > 2**64 - 1",
-                    "status": "unresolved",
-                    "attempts": 0,
-                    "error_id": "ea2d4064826e",
-                    "context": {
-                        "tx_hash": "0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b",
-                        "transformer_name": "TokenTransformer",
-                        "log_index": 24
-                    }
-                },
-                "6678c3f0084e": {
-                    "stage": "transform",
-                    "error_type": "processing_exception",
-                    "message": "Log processing exception: can't serialize ints < -2**63 or > 2**64 - 1",
-                    "status": "unresolved",
-                    "attempts": 0,
-                    "error_id": "6678c3f0084e",
-                    "context": {
-                        "tx_hash": "0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b",
-                        "transformer_name": "TokenTransformer",
-                        "log_index": 27
-                    }
-                },
-                "eea92d346e1a": {
-                    "stage": "transform",
-                    "error_type": "invalid_swap_transfers",
-                    "message": "Expected exactly 1 base_swaps transfers, found 0",
-                    "status": "unresolved",
-                    "attempts": 0,
-                    "error_id": "eea92d346e1a",
-                    "context": {
-                        "tx_hash": "0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b",
+                        "transformer_name": "LfjPoolTransformer",
                         "log_index": 23
                     }
                 },
-                "2240140d7eb6": {
+                "8b60db7d46fc": {
                     "stage": "transform",
                     "error_type": "unmatched_transfers",
-                    "message": "Found 5 unmatched transfers after processing",
+                    "message": "Found 9 unmatched transfers after processing",
                     "status": "unresolved",
                     "attempts": 0,
-                    "error_id": "2240140d7eb6",
+                    "error_id": "8b60db7d46fc",
                     "context": {
                         "tx_hash": "0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b",
                         "unmatched_transfers": [
                             {
-                                "transfer_id": "616b9fcc5e4d",
+                                "transfer_id": "aab231fa5f95",
                                 "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
-                                "amount": 16424948551223205287,
+                                "amount": "16424948551223205287",
                                 "from": "0xb5fa743b43e44e2cb74c200c81f274b0ca8e9d34",
                                 "to": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7"
                             },
                             {
-                                "transfer_id": "01b21d8f2302",
+                                "transfer_id": "9fd7f491685c",
                                 "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
-                                "amount": 72513796347297425,
+                                "amount": "72513796347297425",
                                 "from": "0xeed1c0ba2c17855288c3a2b36f3b5068346fa2bd",
                                 "to": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7"
                             },
                             {
-                                "transfer_id": "3d28fd1fa4c9",
+                                "transfer_id": "04c3468962f1",
                                 "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
-                                "amount": 60283450357135453,
+                                "amount": "60283450357135453",
                                 "from": "0x12b50bfaa528f967cd7f249c78b44ee3818e972d",
                                 "to": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7"
                             },
                             {
-                                "transfer_id": "915195cf3837",
+                                "transfer_id": "6d9c7aa33f6e",
                                 "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
-                                "amount": 34142193024484402,
+                                "amount": "34142193024484402",
                                 "from": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7",
                                 "to": "0x819fe65a885d40493f4b91e8a10e242018758432"
                             },
                             {
-                                "transfer_id": "87b41bd26fdf",
+                                "transfer_id": "c9320d33e0f3",
                                 "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
-                                "amount": 16523603604903153763,
+                                "amount": "16523603604903153763",
                                 "from": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7",
                                 "to": "0x39888258d60fed9228f89e13eb57a92f1fa832eb"
+                            },
+                            {
+                                "transfer_id": "c648667ea718",
+                                "token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                                "amount": "458225724081576277927",
+                                "from": "0x819fe65a885d40493f4b91e8a10e242018758432",
+                                "to": "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc"
+                            },
+                            {
+                                "transfer_id": "042b69dc84e7",
+                                "token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                                "amount": "222017001126843812823170",
+                                "from": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+                                "to": "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc"
+                            },
+                            {
+                                "transfer_id": "4acc5bc9ad18",
+                                "token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                                "amount": "222475226850925389101097",
+                                "from": "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc",
+                                "to": "0xc04f291347d21dc663f7646056db22bff8ce8430"
+                            },
+                            {
+                                "transfer_id": "15174ed6a601",
+                                "token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                                "amount": "222475226850925389101097",
+                                "from": "0xc04f291347d21dc663f7646056db22bff8ce8430",
+                                "to": "0x9c7ad86e0836d72809d33dfe5673b1141382963f"
                             }
                         ],
-                        "unmatched_count": 5
+                        "unmatched_count": 9
                     }
                 }
             },
@@ -596,11 +625,11 @@
     },
     "indexing_status": "error",
     "processing_metadata": {
-        "error_count": 6,
+        "error_count": 2,
         "retry_count": 0,
         "last_error": null,
         "started_at": null,
-        "completed_at": "2025-06-04T19:25:31.774732",
+        "completed_at": "2025-06-05T20:26:06.739994",
         "error_stage": "transform"
     }
 }

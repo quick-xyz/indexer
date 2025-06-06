@@ -63,6 +63,7 @@ class TransactionDecoder:
         try:
             tx_function = self.decode_function(tx)
             tx_logs = self.decode_receipt(receipt)
+            tx_value = self.w3.to_int(hexstr=tx.value) if tx.value else 0
 
             return Transaction(
                 block=block_number,
@@ -72,7 +73,7 @@ class TransactionDecoder:
                 origin_from=tx.from_,
                 origin_to=tx.to,
                 function=tx_function,
-                value=amount_to_str(tx.value),  # Convert to string
+                value=amount_to_str(tx_value),
                 tx_success=hex_to_bool(receipt.status),
                 logs=tx_logs
             )

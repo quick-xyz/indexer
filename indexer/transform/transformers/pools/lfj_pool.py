@@ -194,12 +194,19 @@ class LfjPoolTransformer(PoolTransformer):
 
     def _handle_swap(self, log: DecodedLog, tx: Transaction) -> Dict[str, Dict]:
         result = {"transfers": {}, "events": {}, "errors": {}}
+        print(f"🔍 _handle_swap starting for log {log.index}")
         
         try:
             base_amount, quote_amount = self.get_in_out_amounts(log)
+            print(f"   Amounts: base={base_amount}, quote={quote_amount}")
+
             taker = EvmAddress(str(log.attributes.get("to")).lower())
+            print(f"   Taker: {taker}")
+
             if not self._validate_attr([taker, base_amount, quote_amount], tx.tx_hash, log.index, result["errors"]):
+                print(f"   ❌ Validation failed")
                 return result
+            print(f"   ✅ Validation passed")
 
             direction = self._get_swap_direction(base_amount)
             unmatched_transfers = self._get_unmatched_transfers(tx)

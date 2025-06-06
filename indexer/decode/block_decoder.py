@@ -51,11 +51,12 @@ class BlockDecoder:
         decoded_tx = {}
         tx_dict, diffs = self.merge_tx_with_receipts(raw_block)
         block_number = self.w3.to_int(hexstr=raw_block.block)
+        timestamp = self.w3.to_int(hexstr=raw_block.timestamp)
 
         for tx_hash, tx_tuple in tx_dict.items():
             processed_tx = self.tx_decoder.process_tx(
                 block_number, 
-                raw_block.timestamp, 
+                timestamp, 
                 tx_tuple[0], 
                 tx_tuple[1]
             )
@@ -64,6 +65,6 @@ class BlockDecoder:
 
         return Block(
             block_number=block_number,
-            timestamp=raw_block.timestamp,
+            timestamp=timestamp,
             transactions=decoded_tx
         )
