@@ -1,6 +1,6 @@
 # indexer/types/model/base.py
 
-from typing import Optional
+from typing import Dict, Any
 import hashlib
 import msgspec
 from msgspec import Struct
@@ -8,24 +8,35 @@ from msgspec import Struct
 from ..new import EvmHash, DomainEventId
 
 
-class DomainEvent(Struct, kw_only=True):
-    ''' Base class for domain events. '''
+class Signal(Struct):
+    log_index: int
+    
+    @property
+    def signal_type(self) -> str:
+        return self.__class__.__name__
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return msgspec.structs.asdict(self)
+
+class DomainEvent(Struct):
     timestamp: int
     tx_hash: EvmHash
-    log_index: Optional[int] = None
-    content_id: Optional[DomainEventId] = None
 
-    def __post_init__(self) -> None:
-        if not self.content_id:
-            self.content_id = self._generate_content_id()
-    
+    @property
+    def content_id(self) -> DomainEventId:
+        if not hasattr(self, '_content_id'):
+            self._content_id = self._generate_content_id()
+        return self._content_id
+
     def _generate_content_id(self) -> str:
         content_struct = self._get_identifying_content()
         content_bytes = msgspec.msgpack.encode(content_struct)
         hash_hex = hashlib.sha256(content_bytes).hexdigest()
-        self.content_id = hash_hex[:12]
-
+        self._content_id = hash_hex[:12]
         return hash_hex[:12]
     
     def _get_identifying_content(self):
         raise NotImplementedError
+
+    def to_dict(self) -> Dict[str, Any]:
+        return msgspec.structs.asdict(self)

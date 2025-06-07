@@ -1,18 +1,29 @@
 # indexer/types/model/liquidity.py
 
-from typing import Literal, List, Optional, Dict
+from typing import Literal, Optional, Dict
 
 from ..new import EvmAddress
-from .base import DomainEvent, DomainEventId
-from .transfer import Transfer
+from .base import DomainEvent, DomainEventId, Signal
 
 
-class Position(DomainEvent, tag=True, kw_only=True):
+class LiquiditySignal(Signal, tag=True):
+    pool: EvmAddress
+    base_amount: str
+    base_token: EvmAddress
+    quote_amount: str
+    quote_token: EvmAddress
+    receipt_amount: Optional[str] = None
+    batch: Optional[Dict[int,str]] = None
+    sender: Optional[EvmAddress] = None
+    owner: Optional[EvmAddress] = None
+
+class Position(DomainEvent, tag=True):
     receipt_token: EvmAddress
     receipt_id: int
-    amount_base: str
-    amount_quote: str
-    amount_receipt: Optional[str] = None
+    base_amount: str
+    quote_amount: str
+    signals: Dict[int,Signal]
+    receipt_amount: Optional[str] = None
     custodian: Optional[EvmAddress] = None
 
     def _get_identifying_content(self):
@@ -21,22 +32,20 @@ class Position(DomainEvent, tag=True, kw_only=True):
             "tx_salt": self.tx_hash,
             "receipt_token": self.receipt_token,
             "receipt_id": self.receipt_id,
-            "amount_base": self.amount_base,
-            "amount_quote": self.amount_quote,
-            "amount_receipt": self.amount_receipt if self.amount_receipt is not None else "0",
+            "base_amount": self.base_amount,
+            "quote_amount": self.quote_amount,
         }
 
-class Liquidity(DomainEvent, tag=True, kw_only=True):
+class Liquidity(DomainEvent, tag=True):
     pool: EvmAddress
     provider: EvmAddress
     base_token: EvmAddress
-    amount_base: str
+    base_amount: str
     quote_token: EvmAddress
-    amount_quote: str
-    action: Literal["add_lp","remove_lp","update_lp"]
+    quote_amount: str
+    action: Literal["add","remove","update"]
+    signals: Dict[int,Signal]
     positions: Optional[Dict[DomainEventId,Position]] = None
-    transfers: Optional[Dict[DomainEventId,Transfer]] = None
-    custodian: Optional[EvmAddress] = None
 
     def _get_identifying_content(self):
         return {
@@ -44,7 +53,7 @@ class Liquidity(DomainEvent, tag=True, kw_only=True):
             "tx_salt": self.tx_hash,
             "pool": self.pool,
             "provider": self.provider,
-            "amount_base": self.amount_base,
-            "amount_quote": self.amount_quote,
+            "base_amount": self.base_amount,
+            "quote_amount": self.quote_amount,
             "action": self.action,
         }

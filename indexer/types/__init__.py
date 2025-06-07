@@ -76,7 +76,7 @@ from .model.auction import (
 )
 
 # Model Types: Farm_logs
-from .model.farm_logs import (
+from .model.farm import (
     FarmAdd,
     FarmSet,
     FarmDeposit,

@@ -10,7 +10,6 @@ from ..types import (
     DomainEvent,
     Transfer,
     ProcessingError,
-    UnmatchedTransfer,
     DomainEventId,
     ErrorId,
     create_transform_error,
@@ -37,194 +36,174 @@ class TransformationManager(LoggingMixin):
         updated_tx = msgspec.convert(transaction, type=type(transaction))
         decoded_logs = self._get_decoded_logs(transaction)
 
+        # Initialize collections
         if not updated_tx.transfers:
             updated_tx.transfers = {}
+        if not updated_tx.signals:
+            updated_tx.signals = {}
         if not updated_tx.events:
             updated_tx.events = {}
         if not updated_tx.errors:
             updated_tx.errors = {}
 
-        # PHASE 1: TRANSFERS
-        self.log_debug("Starting transfer processing phase", 
+        # PHASE 1: PROCESS ALL LOGS THROUGH TRANSFORMERS
+        self.log_debug("Starting transformer processing phase", 
                       decoded_log_count=len(decoded_logs), **tx_context)
         
-        self._process_transfers(decoded_logs, updated_tx)
+        self._process_transformers(decoded_logs, updated_tx)
         
+        # Log results from Phase 1
+        signal_count = len(updated_tx.signals) if updated_tx.signals else 0
+        direct_event_count = len(updated_tx.events) if updated_tx.events else 0
         transfer_count = len(updated_tx.transfers) if updated_tx.transfers else 0
-        self.log_info("Transfer processing completed", 
-                     transfer_count=transfer_count, **tx_context)
-
-        # PHASE 2: EVENTS  
-        self.log_debug("Starting event processing phase", **tx_context)
-        self._process_events(decoded_logs, updated_tx)
         
-        event_count = len(updated_tx.events) if updated_tx.events else 0
-        self.log_info("Event processing completed",
-                     event_count=event_count, **tx_context)
+        self.log_info("Transformer processing completed", 
+                     signal_count=signal_count,
+                     direct_event_count=direct_event_count,
+                     transfer_count=transfer_count,
+                     **tx_context)
 
-        # PHASE 3: ERROR HANDLING
-        self._handle_unmatched_transfers(updated_tx)
-
-        # Log final summary
+        # PHASE 2: TRANSACTION MANAGER PROCESSES SIGNALS → ADDITIONAL EVENTS
+        self.log_debug("Starting transaction manager phase", **tx_context)
+        
+        transaction_manager_events = self._process_transaction_level_events(updated_tx)
+        
+        # Add transaction manager events to the transaction
+        if transaction_manager_events:
+            updated_tx.events.update(transaction_manager_events)
+            
+        tm_event_count = len(transaction_manager_events) if transaction_manager_events else 0
+        self.log_info("Transaction manager processing completed",
+                     transaction_manager_events=tm_event_count,
+                     **tx_context)
+        
+        # Final summary
+        final_event_count = len(updated_tx.events) if updated_tx.events else 0
         error_count = len(updated_tx.errors) if updated_tx.errors else 0
+        
         self.log_info("Transaction processing completed",
+                     final_signal_count=signal_count,
+                     final_event_count=final_event_count,
                      final_transfer_count=transfer_count,
-                     final_event_count=event_count,
                      final_error_count=error_count,
                      **tx_context)
 
         return True, updated_tx
 
-    def _process_transfers(self, decoded_logs: Dict[int, DecodedLog], transaction: Transaction) -> None:
-        transfers_by_contract = self.registry.get_transfers_ordered(decoded_logs)
-
-        self.log_debug("Transfer processing starting", 
-                      contract_count=len(transfers_by_contract),
-                      tx_hash=transaction.tx_hash)
+    def _process_transformers(self, decoded_logs: Dict[int, DecodedLog], transaction: Transaction) -> None:
+        """Process all decoded logs through transformers to create signals, direct events, and transfers"""
         
-        for contract_address, transfer_logs in transfers_by_contract.items():
-            contract_context = {'contract_address': contract_address, 'tx_hash': transaction.tx_hash}
-            
-            self.log_debug("Processing contract transfers", **contract_context)
+        # Group logs by contract
+        logs_by_contract = {}
+        for log_idx, log in decoded_logs.items():
+            contract = log.contract.lower()
+            if contract not in logs_by_contract:
+                logs_by_contract[contract] = []
+            logs_by_contract[contract].append(log)
+
+        # Process each contract's logs
+        for contract_address, contract_logs in logs_by_contract.items():
             transformer = self.registry.get_transformer(contract_address)
             
-            if transformer:
-                transformer_context = {**contract_context, 'transformer_name': type(transformer).__name__}
-                self.log_debug("Transformer found", **transformer_context)
-                
-                for priority, log_list in sorted(transfer_logs.items()):
-                    priority_context = {**transformer_context, 'priority': priority, 'log_count': len(log_list)}
-                    self.log_debug("Processing priority group", **priority_context)
-                    
-                    try:
-                        transfers, errors = transformer.process_transfers(log_list, transaction)
-                        
-                        result_context = {
-                            **priority_context,
-                            'returned_transfers': len(transfers) if transfers else 0,
-                            'returned_errors': len(errors) if errors else 0
-                        }
-                        self.log_debug("Transformer returned results", **result_context)
-                        
-                        if transfers:
-                            before_count = len(transaction.transfers) if transaction.transfers else 0
-                            transaction.transfers.update(transfers)
-                            after_count = len(transaction.transfers) if transaction.transfers else 0
-                            
-                            self.log_info("Added transfers to transaction",
-                                         before_count=before_count,
-                                         after_count=after_count,
-                                         added_count=len(transfers),
-                                         **transformer_context)
-                            
-                            # Debug each transfer
-                            for transfer_id, transfer in transfers.items():
-                                self.log_debug("Transfer added",
-                                             transfer_id=transfer_id,
-                                             token=transfer.token,
-                                             amount=transfer.amount,
-                                             from_address=transfer.from_address,
-                                             to_address=transfer.to_address,
-                                             **transformer_context)
-                        else:
-                            self.log_debug("No transfers to add", **transformer_context)
-                            
-                        if errors:
-                            self.log_warning("Transformer returned errors", 
-                                           error_count=len(errors),
-                                           **transformer_context)
-                            transaction.errors.update(errors)
-                            
-                    except Exception as e:
-                        self.log_error("Exception in transfer processing",
-                                     error=str(e),
-                                     exception_type=type(e).__name__,
-                                     **transformer_context)
-                        
-                        error = create_transform_error(
-                            error_type="transfer_processing_exception",
-                            message=f"Exception in transfer processing: {str(e)}",
-                            tx_hash=transaction.tx_hash,
-                            contract_address=contract_address,
-                            transformer_name=transformer.__class__.__name__
-                        )
-                        transaction.errors[error.error_id] = error
-            else:
-                self.log_debug("No transformer found", **contract_context)
-                            
-        final_transfer_count = len(transaction.transfers) if transaction.transfers else 0
-        self.log_info("Transfer processing completed",
-                     input_contracts=len(transfers_by_contract),
-                     final_transfer_count=final_transfer_count,
-                     tx_hash=transaction.tx_hash)
-
-    def _process_events(self, decoded_logs: Dict[int, DecodedLog], transaction: Transaction) -> None:
-        logs_by_priority_contract = self.registry.get_remaining_logs_ordered(decoded_logs)
-
-        self.log_debug("Event processing debug",
-                      logs_by_priority_contract=dict(logs_by_priority_contract),
-                      tx_hash=transaction.tx_hash)
-
-        for priority in sorted(logs_by_priority_contract.keys()):
-            for contract_address, log_list in logs_by_priority_contract[priority].items():
-                transformer = self.registry.get_transformer(contract_address)
-                
-                if transformer:
-                    try:
-                        transfers, events, errors = transformer.process_logs(log_list, transaction)
-                        
-                        if transfers:
-                            transaction.transfers.update(transfers)
-                        if events:
-                            transaction.events.update(events)
-                        if errors:
-                            transaction.errors.update(errors)
-                            
-                    except Exception as e:
-                        error = create_transform_error(
-                            error_type="event_processing_exception", 
-                            message=f"Exception in event processing: {str(e)}",
-                            tx_hash=transaction.tx_hash,
-                            contract_address=contract_address,
-                            transformer_name=transformer.__class__.__name__
-                        )
-                        transaction.errors[error.error_id] = error
-
-    def _handle_unmatched_transfers(self, transaction: Transaction) -> None:
-        if not transaction.transfers:
-            return
-        
-        unmatched_count = 0
-        unmatched_transfers = []
-        
-        for transfer_id, transfer in transaction.transfers.items():
-            if isinstance(transfer, UnmatchedTransfer):
-                unmatched_count += 1
-                unmatched_transfers.append({
-                    "transfer_id": transfer_id,
-                    "token": transfer.token,
-                    "amount": transfer.amount,
-                    "from": transfer.from_address,
-                    "to": transfer.to_address
-                })
-        
-        if unmatched_count > 0:
-            self.log_warning("Found unmatched transfers",
-                           unmatched_count=unmatched_count,
-                           tx_hash=transaction.tx_hash)
+            if not transformer:
+                self.log_debug("No transformer found for contract", 
+                              contract_address=contract_address,
+                              log_count=len(contract_logs),
+                              tx_hash=transaction.tx_hash)
+                continue
             
-            error = create_transform_error(
-                error_type="unmatched_transfers",
-                message=f"Found {unmatched_count} unmatched transfers after processing",
-                tx_hash=transaction.tx_hash
-            )
-            error.context = error.context or {}
-            error.context["unmatched_transfers"] = unmatched_transfers
-            error.context["unmatched_count"] = unmatched_count
+            transformer_context = {
+                'contract_address': contract_address,
+                'transformer_name': type(transformer).__name__,
+                'tx_hash': transaction.tx_hash,
+                'log_count': len(contract_logs)
+            }
             
-            transaction.errors[error.error_id] = error
+            self.log_debug("Processing contract logs", **transformer_context)
+            
+            try:
+                # Call transformer's process_signals method
+                # Expected signature: (signals, direct_events, transfers, errors)
+                result = transformer.process_signals(contract_logs, transaction)
+                
+                # Handle different return tuple lengths for backward compatibility
+                if len(result) == 3:
+                    # Legacy format: (signals, transfers, errors)
+                    signals, transfers, errors = result
+                    direct_events = None
+                elif len(result) == 4:
+                    # New format: (signals, direct_events, transfers, errors)
+                    signals, direct_events, transfers, errors = result
+                else:
+                    raise ValueError(f"Unexpected return tuple length: {len(result)}")
+                
+                # Add signals to transaction
+                if signals:
+                    transaction.signals.update(signals)
+                    self.log_debug("Added signals", 
+                                  signal_count=len(signals),
+                                  **transformer_context)
+                
+                # Add direct events to transaction
+                if direct_events:
+                    transaction.events.update(direct_events)
+                    self.log_debug("Added direct events", 
+                                  event_count=len(direct_events),
+                                  **transformer_context)
+                
+                # Add transfers to transaction
+                if transfers:
+                    transaction.transfers.update(transfers)
+                    self.log_debug("Added transfers", 
+                                  transfer_count=len(transfers),
+                                  **transformer_context)
+                
+                # Add errors to transaction
+                if errors:
+                    transaction.errors.update(errors)
+                    self.log_warning("Transformer errors", 
+                                   error_count=len(errors),
+                                   **transformer_context)
+                
+            except Exception as e:
+                self.log_error("Exception in transformer processing",
+                             error=str(e),
+                             exception_type=type(e).__name__,
+                             **transformer_context)
+                
+                error = create_transform_error(
+                    error_type="transformer_processing_exception",
+                    message=f"Exception in transformer processing: {str(e)}",
+                    tx_hash=transaction.tx_hash,
+                    contract_address=contract_address,
+                    transformer_name=transformer.__class__.__name__
+                )
+                transaction.errors[error.error_id] = error
+
+    def _process_transaction_level_events(self, transaction: Transaction) -> Optional[Dict[DomainEventId, DomainEvent]]:
+        """
+        Process signals and transfers to create transaction-level events.
+        This is where complex aggregation logic will go (Trade events, arbitrage detection, etc.)
+        """
+        
+        # Placeholder for transaction manager logic
+        # This will handle:
+        # - Grouping PoolSwapSignals into Trade events
+        # - Arbitrage detection
+        # - BLUB transfer reconciliation
+        # - etc.
+        
+        tx_context = self.log_transaction_context(transaction.tx_hash)
+        
+        self.log_debug("Transaction manager processing (placeholder)", 
+                      signal_count=len(transaction.signals) if transaction.signals else 0,
+                      **tx_context)
+        
+        # For now, return empty - you'll implement the actual logic
+        return {}
 
     def _get_decoded_logs(self, transaction: Transaction) -> Dict[int, DecodedLog]:
+        """Get all decoded logs from transaction"""
         decoded_logs = {}
         for index, log in transaction.logs.items():
             if isinstance(log, DecodedLog):
@@ -232,6 +211,7 @@ class TransformationManager(LoggingMixin):
         return decoded_logs
 
     def _has_decoded_logs(self, transaction: Transaction) -> bool:
+        """Check if transaction has any decoded logs"""
         return any(isinstance(log, DecodedLog) for log in transaction.logs.values())
     
     def get_processing_summary(self, transaction: Transaction) -> Dict[str, int]:
@@ -239,6 +219,7 @@ class TransformationManager(LoggingMixin):
         return {
             "total_logs": len(transaction.logs),
             "decoded_logs": len(self._get_decoded_logs(transaction)),
+            "signals": len(transaction.signals) if transaction.signals else 0,
             "transfers": len(transaction.transfers) if transaction.transfers else 0,
             "events": len(transaction.events) if transaction.events else 0,
             "errors": len(transaction.errors) if transaction.errors else 0

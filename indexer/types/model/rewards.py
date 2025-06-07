@@ -3,20 +3,26 @@
 from typing import Literal, Optional, Dict
 
 from ..new import EvmAddress
-from .base import DomainEvent, DomainEventId
+from .base import DomainEvent, Signal
 
 
-class Reward(DomainEvent, tag=True, kw_only=True):
-    reward_token: EvmAddress
-    amount: str
-    reward_type: Literal["claim_rewards","claim_fees"]
-
-class RewardSet(DomainEvent, tag=True, kw_only=True):
+class RewardSignal(Signal, tag=True):
     contract: EvmAddress
     recipient: EvmAddress
     token: EvmAddress
     amount: str
-    rewards: Optional[Dict[DomainEventId,Reward]] = None
+    reward_type: Literal["rewards","fees"]
+    contract_id: Optional[int] = None
+    batch: Optional[Dict[int,str]] = None
+    sender: Optional[EvmAddress] = None
+
+class Reward(DomainEvent, tag=True):
+    contract: EvmAddress
+    recipient: EvmAddress
+    token: EvmAddress
+    amount: str
+    reward_type: Literal["rewards","fees"]
+    signals: Dict[int,Signal]
 
     def _get_identifying_content(self):
         return {
@@ -26,4 +32,6 @@ class RewardSet(DomainEvent, tag=True, kw_only=True):
             "recipient": self.recipient,
             "amount": self.amount,
             "token": self.token,
+            "reward_type": self.reward_type,
+            "signals": sorted(self.signals.keys()),
         }

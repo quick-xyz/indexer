@@ -55,7 +55,7 @@ class Transaction(Struct):
     tx_success: bool
     logs: Dict[int,EncodedLog|DecodedLog]  # keyed by log index
     origin_to: Optional[EvmAddress] = None
-    transfers: Optional[Dict[DomainEventId,Transfer]] = None
+    signals: Optional[Dict[DomainEventId,Signal]] = None
     events: Optional[Dict[DomainEventId,DomainEvent]] = None
     errors: Optional[Dict[ErrorId,ProcessingError]] = None
     indexing_status: Optional[TransactionStatus] = None

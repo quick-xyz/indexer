@@ -1,18 +1,25 @@
 # indexer/types/model/transfer.py
 
-from typing import Literal, List, Optional, Dict
+from typing import Literal, Optional, Dict
 
 from ..new import EvmAddress
-from .base import DomainEvent, DomainEventId
+from .base import DomainEvent, Signal
 
 
-class Transfer(DomainEvent, tag=True, kw_only=True):
+class TransferSignal(Signal, tag=True):
     token: EvmAddress
-    amount: str
     from_address: EvmAddress
     to_address: EvmAddress
-    transfer_type: Literal["transfer","transfer_batch"] = "transfer"
+    amount: str
     batch: Optional[Dict[int,str]] = None
+    sender: Optional[EvmAddress] = None
+
+class Transfer(DomainEvent, tag=True):
+    token: EvmAddress
+    from_address: EvmAddress
+    to_address: EvmAddress
+    amount: str
+    signals: Dict[int,Signal]
     
     def _get_identifying_content(self):
         return {
@@ -22,31 +29,24 @@ class Transfer(DomainEvent, tag=True, kw_only=True):
             "from_address": self.from_address,
             "to_address": self.to_address,
             "amount": self.amount,
-            "transfer_type": self.transfer_type,
+            "signals": sorted(self.signals.keys()),
         }
-
-class UnmatchedTransfer(Transfer, tag=True, kw_only=True):
-    pass
-
-class MatchedTransfer(Transfer, tag=True, kw_only=True):
-    pass
 
 class TransferLedger(DomainEvent, tag=True, kw_only=True):
     token: EvmAddress
     address: EvmAddress
     amount: str
-    action: Literal["sent","received"]
-    transfers: Optional[Dict[DomainEventId,Transfer]] = None
+    direction: Literal["out","in"]
+    signals: Dict[int,Signal]
     desc: Optional[str] = None
 
-    
     def _get_identifying_content(self):
         return {
             "event_type": "transfer_ledger",
             "tx_salt": self.tx_hash,
             "token": self.token,
-            "address": self.from_address,
-            "amount": self.to_address,
-            "action": self.total_amount,
-            "transfers": [transfer.content_id for transfer in self.transfers],
+            "address": self.address,
+            "amount": self.amount,
+            "direction": self.direction,
+            "signals": sorted(self.signals.keys()),
         }

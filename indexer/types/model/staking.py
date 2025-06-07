@@ -1,10 +1,9 @@
 # indexer/types/model/staking.py
 
-from typing import Literal, Optional, List
+from typing import Literal, Optional, Dict
 
 from ..new import EvmAddress
-from .base import DomainEvent
-from .transfer import Transfer
+from .base import DomainEvent, Signal
 
 
 class Staking(DomainEvent, tag=True, kw_only=True):
@@ -13,11 +12,11 @@ class Staking(DomainEvent, tag=True, kw_only=True):
     token: EvmAddress
     amount: str
     action: Literal["deposit","withdraw"]
+    signals: Dict[int,Signal]
     staking_id: Optional[int] = None
     receipt_token: Optional[EvmAddress] = None
     receipt_id: Optional[int] = None
-    amount_receipt: Optional[str] = None
-    transfers: Optional[List[Transfer]] = None
+    receipt_amount: Optional[str] = None
 
     def _get_identifying_content(self):
         return {

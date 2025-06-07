@@ -38,8 +38,6 @@ class DecoderConfig(Struct):
 class TransformerConfig(Struct):
     name: str
     instantiate: Dict[str, Any]
-    transfers: Optional[Dict[str, int]] = None
-    logs: Optional[Dict[str, int]] = None
 
 class ABIConfig(Struct):
     abi: List[Dict[str, Any]]
