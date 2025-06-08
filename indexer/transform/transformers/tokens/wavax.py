@@ -13,14 +13,8 @@ class WavaxTransformer(TokenTransformer):
         super().__init__(contract=contract)
 
     def _get_transfer_attributes(self, log: DecodedLog) -> Tuple[str, str, str]:
-        """
-        Override to handle WAVAX-specific attribute names.
-        WAVAX uses src/dst/wad instead of from/to/value.
-        
-        Returns:
-            Tuple of (from_address, to_address, amount)
-        """
         from_addr = str(log.attributes.get("src", ""))
         to_addr = str(log.attributes.get("dst", ""))
         value = amount_to_str(log.attributes.get("wad", 0))
-        return from_addr, to_addr, value
+        sender = ""
+        return from_addr, to_addr, value, sender

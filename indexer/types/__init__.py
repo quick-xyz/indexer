@@ -58,6 +58,7 @@ from .indexer import (
 # Model Types: Base
 from .model.base import (
     DomainEvent,
+    Signal,
 )
 
 # Model Types: Errors
@@ -70,6 +71,9 @@ from .model.errors import (
 
 # Model Types: Auction
 from .model.auction import (
+    AuctionPurchaseSignal,
+    LotStartSignal,
+    LotCancelSignal,
     AuctionPurchase,
     LotStarted,
     LotCancelled,
@@ -77,6 +81,15 @@ from .model.auction import (
 
 # Model Types: Farm_logs
 from .model.farm import (
+    FarmAddSignal,
+    FarmSetSignal,
+    FarmDepositSignal,
+    FarmWithdrawSignal,
+    UpdateFarmSignal,
+    FarmHarvestSignal,
+    FarmBatchHarvestSignal,
+    FarmEmergencyWithdrawSignal,
+    FarmSkimSignal,
     FarmAdd,
     FarmSet,
     FarmDeposit,
@@ -88,27 +101,24 @@ from .model.farm import (
     FarmSkim,
 )
 
-# Model Types: Fees
-from .model.fees import (
-    Fee,
-)
-
 # Model Types: Liquidity
 from .model.liquidity import (
+    LiquiditySignal,
     Position,
     Liquidity,
 )
 
 # Model Types: Parameters
 from .model.parameters import (
-    Parameter,
-    ParameterSet,
+    ParameterSignal,
+    ParameterChange,
+    ParameterSetChange,
 )
 
 # Model Types: Rewards
 from .model.rewards import (
+    RewardSignal,
     Reward,
-    RewardSet,
 )
 
 # Model Types: Staking
@@ -118,16 +128,15 @@ from .model.staking import (
 
 # Model Types: Trade
 from .model.trade import (
-    Swap,
+    SwapSignal,
     PoolSwap,
     Trade,
 )
 
 # Model Types: Transfer
 from .model.transfer import (
+    TransferSignal,
     Transfer,
-    UnmatchedTransfer,
-    MatchedTransfer,
     TransferLedger,
 )
 
@@ -184,14 +193,31 @@ __all__ = [
     "Block",
 
     # Model Types
+    ## Base
     "DomainEvent",
+    "Signal",
+    ## Errors
     "ProcessingError",
     "create_decode_error",
     "create_transform_error",
     "create_rpc_error",
+    ## Auction
+    "AuctionPurchaseSignal",
+    "LotStartSignal",
+    "LotCancelSignal",
     "AuctionPurchase",
     "LotStarted",
     "LotCancelled",
+    ## Farm
+    "FarmAddSignal",
+    "FarmSetSignal",
+    "FarmDepositSignal",
+    "FarmWithdrawSignal",
+    "UpdateFarmSignal",
+    "FarmHarvestSignal",
+    "FarmBatchHarvestSignal",
+    "FarmEmergencyWithdrawSignal",
+    "FarmSkimSignal",
     "FarmAdd",
     "FarmSet",
     "FarmDeposit",
@@ -201,19 +227,25 @@ __all__ = [
     "FarmBatchHarvest",
     "FarmEmergencyWithdraw",
     "FarmSkim",
-    "Fee",
+    ## Liquidity
+    "LiquiditySignal",
     "Position",
     "Liquidity",
-    "Parameter",
-    "ParameterSet",
+    ## Parameters
+    "ParameterSignal",
+    "ParameterChange",
+    "ParameterSetChange",
+    ## Rewards
+    "RewardSignal",
     "Reward",
-    "RewardSet",
+    ## Staking
     "Staking",
-    "Swap",
+    ## Trade
+    "SwapSignal",
     "PoolSwap",
     "Trade",
+    ## Transfer
+    "TransferSignal",
     "Transfer",
-    "UnmatchedTransfer",
-    "MatchedTransfer",
     "TransferLedger",
 ]

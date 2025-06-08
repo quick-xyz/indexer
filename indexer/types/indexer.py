@@ -5,8 +5,7 @@ from msgspec import Struct
 
 from .new import HexStr,EvmAddress,EvmHash, DomainEventId, ErrorId
 from .model.errors import ProcessingError
-from .model.base import DomainEvent
-from .model.transfer import Transfer
+from .model.base import DomainEvent, Signal
 
 
 BlockStatus = Literal["rpc", "processing", "complete", "error"]
@@ -55,7 +54,7 @@ class Transaction(Struct):
     tx_success: bool
     logs: Dict[int,EncodedLog|DecodedLog]  # keyed by log index
     origin_to: Optional[EvmAddress] = None
-    signals: Optional[Dict[DomainEventId,Signal]] = None
+    signals: Optional[Dict[int,Signal]] = None
     events: Optional[Dict[DomainEventId,DomainEvent]] = None
     errors: Optional[Dict[ErrorId,ProcessingError]] = None
     indexing_status: Optional[TransactionStatus] = None

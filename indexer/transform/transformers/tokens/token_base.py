@@ -6,11 +6,8 @@ from ..base import BaseTransformer
 from ....types import (
     ProcessingError,    
     DecodedLog,
-    Transaction,   
-    Transfer,
-    UnmatchedTransfer,
-    DomainEvent,
-    DomainEventId,
+    Signal,
+    TransferSignal,
     ErrorId,
     EvmAddress,
 )
@@ -20,60 +17,47 @@ class TokenTransformer(BaseTransformer):
     def __init__(self, contract: str):
         super().__init__(contract_address=contract)
 
-    def _get_transfer_attributes(self, log: DecodedLog) -> Tuple[str, str, str]:
-        """
-        Extract transfer attributes from log. 
-        Override in subclasses for different attribute naming.
-        
-        Returns:
-            Tuple of (from_address, to_address, amount)
-        """
+    def _get_transfer_attributes(self, log: DecodedLog) -> Tuple[str, str, str, str]:
         from_addr = str(log.attributes.get("from", ""))
         to_addr = str(log.attributes.get("to", ""))
         value = amount_to_str(log.attributes.get("value", 0))
-        return from_addr, to_addr, value
+        sender = str(log.attributes.get("sender", ""))
+        return from_addr, to_addr, value, sender
 
-    def process_transfers(self, logs: List[DecodedLog], tx: Transaction) -> Tuple[
-        Optional[Dict[DomainEventId, Transfer]], Optional[Dict[ErrorId, ProcessingError]]
+    def _validate_transfer_data(self, log: DecodedLog, trf: Tuple, errors: Dict[ErrorId, ProcessingError]) -> bool:
+        if not self._validate_null_attr(trf, log.index, errors):
+            return False
+        if is_zero(trf[2]):
+            self.log_warning("Transfer amount is zero",log_index=log.index)
+            self._create_attr_error(log.index, errors)
+            return False
+        return True
+    
+    def _create_transfer_signal(self, log: DecodedLog, from_addr: str, to_addr: str, value: str, sender: str) -> TransferSignal:
+        return TransferSignal(
+            log_index=log.index,
+            token=log.contract,
+            from_address=EvmAddress(from_addr.lower()),
+            to_address=EvmAddress(to_addr.lower()),
+            amount=value,
+            sender=EvmAddress(sender.lower()) if sender else None  # Keep this one - sender can be optional
+        )
+
+    def process_logs(self, logs: List[DecodedLog]) -> Tuple[
+        Optional[Dict[int, Signal]], Optional[Dict[ErrorId, ProcessingError]]
     ]:
-        transfers = {}
+        signals = {}
         errors = {}
 
         for log in logs:
             try:
                 if log.name == "Transfer":
-                    from_addr, to_addr, value = self._get_transfer_attributes(log)
-                
-                    from_addr = EvmAddress(from_addr.lower()) if from_addr else ""
-                    to_addr = EvmAddress(to_addr.lower()) if to_addr else ""
-                    
-                    if not from_addr or not to_addr or is_zero(value):
+                    trf = self._get_transfer_attributes(log)
+                    if not self._validate_transfer_data(log,trf, errors):
                         continue
-                        
-                    transfer = UnmatchedTransfer(
-                        timestamp=tx.timestamp,
-                        tx_hash=tx.tx_hash,
-                        log_index=log.index,
-                        token=log.contract.lower(),
-                        amount=value,
-                        from_address=from_addr,
-                        to_address=to_addr
-                    )
-                    
-                    transfers[transfer.content_id] = transfer
-                        
-            except Exception as e:
-                self._create_log_exception(e, tx.tx_hash, log.index, self.__class__.__name__, errors)
-                
-        return transfers if transfers else None, errors if errors else None
+                    signals[log.index] = self._create_transfer_signal(log, *trf)
 
-    def process_logs(self, logs: List[DecodedLog], tx: Transaction) -> Tuple[
-        Optional[Dict[DomainEventId, Transfer]], 
-        Optional[Dict[DomainEventId, DomainEvent]], 
-        Optional[Dict[ErrorId, ProcessingError]]
-    ]:
-        """
-        Token contracts typically don't produce domain events beyond transfers.
-        This method returns empty results since transfers are handled in process_transfers().
-        """
-        return None, None, None
+            except Exception as e:
+                self._create_log_exception(e, log.index, errors)
+
+        return signals if signals else None, errors if errors else None
