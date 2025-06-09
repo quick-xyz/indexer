@@ -1,23 +1,13 @@
-# BaseTransformer vs Applied Transformers
-## Move to BaseTransformer:
+## Liquidity Book
+### Swap
+python testing/test_pipeline.py 63269916
+python testing/scripts/debug_session.py block 63269916  
+python testing/diagnostics/quick_diagnostic.py
 
-✅ General validation (_validate_not_null, _create_log_exception)
-✅ Error creation utilities
-✅ Common logging patterns
-✅ Basic signal creation helpers (if patterns emerge)
+### DepositedToBins
+python testing/test_pipeline.py 58570137
+python testing/scripts/debug_session.py analyze 0x59e5135a0123ec5f7b88c47b5e0d0537c0230f9b72d789ab1cb33af998b02779 58570137
 
-## Keep in Applied Transformers:
-
-✅ Attribute extraction (_get_transfer_attributes) - domain-specific
-✅ Signal creation (_create_transfer_signal) - type-specific
-✅ Business validation - each transformer knows its rules
-✅ Main processing logic (process_logs) - keeps it readable
-
-## Benefits of This Split:
-
-* Fast comprehension - main logic stays visible in applied transformers
-* Reduced duplication - common utilities in base
-* Clear ownership - domain logic stays with domain transformers
-* Easy maintenance - common patterns can be refactored to base later
-
-This approach gives you both clarity (logic stays visible) and efficiency (shared utilities) without over-abstracting too early.
+### WithdrawnFromBins
+python testing/test_pipeline.py 58376529
+python testing/scripts/debug_session.py analyze 0x06cd109690c39408a5882ba47703146dd1cffe2ca8bce98a8b91349b27731d03 58376529

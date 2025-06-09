@@ -1,6 +1,8 @@
 # indexer/transform/transformers/pools/lb_pair.py
 
 from typing import Dict, Tuple, Optional
+import ast
+import codecs
 
 from .pool_base import PoolTransformer
 from ....types import (
@@ -34,20 +36,37 @@ class LbPairTransformer(PoolTransformer):
     def token_y(self):
         return self.token1
 
-    def _unpack_amounts(self, amounts: bytes) -> Tuple[str, str]:
-        if isinstance(amounts, str):
-            amounts = amounts.replace("0x", "")
-            packed_amounts = bytes.fromhex(amounts)
-        else:
-            packed_amounts = amounts
-        
-        amounts_x = int.from_bytes(packed_amounts, byteorder="big") & (2 ** 128 - 1)
-        amounts_y = int.from_bytes(packed_amounts, byteorder="big") >> 128
+    def _unpack_amounts(self, amounts: str) -> Tuple[str, str]:
+        self.log_debug("Unpacking amounts", 
+                    amounts_type=type(amounts).__name__,
+                    amounts_value=str(amounts)[:100],  # Truncate for readability
+                    amounts_startswith_b=amounts.startswith("b'") if isinstance(amounts, str) else False)
+        try:
+            if amounts.startswith("0x"):
+                hex_str = amounts[2:]
+            else:
+                hex_str = amounts
 
-        if self.token0 == self.base_token:
-            return amounts_x, amounts_y
-        else:
-            return amounts_y, amounts_x
+            packed_amounts = bytes.fromhex(hex_str)
+
+            amounts_x = int.from_bytes(packed_amounts, byteorder="big") & (2 ** 128 - 1)
+            amounts_y = int.from_bytes(packed_amounts, byteorder="big") >> 128
+
+            if self.token0 == self.base_token:
+                result = amounts_x, amounts_y
+            else:
+                result = amounts_y, amounts_x
+            
+            self.log_debug("Amount unpacking successful",amounts_x=amounts_x,amounts_y=amounts_y)
+            
+            return result
+        
+        except Exception as e:
+            self.log_error("Amount unpacking failed", 
+                        amounts_type=type(amounts).__name__,
+                        amounts_value=str(amounts)[:50],
+                        error=str(e))
+            return 0, 0
 
     def _get_in_out_amounts(self, log: DecodedLog) -> Tuple[str, str]:         
         base_amount_in, quote_amount_in = self._unpack_amounts(log.attributes.get("amountsIn"))
@@ -58,9 +77,9 @@ class LbPairTransformer(PoolTransformer):
 
         return amount_to_str(base_amount), amount_to_str(quote_amount)
 
-    def _prepare_bins_and_amounts(self, log: DecodedLog) -> Optional[Tuple[Dict[int, str],str]]:
+    def _prepare_bins_and_amounts(self, log: DecodedLog) -> Optional[Tuple[Dict[str, str],str]]:
         try:    
-            bins = [int(bin_id) for bin_id in log.attributes.get("ids")]
+            bins = [str(bin_id) for bin_id in log.attributes.get("ids")]
             amounts = [str(amt) for amt in log.attributes.get("amounts")]
             sum = add_amounts(amounts)
 
@@ -88,15 +107,24 @@ class LbPairTransformer(PoolTransformer):
             )
             return None        
 
-    def _prepare_bins_and_packed_amounts(self, log: DecodedLog, negative: bool) -> Optional[Tuple[Dict[int, Tuple[str,str]],str, str]]:
+    def _prepare_bins_and_packed_amounts(self, log: DecodedLog, negative: bool) -> Optional[Tuple[Dict[str, Dict[str,str]],str, str]]:
         try:    
             multiplier = -1 if negative else 1
 
-            bins = [int(bin_id) for bin_id in log.attributes.get("ids")]
+            bins = [str(bin_id) for bin_id in log.attributes.get("ids")]
             amounts = [self._unpack_amounts(amt) for amt in log.attributes.get("amounts")]
-            amounts = [(a[0] * multiplier, a[1] * multiplier) for a in amounts]
-            sum_base = add_amounts(a[0] for a in amounts)
-            sum_quote = add_amounts(a[1] for a in amounts)
+            amounts_raw = log.attributes.get("amounts",[])
+            amounts = []
+
+            for amts in amounts_raw:
+                base_amount, quote_amount = self._unpack_amounts(amts)
+                amounts.append({
+                    "base": str(base_amount * multiplier), 
+                    "quote": str(quote_amount * multiplier)
+                })
+            
+            sum_base = add_amounts([amt["base"] for amt in amounts])
+            sum_quote = add_amounts([amt["quote"] for amt in amounts])
 
             if len(bins) != len(amounts):
                 self.log_warning(
@@ -130,7 +158,7 @@ class LbPairTransformer(PoolTransformer):
 
         return id, base_amount, quote_amount, to, sender
     
-    def _get_batch_transfer_attributes(self, log: DecodedLog) -> Tuple[str, str, Dict[int,str], str, str]:
+    def _get_batch_transfer_attributes(self, log: DecodedLog) -> Tuple[str, str, Dict[str,str], str, str]:
         from_addr = str(log.attributes.get("from"))
         to_addr = str(log.attributes.get("to"))
         result = self._prepare_bins_and_amounts(log)
@@ -143,8 +171,19 @@ class LbPairTransformer(PoolTransformer):
 
         return from_addr, to_addr, bins_amounts, sender, sum
     
-    def _get_liquidity_attributes(self, log: DecodedLog, negative: bool = False) -> Tuple[str, str, str, str,Dict[int, Tuple[str,str]]]:
-        bins_amounts, base_amount, quote_amount = self._prepare_bins_and_packed_amounts(log, negative)
+    def _get_liquidity_attributes(self, log: DecodedLog, negative: bool = False) -> Tuple[str, str, str, str,Dict[str, Dict[str,str]]]:
+        
+        self.log_debug("Processing liquidity attributes",
+                    log_index=log.index,
+                    amounts_attr_type=type(log.attributes.get("amounts")).__name__,
+                    amounts_length=len(log.attributes.get("amounts", [])),
+                    ids_type=type(log.attributes.get("ids")).__name__)
+    
+        result = self._prepare_bins_and_packed_amounts(log, negative)
+        if result is None:
+            return None
+        
+        bins_amounts, base_amount, quote_amount = result
         sender = str(log.attributes.get("sender", ""))
         to = str(log.attributes.get("to", ""))
 
@@ -168,10 +207,32 @@ class LbPairTransformer(PoolTransformer):
             return False
         return True
 
-    def _validate_batch_transfer_data(self, log: DecodedLog, trf: Tuple[str, str, Dict[int,str]], 
+    def _validate_batch_transfer_data(self, log: DecodedLog, trf: Tuple[str, str, Dict[str,str],str,str], 
                                 errors: Dict[ErrorId, ProcessingError]) -> bool:
         if not self._validate_null_attr(trf, log.index, errors):
             return False
+        return True
+
+    def _validate_liquidity_data(self, log: DecodedLog, liq: Tuple[str, str, str, str, Dict[str, Dict[str, str]]],
+                                errors: Dict[ErrorId, ProcessingError]) -> bool:
+        if not self._validate_null_attr(liq[:4], log.index, errors):
+            return False
+        
+        if is_zero(liq[0]) and is_zero(liq[1]):
+            self.log_warning("Both liquidity amounts are zero", log_index=log.index)
+            self._create_attr_error(log.index, errors)
+            return False
+        
+        if liq[2] and not self._validate_addresses(liq[2]):
+            self.log_warning("Invalid sender address", log_index=log.index)
+            self._create_attr_error(log.index, errors)
+            return False
+            
+        if liq[3] and not self._validate_addresses(liq[3]):
+            self.log_warning("Invalid to address", log_index=log.index) 
+            self._create_attr_error(log.index, errors)
+            return False
+
         return True
 
     def _handle_swap(self, log: DecodedLog, signals: Dict[int, Signal], errors: Dict[ErrorId, ProcessingError]) -> None:
@@ -217,6 +278,9 @@ class LbPairTransformer(PoolTransformer):
         self.log_debug("Handling mint log", log_index=log.index)
 
         liq = self._get_liquidity_attributes(log)
+        if liq is None:
+            self._create_attr_error(log.index, errors)
+            return
         if not self._validate_liquidity_data(log, liq, errors):
             return
         

@@ -13,7 +13,7 @@ class LiquiditySignal(Signal, tag=True):
     quote_amount: str
     quote_token: EvmAddress
     receipt_amount: Optional[str] = None
-    batch: Optional[Dict[int,Tuple[int,str]]] = None
+    batch: Optional[Dict[str,Dict[str,str]]] = None
     sender: Optional[EvmAddress] = None
     to: Optional[EvmAddress] = None
 

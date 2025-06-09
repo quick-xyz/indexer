@@ -89,8 +89,8 @@ class TransformerRegistry(LoggingMixin):
                 transformer_instance = transformer_class(**instantiate_params)
 
                 # Validate required method exists
-                if not hasattr(transformer_instance, 'process_signals'):
-                    raise AttributeError(f"Missing required method: process_signals")
+                if not hasattr(transformer_instance, 'process_logs'):
+                    raise AttributeError(f"Missing required method: process_logs")
                     
                 self.log_debug("Transformer validated", **transformer_context)
                 

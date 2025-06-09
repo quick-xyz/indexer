@@ -23,7 +23,7 @@ class SwapSignal(Signal, tag=True):
     quote_token: EvmAddress
     to: EvmAddress
     sender: Optional[EvmAddress] = None
-    batch: Optional[Dict[int,Tuple[str,str]]] = None
+    batch: Optional[Dict[str,Dict[str,str]]] = None
 
 class PoolSwap(DomainEvent, tag=True):
     pool: EvmAddress

@@ -11,7 +11,7 @@ class TransferSignal(Signal, tag=True):
     from_address: EvmAddress
     to_address: EvmAddress
     amount: str
-    batch: Optional[Dict[int,str]] = None
+    batch: Optional[Dict[str,str]] = None
     sender: Optional[EvmAddress] = None
 
 class Transfer(DomainEvent, tag=True):
