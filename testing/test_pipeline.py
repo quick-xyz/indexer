@@ -3,7 +3,7 @@
 Pipeline Testing Script for Blockchain Indexer
 
 Uses the indexer's architecture and logging system for comprehensive testing.
-Moved from root to testing/ directory and enhanced to use proper DI.
+Updated for signal-based transformation architecture.
 """
 
 import sys
@@ -69,13 +69,13 @@ class PipelineTester:
             if decoded_block is None:
                 return False
             
-            # Phase 3: Transformation
-            transformed_block = self._test_transformation(decoded_block)
-            if transformed_block is None:
+            # Phase 3: Signal Generation
+            signal_block = self._test_signal_generation(decoded_block)
+            if signal_block is None:
                 return False
             
             # Phase 4: Storage
-            success = self._test_storage(transformed_block)
+            success = self._test_storage(signal_block)
             
             if success:
                 log_with_context(
@@ -226,148 +226,126 @@ class PipelineTester:
             print(f"❌ Block decoding failed: {e}")
             return None
     
-    def _test_transformation(self, decoded_block: Block) -> Optional[Block]:
-        """Test transformation pipeline"""
-        print(f"\n=== Test 3: Transformation ===")
+    def _test_signal_generation(self, decoded_block: Block) -> Optional[Block]:
+        """Test signal generation pipeline"""
+        print(f"\n=== Test 3: Signal Generation ===")
         
         if not decoded_block.transactions:
-            print("⚠️  No transactions to transform")
+            print("⚠️  No transactions to process")
             return decoded_block
         
         log_with_context(
             self.logger,
             logging.INFO,
-            "Testing transformation pipeline",
+            "Testing signal generation pipeline",
             input_transaction_count=len(decoded_block.transactions)
         )
         
         try:
-            transformed_transactions = {}
-            total_processed = 0
-            total_transfers = 0
-            total_events = 0
+            processed_transactions = {}
+            total_with_signals = 0
+            total_signals = 0
             total_errors = 0
             
             for tx_hash, transaction in decoded_block.transactions.items():
                 log_with_context(
                     self.logger,
                     logging.DEBUG,
-                    "Processing transaction",
+                    "Processing transaction for signals",
                     tx_hash=tx_hash
                 )
                 
-                processed, transformed_tx = self.transform_manager.process_transaction(transaction)
+                signals_generated, processed_tx = self.transform_manager.process_transaction(transaction)
                 
                 # Collect statistics
-                transfer_count = len(transformed_tx.transfers) if transformed_tx.transfers else 0
-                event_count = len(transformed_tx.events) if transformed_tx.events else 0
-                error_count = len(transformed_tx.errors) if transformed_tx.errors else 0
+                signal_count = len(processed_tx.signals) if processed_tx.signals else 0
+                error_count = len(processed_tx.errors) if processed_tx.errors else 0
                 
                 log_with_context(
                     self.logger,
                     logging.DEBUG,
-                    "Transaction processing completed",
+                    "Transaction signal processing completed",
                     tx_hash=tx_hash,
-                    processed=processed,
-                    transfers=transfer_count,
-                    events=event_count,
+                    signals_generated=signals_generated,
+                    signal_count=signal_count,
                     errors=error_count
                 )
                 
-                print(f"   TX {tx_hash[:10]}... - Processed: {processed}")
-                print(f"     Transfers: {transfer_count}, Events: {event_count}, Errors: {error_count}")
+                print(f"   TX {tx_hash[:10]}... - Signals: {signal_count}, Errors: {error_count}")
                 
-                # Log transfer details for debugging
-                if transformed_tx.transfers:
-                    for transfer_id, transfer in transformed_tx.transfers.items():
+                # Log signal details for debugging
+                if processed_tx.signals:
+                    for signal_idx, signal in processed_tx.signals.items():
                         log_with_context(
                             self.logger,
                             logging.DEBUG,
-                            "Transfer created",
+                            "Signal generated",
                             tx_hash=tx_hash,
-                            transfer_id=transfer_id,
-                            transfer_type=type(transfer).__name__,
-                            token=transfer.token,
-                            amount=transfer.amount,
-                            from_address=transfer.from_address,
-                            to_address=transfer.to_address
-                        )
-                
-                # Log event details for debugging
-                if transformed_tx.events:
-                    for event_id, event in transformed_tx.events.items():
-                        log_with_context(
-                            self.logger,
-                            logging.DEBUG,
-                            "Event created",
-                            tx_hash=tx_hash,
-                            event_id=event_id,
-                            event_type=type(event).__name__
+                            signal_index=signal_idx,
+                            signal_type=type(signal).__name__,
+                            log_index=signal.log_index
                         )
                 
                 # Log errors for debugging
-                if transformed_tx.errors:
-                    for error_id, error in transformed_tx.errors.items():
+                if processed_tx.errors:
+                    for error_id, error in processed_tx.errors.items():
                         log_with_context(
                             self.logger,
                             logging.WARNING,
-                            "Transformation error",
+                            "Signal generation error",
                             tx_hash=tx_hash,
                             error_id=error_id,
                             error_type=error.error_type,
                             error_message=error.message
                         )
                 
-                transformed_transactions[tx_hash] = transformed_tx
+                processed_transactions[tx_hash] = processed_tx
                 
-                if processed:
-                    total_processed += 1
-                total_transfers += transfer_count
-                total_events += event_count
+                if signals_generated:
+                    total_with_signals += 1
+                total_signals += signal_count
                 total_errors += error_count
             
-            # Update block with transformed transactions
+            # Update block with processed transactions
             import msgspec
-            transformed_block = msgspec.convert(decoded_block, type=Block)
-            transformed_block.transactions = transformed_transactions
+            signal_block = msgspec.convert(decoded_block, type=Block)
+            signal_block.transactions = processed_transactions
             
             log_with_context(
                 self.logger,
                 logging.INFO,
-                "Transformation completed",
+                "Signal generation completed",
                 total_transactions=len(decoded_block.transactions),
-                processed_transactions=total_processed,
-                total_transfers=total_transfers,
-                total_events=total_events,
+                transactions_with_signals=total_with_signals,
+                total_signals=total_signals,
                 total_errors=total_errors
             )
             
-            print(f"✅ Transformation completed")
-            print(f"   Processed: {total_processed}/{len(decoded_block.transactions)} transactions")
-            print(f"   Total transfers: {total_transfers}")
-            print(f"   Total events: {total_events}")
+            print(f"✅ Signal generation completed")
+            print(f"   Transactions with signals: {total_with_signals}/{len(decoded_block.transactions)}")
+            print(f"   Total signals generated: {total_signals}")
             print(f"   Total errors: {total_errors}")
             
-            return transformed_block
+            return signal_block
             
         except Exception as e:
             log_with_context(
                 self.logger,
                 logging.ERROR,
-                "Transformation failed",
+                "Signal generation failed",
                 error=str(e)
             )
-            print(f"❌ Transformation failed: {e}")
+            print(f"❌ Signal generation failed: {e}")
             return None
     
-    def _test_storage(self, transformed_block: Block) -> bool:
-        """Test storage of transformed block"""
+    def _test_storage(self, signal_block: Block) -> bool:
+        """Test storage of processed block"""
         print(f"\n=== Test 4: Storage ===")
         
         try:
             # Check if block has errors
             error_count = sum(
-                len(tx.errors) for tx in transformed_block.transactions.values()
+                len(tx.errors) for tx in signal_block.transactions.values()
                 if tx.errors
             )
             
@@ -377,7 +355,7 @@ class PipelineTester:
                 self.logger,
                 logging.INFO,
                 "Testing storage",
-                block_number=transformed_block.block_number,
+                block_number=signal_block.block_number,
                 has_errors=has_errors,
                 error_count=error_count
             )
@@ -386,26 +364,27 @@ class PipelineTester:
             from datetime import datetime
             from indexer.types import ProcessingMetadata
             
-            if not transformed_block.processing_metadata:
-                transformed_block.processing_metadata = ProcessingMetadata()
+            if not signal_block.processing_metadata:
+                signal_block.processing_metadata = ProcessingMetadata()
             
-            transformed_block.processing_metadata.completed_at = datetime.utcnow().isoformat()
-            transformed_block.processing_metadata.error_count = error_count
+            signal_block.processing_metadata.completed_at = datetime.utcnow().isoformat()
+            signal_block.processing_metadata.error_count = error_count
             
             if has_errors:
                 print(f"⚠️  Block has {error_count} errors - storing in processing/")
-                transformed_block.processing_metadata.error_stage = "transform"
+                signal_block.processing_metadata.error_stage = "transform"
+                signal_block.indexing_status = "error"
                 
                 success = self.storage_handler.save_processing_block(
-                    transformed_block.block_number,
-                    transformed_block
+                    signal_block.block_number,
+                    signal_block
                 )
                 
                 log_with_context(
                     self.logger,
                     logging.INFO,
                     "Block stored in processing",
-                    block_number=transformed_block.block_number,
+                    block_number=signal_block.block_number,
                     success=success,
                     error_count=error_count
                 )
@@ -414,17 +393,18 @@ class PipelineTester:
                 
             else:
                 print(f"✅ Block processed successfully - storing in complete/")
+                signal_block.indexing_status = "complete"
                 
                 success = self.storage_handler.save_complete_block(
-                    transformed_block.block_number,
-                    transformed_block
+                    signal_block.block_number,
+                    signal_block
                 )
                 
                 log_with_context(
                     self.logger,
                     logging.INFO,
                     "Block stored in complete",
-                    block_number=transformed_block.block_number,
+                    block_number=signal_block.block_number,
                     success=success
                 )
                 
@@ -493,7 +473,7 @@ def main():
         if success:
             print("✅ All pipeline stages passed!")
             print("\n🎯 Next steps:")
-            print("   - Review logs/indexer.log for detailed analysis")
+            print("   - Review logs/indexer.log for detailed signal analysis")
             print("   - Run log analyzer: python testing/diagnostics/log_analyzer.py logs/indexer.log")
         else:
             print("❌ Pipeline test failed - check logs for details")

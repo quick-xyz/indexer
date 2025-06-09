@@ -2,6 +2,7 @@
 """
 Quick Diagnostic Tool for Blockchain Indexer
 
+Updated for signal-based transformation architecture.
 Uses the indexer's configuration system and dependency injection
 to verify setup and identify issues.
 """
@@ -31,7 +32,7 @@ from indexer.contracts.manager import ContractManager
 
 class QuickDiagnostic:
     """
-    Diagnostic checker that leverages the indexer's architecture
+    Diagnostic checker that leverages the indexer's signal-based architecture
     """
     
     def __init__(self, config_path: str = None):
@@ -43,7 +44,8 @@ class QuickDiagnostic:
             self.logger,
             logging.INFO,
             "Starting quick diagnostic session",
-            config_path=self.testing_env.config_path
+            config_path=self.testing_env.config_path,
+            architecture="signal-based"
         )
     
     def run_all_checks(self) -> bool:
@@ -53,15 +55,17 @@ class QuickDiagnostic:
         print(f"📅 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
         print(f"📄 Config: {self.testing_env.config_path}")
         print(f"🏗️  Indexer: {self.testing_env.config.name} v{self.testing_env.config.version}")
+        print(f"🔧 Architecture: Signal-based transformation")
         print()
         
         checks = [
             ("Configuration Loading", self.check_configuration),
             ("Dependency Injection", self.check_dependency_injection), 
             ("Contract Registry", self.check_contract_registry),
-            ("Transformer Setup", self.check_transformer_setup),
+            ("Signal Transformer Setup", self.check_signal_transformer_setup),
             ("Storage Connection", self.check_storage_connection),
-            ("RPC Connection", self.check_rpc_connection)
+            ("RPC Connection", self.check_rpc_connection),
+            ("Signal Generation Test", self.check_signal_generation)
         ]
         
         all_passed = True
@@ -240,8 +244,8 @@ class QuickDiagnostic:
             )
             return False
     
-    def check_transformer_setup(self) -> bool:
-        """Check transformer registry and setup"""
+    def check_signal_transformer_setup(self) -> bool:
+        """Check signal transformer registry and setup"""
         try:
             transformer_registry = self.testing_env.get_service(TransformerRegistry)
             
@@ -252,7 +256,7 @@ class QuickDiagnostic:
                 self.logger.error("No transformers registered")
                 return False
             
-            # Validate each transformer
+            # Validate each transformer for signal architecture
             valid_transformers = 0
             for address, transformer_info in all_transformers.items():
                 if not transformer_info.active:
@@ -261,36 +265,47 @@ class QuickDiagnostic:
                 transformer_instance = transformer_info.instance
                 transformer_name = type(transformer_instance).__name__
                 
-                # Check required methods exist
-                required_methods = ['process_transfers', 'process_logs']
+                # Check required methods for signal architecture
+                required_methods = ['process_logs']
                 for method_name in required_methods:
                     if not hasattr(transformer_instance, method_name):
                         log_with_context(
                             self.logger,
                             logging.ERROR,
-                            "Transformer missing required method",
+                            "Signal transformer missing required method",
                             transformer_name=transformer_name,
                             missing_method=method_name,
                             contract_address=address
                         )
                         return False
                 
+                # Check handler map for signal generation
+                if hasattr(transformer_instance, 'handler_map'):
+                    handler_map = getattr(transformer_instance, 'handler_map', {})
+                    if not handler_map:
+                        log_with_context(
+                            self.logger,
+                            logging.WARNING,
+                            "Transformer has empty handler map",
+                            transformer_name=transformer_name,
+                            contract_address=address
+                        )
+                
                 valid_transformers += 1
                 
                 log_with_context(
                     self.logger,
                     logging.DEBUG,
-                    "Transformer validation passed",
+                    "Signal transformer validation passed",
                     transformer_name=transformer_name,
                     contract_address=address,
-                    transfer_events=len(transformer_info.transfer_priorities),
-                    log_events=len(transformer_info.log_priorities)
+                    has_handler_map=hasattr(transformer_instance, 'handler_map')
                 )
             
             log_with_context(
                 self.logger,
                 logging.INFO,
-                "Transformer setup check passed",
+                "Signal transformer setup check passed",
                 total_transformers=len(all_transformers),
                 valid_transformers=valid_transformers
             )
@@ -301,7 +316,7 @@ class QuickDiagnostic:
             log_with_context(
                 self.logger,
                 logging.ERROR,
-                "Transformer setup check failed",
+                "Signal transformer setup check failed",
                 error=str(e)
             )
             return False
@@ -364,6 +379,66 @@ class QuickDiagnostic:
             )
             return False
     
+    def check_signal_generation(self) -> bool:
+        """Test signal generation with a sample transaction"""
+        try:
+            # Get a known block for testing
+            test_block_number = 63269916  # Use the same block from your examples
+            
+            storage_handler = self.testing_env.get_service(GCSHandler)
+            block_decoder = self.testing_env.get_service(BlockDecoder)
+            transform_manager = self.testing_env.get_service(TransformationManager)
+            
+            # Get and decode a test block
+            raw_block = storage_handler.get_rpc_block(test_block_number)
+            if not raw_block:
+                self.logger.warning(f"Test block {test_block_number} not found - skipping signal test")
+                return True  # Don't fail if test block isn't available
+            
+            decoded_block = block_decoder.decode_block(raw_block)
+            if not decoded_block.transactions:
+                self.logger.warning(f"No transactions in test block {test_block_number}")
+                return True
+            
+            # Test signal generation on first transaction
+            first_tx_hash = next(iter(decoded_block.transactions.keys()))
+            first_tx = decoded_block.transactions[first_tx_hash]
+            
+            log_with_context(
+                self.logger,
+                logging.DEBUG,
+                "Testing signal generation",
+                test_block=test_block_number,
+                test_tx=first_tx_hash,
+                tx_logs=len(first_tx.logs)
+            )
+            
+            signals_generated, processed_tx = transform_manager.process_transaction(first_tx)
+            
+            signal_count = len(processed_tx.signals) if processed_tx.signals else 0
+            error_count = len(processed_tx.errors) if processed_tx.errors else 0
+            
+            log_with_context(
+                self.logger,
+                logging.INFO,
+                "Signal generation test completed",
+                signals_generated=signals_generated,
+                signal_count=signal_count,
+                error_count=error_count,
+                test_tx=first_tx_hash
+            )
+            
+            return True  # Signal generation working, even if no signals produced
+            
+        except Exception as e:
+            log_with_context(
+                self.logger,
+                logging.ERROR,
+                "Signal generation test failed",
+                error=str(e)
+            )
+            return False
+    
     def _print_summary(self, all_passed: bool):
         """Print diagnostic summary"""
         print("📊 DIAGNOSTIC SUMMARY")
@@ -376,10 +451,11 @@ class QuickDiagnostic:
         print(f"❌ Failed: {total_count - passed_count}/{total_count}")
         
         if all_passed:
-            print("\n🎉 All checks passed! Ready for pipeline testing.")
+            print("\n🎉 All checks passed! Ready for signal pipeline testing.")
             print("\n🎯 Next steps:")
             print("   1. Run: python testing/test_pipeline.py <block_number>")
-            print("   2. Or: python testing/scripts/debug_session.py")
+            print("   2. Or: python testing/scripts/debug_session.py block <block_number>")
+            print("   3. Test signals: python testing/scripts/debug_session.py transformers")
         else:
             print("\n❌ Some checks failed. Review errors above.")
             print("\n💡 Common fixes:")
@@ -387,6 +463,7 @@ class QuickDiagnostic:
             print("   - Verify config/config.json is valid")
             print("   - Ensure ABI files exist in config/abis/")
             print("   - Check network connectivity")
+            print("   - Verify transformers have process_logs() method")
 
 
 def main():

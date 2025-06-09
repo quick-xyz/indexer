@@ -7,10 +7,7 @@ from ..core.config import IndexerConfig
 from ..core.mixins import LoggingMixin
 
 from .transformers import *
-from ..types import (
-    EvmAddress, 
-    DecodedLog,
-)
+from ..types import EvmAddress
 
 
 class ContractTransformer(Struct):
@@ -42,7 +39,6 @@ class TransformerRegistry(LoggingMixin):
                 "LfjPoolTransformer": LfjPoolTransformer,
                 "LbPairTransformer": LbPairTransformer,
                 "PharPairTransformer": PharPairTransformer,
-                "PharClPoolTransformer": PharClPoolTransformer,
             })
             self.log_info("Transformer classes loaded successfully", 
                          class_count=len(transformer_classes),
@@ -121,20 +117,16 @@ class TransformerRegistry(LoggingMixin):
         self.log_info("Transformer setup completed", **setup_stats)
 
     def register_contract(self, contract_address: EvmAddress, instance: object):
-        """Register a transformer for a contract"""
         self._transformers[contract_address] = ContractTransformer(instance=instance)
 
-    def get_transformer(self, contract_address: EvmAddress) -> Optional[object]:
-        """Get transformer instance for a contract"""
+    def get_transformer(self, contract_address: EvmAddress) -> Optional[BaseTransformer]:
         transformer = self._transformers.get(contract_address.lower())
         return transformer.instance if transformer and transformer.active else None
 
     def get_all_contracts(self) -> Dict[str, ContractTransformer]:
-        """Get all registered transformers"""
         return self._transformers.copy()
 
     def get_contracts_with_transformers(self) -> Dict[EvmAddress, object]:
-        """Get mapping of contract addresses to active transformer instances"""
         return {
             address: transformer.instance 
             for address, transformer in self._transformers.items() 

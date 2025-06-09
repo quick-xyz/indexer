@@ -3,7 +3,8 @@
 """
 Enhanced Debug Session for Blockchain Indexer
 
-Now generates structured output files for analysis and sharing.
+Updated for signal-based transformation architecture.
+Generates structured output files for analysis and sharing.
 """
 
 import sys
@@ -27,7 +28,7 @@ from indexer.transform.registry import TransformerRegistry
 
 
 class EnhancedDebugSession:
-    """Interactive debugging session with file output capabilities"""
+    """Interactive debugging session with file output capabilities for signal-based architecture"""
     
     def __init__(self, config_path: str = None):
         self.testing_env = get_testing_environment(config_path, log_level="DEBUG")
@@ -46,11 +47,11 @@ class EnhancedDebugSession:
         print("🔧 ENHANCED BLOCKCHAIN INDEXER DEBUG SESSION")
         print("=" * 60)
         print(f"📁 Output directory: {self.output_dir}")
-        print("Services loaded and ready for debugging")
+        print("Services loaded and ready for debugging (Signal-based architecture)")
         print()
     
     def analyze_transaction_to_file(self, tx_hash: str, block_number: int) -> str:
-        """Deep analysis of a specific transaction with file output"""
+        """Deep analysis of a specific transaction with file output for signal generation"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_file = self.output_dir / f"transaction_analysis_{tx_hash[:10]}_{timestamp}.json"
         
@@ -63,13 +64,14 @@ class EnhancedDebugSession:
                 "tx_hash": tx_hash,
                 "block_number": block_number,
                 "analysis_time": datetime.now().isoformat(),
+                "architecture": "signal-based",
                 "indexer": {
                     "name": self.testing_env.config.name,
                     "version": self.testing_env.config.version
                 }
             },
             "transaction": {},
-            "transformation": {},
+            "signal_generation": {},
             "errors": [],
             "summary": {}
         }
@@ -102,7 +104,7 @@ class EnhancedDebugSession:
                 "logs": {}
             }
             
-            # Analyze each log
+            # Analyze each log and transformer availability
             for log_idx, log in transaction.logs.items():
                 if hasattr(log, 'name'):
                     # Decoded log
@@ -110,13 +112,8 @@ class EnhancedDebugSession:
                     transformer_info = {
                         "exists": transformer is not None,
                         "name": type(transformer).__name__ if transformer else None,
-                        "transfer_priority": None,
-                        "log_priority": None
+                        "has_process_logs": hasattr(transformer, 'process_logs') if transformer else False
                     }
-                    
-                    if transformer:
-                        transformer_info["transfer_priority"] = self.transformer_registry.get_transfer_priority(log.contract, log.name)
-                        transformer_info["log_priority"] = self.transformer_registry.get_log_priority(log.contract, log.name)
                     
                     analysis["transaction"]["logs"][str(log_idx)] = {
                         "type": "decoded",
@@ -134,46 +131,32 @@ class EnhancedDebugSession:
                         "topics_count": len(log.topics) if log.topics else 0
                     }
             
-            # Run transformation and capture detailed results
-            print("🔄 Running transformation...")
+            # Run signal generation and capture detailed results
+            print("🔄 Running signal generation...")
             
             try:
-                processed, transformed_tx = self.transform_manager.process_transaction(transaction)
+                signals_generated, processed_tx = self.transform_manager.process_transaction(transaction)
                 
-                # Capture transformation results
-                analysis["transformation"] = {
-                    "processed": processed,
-                    "transfers": {},
-                    "events": {},
+                # Capture signal generation results
+                analysis["signal_generation"] = {
+                    "signals_generated": signals_generated,
+                    "signals": {},
                     "errors": {}
                 }
                 
-                # Analyze transfers
-                if transformed_tx.transfers:
-                    for transfer_id, transfer in transformed_tx.transfers.items():
-                        analysis["transformation"]["transfers"][transfer_id] = {
-                            "type": type(transfer).__name__,
-                            "token": transfer.token,
-                            "amount": transfer.amount,
-                            "from_address": transfer.from_address,
-                            "to_address": transfer.to_address,
-                            "transfer_type": getattr(transfer, 'transfer_type', 'transfer'),
-                            "log_index": transfer.log_index
-                        }
-                
-                # Analyze events
-                if transformed_tx.events:
-                    for event_id, event in transformed_tx.events.items():
-                        analysis["transformation"]["events"][event_id] = {
-                            "type": type(event).__name__,
-                            "timestamp": event.timestamp,
-                            "log_index": getattr(event, 'log_index', None)
+                # Analyze signals
+                if processed_tx.signals:
+                    for signal_idx, signal in processed_tx.signals.items():
+                        analysis["signal_generation"]["signals"][str(signal_idx)] = {
+                            "type": type(signal).__name__,
+                            "log_index": signal.log_index,
+                            "signal_data": self._serialize_signal(signal)
                         }
                 
                 # Analyze errors
-                if transformed_tx.errors:
-                    for error_id, error in transformed_tx.errors.items():
-                        analysis["transformation"]["errors"][error_id] = {
+                if processed_tx.errors:
+                    for error_id, error in processed_tx.errors.items():
+                        analysis["signal_generation"]["errors"][error_id] = {
                             "error_type": error.error_type,
                             "message": error.message,
                             "stage": error.stage,
@@ -181,23 +164,22 @@ class EnhancedDebugSession:
                         }
                 
             except Exception as e:
-                analysis["transformation"]["exception"] = {
+                analysis["signal_generation"]["exception"] = {
                     "type": type(e).__name__,
                     "message": str(e),
                     "traceback": traceback.format_exc()
                 }
-                print(f"❌ Transformation exception: {e}")
+                print(f"❌ Signal generation exception: {e}")
             
             # Generate summary
             analysis["summary"] = {
                 "total_logs": len(transaction.logs),
                 "decoded_logs": len([log for log in transaction.logs.values() if hasattr(log, 'name')]),
-                "transfers_created": len(analysis["transformation"].get("transfers", {})),
-                "events_created": len(analysis["transformation"].get("events", {})),
-                "transformation_errors": len(analysis["transformation"].get("errors", {})),
-                "has_exception": "exception" in analysis["transformation"],
+                "signals_generated": len(analysis["signal_generation"].get("signals", {})),
+                "generation_errors": len(analysis["signal_generation"].get("errors", {})),
+                "has_exception": "exception" in analysis["signal_generation"],
                 "contracts_involved": list(set(log.contract for log in transaction.logs.values() if hasattr(log, 'contract'))),
-                "transformers_used": list(set(
+                "transformers_available": list(set(
                     analysis["transaction"]["logs"][str(idx)]["transformer"]["name"]
                     for idx, log_data in analysis["transaction"]["logs"].items()
                     if log_data["type"] == "decoded" and log_data["transformer"]["exists"]
@@ -218,16 +200,32 @@ class EnhancedDebugSession:
         print(f"\n📊 ANALYSIS SUMMARY:")
         print(f"   Total logs: {analysis['summary'].get('total_logs', 0)}")
         print(f"   Decoded logs: {analysis['summary'].get('decoded_logs', 0)}")
-        print(f"   Transfers created: {analysis['summary'].get('transfers_created', 0)}")
-        print(f"   Events created: {analysis['summary'].get('events_created', 0)}")
-        print(f"   Transformation errors: {analysis['summary'].get('transformation_errors', 0)}")
+        print(f"   Signals generated: {analysis['summary'].get('signals_generated', 0)}")
+        print(f"   Generation errors: {analysis['summary'].get('generation_errors', 0)}")
         
         if analysis['summary'].get('has_exception'):
-            print(f"   ❌ Has transformation exception")
+            print(f"   ❌ Has signal generation exception")
         
         print(f"\n📄 Full analysis saved to: {output_file}")
         
         return str(output_file)
+    
+    def _serialize_signal(self, signal) -> dict:
+        """Serialize signal object to dictionary for JSON output"""
+        try:
+            # Get all attributes of the signal
+            signal_dict = {}
+            for attr_name in dir(signal):
+                if not attr_name.startswith('_') and not callable(getattr(signal, attr_name)):
+                    try:
+                        value = getattr(signal, attr_name)
+                        # Convert to string for JSON serialization
+                        signal_dict[attr_name] = str(value) if value is not None else None
+                    except:
+                        signal_dict[attr_name] = "serialization_error"
+            return signal_dict
+        except Exception:
+            return {"error": "failed_to_serialize_signal"}
     
     def _save_analysis(self, output_file: Path, analysis: dict):
         """Save analysis to JSON file with pretty formatting"""
@@ -239,7 +237,7 @@ class EnhancedDebugSession:
             print(f"❌ Failed to save analysis: {e}")
     
     def quick_block_analysis_to_file(self, block_number: int) -> str:
-        """Quick block analysis with file output"""
+        """Quick block analysis with file output for signal architecture"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_file = self.output_dir / f"block_analysis_{block_number}_{timestamp}.json"
         
@@ -250,7 +248,8 @@ class EnhancedDebugSession:
         analysis = {
             "metadata": {
                 "block_number": block_number,
-                "analysis_time": datetime.now().isoformat()
+                "analysis_time": datetime.now().isoformat(),
+                "architecture": "signal-based"
             },
             "block": {},
             "transactions": {},
@@ -280,12 +279,24 @@ class EnhancedDebugSession:
                     total_logs = len(transaction.logs)
                     decoded_logs = sum(1 for log in transaction.logs.values() if hasattr(log, 'name'))
                     
+                    # Test signal generation for each transaction
+                    try:
+                        signals_generated, processed_tx = self.transform_manager.process_transaction(transaction)
+                        signal_count = len(processed_tx.signals) if processed_tx.signals else 0
+                        error_count = len(processed_tx.errors) if processed_tx.errors else 0
+                    except Exception as e:
+                        signals_generated = False
+                        signal_count = 0
+                        error_count = 1
+                    
                     analysis["transactions"][tx_hash] = {
                         "success": transaction.tx_success,
                         "from": transaction.origin_from,
                         "to": transaction.origin_to,
                         "total_logs": total_logs,
                         "decoded_logs": decoded_logs,
+                        "signals_generated": signal_count,
+                        "signal_errors": error_count,
                         "contracts": list(set(log.contract for log in transaction.logs.values() if hasattr(log, 'contract')))
                     }
             
@@ -296,7 +307,15 @@ class EnhancedDebugSession:
                 "decoded_logs": sum(
                     sum(1 for log in tx.logs.values() if hasattr(log, 'name'))
                     for tx in decoded_block.transactions.values()
-                ) if decoded_block.transactions else 0
+                ) if decoded_block.transactions else 0,
+                "total_signals": sum(
+                    analysis["transactions"][tx_hash].get("signals_generated", 0)
+                    for tx_hash in analysis["transactions"]
+                ),
+                "total_signal_errors": sum(
+                    analysis["transactions"][tx_hash].get("signal_errors", 0)
+                    for tx_hash in analysis["transactions"]
+                )
             }
             
         except Exception as e:
@@ -312,12 +331,14 @@ class EnhancedDebugSession:
         print(f"   Transactions: {analysis['summary'].get('total_transactions', 0)}")
         print(f"   Total logs: {analysis['summary'].get('total_logs', 0)}")
         print(f"   Decoded logs: {analysis['summary'].get('decoded_logs', 0)}")
+        print(f"   Total signals: {analysis['summary'].get('total_signals', 0)}")
+        print(f"   Signal errors: {analysis['summary'].get('total_signal_errors', 0)}")
         print(f"\n📄 Full analysis saved to: {output_file}")
         
         return str(output_file)
     
     def transformer_performance_report(self) -> str:
-        """Generate transformer performance report"""
+        """Generate transformer performance report for signal architecture"""
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         output_file = self.output_dir / f"transformer_report_{timestamp}.json"
         
@@ -328,6 +349,7 @@ class EnhancedDebugSession:
         report = {
             "metadata": {
                 "report_time": datetime.now().isoformat(),
+                "architecture": "signal-based",
                 "indexer": {
                     "name": self.testing_env.config.name,
                     "version": self.testing_env.config.version
@@ -342,20 +364,30 @@ class EnhancedDebugSession:
         for address, transformer_config in all_transformers.items():
             transformer_name = type(transformer_config.instance).__name__
             
+            # Check what methods are available
+            methods_available = {
+                "process_logs": hasattr(transformer_config.instance, 'process_logs'),
+                "handler_map": hasattr(transformer_config.instance, 'handler_map')
+            }
+            
+            # Get handler map if available
+            handler_map = {}
+            if hasattr(transformer_config.instance, 'handler_map'):
+                handler_map = getattr(transformer_config.instance, 'handler_map', {})
+            
             report["transformers"][address] = {
                 "name": transformer_name,
                 "active": transformer_config.active,
-                "transfer_events": dict(transformer_config.transfer_priorities),
-                "log_events": dict(transformer_config.log_priorities),
-                "methods": {
-                    "process_transfers": hasattr(transformer_config.instance, 'process_transfers'),
-                    "process_logs": hasattr(transformer_config.instance, 'process_logs')
-                }
+                "methods": methods_available,
+                "event_handlers": list(handler_map.keys()) if handler_map else [],
+                "contract_address": getattr(transformer_config.instance, 'contract_address', address),
+                "ready_for_signals": methods_available["process_logs"] and methods_available["handler_map"]
             }
         
         report["summary"] = {
             "total_contracts": len(all_transformers),
             "active_transformers": sum(1 for t in all_transformers.values() if t.active),
+            "signal_ready": sum(1 for t in report["transformers"].values() if t["ready_for_signals"]),
             "transformer_types": list(set(type(t.instance).__name__ for t in all_transformers.values()))
         }
         
@@ -364,6 +396,7 @@ class EnhancedDebugSession:
         print(f"📊 Transformer Summary:")
         print(f"   Total contracts: {report['summary']['total_contracts']}")
         print(f"   Active transformers: {report['summary']['active_transformers']}")
+        print(f"   Signal-ready: {report['summary']['signal_ready']}")
         print(f"   Transformer types: {', '.join(report['summary']['transformer_types'])}")
         print(f"\n📄 Full report saved to: {output_file}")
         
@@ -371,8 +404,8 @@ class EnhancedDebugSession:
 
 
 def main():
-    """Main debug session with file output"""
-    print("Starting enhanced debug session with file output...")
+    """Main debug session with file output for signal architecture"""
+    print("Starting enhanced debug session with file output for signal-based architecture...")
     
     try:
         debug_session = EnhancedDebugSession()
@@ -385,16 +418,16 @@ def main():
                 tx_hash = sys.argv[2]
                 block_number = int(sys.argv[3])
                 output_file = debug_session.analyze_transaction_to_file(tx_hash, block_number)
-                print(f"\n🎯 Use this file to share the analysis: {output_file}")
+                print(f"\n🎯 Use this file to share the signal analysis: {output_file}")
                 
             elif command == "block" and len(sys.argv) > 2:
                 block_number = int(sys.argv[2])
                 output_file = debug_session.quick_block_analysis_to_file(block_number)
-                print(f"\n🎯 Use this file to share the analysis: {output_file}")
+                print(f"\n🎯 Use this file to share the block analysis: {output_file}")
                 
             elif command == "transformers":
                 output_file = debug_session.transformer_performance_report()
-                print(f"\n🎯 Use this file to share the report: {output_file}")
+                print(f"\n🎯 Use this file to share the transformer report: {output_file}")
                 
             else:
                 print("Usage:")
@@ -402,8 +435,9 @@ def main():
                 print("  python testing/scripts/debug_session.py block <block_number>")
                 print("  python testing/scripts/debug_session.py transformers")
                 print("\nAll commands generate JSON files in debug_output/ directory")
+                print("Architecture: Signal-based transformation pipeline")
         else:
-            print("Enhanced debug session - generates analysis files")
+            print("Enhanced debug session - generates analysis files for signal architecture")
             print("Run with 'analyze', 'block', or 'transformers' commands")
             
     except Exception as e:
