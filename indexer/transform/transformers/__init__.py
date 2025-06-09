@@ -12,6 +12,7 @@ from .tokens.wavax import WavaxTransformer
 from .pools.lfj_pool import LfjPoolTransformer
 from .pools.lb_pair import LbPairTransformer
 from .pools.phar_pair import PharPairTransformer
+from .pools.phar_clpool import PharClPoolTransformer
 
 # Router Transformers
 
@@ -25,4 +26,5 @@ __all__ = [
     "LfjPoolTransformer",
     "LbPairTransformer",
     "PharPairTransformer",
+    "PharClPoolTransformer",
 ]

@@ -15,7 +15,7 @@ class LiquiditySignal(Signal, tag=True):
     receipt_amount: Optional[str] = None
     batch: Optional[Dict[str,Dict[str,str]]] = None
     sender: Optional[EvmAddress] = None
-    to: Optional[EvmAddress] = None
+    owner: Optional[EvmAddress] = None
 
 class Position(DomainEvent, tag=True):
     receipt_token: EvmAddress

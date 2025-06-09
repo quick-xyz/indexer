@@ -39,6 +39,7 @@ class TransformerRegistry(LoggingMixin):
                 "LfjPoolTransformer": LfjPoolTransformer,
                 "LbPairTransformer": LbPairTransformer,
                 "PharPairTransformer": PharPairTransformer,
+                "PharClPoolTransformer": PharClPoolTransformer,
             })
             self.log_info("Transformer classes loaded successfully", 
                          class_count=len(transformer_classes),

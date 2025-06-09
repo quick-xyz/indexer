@@ -2,8 +2,8 @@
 
 from typing import List, Dict, Tuple, Optional
 
-from .pool_base import PoolTransformer
-from ....types import (
+from ..indexer.transform.transformers.pools.pool_base import PoolTransformer
+from ..indexer.types import (
     DecodedLog,
     Transaction,
     EvmAddress,
@@ -17,7 +17,7 @@ from ....types import (
     ErrorId,
     create_transform_error,
 )
-from ....utils.amounts import amount_to_str, amount_to_int, compare_amounts
+from ..indexer.utils.amounts import amount_to_str, amount_to_int, compare_amounts
 
 
 class LbPairTransformer(PoolTransformer):

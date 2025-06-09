@@ -166,7 +166,7 @@ class PoolTransformer(BaseTransformer):
             quote_amount=liq[1],
             quote_token=self.quote_token,
             sender=EvmAddress(liq[2].lower()) if liq[2] else None,
-            to=EvmAddress(liq[3].lower()) if liq[3] else None
+            owner=EvmAddress(liq[3].lower()) if liq[3] else None
         )
         self.log_debug("Mint signal created", log_index=log.index)
 
@@ -180,11 +180,11 @@ class PoolTransformer(BaseTransformer):
         signals[log.index] = LiquiditySignal(
             log_index=log.index,
             pool=self.contract_address,
-            base_amount=-liq[0],
+            base_amount=f"-{liq[0]}" if not liq[0].startswith('-') else liq[0],
             base_token=self.base_token,
-            quote_amount=-liq[1],
+            quote_amount=f"-{liq[1]}" if not liq[1].startswith('-') else liq[1],
             quote_token=self.quote_token,
             sender=EvmAddress(liq[2].lower()) if liq[2] else None,
-            to=EvmAddress(liq[3].lower()) if liq[3] else None
+            owner=EvmAddress(liq[3].lower()) if liq[3] else None
         )
         self.log_debug("Burn signal created", log_index=log.index)

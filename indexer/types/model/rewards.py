@@ -6,6 +6,15 @@ from ..new import EvmAddress
 from .base import DomainEvent, Signal
 
 
+class CollectSignal(Signal, tag=True):
+    contract: EvmAddress
+    recipient: EvmAddress
+    token: EvmAddress
+    amount: str
+    reward_type: Literal["rewards","fees"] = "fees"
+    owner: Optional[EvmAddress] = None
+    sender: Optional[EvmAddress] = None
+
 class RewardSignal(Signal, tag=True):
     contract: EvmAddress
     recipient: EvmAddress

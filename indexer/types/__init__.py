@@ -117,6 +117,7 @@ from .model.parameters import (
 
 # Model Types: Rewards
 from .model.rewards import (
+    CollectSignal,
     RewardSignal,
     Reward,
 )
@@ -237,6 +238,7 @@ __all__ = [
     "ParameterChange",
     "ParameterSetChange",
     ## Rewards
+    "CollectSignal",
     "RewardSignal",
     "Reward",
     ## Staking
