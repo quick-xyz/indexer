@@ -41,6 +41,9 @@ class TransformerRegistry(LoggingMixin):
                 "PharPairTransformer": PharPairTransformer,
                 "PharClPoolTransformer": PharClPoolTransformer,
                 "PharNfpTransformer": PharNfpTransformer,
+                "KyberAggregatorTransformer": KyberAggregatorTransformer,
+                "OdosAggregatorTransformer": OdosAggregatorTransformer,
+                "LfjAggregatorTransformer": LfjAggregatorTransformer,
             })
 
             self.log_info("Transformer classes loaded successfully", 

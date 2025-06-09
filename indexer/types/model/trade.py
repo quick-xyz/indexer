@@ -1,6 +1,6 @@
 # indexer/types/model/trade.py
 
-from typing import Literal, Optional, Dict, Tuple
+from typing import Literal, Optional, Dict, List
 
 from ..new import EvmAddress
 from .base import DomainEvent, DomainEventId, Signal
@@ -25,15 +25,24 @@ class SwapSignal(Signal, tag=True):
     sender: Optional[EvmAddress] = None
     batch: Optional[Dict[str,Dict[str,str]]] = None
 
-class RouterSignal(Signal, tag=True):
-    pool: EvmAddress
-    base_amount: str
-    base_token: EvmAddress
-    quote_amount: str
-    quote_token: EvmAddress
-    to: EvmAddress
+class RouteSignal(Signal, tag=True):
+    contract: EvmAddress
+    token_in: EvmAddress
+    amount_in: str
+    token_out: EvmAddress
+    amount_out: str
+    to: Optional[EvmAddress] = None
     sender: Optional[EvmAddress] = None
-    batch: Optional[Dict[str,Dict[str,str]]] = None
+
+class MultiRouteSignal(Signal, tag=True):
+    contract: EvmAddress
+    tokens_in: List[EvmAddress]
+    amounts_in: List[str]
+    tokens_out: List[EvmAddress]
+    amounts_out: List[str]
+    to: Optional[EvmAddress] = None
+    sender: Optional[EvmAddress] = None
+
 
 class PoolSwap(DomainEvent, tag=True):
     pool: EvmAddress

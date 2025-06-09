@@ -179,6 +179,54 @@
                 "symbol": "PCL",
                 "decimals": 0
             }
+        },
+        "0x45a62b090df48243f12a21897e7ed91863e2c86b": {
+            "name": "AggregatorV2",
+            "project": "LFJ",
+            "type": "Aggregator",
+            "decode": {
+                "abi_dir": "aggregators",
+                "abi": "lfj_agg.json"
+            },
+            "transform": {
+                "name": "LfjAggregatorTransformer",
+                "instantiate": {
+                    "contract": "0x45a62b090df48243f12a21897e7ed91863e2c86b"
+                }
+            },
+            "token":{}
+        },
+        "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc": {
+            "name": "RouterV2",
+            "project": "Odos",
+            "type": "Aggregator",
+            "decode": {
+                "abi_dir": "aggregators",
+                "abi": "odos_agg.json"
+            },
+            "transform": {
+                "name": "OdosAggregatorTransformer",
+                "instantiate": {
+                    "contract": "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc"
+                }
+            },
+            "token":{}
+        },
+          "0x6131b5fae19ea4f9d964eac0408e4408b66337b5": {
+            "name": "MetaAggRouter2",
+            "project": "Kyber",
+            "type": "Aggregator",
+            "decode": {
+                "abi_dir": "aggregators",
+                "abi": "kyber_agg.json"
+            },
+            "transform": {
+                "name": "KyberAggregatorTransformer",
+                "instantiate": {
+                    "contract": "0x6131b5fae19ea4f9d964eac0408e4408b66337b5"
+                }
+            },
+            "token":{}
         }
     },
     "addresses":{

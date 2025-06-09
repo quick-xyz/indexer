@@ -137,7 +137,8 @@ from .model.staking import (
 from .model.trade import (
     SwapSignal,
     SwapBatchSignal,
-    RouterSignal,
+    RouteSignal,
+    MultiRouteSignal,
     PoolSwap,
     Trade,
 )
@@ -256,7 +257,8 @@ __all__ = [
     ## Trade
     "SwapSignal",
     "SwapBatchSignal",
-    "RouterSignal",
+    "RouteSignal",
+    "MultiRouteSignal",
     "PoolSwap",
     "Trade",
     ## Transfer

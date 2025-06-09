@@ -9,8 +9,19 @@
             "index": 0,
             "origin_from": "0x9c7ad86e0836d72809d33dfe5673b1141382963f",
             "function": {
-                "type": "EncodedMethod",
-                "data": "0xf1910f70000000000000000000000000c04f291347d21dc663f7646056db22bff8ce84300000000000000000000000007698a5311da174a95253ce86c21ca7272b9b05f80000000000000000000000000f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd000000000000000000000000000000000000000000002ae47c8c09bf52550166000000000000000000000000000000000000000000002ee01aabb829faa3d70b0000000000000000000000009c7ad86e0836d72809d33dfe5673b1141382963f00000000000000000000000000000000000000000000000000000000683fd2740000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000018488de50b233052e4fb783d4f6db78cc34fea3e9fc88de50b233052e4fb783d4f6db78cc34fea3e9fc83bd37f900017698a5311da174a95253ce86c21ca7272b9b05f800010f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd0a2ae47c8c09bf525501660a2f1c67fda0a6e20000000147ae00015f3454fa53e5866a4f69bbc2e6b9a041092d9ad700000001c04f291347d21dc663f7646056db22bff8ce84303f40db9c0702020801fdf2ff330301000101020132018b8bac23030100010302011e000b010004020102000001008722be030101010506001400030101010706001eff0000b5fa743b43e44e2cb74c200c81f274b0ca8e9d347698a5311da174a95253ce86c21ca7272b9b05f8eed1c0ba2c17855288c3a2b36f3b5068346fa2bd12b50bfaa528f967cd7f249c78b44ee3818e972d819fe65a885d40493f4b91e8a10e242018758432b31f66aa3c1e785363f0875a1b74e27b85fd66c739888258d60fed9228f89e13eb57a92f1fa832eb000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"
+                "type": "DecodedMethod",
+                "selector": "0xf1910f70",
+                "name": "swapExactIn",
+                "args": {
+                    "logic": "0xC04f291347D21DC663f7646056db22bFf8CE8430",
+                    "tokenIn": "0x7698A5311DA174A95253Ce86C21ca7272b9B05f8",
+                    "tokenOut": "0x0f669808d88B2b0b3D23214DCD2a1cc6A8B1B5cd",
+                    "amountIn": 202554224488205644005734,
+                    "amountOutMin": 221362850716671061251851,
+                    "to": "0x9c7ad86e0836d72809d33DFe5673b1141382963f",
+                    "deadline": 1749013108,
+                    "route": "iN5QsjMFLk+3g9T223jMNP6j6fyI3lCyMwUuT7eD1PbbeMw0/qPp/IO9N/kAAXaYpTEdoXSpUlPOhsIcpycrmwX4AAEPZpgI2IsrCz0jIU3NKhzGqLG1zQoq5HyMCb9SVQFmCi8cZ/2gpuIAAAABR64AAV80VPpT5YZqT2m7wua5oEEJLZrXAAAAAcBPKRNH0h3GY/dkYFbbIr/4zoQwP0DbnAcCAggB/fL/MwMBAAEBAgEyAYuLrCMDAQABAwIBHgALAQAEAgECAAABAIcivgMBAQEFBgAUAAMBAQEHBgAe/wAAtfp0O0PkTiy3TCAMgfJ0sMqOnTR2mKUxHaF0qVJTzobCHKcnK5sF+O7RwLosF4VSiMOis287UGg0b6K9ErUL+qUo+WfNfySceLRO44GOly2Bn+ZaiF1AST9LkeihDiQgGHWEMrMfZqo8HnhTY/CHWht04nuF/WbHOYiCWNYP7ZIo+J4T61epLx+oMusAAAAAAAAAAAAAAAAAAAAAAAAAAA=="
+                }
             },
             "value": "0",
             "tx_success": true,
@@ -340,15 +351,21 @@
                     }
                 },
                 "25": {
-                    "type": "EncodedLog",
+                    "type": "DecodedLog",
                     "index": 25,
                     "removed": false,
                     "contract": "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc",
                     "signature": "0x823eaf01002d7353fbcadb2ea3305cc46fa35d799cb0914846d185ac06f8ad05",
-                    "topics": [
-                        "0x823eaf01002d7353fbcadb2ea3305cc46fa35d799cb0914846d185ac06f8ad05"
-                    ],
-                    "data": "0x000000000000000000000000c04f291347d21dc663f7646056db22bff8ce8430000000000000000000000000000000000000000000002ae47c8c09bf525501660000000000000000000000007698a5311da174a95253ce86c21ca7272b9b05f8000000000000000000000000000000000000000000002f1c67fda0a59e1538290000000000000000000000000f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cdfffffffffffffffffffffffffffffffffffffffffffffffffffffffebc153829000000000000000000000000000000000000000000000000000000003f40db9c"
+                    "name": "Swap",
+                    "attributes": {
+                        "sender": "0xC04f291347D21DC663f7646056db22bFf8CE8430",
+                        "inputAmount": 202554224488205644005734,
+                        "inputToken": "0x7698A5311DA174A95253Ce86C21ca7272b9B05f8",
+                        "amountOut": 222475226850925389101097,
+                        "outputToken": "0x0f669808d88B2b0b3D23214DCD2a1cc6A8B1B5cd",
+                        "slippage": -5434427351,
+                        "referralCode": 1061215132
+                    }
                 },
                 "26": {
                     "type": "EncodedLog",
@@ -377,16 +394,20 @@
                     }
                 },
                 "28": {
-                    "type": "EncodedLog",
+                    "type": "DecodedLog",
                     "index": 28,
                     "removed": false,
                     "contract": "0x45a62b090df48243f12a21897e7ed91863e2c86b",
                     "signature": "0xd9a8cfa901e597f6bbb7ea94478cf9ad6f38d0dc3fd24d493e99cb40692e39f1",
-                    "topics": [
-                        "0xd9a8cfa901e597f6bbb7ea94478cf9ad6f38d0dc3fd24d493e99cb40692e39f1",
-                        "0x0000000000000000000000009c7ad86e0836d72809d33dfe5673b1141382963f"
-                    ],
-                    "data": "0x0000000000000000000000009c7ad86e0836d72809d33dfe5673b1141382963f0000000000000000000000007698a5311da174a95253ce86c21ca7272b9b05f80000000000000000000000000f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd000000000000000000000000000000000000000000002ae47c8c09bf52550166000000000000000000000000000000000000000000002f1c67fda0a59e153829"
+                    "name": "SwapExactIn",
+                    "attributes": {
+                        "sender": "0x9c7ad86e0836d72809d33DFe5673b1141382963f",
+                        "to": "0x9c7ad86e0836d72809d33DFe5673b1141382963f",
+                        "tokenIn": "0x7698A5311DA174A95253Ce86C21ca7272b9B05f8",
+                        "tokenOut": "0x0f669808d88B2b0b3D23214DCD2a1cc6A8B1B5cd",
+                        "amountIn": 202554224488205644005734,
+                        "amountOut": 222475226850925389101097
+                    }
                 }
             },
             "origin_to": "0x45a62b090df48243f12a21897e7ed91863e2c86b",
@@ -398,6 +419,7 @@
                     "from_address": "0xb5fa743b43e44e2cb74c200c81f274b0ca8e9d34",
                     "to_address": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7",
                     "amount": "16424948551223205287",
+                    "token_id": null,
                     "batch": null,
                     "sender": null
                 },
@@ -408,6 +430,7 @@
                     "from_address": "0xeed1c0ba2c17855288c3a2b36f3b5068346fa2bd",
                     "to_address": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7",
                     "amount": "72513796347297425",
+                    "token_id": null,
                     "batch": null,
                     "sender": null
                 },
@@ -418,6 +441,7 @@
                     "from_address": "0x12b50bfaa528f967cd7f249c78b44ee3818e972d",
                     "to_address": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7",
                     "amount": "60283450357135453",
+                    "token_id": null,
                     "batch": null,
                     "sender": null
                 },
@@ -428,6 +452,7 @@
                     "from_address": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7",
                     "to_address": "0x819fe65a885d40493f4b91e8a10e242018758432",
                     "amount": "34142193024484402",
+                    "token_id": null,
                     "batch": null,
                     "sender": null
                 },
@@ -438,6 +463,7 @@
                     "from_address": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7",
                     "to_address": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
                     "amount": "16523603604903153763",
+                    "token_id": null,
                     "batch": null,
                     "sender": null
                 },
@@ -448,6 +474,7 @@
                     "from_address": "0x819fe65a885d40493f4b91e8a10e242018758432",
                     "to_address": "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc",
                     "amount": "458225724081576277927",
+                    "token_id": null,
                     "batch": null,
                     "sender": null
                 },
@@ -458,6 +485,7 @@
                     "from_address": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
                     "to_address": "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc",
                     "amount": "222017001126843812823170",
+                    "token_id": null,
                     "batch": null,
                     "sender": null
                 },
@@ -468,6 +496,7 @@
                     "from_address": "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc",
                     "to_address": "0xc04f291347d21dc663f7646056db22bff8ce8430",
                     "amount": "222475226850925389101097",
+                    "token_id": null,
                     "batch": null,
                     "sender": null
                 },
@@ -478,6 +507,7 @@
                     "from_address": "0xc04f291347d21dc663f7646056db22bff8ce8430",
                     "to_address": "0x9c7ad86e0836d72809d33dfe5673b1141382963f",
                     "amount": "222475226850925389101097",
+                    "token_id": null,
                     "batch": null,
                     "sender": null
                 },
@@ -504,6 +534,28 @@
                     "to": "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc",
                     "sender": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7",
                     "batch": null
+                },
+                "25": {
+                    "type": "RouteSignal",
+                    "log_index": 25,
+                    "contract": "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc",
+                    "token_in": "0x7698a5311da174a95253ce86c21ca7272b9b05f8",
+                    "amount_in": "202554224488205644005734",
+                    "token_out": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                    "amount_out": "222475226850925389101097",
+                    "to": null,
+                    "sender": "0xc04f291347d21dc663f7646056db22bff8ce8430"
+                },
+                "28": {
+                    "type": "RouteSignal",
+                    "log_index": 28,
+                    "contract": "0x45a62b090df48243f12a21897e7ed91863e2c86b",
+                    "token_in": "0x7698a5311da174a95253ce86c21ca7272b9b05f8",
+                    "amount_in": "202554224488205644005734",
+                    "token_out": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                    "amount_out": "222475226850925389101097",
+                    "to": "0x9c7ad86e0836d72809d33dfe5673b1141382963f",
+                    "sender": "0x9c7ad86e0836d72809d33dfe5673b1141382963f"
                 }
             },
             "events": {},
@@ -518,7 +570,7 @@
         "retry_count": 0,
         "last_error": null,
         "started_at": null,
-        "completed_at": "2025-06-09T14:30:43.622595",
+        "completed_at": "2025-06-09T22:38:44.963288",
         "error_stage": null
     }
 }

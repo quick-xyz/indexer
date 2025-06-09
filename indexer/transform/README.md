@@ -1,6 +1,8 @@
 ## Liquidity Book
 ### Swap
 python testing/test_pipeline.py 63269916
+python testing/scripts/debug_session.py analyze 0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b 63269916
+
 python testing/scripts/debug_session.py block 63269916  
 python testing/diagnostics/quick_diagnostic.py
 

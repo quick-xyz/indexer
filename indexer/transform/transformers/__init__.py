@@ -14,7 +14,12 @@ from .pools.lb_pair import LbPairTransformer
 from .pools.phar_pair import PharPairTransformer
 from .pools.phar_clpool import PharClPoolTransformer
 
-# Router Transformers
+# Aggregators
+from .aggregators.kyber_aggregator import KyberAggregatorTransformer
+from .aggregators.odos_aggregator import OdosAggregatorTransformer
+from .aggregators.lfj_aggregator import LfjAggregatorTransformer
+
+# Other Transformers
 from .other.phar_cl_manager import PharNfpTransformer
 
 
@@ -29,4 +34,7 @@ __all__ = [
     "PharPairTransformer",
     "PharClPoolTransformer",
     "PharNfpTransformer",
+    "KyberAggregatorTransformer",
+    "OdosAggregatorTransformer",
+    "LfjAggregatorTransformer",
 ]
