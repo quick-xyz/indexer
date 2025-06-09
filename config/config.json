@@ -166,7 +166,7 @@
             "project": "Pharaoh",
             "type": "NfpManager",
             "decode": {
-                "abi_dir": "routers",
+                "abi_dir": "other",
                 "abi": "phar_nfp.json"
             },
             "transform": {
@@ -175,7 +175,10 @@
                     "contract": "0xaaa78e8c4241990b4ce159e105da08129345946a"
                 }
             },
-            "token":{}
+            "token":{
+                "symbol": "PCL",
+                "decimals": 0
+            }
         }
     },
     "addresses":{

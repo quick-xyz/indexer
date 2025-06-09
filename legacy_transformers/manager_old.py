@@ -3,8 +3,8 @@
 from typing import Tuple, Dict, List, Optional
 import msgspec
 
-from .registry import TransformerRegistry
-from ..types import (
+from ..indexer.transform.registry import TransformerRegistry
+from ..indexer.types import (
     Transaction, 
     DecodedLog,
     DomainEvent,
@@ -14,7 +14,7 @@ from ..types import (
     ErrorId,
     create_transform_error,
 )
-from ..core.mixins import LoggingMixin
+from ..indexer.core.mixins import LoggingMixin
 
 
 class TransformationManager(LoggingMixin):   

@@ -15,7 +15,7 @@ from .pools.phar_pair import PharPairTransformer
 from .pools.phar_clpool import PharClPoolTransformer
 
 # Router Transformers
-from .routers.phar_cl_manager import PharNfpTransformer
+from .other.phar_cl_manager import PharNfpTransformer
 
 
 

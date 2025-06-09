@@ -650,6 +650,19 @@
             },
             "origin_to": "0xf3442bb9f63d35e668dde0abf61b7f716156d204",
             "signals": {
+                "4": {
+                    "type": "LiquiditySignal",
+                    "log_index": 4,
+                    "pool": "0x3fc41c1ae339322ab87b6ba48e30781d88a304d4",
+                    "base_amount": "-0",
+                    "base_token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                    "quote_amount": "-0",
+                    "quote_token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+                    "receipt_amount": "-0",
+                    "batch": null,
+                    "sender": null,
+                    "owner": "0xaaa78e8c4241990b4ce159e105da08129345946a"
+                },
                 "12": {
                     "type": "LiquiditySignal",
                     "log_index": 12,
@@ -849,32 +862,18 @@
                 }
             },
             "events": {},
-            "errors": {
-                "cacfe18eacfd": {
-                    "stage": "transform",
-                    "error_type": "missing_attributes",
-                    "message": "Transformer missing required attributes in log",
-                    "status": "unresolved",
-                    "attempts": 0,
-                    "error_id": "cacfe18eacfd",
-                    "context": {
-                        "contract_address": "0x3fc41c1ae339322ab87b6ba48e30781d88a304d4",
-                        "transformer_name": "PharClPoolTransformer",
-                        "log_index": 4
-                    }
-                }
-            },
+            "errors": {},
             "indexing_status": null,
             "processing_metadata": null
         }
     },
-    "indexing_status": "error",
+    "indexing_status": "complete",
     "processing_metadata": {
-        "error_count": 1,
+        "error_count": 0,
         "retry_count": 0,
         "last_error": null,
         "started_at": null,
-        "completed_at": "2025-06-09T19:17:36.217741",
-        "error_stage": "transform"
+        "completed_at": "2025-06-09T19:24:12.580226",
+        "error_stage": null
     }
 }
