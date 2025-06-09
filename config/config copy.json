@@ -116,6 +116,102 @@
                 "symbol": "PLP",
                 "decimals": 18
             }
+        },
+        "0x3fc41c1ae339322ab87b6ba48e30781d88a304d4": {
+            "name": "PCL:BLUB-AVAX",
+            "project": "Pharaoh",
+            "type": "Pool",
+            "decode": {
+                "abi_dir": "pools",
+                "abi": "clpool.json"
+            },
+            "transform": {
+                "name": "PharClpoolTransformer",
+                "instantiate": {
+                    "contract": "0x3fc41c1ae339322ab87b6ba48e30781d88a304d4",
+                    "token0": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                    "token1": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+                    "base_token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                    "nfp_manager": "0xaaa78e8c4241990b4ce159e105da08129345946a"
+                }
+            },
+            "token":{}
+        },
+        "0xaaa78e8c4241990b4ce159e105da08129345946a": {
+            "name": "CL Position Manager",
+            "project": "Pharaoh",
+            "type": "Router_NFP",
+            "decode": {
+                "abi_dir": "routers",
+                "abi": "phar_nfp.json"
+            },
+            "transform": {
+                "name": "PharClpoolTransformer",
+                "instantiate": {
+                    "contract": "0x3fc41c1ae339322ab87b6ba48e30781d88a304d4",
+                    "token0": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                    "token1": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+                    "base_token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                    "nfp_manager": "0xaaa78e8c4241990b4ce159e105da08129345946a"
+                }
+            },
+            "token":{}
+        },
+        "0x45a62b090df48243f12a21897e7ed91863e2c86b": {
+            "name": "Aggregator v2_2",
+            "project": "LFJ",
+            "type": "Aggregator",
+            "decode": {
+                "abi_dir": "aggregators",
+                "abi": "lfj_agg.json"
+            },
+            "transform": {
+                "name": "LfjAggregatorTransformer",
+                "instantiate": {}
+            },
+            "token":{}
+        },
+        "0x6131b5fae19ea4f9d964eac0408e4408b66337b5": {
+            "name": "Meta Aggregation Router v2",
+            "project": "Kyberswap",
+            "type": "Aggregator",
+            "decode": {
+                "abi_dir": "aggregators",
+                "abi":  "0x6131b5fae19ea4f9d964eac0408e4408b66337b5.json"
+            },
+            "transform": {
+                "name": "",
+                "instantiate": {}
+            },
+            "token":{}
+        },
+        "0x1dac23e41fc8ce857e86fd8c1ae5b6121c67d96d": {
+            "name": "Dex Aggregation Router",
+            "project": "OKX",
+            "type": "Aggregator",
+            "decode": {
+                "abi_dir": "aggregators",
+                "abi":  "0x1dac23e41fc8ce857e86fd8c1ae5b6121c67d96d.json"
+            },
+            "transform": {
+                "name": "",
+                "instantiate": {}
+            },
+            "token":{}
+        },
+        "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc": {
+            "name": "RouterV2",
+            "project": "Odos",
+            "type": "Aggregator",
+            "decode": {
+                "abi_dir": "aggregators",
+                "abi":  "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc.json"
+            },
+            "transform": {
+                "name": "",
+                "instantiate": {}
+            },
+            "token":{}
         }
     },
     "addresses":{

@@ -129,6 +129,7 @@ from .model.staking import (
 # Model Types: Trade
 from .model.trade import (
     SwapSignal,
+    SwapBatchSignal,
     PoolSwap,
     Trade,
 )
@@ -242,6 +243,7 @@ __all__ = [
     "Staking",
     ## Trade
     "SwapSignal",
+    "SwapBatchSignal",
     "PoolSwap",
     "Trade",
     ## Transfer

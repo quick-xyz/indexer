@@ -542,3 +542,93 @@ class TransformationManager(LoggingMixin):
             transformer_name=transformer_name
         )
         error_dict[error.error_id] = error
+
+    ''' From applied transformers'''
+    def _get_liquidity_transfers(self, unmatched_transfers: Dict[DomainEventId, Transfer]) -> Dict[str, Dict[DomainEventId, Transfer]]:
+        liq_transfers = {
+            "mints": {},
+            "burns": {},
+            "deposits": {},
+            "withdrawals": {},
+            "underlying_transfers": {},
+            "receipt_transfers": {}
+        }
+
+        for key, transfer in unmatched_transfers.items():
+            if transfer.token == self.contract_address:
+                if transfer.from_address == ZERO_ADDRESS:
+                    liq_transfers["mints"][key] = transfer
+                elif transfer.to_address == ZERO_ADDRESS:
+                    liq_transfers["burns"][key] = transfer
+                else:
+                    liq_transfers["receipt_transfers"][key] = transfer
+
+            elif transfer.token in [self.base_token, self.quote_token]:
+                if transfer.to_address == self.contract_address:
+                    liq_transfers["deposits"][key] = transfer
+                elif transfer.from_address == self.contract_address:
+                    liq_transfers["withdrawals"][key] = transfer
+                else:
+                    liq_transfers["underlying_transfers"][key] = transfer
+                        
+        return liq_transfers
+
+    def _get_swap_transfers(self, unmatched_transfers: Dict[DomainEventId, Transfer]) -> Dict[str, Dict[DomainEventId, Transfer]]:
+        swap_transfers = {"base_swaps": {},"quote_swaps": {}}
+
+        for key, transfer in unmatched_transfers.items():
+            if not (transfer.from_address == self.contract_address or transfer.to_address == self.contract_address):
+                continue
+            
+            if transfer.token == self.base_token:
+                swap_transfers["base_swaps"][key] = transfer
+            elif transfer.token == self.quote_token:
+                swap_transfers["quote_swaps"][key] = transfer
+
+        return swap_transfers
+
+    def _get_swap_direction(self, base_amount: str) -> str:
+        return "buy" if is_positive(base_amount) else "sell"
+    
+    def _validate_transfer_counts_flexible(self, transfer_groups: List[Tuple], tx_hash: EvmHash, log_index: int, 
+                                         error_type: str, error_dict: Dict[ErrorId, ProcessingError]) -> bool:
+        for transfers, name, expected, is_max in transfer_groups:
+            if is_max:
+                if len(transfers) > expected:
+                    error = create_transform_error(
+                        error_type=error_type,
+                        message=f"Expected at most {expected} {name}, found {len(transfers)}",
+                        tx_hash=tx_hash, log_index=log_index
+                    )
+                    error_dict[error.error_id] = error
+                    return False
+            else:
+                if not self._validate_transfer_count(transfers, name, expected, tx_hash, log_index, error_type, error_dict):
+                    return False
+        return True
+    
+    def _handle_batch_transfers(self, transfers_to_match: List[Transfer]) -> Dict[DomainEventId, MatchedTransfer]:
+        return self._create_matched_transfers_dict(transfers_to_match)
+    
+    def process_transfers(self, logs: List[DecodedLog], tx: Transaction) -> Tuple[Optional[Dict[DomainEventId,Transfer]],Optional[Dict[ErrorId,ProcessingError]]]:
+        transfers, errors = {}, {}
+
+        self.log_info("Starting transfer processing", 
+                     tx_hash=tx.tx_hash,
+                     log_count=len(logs))
+
+        for log in logs:
+            try:
+                if log.name == "Transfer":
+                    transfer = self._build_transfer_from_log(log, tx)
+                    if transfer:
+                        transfers[transfer.content_id] = transfer
+            except Exception as e:
+                self._create_log_exception(e, tx.tx_hash, log.index, self.__class__.__name__, errors)
+        
+        self.log_info("Transfer processing completed", 
+                     tx_hash=tx.tx_hash,
+                     transfers_created=len(transfers),
+                     errors_created=len(errors))
+                
+        return transfers if transfers else None, errors if errors else None

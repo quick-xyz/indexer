@@ -12,7 +12,7 @@ class WavaxTransformer(TokenTransformer):
     def __init__(self, contract: str):
         super().__init__(contract=contract)
 
-    def _get_transfer_attributes(self, log: DecodedLog) -> Tuple[str, str, str]:
+    def _get_transfer_attributes(self, log: DecodedLog) -> Tuple[str, str, str, str]:
         from_addr = str(log.attributes.get("src", ""))
         to_addr = str(log.attributes.get("dst", ""))
         value = amount_to_str(log.attributes.get("wad", 0))

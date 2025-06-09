@@ -16,6 +16,9 @@ from ....utils.amounts import amount_to_str, is_zero
 class TokenTransformer(BaseTransformer):   
     def __init__(self, contract: str):
         super().__init__(contract_address=contract)
+        self.handler_map = {
+            "Transfer": self._handle_transfer,
+        }
 
     def _get_transfer_attributes(self, log: DecodedLog) -> Tuple[str, str, str, str]:
         from_addr = str(log.attributes.get("from", ""))
@@ -24,7 +27,8 @@ class TokenTransformer(BaseTransformer):
         sender = str(log.attributes.get("sender", ""))
         return from_addr, to_addr, value, sender
 
-    def _validate_transfer_data(self, log: DecodedLog, trf: Tuple, errors: Dict[ErrorId, ProcessingError]) -> bool:
+    def _validate_transfer_data(self, log: DecodedLog, trf: Tuple[str, str, str, str], 
+                                errors: Dict[ErrorId, ProcessingError]) -> bool:
         if not self._validate_null_attr(trf, log.index, errors):
             return False
         if is_zero(trf[2]):
@@ -32,32 +36,21 @@ class TokenTransformer(BaseTransformer):
             self._create_attr_error(log.index, errors)
             return False
         return True
-    
-    def _create_transfer_signal(self, log: DecodedLog, from_addr: str, to_addr: str, value: str, sender: str) -> TransferSignal:
-        return TransferSignal(
+
+    def _handle_transfer(self, log: DecodedLog, signals: Dict[int, Signal], errors: Dict[ErrorId, ProcessingError]) -> None:
+        self.log_debug("Handling transfer log", log_index=log.index)
+
+        trf = self._get_transfer_attributes(log)
+        if not self._validate_transfer_data(log, trf, errors):
+            return
+        
+        signals[log.index] = TransferSignal(
             log_index=log.index,
-            token=log.contract,
-            from_address=EvmAddress(from_addr.lower()),
-            to_address=EvmAddress(to_addr.lower()),
-            amount=value,
-            sender=EvmAddress(sender.lower()) if sender else None  # Keep this one - sender can be optional
+            token=self.contract_address,
+            from_address=EvmAddress(trf[0].lower()),
+            to_address=EvmAddress(trf[1].lower()),
+            amount=trf[2],
+            sender=EvmAddress(trf[3].lower()) if trf[3] else None
         )
+        self.log_debug("Transfer signal created", log_index=log.index)
 
-    def process_logs(self, logs: List[DecodedLog]) -> Tuple[
-        Optional[Dict[int, Signal]], Optional[Dict[ErrorId, ProcessingError]]
-    ]:
-        signals = {}
-        errors = {}
-
-        for log in logs:
-            try:
-                if log.name == "Transfer":
-                    trf = self._get_transfer_attributes(log)
-                    if not self._validate_transfer_data(log,trf, errors):
-                        continue
-                    signals[log.index] = self._create_transfer_signal(log, *trf)
-
-            except Exception as e:
-                self._create_log_exception(e, log.index, errors)
-
-        return signals if signals else None, errors if errors else None

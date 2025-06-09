@@ -3,7 +3,7 @@
 Utility functions for handling string amounts in blockchain operations
 """
 
-from typing import Union
+from typing import Union, Iterable
 
 
 def amount_to_int(amount: Union[str, int, None]) -> int:
@@ -38,7 +38,7 @@ def amount_to_str(amount: Union[str, int, None]) -> str:
     return str(amount)
 
 
-def add_amounts(*amounts: Union[str, int]) -> str:
+def add_amounts(amounts: Iterable[Union[str, int]]) -> str:
     """Add multiple amounts and return as string"""
     total = sum(amount_to_int(amt) for amt in amounts)
     return str(total)

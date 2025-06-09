@@ -7,6 +7,14 @@ from .base import DomainEvent, DomainEventId, Signal
 from .auction import AuctionPurchase
 
 
+class SwapBatchSignal(Signal, tag=True):
+    pool: EvmAddress
+    to: EvmAddress
+    id: int
+    base_amount: str
+    quote_amount: str
+    sender: Optional[EvmAddress] = None
+
 class SwapSignal(Signal, tag=True):
     pool: EvmAddress
     base_amount: str
@@ -14,7 +22,7 @@ class SwapSignal(Signal, tag=True):
     quote_amount: str
     quote_token: EvmAddress
     to: EvmAddress
-    sender: EvmAddress
+    sender: Optional[EvmAddress] = None
     batch: Optional[Dict[int,Tuple[str,str]]] = None
 
 class PoolSwap(DomainEvent, tag=True):

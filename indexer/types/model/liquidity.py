@@ -1,6 +1,6 @@
 # indexer/types/model/liquidity.py
 
-from typing import Literal, Optional, Dict
+from typing import Literal, Optional, Dict, Tuple
 
 from ..new import EvmAddress
 from .base import DomainEvent, DomainEventId, Signal
@@ -13,9 +13,9 @@ class LiquiditySignal(Signal, tag=True):
     quote_amount: str
     quote_token: EvmAddress
     receipt_amount: Optional[str] = None
-    batch: Optional[Dict[int,str]] = None
+    batch: Optional[Dict[int,Tuple[int,str]]] = None
     sender: Optional[EvmAddress] = None
-    owner: Optional[EvmAddress] = None
+    to: Optional[EvmAddress] = None
 
 class Position(DomainEvent, tag=True):
     receipt_token: EvmAddress
