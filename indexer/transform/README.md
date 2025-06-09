@@ -20,10 +20,23 @@ python testing/scripts/debug_session.py analyze 0x06cd109690c39408a5882ba4770314
 58584879 / 0xdacb291825e75a8ca4b3857fa375bd964e953916546cf5a6c3945cef9d979e44
 ### Burn
 60941433 / 0x4981decb6d8a501e9f591cf1453a19d2a74266b1b065f98e9726d640615c8274
+python testing/test_pipeline.py 60941433
+python testing/scripts/debug_session.py analyze 0x4981decb6d8a501e9f591cf1453a19d2a74266b1b065f98e9726d640615c8274 60941433
+
 ### Collect
 63286088 / 0x5301d020b92e36b46681ae28bb703886c3d7deabae8e6258af705bc4de4964d6
 ### CollectProtocol
 63454863 / 0xee83f105e50f788e7e024e374728555523a6c2a72457925c197a6fd6faf58b13
+
+
+
+## Pharaoh Nfp Manager: 0xaaa78e8c4241990b4ce159e105da08129345946a
+### Transfer
+### IncreaseLiquidity
+### DecreaseLiquidity
+### Collect
+
+
 
 
 

@@ -9,8 +9,10 @@ from .base import DomainEvent, Signal
 class CollectSignal(Signal, tag=True):
     contract: EvmAddress
     recipient: EvmAddress
-    token: EvmAddress
-    amount: str
+    base_amount: str
+    base_token: EvmAddress
+    quote_amount: str
+    quote_token: EvmAddress
     reward_type: Literal["rewards","fees"] = "fees"
     owner: Optional[EvmAddress] = None
     sender: Optional[EvmAddress] = None

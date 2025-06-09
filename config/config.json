@@ -160,6 +160,22 @@
                 }
             },
             "token":{}
+        },
+        "0xaaa78e8c4241990b4ce159e105da08129345946a": {
+            "name": "CL Position Manager",
+            "project": "Pharaoh",
+            "type": "NfpManager",
+            "decode": {
+                "abi_dir": "routers",
+                "abi": "phar_nfp.json"
+            },
+            "transform": {
+                "name": "PharNfpTransformer",
+                "instantiate": {
+                    "contract": "0xaaa78e8c4241990b4ce159e105da08129345946a"
+                }
+            },
+            "token":{}
         }
     },
     "addresses":{

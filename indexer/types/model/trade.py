@@ -25,6 +25,16 @@ class SwapSignal(Signal, tag=True):
     sender: Optional[EvmAddress] = None
     batch: Optional[Dict[str,Dict[str,str]]] = None
 
+class RouterSignal(Signal, tag=True):
+    pool: EvmAddress
+    base_amount: str
+    base_token: EvmAddress
+    quote_amount: str
+    quote_token: EvmAddress
+    to: EvmAddress
+    sender: Optional[EvmAddress] = None
+    batch: Optional[Dict[str,Dict[str,str]]] = None
+
 class PoolSwap(DomainEvent, tag=True):
     pool: EvmAddress
     taker: EvmAddress

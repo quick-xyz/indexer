@@ -46,11 +46,11 @@ class PharClPoolTransformer(PoolTransformer):
 
     def _get_cl_collect_attributes(self, log: DecodedLog) -> Tuple[str, str, str, str, str]:
         base_amount, quote_amount = self._get_amounts(log)
+        recipient = str(log.attributes.get("recipient", ""))
         owner = str(log.attributes.get("owner", ""))
         sender = str(log.attributes.get("sender", ""))
-        recipient = str(log.attributes.get("recipient", ""))
         
-        return base_amount, quote_amount, owner, sender, recipient
+        return base_amount, quote_amount, recipient, owner, sender
 
     def _validate_cl_liquidity_data(self, log: DecodedLog, liq: Tuple[str, str, str, str, str],
                                    errors: Dict[ErrorId, ProcessingError]) -> bool:
@@ -58,9 +58,10 @@ class PharClPoolTransformer(PoolTransformer):
             return False
         
         if is_zero(liq[0]) and is_zero(liq[1]):
-            self.log_warning("Both liquidity amounts are zero", log_index=log.index)
-            self._create_attr_error(log.index, errors)
-            return False
+            if not is_zero(liq[4]):    
+                self.log_warning("Both liquidity amounts are zero", log_index=log.index)
+                self._create_attr_error(log.index, errors)
+                return False
         
         if liq[2] and not self._validate_addresses(liq[2]):
             self.log_warning("Invalid owner address", log_index=log.index)
@@ -74,13 +75,13 @@ class PharClPoolTransformer(PoolTransformer):
 
         return True
 
-    def _validate_collect_data(self, log: DecodedLog, collect: Tuple[str, str, str, str],
+    def _validate_collect_data(self, log: DecodedLog, collect: Tuple[str, str, str, str, str],
                               errors: Dict[ErrorId, ProcessingError]) -> bool:
-        if not self._validate_null_attr(collect, log.index, errors):
+        if not self._validate_null_attr(collect[:3], log.index, errors):
             return False
         
-        if not self._validate_addresses(collect[2], collect[3]):
-            self.log_warning("Invalid collect addresses", log_index=log.index)
+        if collect[2] and not self._validate_addresses(collect[2]):
+            self.log_warning("Invalid recipient address", log_index=log.index)
             self._create_attr_error(log.index, errors)
             return False
 
@@ -156,30 +157,17 @@ class PharClPoolTransformer(PoolTransformer):
         if not self._validate_collect_data(log, collect, errors):
             return
         
-        collect_signals = {}
-
-        if not is_zero(collect[0]):
-            collect_signals["base"] = CollectSignal(
+        if not (is_zero(collect[0]) and is_zero(collect[1])):
+            signals[log.index] = CollectSignal(
                 log_index=log.index,
                 contract=self.contract_address,
-                recipient=EvmAddress(collect[4].lower()),
-                token=self.base_token,
-                amount=collect[0],
-                owner=EvmAddress(collect[2].lower()) if collect[2] else None,
-                sender=EvmAddress(collect[3].lower()) if collect[3] else None,
+                recipient=EvmAddress(collect[2].lower()),
+                base_amount= collect[0],
+                base_token= self.base_token,
+                quote_amount= collect[1],
+                quote_token= self.quote_token,
+                owner=EvmAddress(collect[3].lower()) if collect[2] else None,
+                sender=EvmAddress(collect[4].lower()) if collect[3] else None,
             )
-            
-        if not is_zero(collect[1]):
-            collect_signals["quote"] = CollectSignal(
-                log_index=log.index,
-                contract=self.contract_address,
-                recipient=EvmAddress(collect[4].lower()),
-                token=self.quote_token,
-                amount=collect[1],
-                owner=EvmAddress(collect[2].lower()) if collect[2] else None,
-                sender=EvmAddress(collect[3].lower()) if collect[3] else None,
-            )
-        if collect_signals:
-            signals[log.index] = collect_signals
 
         self.log_debug("CL collect signals created", log_index=log.index)

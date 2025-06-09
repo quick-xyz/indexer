@@ -1,195 +1,153 @@
-from typing import Union, Optional
+# indexer/transform/transformers/routers/phar_cl_manager.py
 
-from ....decode.model.block import DecodedLog
-from ...events.base import DomainEvent, TransactionContext
-from ...events.transfer import Transfer
-from ...events.liquidity import Liquidity
-from ...events.swap import Swap
-from ...events.fees import Fee
-from ...events.rewards import Rewards
-from ....utils.logger import get_logger
+from typing import Optional, Dict, Tuple
 
+from ..base import BaseTransformer
+from ....types import (
+    DecodedLog,
+    EvmAddress,
+    ProcessingError,
+    Signal,
+    NfpCollectSignal,
+    NfpLiquiditySignal,
+    TransferSignal,
+    ErrorId,
+)
+from ....utils.amounts import amount_to_int, amount_to_str, is_zero
 
-class PharPairTransformer:
-    def __init__(self, contract, token0, token1, base_token):
-        self.logger = get_logger(__name__)
-        self.contract = contract
-        self.token0 = token0
-        self.token1 = token1
-        self.base = base_token
-        self.base_token, self.quote_token = self._get_tokens()
-
-    def _get_tokens(self) -> tuple:
-        if self.token0 == self.base:
-            base_token = self.token0
-            quote_token = self.token1
-        elif self.token1 == self.base:
-            base_token = self.token1
-            quote_token = self.token0
-
-        return base_token, quote_token
+class PharNfpTransformer(BaseTransformer):
+    def __init__(self, contract: EvmAddress):
+        super().__init__(contract_address=contract)
+        self.handler_map = {
+            "Collect": self._handle_collect,
+            "IncreaseLiquidity": self._handle_mint,
+            "DecreaseLiquidity": self._handle_burn,
+            "Transfer": self._handle_transfer
+        }
     
-    def get_amounts(self, log: DecodedLog) -> tuple:
-        if self.token0 == self.base:
-            base_amount = log.attributes.get("amount0")
-            quote_amount = log.attributes.get("amount1")
-        elif self.token1 == self.base:
-            base_amount = log.attributes.get("amount1")
-            quote_amount = log.attributes.get("amount0")
+    def _get_collect_attributes(self, log: DecodedLog) -> Tuple[int, str, str, str]:
+        token_id = int(log.attributes.get("tokenId", 0))
+        recipient = str(log.attributes.get("recipient", ""))
+        amount0 = amount_to_str(log.attributes.get("amount0", 0))
+        amount1 = amount_to_str(log.attributes.get("amount1", 0))
 
-        return base_amount, quote_amount
+        return token_id, recipient, amount0, amount1
+    
+    def _get_liquidity_attributes(self, log: DecodedLog) -> Tuple[int, str, str, str]:
+        token_id = int(log.attributes.get("tokenId", 0))
+        liquidity = amount_to_str(log.attributes.get("liquidity", 0))
+        amount0 = amount_to_str(log.attributes.get("amount0", 0))
+        amount1 = amount_to_str(log.attributes.get("amount1", 0))
 
-    def get_direction(self, base_amount: int) -> str:
-        if base_amount > 0:
-            return "buy"
-        else:
-            return "sell"
-            
-    def handle_mint(self, log: DecodedLog, context: TransactionContext) -> list[Liquidity]:
-        base_amount, quote_amount = self.get_amounts(log)
+        return token_id, liquidity, amount0, amount1
+    
+    def _get_transfer_attributes(self, log: DecodedLog) -> Tuple[int, str, str]:
+        token_id = int(log.attributes.get("tokenId", 0))
+        from_addr = str(log.attributes.get("from", ""))
+        to_addr = str(log.attributes.get("to", ""))
+        return token_id, from_addr, to_addr
+    
+    def _validate_collect_data(self, log: DecodedLog, collect: Tuple[int, str, str, str], errors: Dict[ErrorId, ProcessingError]) -> bool:       
+        if not self._validate_null_attr(collect, log.index, errors):
+            return False
+        
+        if collect[1] and not self._validate_addresses(collect[1]):
+            self.log_warning("Invalid recipient address", log_index=log.index)
+            self._create_attr_error(log.index, errors)
+            return False
+        
+        return True
 
-        liquidity = []
+    def _validate_liquidity_data(self, log: DecodedLog, liq: Tuple[int, str, str, str], errors: Dict[ErrorId, ProcessingError]) -> bool:       
+        if not self._validate_null_attr(liq, log.index, errors):
+            return False
 
-        mint = Liquidity(
-            timestamp=context.timestamp,
-            tx_hash=context.tx_hash,
-            pool=log.contract,
-            provider=log.attributes.get("provider"),
-            amount_base=base_amount,
-            amount_quote=quote_amount,
-            amount_receipt=log.attributes.get("amount_receipt"),
-            event_tag="add_lp"
+        if is_zero(liq[2]) and is_zero(liq[3]):
+            self.log_warning("Both liquidity amounts are zero", log_index=log.index)
+            self._create_attr_error(log.index, errors)
+            return False
+        
+        if is_zero(liq[1]):
+            self.log_warning("Liquidity receipt delta is zero", log_index=log.index)
+            self._create_attr_error(log.index, errors)
+            return False
+        
+        return True
+
+    def _validate_transfer_data(self, log: DecodedLog, trf: Tuple[str, str, str], 
+                                errors: Dict[ErrorId, ProcessingError]) -> bool:
+        if not self._validate_null_attr(trf, log.index, errors):
+            return False
+        if is_zero(trf[0]):
+            self.log_warning("Transfer amount is zero",log_index=log.index)
+            self._create_attr_error(log.index, errors)
+            return False
+        return True
+    
+    def _handle_collect(self, log: DecodedLog, signals: Dict[int, Signal], errors: Dict[ErrorId, ProcessingError]) -> None:
+        self.log_debug("Handling NFP Collect log", log_index=log.index)
+
+        collect = self._get_collect_attributes(log)
+        if not self._validate_collect_data(log, collect, errors):
+            return
+        
+        signals[log.index] = NfpCollectSignal(
+            log_index=log.index,
+            contract=self.contract_address,
+            token_id=collect[0],
+            recipient=EvmAddress(collect[1].lower()),
+            amount0=collect[2],
+            amount1=collect[3]
         )
-        liquidity.append(mint)
-        return liquidity
+        self.log_debug("NFP Collect signal created", log_index=log.index)
 
-    def handle_burn(self, log: DecodedLog, context: TransactionContext) -> list[Liquidity]:
-        base_amount, quote_amount = self.get_amounts(log)
-        liquidity = []
-        burn = Liquidity(
-            timestamp=context.timestamp,
-            tx_hash=context.tx_hash,
-            pool=log.contract,
-            provider=log.attributes.get("sender"),
-            amount_base=base_amount,
-            amount_quote=quote_amount,
-            amount_receipt=log.attributes.get("amount_receipt"),
-            event_tag="remove_lp"
+    def _handle_mint(self, log: DecodedLog, signals: Dict[int, Signal], errors: Dict[ErrorId, ProcessingError]) -> None:
+        self.log_debug("Handling NFP Mint log", log_index=log.index)
+
+        liq = self._get_liquidity_attributes(log)
+        if not self._validate_liquidity_data(log, liq, errors):
+            return
+        
+        signals[log.index] = NfpLiquiditySignal(
+            log_index=log.index,
+            contract=self.contract_address,
+            token_id=liq[0],
+            liquidity=liq[1],
+            amount0=liq[2],
+            amount1=liq[3]
         )
-        liquidity.append(burn)
-        return liquidity
+        self.log_debug("NFP Mint signal created", log_index=log.index)
 
-    def handle_swap(self, log: DecodedLog, context: TransactionContext) -> list[Swap]:
-        if self.token0 == self.base:
-            base_amount = log.attributes.get("amount0In") - log.attributes.get("amount0Out")
-            quote_amount = log.attributes.get("amount1In") - log.attributes.get("amount1Out")
-        elif self.token1 == self.base:
-            quote_amount = log.attributes.get("amount0In") - log.attributes.get("amount0Out")
-            base_amount = log.attributes.get("amount1In") - log.attributes.get("amount1Out")
+    def _handle_burn(self, log: DecodedLog, signals: Dict[int, Signal], errors: Dict[ErrorId, ProcessingError]) -> None:
+        self.log_debug("Handling NFP Burn log", log_index=log.index)
 
-        direction = self.get_direction(base_amount)
-
-        swaps = []
-        swap = Swap(
-            timestamp=context.timestamp,
-            tx_hash=context.tx_hash,
-            pool=log.contract,
-            taker= log.attributes.get("sender"),
-            direction= direction,
-            base_token= self.base_token,
-            base_amount= base_amount,
-            quote_token= self.quote_token,
-            quote_amount= quote_amount
+        liq = self._get_liquidity_attributes(log)
+        if not self._validate_liquidity_data(log, liq, errors):
+            return
+        
+        signals[log.index] = NfpLiquiditySignal(
+            log_index=log.index,
+            contract=self.contract_address,
+            token_id=liq[0],
+            liquidity=f"-{liq[1]}" if not liq[1].startswith('-') else liq[1],
+            amount0=f"-{liq[2]}" if not liq[2].startswith('-') else liq[2],
+            amount1=f"-{liq[3]}" if not liq[3].startswith('-') else liq[3],
         )
-        swaps.append(swap)
-        return swaps
+        self.log_debug("NFP Burn signal created", log_index=log.index)
 
-    def handle_transfer(self, log: DecodedLog, context: TransactionContext) -> list[Transfer]:
-        transfers = []
-        transfer = Transfer(
-            timestamp=context.timestamp,
-            tx_hash=context.tx_hash,
-            token=log.contract,
-            amount=log.attributes.get("value"),
-            from_address=log.attributes.get("from"),
-            to_address=log.attributes.get("to")
+    def _handle_transfer(self, log: DecodedLog, signals: Dict[int, Signal], errors: Dict[ErrorId, ProcessingError]) -> None:
+        self.log_debug("Handling transfer log", log_index=log.index)
+
+        trf = self._get_transfer_attributes(log)
+        if not self._validate_transfer_data(log, trf, errors):
+            return
+        
+        signals[log.index] = TransferSignal(
+            log_index=log.index,
+            token=self.contract_address,
+            from_address=EvmAddress(trf[1].lower()),
+            to_address=EvmAddress(trf[2].lower()),
+            amount=amount_to_str(1),
+            token_id=trf[0]
         )
-        transfers.append(transfer)
-        return transfers
-    
-
-    def handle_fee(self, log: DecodedLog, context: TransactionContext) -> list[Fee]:
-        base_amount, quote_amount = self.get_amounts(log)
-
-        fees = []
-        if base_amount > 0:
-            base_fee = Fee(
-                timestamp=context.timestamp,
-                tx_hash=context.tx_hash,
-                pool=log.contract,
-                fee_type='swap',
-                payer=log.attributes.get("sender"),
-                token= self.base_token,
-                fee_amount=base_amount
-            )
-            fees.append(base_fee)
-
-        if quote_amount > 0:
-            quote_fee = Fee(
-                timestamp=context.timestamp,
-                tx_hash=context.tx_hash,
-                pool=log.contract,
-                fee_type='swap',
-                payer=log.attributes.get("sender"),
-                token= self.quote_token,
-                fee_amount=quote_amount
-            )
-            fees.append(quote_fee)
-
-        return fees
-    
-    def handle_claim(self, log: DecodedLog, context: TransactionContext) -> list[Rewards]:
-        base_amount, quote_amount = self.get_amounts(log)
-
-        rewards = []
-        if base_amount > 0:
-            base_reward = Rewards(
-                timestamp=context.timestamp,
-                tx_hash=context.tx_hash,
-                contract=log.contract,
-                recipient=log.attributes.get("recipient"),
-                token= self.base_token,
-                amount=base_amount,
-                event_tag="claim_fees"
-            )
-            rewards.append(base_reward)
-
-        if quote_amount > 0:
-            quote_reward = Rewards(
-
-                timestamp=context.timestamp,
-                tx_hash=context.tx_hash,
-                contract=log.contract,
-                recipient=log.attributes.get("recipient"),
-                token= self.quote_token,
-                amount=quote_amount,
-                event_tag="claim_fees"
-            )
-            rewards.append(quote_reward)
-
-        return rewards
-
-    
-    
-    def transform_log(self, log: DecodedLog, context: TransactionContext) -> list[DomainEvent]:
-        events = []
-        if log.name == "Transfer":
-            events.append(self.handle_transfer(log, context))
-        elif log.name == "IncreaseLiquidity":
-            events.append(self.handle_mint(log, context))
-        elif log.name == "DecreaseLiquidity":
-            events.append(self.handle_burn(log, context))
-        elif log.name == "Collect":
-            events.append(self.handle_claim(log, context))           
-
-        return events
+        self.log_debug("Transfer signal created", log_index=log.index)

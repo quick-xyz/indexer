@@ -15,6 +15,7 @@ from .pools.phar_pair import PharPairTransformer
 from .pools.phar_clpool import PharClPoolTransformer
 
 # Router Transformers
+from .routers.phar_cl_manager import PharNfpTransformer
 
 
 
@@ -27,4 +28,5 @@ __all__ = [
     "LbPairTransformer",
     "PharPairTransformer",
     "PharClPoolTransformer",
+    "PharNfpTransformer",
 ]

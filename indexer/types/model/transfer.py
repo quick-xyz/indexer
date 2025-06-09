@@ -11,6 +11,7 @@ class TransferSignal(Signal, tag=True):
     from_address: EvmAddress
     to_address: EvmAddress
     amount: str
+    token_id: Optional[int] = None
     batch: Optional[Dict[str,str]] = None
     sender: Optional[EvmAddress] = None
 

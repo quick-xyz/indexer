@@ -108,6 +108,12 @@ from .model.liquidity import (
     Liquidity,
 )
 
+# Model Types: NFP
+from .model.nfp import (
+    NfpCollectSignal,
+    NfpLiquiditySignal,
+)
+
 # Model Types: Parameters
 from .model.parameters import (
     ParameterSignal,
@@ -131,6 +137,7 @@ from .model.staking import (
 from .model.trade import (
     SwapSignal,
     SwapBatchSignal,
+    RouterSignal,
     PoolSwap,
     Trade,
 )
@@ -233,6 +240,9 @@ __all__ = [
     "LiquiditySignal",
     "Position",
     "Liquidity",
+    ## Nfp
+    "NfpCollectSignal",
+    "NfpLiquiditySignal",
     ## Parameters
     "ParameterSignal",
     "ParameterChange",
@@ -246,6 +256,7 @@ __all__ = [
     ## Trade
     "SwapSignal",
     "SwapBatchSignal",
+    "RouterSignal",
     "PoolSwap",
     "Trade",
     ## Transfer
