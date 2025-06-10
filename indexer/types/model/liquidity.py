@@ -4,7 +4,7 @@ from typing import Literal, Optional, Dict, Tuple
 
 from ..new import EvmAddress
 from .base import DomainEvent, DomainEventId, Signal
-
+from .positions import Position
 
 class LiquiditySignal(Signal, tag=True):
     pool: EvmAddress
@@ -17,25 +17,6 @@ class LiquiditySignal(Signal, tag=True):
     sender: Optional[EvmAddress] = None
     owner: Optional[EvmAddress] = None
 
-class Position(DomainEvent, tag=True):
-    receipt_token: EvmAddress
-    receipt_id: int
-    base_amount: str
-    quote_amount: str
-    signals: Dict[int,Signal]
-    receipt_amount: Optional[str] = None
-    custodian: Optional[EvmAddress] = None
-
-    def _get_identifying_content(self):
-        return {
-            "event_type": "liquidity",
-            "tx_salt": self.tx_hash,
-            "receipt_token": self.receipt_token,
-            "receipt_id": self.receipt_id,
-            "base_amount": self.base_amount,
-            "quote_amount": self.quote_amount,
-        }
-
 class Liquidity(DomainEvent, tag=True):
     pool: EvmAddress
     provider: EvmAddress
@@ -44,8 +25,9 @@ class Liquidity(DomainEvent, tag=True):
     quote_token: EvmAddress
     quote_amount: str
     action: Literal["add","remove","update"]
+    positions: Dict[DomainEventId,Position]
     signals: Dict[int,Signal]
-    positions: Optional[Dict[DomainEventId,Position]] = None
+    batch: Optional[Dict[str,Dict[str,str]]] = None
 
     def _get_identifying_content(self):
         return {

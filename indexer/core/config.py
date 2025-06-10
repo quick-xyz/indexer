@@ -18,6 +18,7 @@ from ..types import (
     StorageConfig, 
     PathsConfig,
     GCSConfig,
+    TokenConfig
 )
 from .logging_config import IndexerLogger, log_with_context
 
@@ -30,6 +31,7 @@ class IndexerConfig(Struct):
     gcs: GCSConfig
     contracts: Dict[EvmAddress, ContractConfig] = msgspec.field(default_factory=dict)
     addresses: Dict[EvmAddress, AddressConfig] = msgspec.field(default_factory=dict)
+    tokens: Dict[EvmAddress, TokenConfig] = msgspec.field(default_factory=dict)
     paths: Optional[PathsConfig] = None
     
     @classmethod
@@ -102,7 +104,14 @@ class IndexerConfig(Struct):
             log_with_context(logger, logging.DEBUG, "Processing addresses", address_count=len(config_dict.get("addresses", {})))        
             addresses = {str(addr).lower(): msgspec.convert(data, type=AddressConfig)
                         for addr, data in config_dict.get("addresses", {}).items()}
-                            
+
+            logger.debug("Processing tokens")
+            tokens = {
+                address.lower(): contract.token 
+                for address, contract in contracts.items()
+                if contract.token and contract.token.symbol and contract.token.decimals
+            }
+
             logger.debug("Creating database configuration")
             database = cls._create_database_config(env)
             
@@ -119,6 +128,7 @@ class IndexerConfig(Struct):
                 gcs=gcs,
                 contracts=contracts,
                 addresses=addresses,
+                tokens=tokens,
                 database=database,
                 rpc=rpc,
                 paths=paths
@@ -290,3 +300,13 @@ class IndexerConfig(Struct):
                        log_dir=str(paths.log_dir))
             
         return paths
+    
+    def get_tokens_of_interest(self) -> Dict[EvmAddress, TokenConfig]:
+        tokens = {}
+        for address, contract in self.contracts.items():
+            if contract.token and contract.token.symbol and contract.token.decimals:
+                tokens[address.lower()] = contract.token
+        return tokens
+    
+    def get_known_addresses(self) -> Dict[EvmAddress, AddressConfig]:
+        return {addr.lower(): config for addr, config in self.addresses.items()}

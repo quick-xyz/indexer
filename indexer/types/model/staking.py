@@ -14,9 +14,6 @@ class Staking(DomainEvent, tag=True, kw_only=True):
     action: Literal["deposit","withdraw"]
     signals: Dict[int,Signal]
     staking_id: Optional[int] = None
-    receipt_token: Optional[EvmAddress] = None
-    receipt_id: Optional[int] = None
-    receipt_amount: Optional[str] = None
 
     def _get_identifying_content(self):
         return {

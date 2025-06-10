@@ -9,7 +9,7 @@ from .core.logging_config import IndexerLogger, log_with_context
 from .clients.quicknode_rpc import QuickNodeRpcClient
 from .storage.gcs_handler import GCSHandler
 from .decode.block_decoder import BlockDecoder
-from .transform.manager import TransformationManager
+from .transform.manager_old import TransformationManager
 
 def create_indexer(config_path: str = None, config_dict: dict = None, 
                   env_vars: dict = None, **overrides) -> IndexerContainer:
@@ -92,7 +92,8 @@ def _register_services(container: IndexerContainer):
     from .decode.transaction_decoder import TransactionDecoder
     from .decode.log_decoder import LogDecoder
     from .transform.registry import TransformerRegistry
-    from .transform.manager import TransformationManager
+    from .transform.manager_old import TransformationManager
+    from .transform.operations import TransformationOperations
     
     # Client services (need factory functions for config parameters)
     logger.debug("Registering client services")
@@ -114,7 +115,8 @@ def _register_services(container: IndexerContainer):
     logger.debug("Registering transform services")
     container.register_singleton(TransformerRegistry, TransformerRegistry)
     container.register_singleton(TransformationManager, TransformationManager)
-    
+    container.register_singleton(TransformationOperations, TransformationOperations)
+
     logger.info("Service registration completed")
 
 def _create_rpc_client(container: IndexerContainer) -> QuickNodeRpcClient:

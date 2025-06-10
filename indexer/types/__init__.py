@@ -104,7 +104,6 @@ from .model.farm import (
 # Model Types: Liquidity
 from .model.liquidity import (
     LiquiditySignal,
-    Position,
     Liquidity,
 )
 
@@ -119,6 +118,11 @@ from .model.parameters import (
     ParameterSignal,
     ParameterChange,
     ParameterSetChange,
+)
+
+# Model Types: Postions
+from .model.positions import (
+    Position,
 )
 
 # Model Types: Rewards
@@ -239,7 +243,6 @@ __all__ = [
     "FarmSkim",
     ## Liquidity
     "LiquiditySignal",
-    "Position",
     "Liquidity",
     ## Nfp
     "NfpCollectSignal",
@@ -248,6 +251,8 @@ __all__ = [
     "ParameterSignal",
     "ParameterChange",
     "ParameterSetChange",
+    ## Positions
+    "Position",
     ## Rewards
     "CollectSignal",
     "RewardSignal",

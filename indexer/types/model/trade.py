@@ -5,7 +5,7 @@ from typing import Literal, Optional, Dict, List
 from ..new import EvmAddress
 from .base import DomainEvent, DomainEventId, Signal
 from .auction import AuctionPurchase
-
+from .positions import Position
 
 class SwapBatchSignal(Signal, tag=True):
     pool: EvmAddress
@@ -52,8 +52,9 @@ class PoolSwap(DomainEvent, tag=True):
     base_amount: str
     quote_token: EvmAddress
     quote_amount: str
-    batch: Optional[Dict[int,Dict[str,str]]] = None
-    signals: Optional[Dict[int,Signal]] = None
+    positions: Dict[DomainEventId,Position]
+    signals: Dict[int,Signal]
+    batch: Optional[Dict[str,Dict[str,str]]] = None
 
     def _get_identifying_content(self):
         return {
@@ -75,9 +76,8 @@ class Trade(DomainEvent, tag=True):
     quote_token: EvmAddress
     quote_amount: str
     trade_type: Literal["arbitrage","trade","auction"] = "trade"
-    router: Optional[EvmAddress] = None
-    swaps: Optional[Dict[DomainEventId,PoolSwap|AuctionPurchase]] = None
-    signals: Optional[Dict[int,Signal]] = None
+    swaps: Dict[DomainEventId,PoolSwap|AuctionPurchase]
+    signals: Dict[int,Signal]
 
     def _get_identifying_content(self):
         return {
@@ -91,3 +91,5 @@ class Trade(DomainEvent, tag=True):
             "quote_amount": self.quote_amount,
             "trade_type": self.trade_type,
         }
+    
+# TODO: PROBABLY NEED AN UNKNOWN TRADE TYPE AND UNKNOWN SWAP TYPE

@@ -22,7 +22,7 @@ from indexer.core.logging_config import log_with_context
 from indexer.clients.quicknode_rpc import QuickNodeRpcClient
 from indexer.storage.gcs_handler import GCSHandler
 from indexer.decode.block_decoder import BlockDecoder
-from indexer.transform.manager import TransformationManager
+from indexer.transform.manager_old import TransformationManager
 from indexer.types import EvmFilteredBlock, Block
 
 
