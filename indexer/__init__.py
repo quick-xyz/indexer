@@ -9,7 +9,8 @@ from .core.logging_config import IndexerLogger, log_with_context
 from .clients.quicknode_rpc import QuickNodeRpcClient
 from .storage.gcs_handler import GCSHandler
 from .decode.block_decoder import BlockDecoder
-from ..legacy_transformers.manager_simple import TransformationManager
+from .transform.manager import TransformationManager
+
 
 def create_indexer(config_path: str = None, config_dict: dict = None, 
                   env_vars: dict = None, **overrides) -> IndexerContainer:
