@@ -165,6 +165,7 @@ class PoolTransformer(BaseTransformer):
             base_token=self.base_token,
             quote_amount=liq[1],
             quote_token=self.quote_token,
+            action="add",
             sender=EvmAddress(liq[2].lower()) if liq[2] else None,
             owner=EvmAddress(liq[3].lower()) if liq[3] else None
         )
@@ -184,6 +185,7 @@ class PoolTransformer(BaseTransformer):
             base_token=self.base_token,
             quote_amount=f"-{liq[1]}" if not liq[1].startswith('-') else liq[1],
             quote_token=self.quote_token,
+            action="remove",
             sender=EvmAddress(liq[2].lower()) if liq[2] else None,
             owner=EvmAddress(liq[3].lower()) if liq[3] else None
         )

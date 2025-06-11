@@ -52,7 +52,7 @@ def storage_handler(testing_env):
 @pytest.fixture(scope="session")
 def transform_manager(testing_env):
     """Get transformation manager service"""
-    from indexer.transform.manager_old import TransformationManager
+    from legacy_transformers.manager_simple import TransformationManager
     return testing_env.get_service(TransformationManager)
 
 

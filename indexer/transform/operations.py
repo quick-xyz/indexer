@@ -6,6 +6,7 @@ from collections import defaultdict
 from .context import TransformerContext
 from ..core.config import IndexerConfig
 from ..types import (
+    ZERO_ADDRESS,
     DomainEvent,
     DomainEventId,
     Signal,
@@ -62,18 +63,18 @@ class TransformationOperations:
 
     def _process_liquidity_domain(self, context: TransformerContext) -> Dict[DomainEventId, DomainEvent]:
         events = {}
-        liquidity_signals = context.get_signals_by_type(LiquiditySignal)
-        liquidity_signals.update(context.get_signals_by_type(NfpLiquiditySignal))
+        liquidity_signals = context.get_signals_by_type([LiquiditySignal,NfpLiquiditySignal])
 
         for log_index, signal in liquidity_signals.items():
             if context.is_signal_consumed(log_index):
                 continue
             
-            
-            event = self._create_liquidity_from_signal(signal, context)
-            if event:
+            events = self._create_liquidity_events(signal, context)
+            if events:
+                for idx, event in events.values():
                 events[event.content_id] = event
-                context.mark_signal_consumed(log_index)
+
+            context.mark_signal_consumed(log_index)
         
         events.update(self._apply_liquidity_rules(context))
         
@@ -111,7 +112,6 @@ class TransformationOperations:
         return events
 
     """ DOMAIN RULES """
-
     def _apply_liquidity_rules(self, context: TransformerContext) -> Dict[DomainEventId, DomainEvent]:
         events = {}
         
@@ -265,6 +265,62 @@ class TransformationOperations:
         return matching_swaps
 
     """ LIQUIDITY LOGIC """
+    def _create_liquidity_events(self, signal: Signal, context: TransformerContext) -> Optional[Dict[DomainEventId,DomainEvent]]:
+        liq_transfer_set = set()
+
+        if isinstance(signal, LiquiditySignal):
+            liq_trf = context.get_token_trfs([signal.base_token, signal.quote_token, signal.pool])
+
+            if signal.action == "add":
+                ''' Expect 1 base amount from provider, both amounts into pool, receipt to provider, receipt from zero'''
+
+                mint_trf = liq_trf.get(signal.pool).get("in")
+                
+                if len(mint_trf.keys()) == 1:
+                    provider = mint_trf.keys()[0]
+                elif signal.owner and signal.owner in mint_trf.keys():
+                    provider = signal.owner
+                elif signal.sender and signal.sender in mint_trf.keys():
+                    provider = signal.sender
+
+                try:
+                    receipt_in = liq_trf[signal.pool]["in"][provider].keys()
+                    receipt_out = liq_trf[signal.pool]["out"][ZERO_ADDRESS].keys()
+                    base_in = liq_trf[signal.base_token]["in"][signal.pool].keys()
+                    base_out = liq_trf[signal.base_token]["out"][provider].keys()
+                    quote_in = liq_trf[signal.quote_token]["in"][signal.pool].keys()
+                    quote_out = liq_trf[signal.quote_token]["out"][provider].keys()
+                except KeyError:
+                    receipt_in = None  # or {}
+                
+
+            if signal.action == "remove":           
+
+
+    def _get_expected_mint_transfers(dict) -> List[int]:
+
+
+    def _build_liquidity_expecations(self, signal: Signal, context: TransformerContext) -> Dict[str, str]:
+        # apply pool details to context general transfer methods
+        expectations = {}
+        
+        # token: {in/out: {address: {idx: TransferSignal}}}
+        # trf_dict[transfer.token]["out"][transfer.from_address][idx] = transfer
+
+        if isinstance(signal, LiquiditySignal):
+            expectations["base_token"] = signal.base_token
+            expectations["quote_token"] = signal.quote_token
+            expectations["base_amount"] = signal.base_amount.lstrip('-')
+            expectations["quote_amount"] = signal.quote_amount.lstrip('-')
+        
+        elif isinstance(signal, NfpLiquiditySignal):
+            expectations["base_token"] = signal.base_token
+            expectations["quote_token"] = signal.quote_token
+            expectations["base_amount"] = signal.base_amount.lstrip('-')
+            expectations["quote_amount"] = signal.quote_amount.lstrip('-')
+        
+        return expectations
+
     def _create_liquidity_from_signal(self, signal: LiquiditySignal, context: TransformerContext) -> Optional[Liquidity]:
         action = "add" if not signal.base_amount.startswith('-') else "remove"
         

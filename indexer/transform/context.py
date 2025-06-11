@@ -1,6 +1,6 @@
 # indexer/transform/context.py
 
-from typing import Dict, List, Set, Optional, Type, TypeVar
+from typing import Dict, List, Set, Optional, Type, TypeVar, Union
 from collections import defaultdict
 import msgspec
 
@@ -26,6 +26,23 @@ class TransformerContext:
         self.consumed_signals: Set[int] = set()
         self.transfer_signals: Dict[int, TransferSignal] = {}
         self.matched_transfers: Set[int] = set()
+        self._trf_dict = None
+
+    @property
+    def trf_dict(self) -> Dict[EvmAddress,Dict[str,Dict[EvmAddress,Dict[int, TransferSignal]]]]:
+        if self._trf_dict is None:
+            self._trf_dict = self._build_trf_dict()
+        return self._trf_dict
+
+    def _build_trf_dict(self) -> Dict[EvmAddress,Dict[str,Dict[EvmAddress,Dict[int, TransferSignal]]]]:
+        trf_dict = defaultdict(lambda: defaultdict(lambda: defaultdict(dict)))
+        
+        # token: {in/out: {address: {idx: TransferSignal}}}
+        for idx, transfer in self.transfer_signals.items():
+            trf_dict[transfer.token]["out"][transfer.from_address][idx] = transfer
+            trf_dict[transfer.token]["in"][transfer.to_address][idx] = transfer
+        
+        return dict(trf_dict)
 
     def add_signals(self, signals: Dict[int, Signal]) -> None:
         for log_index, signal in signals.items():
@@ -35,9 +52,13 @@ class TransformerContext:
                 case TransferSignal() if signal.token in self.config.tokens:
                     self.transfer_signals[log_index]= signal
 
-    def get_signals_by_type(self, signal_type: type) -> Dict[int, Signal]:
-        return {idx: s for idx, s in self.all_signals.items() if isinstance(s, signal_type)}
-
+    def get_signals_by_type(self, signal_types: Union[type, List[type]]) -> Dict[int, Signal]:
+        if isinstance(signal_types, type):
+            return {idx: s for idx, s in self.all_signals.items() if isinstance(s, signal_types)}
+        else:
+            signal_tuple = tuple(signal_types)
+            return {idx: s for idx, s in self.all_signals.items() if isinstance(s, signal_tuple)}
+    
     def mark_signal_consumed(self, log_index: int) -> None:
         self.consumed_signals.add(log_index)
 
@@ -58,7 +79,32 @@ class TransformerContext:
             logs_by_contract[contract].append(log)
         return dict(logs_by_contract)
     
-    def get_address_token_deltas(self, token: EvmAddress) -> Dict[EvmAddress, int]:
+    def get_non_transfer_signals(self) -> Dict[int, Signal]:
+        non_transfer_signals = {}
+        
+        for idx, signal in self.all_signals.items():
+            if not isinstance(signal, TransferSignal):
+                non_transfer_signals[idx] = signal
+                
+        return non_transfer_signals
+    
+    def get_token_trfs(self, tokens: Union[EvmAddress, List[EvmAddress]]) -> Dict[EvmAddress,Dict[str,Dict[EvmAddress,Dict[int, TransferSignal]]]]:
+        token_trfs = {}
+        token_list = [tokens] if isinstance(tokens, EvmAddress) else tokens
+        
+        for token, token_data in self.trf_dict.items():
+            if token in token_list:
+                token_trfs[token] = token_data
+                
+        return token_trfs
+    
+    def get_address_trf(self, address: EvmAddress) -> Dict[EvmAddress,Dict[str,Dict[int, TransferSignal]]]:     
+        return self._trf_dict.get(address, {})
+
+    def get_address_token_trf(self, address: EvmAddress, token: EvmAddress) -> Dict[str,Dict[int, TransferSignal]]: 
+        return self.get_address_trf(address).get(token, {})
+
+    def get_address_deltas_for_token(self, token: EvmAddress) -> Dict[EvmAddress, int]:
         deltas = defaultdict(int)
         
         for transfer in self.transfer_signals.values():

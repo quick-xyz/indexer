@@ -19,3 +19,4 @@ class NfpLiquiditySignal(Signal, tag=True):
     liquidity: str
     amount0: str
     amount1: str
+    action: Literal["add","remove","update"] = "update"

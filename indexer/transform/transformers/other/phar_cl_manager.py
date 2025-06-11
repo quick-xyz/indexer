@@ -114,7 +114,8 @@ class PharNfpTransformer(BaseTransformer):
             token_id=liq[0],
             liquidity=liq[1],
             amount0=liq[2],
-            amount1=liq[3]
+            amount1=liq[3],
+            action="add",
         )
         self.log_debug("NFP Mint signal created", log_index=log.index)
 
@@ -132,6 +133,7 @@ class PharNfpTransformer(BaseTransformer):
             liquidity=f"-{liq[1]}" if not liq[1].startswith('-') else liq[1],
             amount0=f"-{liq[2]}" if not liq[2].startswith('-') else liq[2],
             amount1=f"-{liq[3]}" if not liq[3].startswith('-') else liq[3],
+            action="remove",
         )
         self.log_debug("NFP Burn signal created", log_index=log.index)
 

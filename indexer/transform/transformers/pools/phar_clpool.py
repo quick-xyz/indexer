@@ -122,6 +122,7 @@ class PharClPoolTransformer(PoolTransformer):
             base_token=self.base_token,
             quote_amount=liq[1],
             quote_token=self.quote_token,
+            action="add",
             receipt_amount=liq[4],  # liquidity amount
             sender=EvmAddress(liq[3].lower()) if liq[3] else None,
             owner=EvmAddress(liq[2].lower()) if liq[2] else None
@@ -143,6 +144,7 @@ class PharClPoolTransformer(PoolTransformer):
             base_token=self.base_token,
             quote_amount=f"-{liq[1]}" if not liq[1].startswith('-') else liq[1],
             quote_token=self.quote_token,
+            action="remove",
             receipt_amount=f"-{liq[4]}" if not liq[4].startswith('-') else liq[4],
             sender=EvmAddress(liq[3].lower()) if liq[3] else None,
             owner=EvmAddress(liq[2].lower()) if liq[2] else None

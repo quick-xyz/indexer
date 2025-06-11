@@ -291,6 +291,7 @@ class LbPairTransformer(PoolTransformer):
             base_token=self.base_token,
             quote_amount=liq[1],
             quote_token=self.quote_token,
+            action="add",
             sender=EvmAddress(liq[2].lower()) if liq[2] else None,
             to=EvmAddress(liq[3].lower()) if liq[3] else None,
             batch=liq[4] if isinstance(liq[4], dict) else None
@@ -311,6 +312,7 @@ class LbPairTransformer(PoolTransformer):
             base_token=self.base_token,
             quote_amount=liq[1],
             quote_token=self.quote_token,
+            action="remove",
             sender=EvmAddress(liq[2].lower()) if liq[2] else None,
             to=EvmAddress(liq[3].lower()) if liq[3] else None,
             batch=liq[4] if isinstance(liq[4], dict) else None

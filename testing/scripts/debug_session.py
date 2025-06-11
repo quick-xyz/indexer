@@ -23,7 +23,7 @@ from testing import get_testing_environment
 from indexer.core.logging_config import log_with_context
 from indexer.storage.gcs_handler import GCSHandler
 from indexer.decode.block_decoder import BlockDecoder
-from indexer.transform.manager_old import TransformationManager
+from legacy_transformers.manager_simple import TransformationManager
 from indexer.transform.registry import TransformerRegistry
 
 

@@ -12,6 +12,7 @@ class LiquiditySignal(Signal, tag=True):
     base_token: EvmAddress
     quote_amount: str
     quote_token: EvmAddress
+    action: Literal["add","remove","update"] = "update"
     receipt_amount: Optional[str] = None
     batch: Optional[Dict[str,Dict[str,str]]] = None
     sender: Optional[EvmAddress] = None
