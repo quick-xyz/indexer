@@ -4,8 +4,8 @@ from typing import List, Tuple, Optional
 
 from ...types import LiquiditySignal, ZERO_ADDRESS, Liquidity, Reward
 from .base import TransferPattern, TransferLeg, AddressContext
-from ..context import TransformContext, TransfersDict, SignalDict
-from ...utils.amounts import add_amounts, amount_to_negative_str
+from ..context import TransformContext, TransfersDict
+from ...utils.amounts import add_amounts
 
 class Mint_A(TransferPattern):    
     def __init__(self):

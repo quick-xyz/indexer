@@ -21,6 +21,7 @@ from ..types import (
 from ..core.mixins import LoggingMixin
 from ..utils.amounts import amount_to_negative_str
 
+TRADE_PATTERNS = ["Swap_A", "Route"]
 
 class TransformManager(LoggingMixin):   
     def __init__(self, registry: TransformRegistry, config: IndexerConfig):
@@ -80,7 +81,7 @@ class TransformManager(LoggingMixin):
         signal_len = len(event_signals)
         if not event_signals:
             return
-        
+
         reprocess_queue = self._process_signals(event_signals, context)
 
         if reprocess_queue and signal_len > 1:
@@ -96,15 +97,32 @@ class TransformManager(LoggingMixin):
                 if not pattern:
                     continue
                 
-                try:
-                    if not pattern.process_signal(signal, context):
-                        reprocess_queue[log_index] = signal
-                                 
-                except Exception as e:
-                    self.log_error("Signal processing failed", error=str(e))
-                    return reprocess_queue
+                if pattern in TRADE_PATTERNS:
+                    self.log_debug("Processing trade signals")
+                    try:
+                        trade_signals = {k: v for k, v in context.get_remaining_signals() if v.pattern in TRADE_PATTERNS}
+                        if not self._process_trade(trade_signals, context):
+                            reprocess_queue.update(trade_signals)
+                    except Exception as e:
+                        self.log_error("Signal processing failed", error=str(e))
+                else:
+                    try:
+                        if not pattern.process_signal(signal, context):
+                            reprocess_queue[log_index] = signal
+                    except Exception as e:
+                        self.log_error("Signal processing failed", error=str(e))
         
         return reprocess_queue
+
+    def _process_trade(self, trade_signals: Dict[int,Signal], context: TransformContext) -> bool:
+        if not trade_signals:
+            return True        
+
+        # pool swaps
+        # route swaps
+        # unknown swaps
+
+
 
     def _reconcile_transfers(self, context: TransformContext) -> None:
         if not (unmatched_transfers := context.get_unmatched_transfers()):
