@@ -63,7 +63,7 @@ class TransformRegistry(LoggingMixin):
 
     def _load_pattern_classes(self) -> Dict[str, type]:
         return {
-            "LiquidityAdd_A": LiquidityAdd_A,
+            "Mint_A": Mint_A,
         }
     
     def _setup_transformers(self):

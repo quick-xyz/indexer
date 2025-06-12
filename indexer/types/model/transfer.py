@@ -3,7 +3,8 @@
 from typing import Literal, Optional, Dict
 
 from ..new import EvmAddress
-from .base import DomainEvent, Signal
+from .base import DomainEvent, DomainEventId, Signal
+from .positions import Position
 
 
 class TransferSignal(Signal, tag=True):
@@ -20,6 +21,7 @@ class Transfer(DomainEvent, tag=True):
     from_address: EvmAddress
     to_address: EvmAddress
     amount: str
+    positions: Dict[DomainEventId,Position]
     signals: Dict[int,Signal]
     
     def _get_identifying_content(self):
@@ -30,24 +32,5 @@ class Transfer(DomainEvent, tag=True):
             "from_address": self.from_address,
             "to_address": self.to_address,
             "amount": self.amount,
-            "signals": sorted(self.signals.keys()),
-        }
-
-class TransferLedger(DomainEvent, tag=True, kw_only=True):
-    token: EvmAddress
-    address: EvmAddress
-    amount: str
-    direction: Literal["out","in"]
-    signals: Dict[int,Signal]
-    desc: Optional[str] = None
-
-    def _get_identifying_content(self):
-        return {
-            "event_type": "transfer_ledger",
-            "tx_salt": self.tx_hash,
-            "token": self.token,
-            "address": self.address,
-            "amount": self.amount,
-            "direction": self.direction,
             "signals": sorted(self.signals.keys()),
         }

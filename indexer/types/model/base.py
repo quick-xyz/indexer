@@ -18,7 +18,7 @@ class Signal(Struct):
     
     def to_dict(self) -> Dict[str, Any]:
         return msgspec.structs.asdict(self)
-
+    
 class DomainEvent(Struct):
     timestamp: int
     tx_hash: EvmHash

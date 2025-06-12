@@ -30,7 +30,6 @@ class TransformManager(LoggingMixin):
         return TransformContext(
             transaction=transaction,
             tokens_of_interest=self.config.get_tokens_of_interest(),
-            known_addresses=self.config.get_known_addresses()
         )
 
     def process_transaction(self, tx: Transaction) -> Tuple[bool, Transaction]:
@@ -85,7 +84,6 @@ class TransformManager(LoggingMixin):
             self.log_debug("Reprocessing signals", reprocess_count=len(reprocess_queue))
             self._process_signals(reprocess_queue, context)
 
-        
 
     def _process_signals(self, event_signals: Dict[int, Signal], context: TransformContext) -> Optional[Dict[int, Signal]]:
         reprocess_queue = {}
@@ -96,15 +94,18 @@ class TransformManager(LoggingMixin):
                     continue
                 
                 try:
-                    success = pattern.process_signal(signal, context)
-                    if not success:
+                    if not pattern.process_signal(signal, context):
                         reprocess_queue[log_index] = signal
-                
+                                 
                 except Exception as e:
                     self.log_error("Signal processing failed", error=str(e))
                     return reprocess_queue
         
         return reprocess_queue
+
+    def _reconcile_transfers(self, context: TransformContext) -> None:
+        # check if all interested tokens have been consumed
+        pass
 
     def _get_decoded_logs(self, transaction: Transaction) -> Optional[Dict[int, DecodedLog]]:
         if self._has_decoded_logs(transaction):

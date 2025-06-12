@@ -3,8 +3,8 @@
 from typing import Literal, Optional, Dict
 
 from ..new import EvmAddress
-from .base import DomainEvent, Signal
-
+from .base import DomainEvent, DomainEventId, Signal
+from .positions import Position
 
 class CollectSignal(Signal, tag=True):
     contract: EvmAddress
@@ -33,6 +33,7 @@ class Reward(DomainEvent, tag=True):
     token: EvmAddress
     amount: str
     reward_type: Literal["rewards","fees"]
+    positions: Dict[DomainEventId,Position]
     signals: Dict[int,Signal]
 
     def _get_identifying_content(self):

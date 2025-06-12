@@ -302,11 +302,8 @@ class IndexerConfig(Struct):
         return paths
     
     def get_tokens_of_interest(self) -> Dict[EvmAddress, TokenConfig]:
-        tokens = {}
+        tokens = set()
         for address, contract in self.contracts.items():
             if contract.token and contract.token.symbol and contract.token.decimals:
-                tokens[address.lower()] = contract.token
+                tokens.add(EvmAddress(address.lower()))
         return tokens
-    
-    def get_known_addresses(self) -> Dict[EvmAddress, AddressConfig]:
-        return {addr.lower(): config for addr, config in self.addresses.items()}

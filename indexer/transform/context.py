@@ -18,12 +18,18 @@ from ..types import (
     ProcessingError,
 )
 
+SignalDict = Dict[int, Signal]
+EventDict = Dict[DomainEventId, DomainEvent]
+TransferList = Dict[int, TransferSignal]
+AddressTransfers = Dict[EvmAddress, TransferList]
+DirectionDict = Dict[str, AddressTransfers]
+TransfersDict = Dict[EvmAddress, DirectionDict]
+
 
 class TransformContext:
-    def __init__(self, transaction: Transaction, tokens_of_interest: Dict[EvmAddress, TokenConfig], known_addresses: Dict[EvmAddress, AddressConfig]):
+    def __init__(self, transaction: Transaction, tokens_of_interest: Set[EvmAddress]):
         self._og_tx = transaction
         self.tokens_of_interest = tokens_of_interest 
-        self.known_addresses = known_addresses
 
         self.signals: Dict[int, Signal] = {}
         self.events: Dict[DomainEventId, DomainEvent] = {}
@@ -42,7 +48,7 @@ class TransformContext:
         return self._og_tx
 
     @property
-    def trf_dict(self) -> Dict[EvmAddress,Dict[str,Dict[EvmAddress,Dict[int, TransferSignal]]]]:
+    def trf_dict(self) -> TransfersDict:
         if self._trf_dict is None:
             self._build_trf_dict()
         return self._trf_dict
@@ -96,12 +102,24 @@ class TransformContext:
         if self._event_signals is None:
             self._event_signals = {idx: signal for idx, signal in self.signals.items() if not isinstance(signal, TransferSignal)}
 
-    def _build_trf_dict(self) -> Dict[EvmAddress,Dict[str,Dict[EvmAddress,Dict[int, TransferSignal]]]]:
+    def _build_trf_dict(self) -> None:
         trf_dict = defaultdict(lambda: defaultdict(lambda: defaultdict(dict)))
         for idx, transfer in self._transfer_signals.items():
             trf_dict[transfer.token]["out"][transfer.from_address][idx] = transfer
             trf_dict[transfer.token]["in"][transfer.to_address][idx] = transfer
         self._trf_dict = trf_dict
+    
+    def _filter_trf_dict(self, matched: set) -> TransfersDict:
+        filtered_dict = defaultdict(lambda: defaultdict(lambda: defaultdict(dict)))
+        
+        for token, directions in self.trf_dict.items():
+            for direction, addresses in directions.items():
+                for address, transfers in addresses.items():
+                    for idx, transfer in transfers.items():
+                        if idx not in matched:
+                            filtered_dict[token][direction][address][idx] = transfer
+        
+        return filtered_dict
     
     # =============================================================================
     # HELPER METHODS
@@ -120,8 +138,8 @@ class TransformContext:
     def is_signal_consumed(self, log_index: int) -> bool:
         return log_index in self.consumed_signals
 
-    def match_transfer(self, transfer_signal: TransferSignal) -> None:
-        self.matched_transfers.add(transfer_signal.log_index)
+    def match_transfer(self, log_index: int) -> None:
+        self.matched_transfers.add(log_index)
 
     def get_unmatched_transfers(self) -> Dict[int, TransferSignal]:
         return {idx: t for idx, t in self._transfer_signals.items() 
@@ -131,6 +149,15 @@ class TransformContext:
         return {idx: signal for idx, signal in self._event_signals.items()
                 if idx not in self.consumed_signals}
     
+    def get_unmatched_trf_dict(self) -> Dict:
+        return self._filter_trf_dict(self.matched_transfers)
+
+    def match_all_signals(self, signals: Dict[int, Signal]) -> None:
+        for idx, signal in signals.items():
+            if isinstance(signal, TransferSignal):
+                self.match_transfer(idx)
+            else:
+                self.mark_signal_consumed(idx)
 
     # =============================================================================
     # REVIEW THESE METHODS
