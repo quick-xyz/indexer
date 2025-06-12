@@ -151,7 +151,7 @@ from .model.trade import (
 from .model.transfer import (
     TransferSignal,
     Transfer,
-    TransferLedger,
+    UnknownTransfer,
 )
 
 
@@ -269,5 +269,5 @@ __all__ = [
     ## Transfer
     "TransferSignal",
     "Transfer",
-    "TransferLedger",
+    "UnknownTransfer",
 ]

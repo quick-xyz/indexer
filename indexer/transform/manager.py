@@ -5,21 +5,22 @@ from msgspec import Struct
 
 from ..core.config import IndexerConfig
 from .registry import TransformRegistry
-from .operations import TransformOps
 from .context import TransformContext
 from ..types import (
     Transaction, 
     DecodedLog,
-    DomainEvent,
     DomainEventId,
     ProcessingError,
-    ErrorId,
     Signal,
+    TransferSignal,
+    UnknownTransfer,
+    Position,
+    ZERO_ADDRESS,
     create_transform_error
 )
 from ..core.mixins import LoggingMixin
+from ..utils.amounts import amount_to_negative_str
 
-class PatternResult(Struct):
 
 class TransformManager(LoggingMixin):   
     def __init__(self, registry: TransformRegistry, config: IndexerConfig):
@@ -42,6 +43,8 @@ class TransformManager(LoggingMixin):
             self._produce_signals(context)
             self._produce_events(context)
             self._reconcile_transfers(context)
+            self._produce_net_positions(context)
+
             updated_tx = context.finalize_to_transaction()
             return True, updated_tx
         
@@ -104,8 +107,27 @@ class TransformManager(LoggingMixin):
         return reprocess_queue
 
     def _reconcile_transfers(self, context: TransformContext) -> None:
-        # check if all interested tokens have been consumed
-        pass
+        if not (unmatched_transfers := context.get_unmatched_transfers()):
+            return True
+        
+        for idx, trf in unmatched_transfers:
+            if trf.token not in context.tokens_of_interest:
+                continue
+            
+            positions = self._generate_positions(trf)
+            self._produce_unknown_transfer(trf, context, positions)
+        
+    def _produce_net_positions(self, context: TransformContext) -> None:
+        deltas = {}
+        for event in context.events.values():
+            for id, position in event.positions.items():
+                if position.token in context.tokens_of_interest:
+                    deltas[position.user][position.token]["net_amount"] += int(position.amount)
+                    deltas[position.user][position.token]["positions"].update({id: position})
+
+        for user, token in deltas.items():
+            if token["net_amount"] != 0:
+                context.add_events(token["positions"])
 
     def _get_decoded_logs(self, transaction: Transaction) -> Optional[Dict[int, DecodedLog]]:
         if self._has_decoded_logs(transaction):
@@ -124,3 +146,37 @@ class TransformManager(LoggingMixin):
             contract_address=contract_address,
             transformer_name="TransformManager"
         )
+
+    def _generate_positions(self, transfer: TransferSignal) -> Dict[DomainEventId, Position]:
+        positions = {}
+
+        position_in = Position(
+            user=transfer.to_address,
+            token=transfer.token,
+            amount=transfer.amount,
+        ) if transfer.to_address != ZERO_ADDRESS else None
+        positions[position_in._content_id] = position_in
+
+        position_out = Position(
+            user=transfer.from_address,
+            token=transfer.token,
+            amount=amount_to_negative_str(transfer.amount),
+        ) if transfer.from_address != ZERO_ADDRESS else None
+        positions[position_out._content_id] = position_out
+
+        return positions
+    
+    def _produce_unknown_transfer(transfer: TransferSignal, context: TransformContext, positions: Dict[DomainEventId, Position]) -> None:
+        events = {}
+        unknown_transfer = UnknownTransfer(
+            timestamp=context.transaction.timestamp,
+            tx_hash=context.transaction.tx_hash,
+            token=transfer.token,
+            from_address=transfer.from_address,
+            to_address=transfer.to_address,
+            amount=transfer.amount,
+            positions=positions,
+            signals={transfer.log_index: transfer}
+        )
+        events[unknown_transfer._content_id] = unknown_transfer
+        context.add_events(events)

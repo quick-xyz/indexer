@@ -93,8 +93,7 @@ def _register_services(container: IndexerContainer):
     from .decode.transaction_decoder import TransactionDecoder
     from .decode.log_decoder import LogDecoder
     from .transform.registry import TransformRegistry
-    from ..legacy_transformers.manager_simple import TransformManager
-    from .transform.operations import TransformOps
+    from .transform.manager import TransformManager
     
     # Client services (need factory functions for config parameters)
     logger.debug("Registering client services")
@@ -116,7 +115,6 @@ def _register_services(container: IndexerContainer):
     logger.debug("Registering transform services")
     container.register_singleton(TransformRegistry, TransformRegistry)
     container.register_singleton(TransformManager, TransformManager)
-    container.register_singleton(TransformOps, TransformOps)
 
     logger.info("Service registration completed")
 

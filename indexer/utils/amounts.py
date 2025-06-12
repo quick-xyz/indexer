@@ -37,6 +37,19 @@ def amount_to_str(amount: Union[str, int, None]) -> str:
             return "0"
     return str(amount)
 
+def amount_to_negative_str(amount: Union[str, int, None]) -> str:
+    """Convert amount to string, ensuring it is negative"""
+    if amount is None:
+        return "0"
+    if isinstance(amount, str):
+        if amount.strip() == "":
+            return "0"
+        try:
+            int(amount)
+            return f"-{amount}"
+        except ValueError:
+            return "0"
+    return f"-{amount}"
 
 def add_amounts(amounts: Iterable[Union[str, int]]) -> str:
     """Add multiple amounts and return as string"""

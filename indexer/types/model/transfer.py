@@ -34,3 +34,6 @@ class Transfer(DomainEvent, tag=True):
             "amount": self.amount,
             "signals": sorted(self.signals.keys()),
         }
+
+class UnknownTransfer(Transfer, tag=True):
+    pass

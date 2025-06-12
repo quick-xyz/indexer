@@ -1,21 +1,22 @@
 # indexer/transform/patterns/liquidity.py
 
-from typing import Dict, List, Any, Tuple, Optional, Set
-from collections import defaultdict
+from typing import List, Tuple, Optional
 
-from ...types import LiquiditySignal, Signal, EvmAddress, ZERO_ADDRESS, TransferSignal, Liquidity, Reward, DomainEventId, Position
+from ...types import LiquiditySignal, ZERO_ADDRESS, Liquidity, Reward
 from .base import TransferPattern, TransferLeg, AddressContext
 from ..context import TransformContext, TransfersDict, SignalDict
-from ...utils.amounts import add_amounts
+from ...utils.amounts import add_amounts, amount_to_negative_str
 
 class Mint_A(TransferPattern):    
     def __init__(self):
         super().__init__("Mint_A")
     
-    def process_signal(self, signal: LiquiditySignal, context: TransformContext)-> Optional[SignalDict]:
-        unmatched_transfers = context.get_unmatched_transfers()
+    def process_signal(self, signal: LiquiditySignal, context: TransformContext)-> bool:
         tokens = context.tokens_of_interest
         events = {}
+    
+        if not (unmatched_transfers := context.get_unmatched_transfers()):
+            return False
 
         if not (address := self._extract_addresses(signal, unmatched_transfers)):
             return False
@@ -138,52 +139,124 @@ class Mint_A(TransferPattern):
 
         return mint_legs, fee_leg if fee_leg else None
 
-    def _match_transfers(self, legs: List[TransferLeg], unmatched_transfers: TransfersDict) -> Optional[Dict[int,TransferSignal]]:
-        transfers = {}
-
-        for leg in legs:
-            if leg.token not in unmatched_transfers:
-                continue
-            
-            trf_in = unmatched_transfers[leg.token]["in"].get(f"{leg.to_end}", {})
-            trf_out = unmatched_transfers[leg.token]["out"].get(f"{leg.from_end}", {})
-            
-            if trf_in < 2 and trf_out < 2:
-                transfers |= trf_in | trf_out
-
-        return transfers if transfers else None
-        
-    def _generate_positions(self, transfer: TransferSignal) -> Dict[DomainEventId, Position]:
-        positions = {}
-
-        position_in = Position(
-            user=transfer.to_address,
-            token=transfer.token,
-            amount=transfer.amount,
-        ) if transfer.to_address != ZERO_ADDRESS else None
-        positions[position_in._content_id] = position_in
-
-        position_out = Position(
-            user=transfer.from_address,
-            token=transfer.token,
-            amount=transfer.amount,
-        ) if transfer.from_address != ZERO_ADDRESS else None
-        positions[position_out._content_id] = position_out
-
-        return positions
+class Burn_A(TransferPattern):    
+    def __init__(self):
+        super().__init__("Burn_A")
     
-    def _validate_net_transfers(self, legs: List[TransferLeg], transfers: Dict[int,TransferSignal], tokens: Set[EvmAddress]) -> bool:
-        deltas = defaultdict(int)
-        for transfer in transfers.values():
+    def process_signal(self, signal: LiquiditySignal, context: TransformContext)-> bool:
+        tokens = context.tokens_of_interest
+        events = {}
+    
+        if not (unmatched_transfers := context.get_unmatched_transfers()):
+            return False
+
+        if not (address := self._extract_addresses(signal, unmatched_transfers)):
+            return False
+        
+        legs, fee_leg = self._generate_transfer_legs(signal, address)
+        if not legs:
+            return False
+
+        if not (burn_trf := self._match_transfers(legs, unmatched_transfers)):
+            return False
+        
+        if fee_leg:
+            fee_trf = self._match_transfers([fee_leg], unmatched_transfers)
+
+        if not (deltas := self._validate_net_transfers(legs, unmatched_transfers, context.tokens_of_interest)):
+            return False
+        
+        burn_positions = {}
+        for transfer in burn_trf.values():
             if transfer.token in tokens:
-                amount = int(transfer.amount)
-                deltas[transfer.from_address] -= amount
-                deltas[transfer.to_address] += amount
+                burn_positions.update(self._generate_positions(transfer))
+
+        if fee_trf:
+            fee_positions = {}
+            for transfer in fee_trf.values():
+                if transfer.token in tokens:
+                    fee_positions.update(self._generate_positions(transfer))
+
+        burn_signals |= burn_trf | {signal.log_index: signal}
+        burn = Liquidity(
+            timestamp= context.transaction.timestamp,
+            tx_hash= context.transaction.tx_hash,
+            pool= signal.pool,
+            provider= address.provider,
+            base_token= signal.base_token,
+            base_amount= signal.base_amount,
+            quote_token= signal.quote_token,
+            quote_amount= signal.quote_amount,
+            action= "remove",
+            positions=burn_positions,
+            signals= burn_signals
+        )
+        events[burn._content_id]= burn
+
+        if fee_trf:
+            amount = add_amounts([trf.amount for trf in fee_trf.values()])
+            fee = Reward(
+                timestamp = context.transaction.timestamp,
+                tx_hash = context.transaction.tx_hash,
+                contract = signal.pool,
+                recipient = address.fee_collector,
+                token = signal.pool,
+                amount = amount,
+                reward_type = "fee",
+                positions=fee_positions,
+                signals = fee_trf
+            )
+            events[fee._content_id]= fee
+
+        context.match_all_signals(burn_signals + fee_trf if fee_trf else burn_signals)
+        context.add_events(events)
+
+        return True
+    
+    def _extract_addresses(self, signal: LiquiditySignal, unmatched_transfers: TransfersDict) -> Optional[AddressContext]:
+        receipts_in = unmatched_transfers.get(signal.pool, {}).get("in", {})
+        fee_collector = ""
+
+        if len(receipts_in) == 1:
+            fee_collector = next(iter(receipts_in.keys()))
         
-        targets = defaultdict(int)
-        for leg in legs:
-            if leg.token in tokens:
-                targets[leg.from_end] -= int(leg.amount) if leg.amount else 0
-                targets[leg.to_end] += int(leg.amount) if leg.amount else 0
-        
-        return deltas if deltas == targets else None
+        return AddressContext(
+            base = signal.base_token,
+            quote = signal.quote_token,
+            pool = signal.pool,
+            provider = signal.owner,
+            router = signal.sender,
+            fee_collector = fee_collector if fee_collector else None
+        )
+    
+    def _generate_transfer_legs(self, signal: LiquiditySignal, address: AddressContext) -> Tuple[List[TransferLeg], Optional[TransferLeg]]:           
+        burn_legs = [
+            TransferLeg(
+                token = address.base,
+                from_end = address.pool,
+                to_end = address.provider,
+                amount = signal.base_amount
+            ),
+            TransferLeg(
+                token = address.quote,
+                from_end = address.pool,
+                to_end = address.provider,
+                amount = signal.quote_amount
+            ),
+            TransferLeg(
+                token = address.pool,
+                from_end = address.provider,
+                to_end = ZERO_ADDRESS,
+                amount = signal.receipt_amount if signal.receipt_amount else None
+            ),
+        ]
+
+        if address.fee_collector:
+            fee_leg = TransferLeg(
+                token = address.pool,
+                from_end = ZERO_ADDRESS,
+                to_end = address.fee_collector,
+                amount = None
+            )
+
+        return burn_legs, fee_leg if fee_leg else None

@@ -149,7 +149,7 @@ class TransformContext:
         return {idx: signal for idx, signal in self._event_signals.items()
                 if idx not in self.consumed_signals}
     
-    def get_unmatched_trf_dict(self) -> Dict:
+    def get_unmatched_trf_dict(self) -> TransfersDict:
         return self._filter_trf_dict(self.matched_transfers)
 
     def match_all_signals(self, signals: Dict[int, Signal]) -> None:
@@ -158,27 +158,6 @@ class TransformContext:
                 self.match_transfer(idx)
             else:
                 self.mark_signal_consumed(idx)
-
-    # =============================================================================
-    # REVIEW THESE METHODS
-    # =============================================================================
-
-
-    def get_token_trfs(self, tokens: Union[EvmAddress, List[EvmAddress]]) -> Dict[EvmAddress,Dict[str,Dict[EvmAddress,Dict[int, TransferSignal]]]]:
-        token_trfs = {}
-        token_list = [tokens] if isinstance(tokens, EvmAddress) else tokens
-        
-        for token, token_data in self.trf_dict.items():
-            if token in token_list:
-                token_trfs[token] = token_data
-                
-        return token_trfs
-    
-    def get_address_trf(self, address: EvmAddress) -> Dict[EvmAddress,Dict[str,Dict[int, TransferSignal]]]:     
-        return self._trf_dict.get(address, {})
-
-    def get_address_token_trf(self, address: EvmAddress, token: EvmAddress) -> Dict[str,Dict[int, TransferSignal]]: 
-        return self.get_address_trf(address).get(token, {})
 
     def get_address_deltas_for_token(self, token: EvmAddress) -> Dict[EvmAddress, int]:
         deltas = defaultdict(int)
@@ -193,49 +172,3 @@ class TransformContext:
             
         return dict(deltas)
 
-    def get_address_signals(self, address: EvmAddress) -> Dict[int, Signal]:
-        address_signals = {}
-        
-        for idx, signal in self.all_signals.items():
-            if self._signal_involves_address(signal, address):
-                address_signals[idx] = signal
-                    
-        return address_signals
-
-    def _is_valid_address(self, value) -> bool:
-        return isinstance(value, str) and len(value) == 42 and value.startswith('0x')
-
-    def _signal_involves_address(self, signal: Signal, address: str) -> bool:
-        target_address = address.lower()
-        signal_dict = msgspec.structs.asdict(signal)
-        
-        for value in signal_dict.values():
-            if isinstance(value, list):
-                for item in value:
-                    if self._is_valid_address(item) and item.lower() == target_address:
-                        return True
-            else:
-                if self._is_valid_address(value) and value.lower() == target_address:
-                    return True
-        
-        return False
-
-    '''
-    def reconcile_event_transfers(self, event: DomainEvent) -> None:
-        if hasattr(event, 'signals'):
-            for signal in event.signals.values():
-                if isinstance(signal, TransferSignal):
-                    self.match_transfer(signal)
-    '''
-
-    def get_reconciliation_summary(self) -> Dict[str, int]:
-        total_transfers = len(self.transfer_signals)
-        matched_transfers = len(self.matched_transfers)
-        
-        return {
-            "total_transfer_signals": total_transfers,
-            "matched_transfers": matched_transfers,
-            "unmatched_transfers": total_transfers - matched_transfers,
-            "total_signals": sum(len(signals) for signals in self.signals_by_type.values()),
-            "consumed_signals": len(self.consumed_signals)
-        }
