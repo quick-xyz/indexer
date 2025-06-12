@@ -61,6 +61,7 @@ class AggregatorTransformer(BaseTransformer):
         
         signals[log.index] = RouteSignal(
             log_index=log.index,
+            pattern="Route",
             contract=self.contract_address,
             token_in=EvmAddress(route[2].lower()),
             amount_in=route[4],
@@ -80,6 +81,7 @@ class AggregatorTransformer(BaseTransformer):
         
         signals[log.index] = MultiRouteSignal(
             log_index=log.index,
+            pattern="Route",
             contract=self.contract_address,
             tokens_in= [EvmAddress(t.lower()) for t in route[2]],
             amounts_in=route[4],

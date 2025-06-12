@@ -46,6 +46,7 @@ class TokenTransformer(BaseTransformer):
         
         signals[log.index] = TransferSignal(
             log_index=log.index,
+            pattern="Transfer",
             token=self.contract_address,
             from_address=EvmAddress(trf[0].lower()),
             to_address=EvmAddress(trf[1].lower()),

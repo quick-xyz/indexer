@@ -39,3 +39,13 @@ class TransferPattern(ABC):
     @abstractmethod
     def extract_addresses(self, signal: Signal, context: TransformContext) -> Optional[AddressContext]:
         pass
+
+    @abstractmethod
+    def process_signal(self, signal: Signal, context: TransformContext) -> Optional[AddressContext]:
+        pass
+                
+    def _update_context(self) -> None:
+        pass
+
+    def _reconcile_event_transfers(self) -> None:
+        pass

@@ -124,6 +124,7 @@ class PoolTransformer(BaseTransformer):
         
         signals[log.index] = SwapSignal(
             log_index=log.index,
+            pattern="Swap_A",
             pool=self.contract_address,
             base_amount=swap[0],
             base_token=self.base_token,
@@ -143,6 +144,7 @@ class PoolTransformer(BaseTransformer):
         
         signals[log.index] = TransferSignal(
             log_index=log.index,
+            pattern="Transfer",
             token=self.contract_address,
             from_address=EvmAddress(trf[0].lower()),
             to_address=EvmAddress(trf[1].lower()),
@@ -160,6 +162,7 @@ class PoolTransformer(BaseTransformer):
         
         signals[log.index] = LiquiditySignal(
             log_index=log.index,
+            pattern="Mint_A",
             pool=self.contract_address,
             base_amount=liq[0],
             base_token=self.base_token,
@@ -180,6 +183,7 @@ class PoolTransformer(BaseTransformer):
         
         signals[log.index] = LiquiditySignal(
             log_index=log.index,
+            pattern="Burn_A",
             pool=self.contract_address,
             base_amount=f"-{liq[0]}" if not liq[0].startswith('-') else liq[0],
             base_token=self.base_token,

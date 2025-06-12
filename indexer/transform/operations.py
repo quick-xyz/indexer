@@ -34,15 +34,7 @@ class TransformOps:
         self.config = config
 
 
-    def create_events_from_signals(self, context: TransformContext) -> Dict[DomainEventId, DomainEvent]:
-        events = {}
-        
-        events.update(self._process_liquidity_domain(context))
-        events.update(self._process_trading_domain(context))
-        events.update(self._process_staking_domain(context))
-        events.update(self._process_farming_domain(context))
-        
-        return events
+
     
     def create_fallback_events(self, context: TransformContext) -> Dict[DomainEventId, DomainEvent]:
         events = {}

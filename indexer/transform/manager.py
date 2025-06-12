@@ -1,6 +1,7 @@
 # indexer/transform/manager.py
 
 from typing import Tuple, Dict, List, Optional
+from msgspec import Struct
 
 from ..core.config import IndexerConfig
 from .registry import TransformRegistry
@@ -13,15 +14,16 @@ from ..types import (
     DomainEventId,
     ProcessingError,
     ErrorId,
+    Signal,
     create_transform_error
 )
 from ..core.mixins import LoggingMixin
 
+class PatternResult(Struct):
 
 class TransformManager(LoggingMixin):   
-    def __init__(self, registry: TransformRegistry, operations: TransformOps, config: IndexerConfig):
+    def __init__(self, registry: TransformRegistry, config: IndexerConfig):
         self.registry = registry
-        self.operations = operations
         self.config = config
 
     def _create_context(self, transaction: Transaction) -> TransformContext:
@@ -73,57 +75,36 @@ class TransformManager(LoggingMixin):
 
     def _produce_events(self, context: TransformContext) -> None:
         event_signals = context.get_remaining_signals()
+        signal_len = len(event_signals)
         if not event_signals:
             return
         
-        try:
-            for log_index, signal in event_signals.items():
-                if log_index not in context.consumed_signals:
-                    match signal.transform_route:
-                        case "liqudity":
-                            events, signals, errors = self._produce_liquidity(context,signal)
-                        case "trading":
-                            events, signals, errors = self._produce_trading(context, signal)
-                        case "staking":
-                            events, signals, errors = self._produce_staking(context, signal)
-                        case "farming":
-                            events, signals, errors = self._produce_farming(context, signal)
-                        case _:
-                            self.log_warning("Unknown transform route", log_index=log_index, route=signal.transform_route)
-                            continue
-                self._update_context(context, events, signals, errors)        
+        reprocess_queue = self._process_signals(event_signals, context)
 
+        if reprocess_queue and signal_len > 1:
+            self.log_debug("Reprocessing signals", reprocess_count=len(reprocess_queue))
+            self._process_signals(reprocess_queue, context)
 
-        except Exception as e:
-            self.log_error("Transaction processing failed", error=str(e))
-            return False, context.transaction
+        
 
-    def _update_context(self, context: TransformContext, events: Dict[DomainEventId, DomainEvent],
-                        signals: Dict[int, Signal], errors: Dict[ErrorId, ProcessingError]) -> None:
-        if events:
-            context.add_events(events)
-        if signals:
-            context.match_transfer()
-            context.mark_signal_consumed()
-        if errors:
-            context.add_errors(errors)
-
-    def add_signals(self, signals: Dict[int, Signal]) -> None:
-        for log_index, signal in signals.items():
-            self.all_signals[log_index]= signal
-
-            match signal:
-                case TransferSignal() if signal.token in self.config.tokens:
-                    self.transfer_signals[log_index]= signal
-
-
-
-    def _reconcile_transfers(self, context: TransformContext) -> None:
-        if not tx.events:
-            tx.events = {}
-            
-        fallback_events = self.operations.create_fallback_events(context)
-        tx.events.update(fallback_events)
+    def _process_signals(self, event_signals: Dict[int, Signal], context: TransformContext) -> Optional[Dict[int, Signal]]:
+        reprocess_queue = {}
+        for log_index, signal in event_signals.items():
+            if log_index not in context.consumed_signals:
+                pattern = self.registry.get_pattern(signal.pattern)
+                if not pattern:
+                    continue
+                
+                try:
+                    success = pattern.process_signal(signal, context)
+                    if not success:
+                        reprocess_queue[log_index] = signal
+                
+                except Exception as e:
+                    self.log_error("Signal processing failed", error=str(e))
+                    return reprocess_queue
+        
+        return reprocess_queue
 
     def _get_decoded_logs(self, transaction: Transaction) -> Optional[Dict[int, DecodedLog]]:
         if self._has_decoded_logs(transaction):
@@ -142,24 +123,3 @@ class TransformManager(LoggingMixin):
             contract_address=contract_address,
             transformer_name="TransformManager"
         )
-    # =============================================================================
-    # REVIEW THESE METHODS
-    # =============================================================================
-
-    def _create_domain_events(self, tx: Transaction, context: TransformContext) -> None:
-        if not tx.signals:
-            return
-            
-        if not tx.events:
-            tx.events = {}
-            
-        events = self.operations.create_events_from_signals(context)
-        tx.events.update(events)
-        
-        # Mark transfers as explained by these events
-        for event in events.values():
-            context.reconcile_event_transfers(event)
-
-
-
-    

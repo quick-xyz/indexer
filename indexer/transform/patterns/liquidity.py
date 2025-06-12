@@ -9,10 +9,27 @@ from ...types import LiquiditySignal, Signal, EvmAddress, ZERO_ADDRESS
 from .base import TransferPattern, TransferLeg, AddressContext
 from ..context import TransformContext
 
-class LiquidityAdd_A(TransferPattern):    
+class Mint_A(TransferPattern):    
     def __init__(self):
-        super().__init__("liquidity_add_basic")
+        super().__init__("Mint_A")
     
+    def process_signal(self, signal: LiquiditySignal, context: TransformContext)-> Optional[Signal]:
+
+        # get unmatched transfer dict, liquidity version
+        # TODO: add method to Context to rebuild trf dict without matched transfers
+        # infer addresses
+        # generate transfer legs using addresses
+        # look for transfers
+        # check build
+        # if not good: check for extra transfers,
+            # if true, try again with all extra transfers (matching amounts)
+            # if false, fail the processing
+        # generate positions and events
+        # mark signals as consumed and transfers as matched
+        # return errors
+
+
+
     def _extract_addresses(self, signal: LiquiditySignal, context: TransformContext) -> Optional[AddressContext]:
         addresses = self._determine_provider_and_collector(signal, context)
         
@@ -60,13 +77,13 @@ class LiquidityAdd_A(TransferPattern):
                 token = address.base,
                 from_end = address.provider,
                 to_end = address.pool,
-                amount = signal.base_amount.lstrip('-')
+                amount = signal.base_amount
             ),
             TransferLeg(
                 token = address.quote,
                 from_end = address.provider,
                 to_end = address.pool,
-                amount = signal.quote_amount.lstrip('-')
+                amount = signal.quote_amount
             ),
             TransferLeg(
                 token = address.pool,
@@ -86,11 +103,32 @@ class LiquidityAdd_A(TransferPattern):
 
         return address, legs
     
+    def generate_event(self, signal: LiquiditySignal, context: TransformContext) -> Optional[Signal]:
+        address_context = self._extract_addresses(signal, context)
+        
+        if not address_context:
+            return None
+        
+        return Signal(
+            log_index=signal.log_index,
+            pattern=self.pattern_name,
+            contract=signal.contract,
+            base_token=address_context.base,
+            quote_token=address_context.quote,
+            pool=address_context.pool,
+            provider=address_context.provider,
+            router=address_context.router,
+            fee_collector=address_context.fee_collector,
+            receipt_amount=signal.receipt_amount
+        )
 
 
-class LiquidityRemoveBasic(TransferPattern):
+
+
+
+class Burn_A(TransferPattern):
     def __init__(self):
-        super().__init__("liquidity_remove_basic")
+        super().__init__("Burn_A")
     
     def extract_context_data(self, signal: LiquiditySignal, context: TransformContext) -> Dict[str, Any]:
         return {
