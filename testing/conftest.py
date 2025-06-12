@@ -52,15 +52,15 @@ def storage_handler(testing_env):
 @pytest.fixture(scope="session")
 def transform_manager(testing_env):
     """Get transformation manager service"""
-    from legacy_transformers.manager_simple import TransformationManager
-    return testing_env.get_service(TransformationManager)
+    from legacy_transformers.manager_simple import TransformManager
+    return testing_env.get_service(TransformManager)
 
 
 @pytest.fixture(scope="session")
 def transformer_registry(testing_env):
     """Get transformer registry service"""
-    from indexer.transform.registry import TransformerRegistry
-    return testing_env.get_service(TransformerRegistry)
+    from indexer.transform.registry import TransformRegistry
+    return testing_env.get_service(TransformRegistry)
 
 
 @pytest.fixture(scope="session")

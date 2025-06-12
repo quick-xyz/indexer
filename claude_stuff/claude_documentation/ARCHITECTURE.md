@@ -36,7 +36,7 @@ Each service has one clear purpose:
 - `ContractRegistry`: Manages contract ABI data
 - `ContractManager`: Creates Web3 contract instances  
 - `BlockDecoder`: Decodes raw blocks into structured data
-- `TransformationManager`: Orchestrates event transformation
+- `TransformManager`: Orchestrates event transformation
 
 ### 4. Service Lifetimes
 - **Singletons**: Created once, reused (most services)
@@ -119,17 +119,17 @@ Dependencies flow naturally: `ContractManager → LogDecoder → TransactionDeco
 
 Event transformation with priority-based processing:
 
-1. **TransformerRegistry**: Manages transformer instances per contract
-2. **TransformationManager**: Orchestrates two-phase transformation:
+1. **TransformRegistry**: Manages transformer instances per contract
+2. **TransformManager**: Orchestrates two-phase transformation:
    - Phase 1: Transfer events (by priority)
    - Phase 2: Other events (by priority)
 
 ```python
 # Registry configures transformers from config
-registry = TransformerRegistry(config)
+registry = TransformRegistry(config)
 
 # Manager uses registry for transformation
-manager = TransformationManager(registry)
+manager = TransformManager(registry)
 success, transformed_tx = manager.process_transaction(tx)
 ```
 
@@ -183,8 +183,8 @@ IndexerConfig
 │       ├── LogDecoder
 │       ├── TransactionDecoder  
 │       └── BlockDecoder
-└── TransformerRegistry
-    └── TransformationManager
+└── TransformRegistry
+    └── TransformManager
 ```
 
 ## Benefits of This Architecture

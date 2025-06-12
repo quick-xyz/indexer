@@ -74,7 +74,7 @@ print(f"Latest block: {latest_block}")
 
 ```
 IndexerConfig → ContractRegistry → ContractManager → Decoders
-IndexerConfig → TransformerRegistry → TransformationManager
+IndexerConfig → TransformRegistry → TransformManager
 ```
 
 ## Configuration

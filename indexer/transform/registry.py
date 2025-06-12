@@ -9,24 +9,28 @@ from ..core.mixins import LoggingMixin
 from .transformers import *
 from ..types import EvmAddress
 
+from .patterns import *
 
 class ContractTransformer(Struct):
     instance: BaseTransformer
     active: bool = True
 
 
-class TransformerRegistry(LoggingMixin):    
+class TransformRegistry(LoggingMixin):    
     def __init__(self, config: IndexerConfig):
         self.config = config
         self._transformers: Dict[EvmAddress, ContractTransformer] = {}
         self._transformer_classes = self._load_transformer_classes()
-        
-        self.log_info("TransformerRegistry initializing", 
+        self._patterns: Dict[str, TransferPattern] = {}
+        self._pattern_classes = self._load_pattern_classes()
+
+        self.log_info("TransformRegistry initializing", 
                      contract_count=len(config.contracts))
         
         self._setup_transformers()
+        self._setup_patterns()
         
-        self.log_info("TransformerRegistry initialized", 
+        self.log_info("TransformRegistry initialized", 
                      active_transformers=len(self._transformers))
 
     def _load_transformer_classes(self) -> Dict[str, type]:
@@ -57,6 +61,11 @@ class TransformerRegistry(LoggingMixin):
             
         return transformer_classes
 
+    def _load_pattern_classes(self) -> Dict[str, type]:
+        return {
+            "LiquidityAdd_A": LiquidityAdd_A,
+        }
+    
     def _setup_transformers(self):
         self.log_debug("Setting up transformers", contract_count=len(self.config.contracts))
         
@@ -122,12 +131,24 @@ class TransformerRegistry(LoggingMixin):
                 
         self.log_info("Transformer setup completed", **setup_stats)
 
+    def _setup_patterns(self):
+        for name, pattern_class in self._pattern_classes.items():
+            try:
+                pattern_instance = pattern_class()
+                self._patterns[name] = pattern_instance
+                self.log_debug("Pattern registered", pattern_name=name)
+            except Exception as e:
+                self.log_error("Failed to create pattern", pattern_name=name, error=str(e))
+
     def register_contract(self, contract_address: EvmAddress, instance: object):
         self._transformers[contract_address] = ContractTransformer(instance=instance)
 
     def get_transformer(self, contract_address: EvmAddress) -> Optional[BaseTransformer]:
         transformer = self._transformers.get(contract_address.lower())
         return transformer.instance if transformer and transformer.active else None
+
+    def get_pattern(self, pattern_name: str) -> Optional[TransferPattern]:
+        return self._patterns.get(pattern_name)
 
     def get_all_contracts(self) -> Dict[str, ContractTransformer]:
         return self._transformers.copy()

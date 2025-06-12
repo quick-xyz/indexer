@@ -9,7 +9,7 @@ from .core.logging_config import IndexerLogger, log_with_context
 from .clients.quicknode_rpc import QuickNodeRpcClient
 from .storage.gcs_handler import GCSHandler
 from .decode.block_decoder import BlockDecoder
-from .transform.manager import TransformationManager
+from .transform.manager import TransformManager
 
 
 def create_indexer(config_path: str = None, config_dict: dict = None, 
@@ -92,9 +92,9 @@ def _register_services(container: IndexerContainer):
     from .decode.block_decoder import BlockDecoder
     from .decode.transaction_decoder import TransactionDecoder
     from .decode.log_decoder import LogDecoder
-    from .transform.registry import TransformerRegistry
-    from ..legacy_transformers.manager_simple import TransformationManager
-    from .transform.operations import TransformationOperations
+    from .transform.registry import TransformRegistry
+    from ..legacy_transformers.manager_simple import TransformManager
+    from .transform.operations import TransformOps
     
     # Client services (need factory functions for config parameters)
     logger.debug("Registering client services")
@@ -114,9 +114,9 @@ def _register_services(container: IndexerContainer):
     
     # Transform services (auto-wired dependencies)
     logger.debug("Registering transform services")
-    container.register_singleton(TransformerRegistry, TransformerRegistry)
-    container.register_singleton(TransformationManager, TransformationManager)
-    container.register_singleton(TransformationOperations, TransformationOperations)
+    container.register_singleton(TransformRegistry, TransformRegistry)
+    container.register_singleton(TransformManager, TransformManager)
+    container.register_singleton(TransformOps, TransformOps)
 
     logger.info("Service registration completed")
 
@@ -176,6 +176,6 @@ def get_block_decoder(container: IndexerContainer) -> BlockDecoder:
     """Get block decoder from container"""
     return container.get(BlockDecoder)
 
-def get_transformation_manager(container: IndexerContainer) -> TransformationManager:
+def get_transformation_manager(container: IndexerContainer) -> TransformManager:
     """Get transformation manager from container"""
-    return container.get(TransformationManager)
+    return container.get(TransformManager)

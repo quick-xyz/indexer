@@ -7,7 +7,7 @@ from enum import Enum
 from msgspec import Struct
 
 from ...types import EvmAddress, Signal
-from ..context import TransformerContext
+from ..context import TransformContext
 
 
 class TransferLeg(Struct):
@@ -33,9 +33,9 @@ class TransferPattern(ABC):
         self.name = name
     
     @abstractmethod
-    def generate_transfer_legs(self, signal: Signal, context: TransformerContext) -> Optional[List[TransferLeg]]:
+    def generate_transfer_legs(self, signal: Signal, context: TransformContext) -> Optional[List[TransferLeg]]:
         pass
     
     @abstractmethod
-    def extract_addresses(self, signal: Signal, context: TransformerContext) -> Optional[AddressContext]:
+    def extract_addresses(self, signal: Signal, context: TransformContext) -> Optional[AddressContext]:
         pass

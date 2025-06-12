@@ -26,13 +26,13 @@ class BlockProcessor:
         from ..clients.quicknode_rpc import QuickNodeRPCClient
         from ..storage.gcs_handler import GCSHandler
         from ..decode.block_decoder import BlockDecoder
-        from ..transform.manager import TransformationManager
+        from ..transform.manager import TransformManager
         
         # Get services from container
         rpc = self.container.get(QuickNodeRPCClient)
         storage = self.container.get(GCSHandler)
         decoder = self.container.get(BlockDecoder)
-        transformer = self.container.get(TransformationManager)
+        transformer = self.container.get(TransformManager)
         
         start_time = time.time()
         

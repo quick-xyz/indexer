@@ -24,8 +24,8 @@ from indexer.core.logging_config import log_with_context
 from indexer.clients.quicknode_rpc import QuickNodeRpcClient
 from indexer.storage.gcs_handler import GCSHandler
 from indexer.decode.block_decoder import BlockDecoder
-from legacy_transformers.manager_simple import TransformationManager
-from indexer.transform.registry import TransformerRegistry
+from legacy_transformers.manager_simple import TransformManager
+from indexer.transform.registry import TransformRegistry
 from indexer.contracts.registry import ContractRegistry
 from indexer.contracts.manager import ContractManager
 
@@ -147,8 +147,8 @@ class QuickDiagnostic:
                 ContractRegistry,
                 ContractManager,
                 BlockDecoder,
-                TransformerRegistry,
-                TransformationManager
+                TransformRegistry,
+                TransformManager
             ]
             
             resolved_services = []
@@ -247,7 +247,7 @@ class QuickDiagnostic:
     def check_signal_transformer_setup(self) -> bool:
         """Check signal transformer registry and setup"""
         try:
-            transformer_registry = self.testing_env.get_service(TransformerRegistry)
+            transformer_registry = self.testing_env.get_service(TransformRegistry)
             
             # Get all registered transformers
             all_transformers = transformer_registry.get_all_contracts()
@@ -387,7 +387,7 @@ class QuickDiagnostic:
             
             storage_handler = self.testing_env.get_service(GCSHandler)
             block_decoder = self.testing_env.get_service(BlockDecoder)
-            transform_manager = self.testing_env.get_service(TransformationManager)
+            transform_manager = self.testing_env.get_service(TransformManager)
             
             # Get and decode a test block
             raw_block = storage_handler.get_rpc_block(test_block_number)

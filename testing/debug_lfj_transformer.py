@@ -14,7 +14,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from testing import get_testing_environment
 from indexer.storage.gcs_handler import GCSHandler
 from indexer.decode.block_decoder import BlockDecoder
-from indexer.transform.registry import TransformerRegistry
+from indexer.transform.registry import TransformRegistry
 
 
 def debug_lfj_swap_processing():
@@ -27,7 +27,7 @@ def debug_lfj_swap_processing():
     # Get services
     storage_handler = testing_env.get_service(GCSHandler)
     block_decoder = testing_env.get_service(BlockDecoder)
-    transformer_registry = testing_env.get_service(TransformerRegistry)
+    transformer_registry = testing_env.get_service(TransformRegistry)
     
     # Get the problematic transaction
     block_number = 63269916

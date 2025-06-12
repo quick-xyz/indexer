@@ -39,7 +39,7 @@ errors:
 
 
 # TRANSFORMERS REVIEW
-1) TransformerRegistry
+1) TransformRegistry
     _load_transformer_classes
     _setup_transformers
     register_contract
@@ -47,7 +47,7 @@ errors:
     get_all_contracts
     get_contracts_with_transformers
 
-2) TransformationManager
+2) TransformManager
     process_transaction
     _process_transformers
     _process_transaction_level_events

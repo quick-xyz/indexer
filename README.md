@@ -97,8 +97,8 @@ JSON config defines contracts, transformers, and processing priorities:
 - `LogDecoder`: Event log decoding
 
 ### Transform (`indexer/transform/`)
-- `TransformationManager`: Two-phase processing pipeline
-- `TransformerRegistry`: Contract transformer management
+- `TransformManager`: Two-phase processing pipeline
+- `TransformRegistry`: Contract transformer management
 - **Transformers**: Convert decoded data to domain events
   - Token transfers, DEX swaps, liquidity operations
 
@@ -134,4 +134,4 @@ python test_pipeline.py <block_number>
 **Adding Transformers:**
 1. Create transformer class extending `BaseTransformer`
 2. Add to config JSON with event priorities
-3. Register in `TransformerRegistry`
+3. Register in `TransformRegistry`

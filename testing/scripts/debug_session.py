@@ -23,8 +23,8 @@ from testing import get_testing_environment
 from indexer.core.logging_config import log_with_context
 from indexer.storage.gcs_handler import GCSHandler
 from indexer.decode.block_decoder import BlockDecoder
-from legacy_transformers.manager_simple import TransformationManager
-from indexer.transform.registry import TransformerRegistry
+from legacy_transformers.manager_simple import TransformManager
+from indexer.transform.registry import TransformRegistry
 
 
 class EnhancedDebugSession:
@@ -41,8 +41,8 @@ class EnhancedDebugSession:
         # Get services
         self.storage_handler = self.testing_env.get_service(GCSHandler)
         self.block_decoder = self.testing_env.get_service(BlockDecoder)
-        self.transform_manager = self.testing_env.get_service(TransformationManager)
-        self.transformer_registry = self.testing_env.get_service(TransformerRegistry)
+        self.transform_manager = self.testing_env.get_service(TransformManager)
+        self.transformer_registry = self.testing_env.get_service(TransformRegistry)
         
         print("🔧 ENHANCED BLOCKCHAIN INDEXER DEBUG SESSION")
         print("=" * 60)

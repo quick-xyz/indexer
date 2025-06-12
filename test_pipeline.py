@@ -20,7 +20,7 @@ from indexer.types import EvmFilteredBlock, Block, ProcessingMetadata, BlockStat
 from indexer.clients.quicknode_rpc import QuickNodeRpcClient
 from indexer.storage.gcs_handler import GCSHandler
 from indexer.decode.block_decoder import BlockDecoder
-from legacy_transformers.manager_simple import TransformationManager
+from legacy_transformers.manager_simple import TransformManager
 
 
 def test_config_loading():
@@ -43,7 +43,7 @@ def test_config_loading():
         rpc_client = container.get(QuickNodeRpcClient)
         storage_handler = container.get(GCSHandler)
         block_decoder = container.get(BlockDecoder)
-        transform_manager = container.get(TransformationManager)
+        transform_manager = container.get(TransformManager)
         
         print("✅ All services resolved from container")
         print(f"   - RPC Client: {type(rpc_client).__name__}")
@@ -169,7 +169,7 @@ def test_transformation(container, decoded_block: Block):
     print(f"\n=== Test 5: Transformation ===")
     
     try:
-        transform_manager = container.get(TransformationManager)
+        transform_manager = container.get(TransformManager)
         
         if not decoded_block.transactions:
             print("⚠️  No transactions to transform")

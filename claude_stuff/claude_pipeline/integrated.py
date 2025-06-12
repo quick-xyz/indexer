@@ -13,7 +13,7 @@ import json
 from indexer.stream.interfaces import BlockStreamerInterface
 from indexer.pipeline.interfaces import BlockProcessorInterface
 from indexer.database.registry.block_registry import BlockRegistry
-from indexer.transform.framework.manager import TransformationManager
+from indexer.transform.framework.manager import TransformManager
 from indexer.transform.interfaces import EventListener
 from ..utils.logger import get_logger
 
@@ -104,7 +104,7 @@ class IntegratedPipeline:
     def __init__(self, streamer: BlockStreamerInterface,
                  block_processor: BlockProcessorInterface,
                  block_registry: BlockRegistry,
-                 transformation_manager: TransformationManager,
+                 transformation_manager: TransformManager,
                  event_listeners: Optional[List[EventListener]] = None):
         """
         Initialize integrated pipeline.

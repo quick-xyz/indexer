@@ -35,8 +35,8 @@ try:
     
     # Get transformation manager
     print("Getting transformation manager...")
-    from legacy_transformers.manager_simple import TransformationManager
-    transform_manager = container.get(TransformationManager)
+    from legacy_transformers.manager_simple import TransformManager
+    transform_manager = container.get(TransformManager)
     
     # Get block decoder
     print("Getting block decoder...")
@@ -45,8 +45,8 @@ try:
     
     # Step 3: Test transformer registry (tests transformer setup logging)
     print("\n3️⃣  TESTING: Transformer registry and setup")
-    from indexer.transform.registry import TransformerRegistry
-    registry = container.get(TransformerRegistry)
+    from indexer.transform.registry import TransformRegistry
+    registry = container.get(TransformRegistry)
     
     # Get service info
     container_info = container.get_service_info()

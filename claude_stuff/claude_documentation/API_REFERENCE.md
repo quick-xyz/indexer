@@ -284,13 +284,13 @@ for tx_hash, transaction in decoded_block.transactions.items():
 
 ## Transform Services
 
-### TransformerRegistry
+### TransformRegistry
 
 Registry for transformer instances and configurations.
 
 #### Constructor
 ```python
-TransformerRegistry(config: IndexerConfig)
+TransformRegistry(config: IndexerConfig)
 ```
 
 #### Methods
@@ -304,13 +304,13 @@ Get transfer event priority.
 ##### `get_log_priority(contract_address: EvmAddress, event_name: str) -> Optional[int]`
 Get log event priority.
 
-### TransformationManager
+### TransformManager
 
 Orchestrates transaction transformation pipeline.
 
 #### Constructor
 ```python
-TransformationManager(registry: TransformerRegistry)
+TransformManager(registry: TransformRegistry)
 ```
 
 #### Methods
@@ -322,7 +322,7 @@ Returns tuple of (success: bool, processed_transaction: Transaction).
 
 **Example:**
 ```python
-transformer = indexer.get(TransformationManager)
+transformer = indexer.get(TransformManager)
 for tx_hash, transaction in decoded_block.transactions.items():
     success, transformed_tx = transformer.process_transaction(transaction)
     if success:

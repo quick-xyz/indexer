@@ -10,6 +10,7 @@ from ..new import EvmHash, DomainEventId
 
 class Signal(Struct):
     log_index: int
+    transform_route: str 
     
     @property
     def signal_type(self) -> str:

@@ -3,7 +3,7 @@
 from typing import Tuple, Dict, List, Optional
 import msgspec
 
-from ..indexer.transform.registry import TransformerRegistry
+from ..indexer.transform.registry import TransformRegistry
 from ..indexer.types import (
     Transaction, 
     DecodedLog,
@@ -17,10 +17,10 @@ from ..indexer.types import (
 from ..indexer.core.mixins import LoggingMixin
 
 
-class TransformationManager(LoggingMixin):   
-    def __init__(self, registry: TransformerRegistry):
+class TransformManager(LoggingMixin):   
+    def __init__(self, registry: TransformRegistry):
         self.registry = registry
-        self.log_info("TransformationManager initialized")
+        self.log_info("TransformManager initialized")
 
     def process_transaction(self, transaction: Transaction) -> Tuple[bool, Transaction]:
         """Process a transaction through the transformation pipeline"""

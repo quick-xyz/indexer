@@ -8,7 +8,7 @@ def example_usage():
     rpc = indexer.get(QuickNodeRPCClient)
     storage = indexer.get(GCSHandler)
     decoder = indexer.get(BlockDecoder)
-    transformer = indexer.get(TransformationManager)
+    transformer = indexer.get(TransformManager)
     
     # OR use convenience functions
     rpc = get_rpc_client(indexer)

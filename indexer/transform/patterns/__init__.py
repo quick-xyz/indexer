@@ -1,11 +1,11 @@
 # indexer/transform/patterns/__init__.py
 
 from .base import TransferPattern, TransferLeg, AddressContext
-from .liquidity import LiquidityAddBasic
+from .liquidity import LiquidityAdd_A
 
 __all__ = [
     "TransferPattern",
     "TransferLeg", 
     "AddressContext",
-    "LiquidityAddBasic"
+    "LiquidityAdd_A"
 ]

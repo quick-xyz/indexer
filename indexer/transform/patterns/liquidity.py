@@ -7,13 +7,13 @@ from typing import Dict, List, Any, Tuple, Optional
 
 from ...types import LiquiditySignal, Signal, EvmAddress, ZERO_ADDRESS
 from .base import TransferPattern, TransferLeg, AddressContext
-from ..context import TransformerContext
+from ..context import TransformContext
 
-class LiquidityAddBasic(TransferPattern):    
+class LiquidityAdd_A(TransferPattern):    
     def __init__(self):
         super().__init__("liquidity_add_basic")
     
-    def _extract_addresses(self, signal: LiquiditySignal, context: TransformerContext) -> Optional[AddressContext]:
+    def _extract_addresses(self, signal: LiquiditySignal, context: TransformContext) -> Optional[AddressContext]:
         addresses = self._determine_provider_and_collector(signal, context)
         
         if addresses is None or addresses[0] is None:
@@ -28,7 +28,7 @@ class LiquidityAddBasic(TransferPattern):
             fee_collector = addresses[1] if addresses[1] else None
         )
 
-    def _determine_provider_and_collector(self, signal: LiquiditySignal, context: TransformerContext) -> Tuple[EvmAddress, EvmAddress]:
+    def _determine_provider_and_collector(self, signal: LiquiditySignal, context: TransformContext) -> Tuple[EvmAddress, EvmAddress]:
         pool_recipients = context.trf_dict.get(signal.pool, {}).get("in", {})
         
         if not pool_recipients:
@@ -49,7 +49,7 @@ class LiquidityAddBasic(TransferPattern):
         
         return None, None
     
-    def generate_transfer_legs(self, signal: LiquiditySignal, context: TransformerContext) -> Tuple[Optional[AddressContext],Optional[List[TransferLeg]]]:        
+    def generate_transfer_legs(self, signal: LiquiditySignal, context: TransformContext) -> Tuple[Optional[AddressContext],Optional[List[TransferLeg]]]:        
         address = self.extract_addresses(signal, context)
 
         if address is None:
@@ -92,7 +92,7 @@ class LiquidityRemoveBasic(TransferPattern):
     def __init__(self):
         super().__init__("liquidity_remove_basic")
     
-    def extract_context_data(self, signal: LiquiditySignal, context: TransformerContext) -> Dict[str, Any]:
+    def extract_context_data(self, signal: LiquiditySignal, context: TransformContext) -> Dict[str, Any]:
         return {
             "base_token": signal.base_token,
             "quote_token": signal.quote_token, 
@@ -100,7 +100,7 @@ class LiquidityRemoveBasic(TransferPattern):
             "provider": signal.owner or signal.sender or self._infer_provider(signal, context)
         }
     
-    def _infer_provider(self, signal: LiquiditySignal, context: TransformerContext) -> str:
+    def _infer_provider(self, signal: LiquiditySignal, context: TransformContext) -> str:
         pool_senders = context.trf_dict.get(signal.pool, {}).get("out", {})
         if len(pool_senders) == 1:
             return next(iter(pool_senders.keys()))

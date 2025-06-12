@@ -4,7 +4,6 @@ from typing import Dict, List, Set, Optional, Type, TypeVar, Union
 from collections import defaultdict
 import msgspec
 
-from ..core.config import IndexerConfig
 from ..types import (
     Transaction,
     DecodedLog,
@@ -14,43 +13,99 @@ from ..types import (
     EvmAddress,
     TokenConfig,
     AddressConfig,
+    DomainEventId,
+    ErrorId,
+    ProcessingError,
 )
 
 
-class TransformerContext:
-    def __init__(self, transaction: Transaction, config: IndexerConfig):
-        self.transaction = transaction
-        self.config = config
+class TransformContext:
+    def __init__(self, transaction: Transaction, tokens_of_interest: Dict[EvmAddress, TokenConfig], known_addresses: Dict[EvmAddress, AddressConfig]):
+        self._og_tx = transaction
+        self.tokens_of_interest = tokens_of_interest 
+        self.known_addresses = known_addresses
 
-        self.all_signals: Dict[int, Signal] = {}
-        self.consumed_signals: Set[int] = set()
-        self.transfer_signals: Dict[int, TransferSignal] = {}
+        self.signals: Dict[int, Signal] = {}
+        self.events: Dict[DomainEventId, DomainEvent] = {}
+        self.errors: Dict[ErrorId, ProcessingError] = {}
+
+        self._transfer_signals: Dict[int, TransferSignal] = {}
         self.matched_transfers: Set[int] = set()
+        self._event_signals: Dict[int, Signal] = {}
+        self.consumed_signals: Set[int] = set()
+
         self._trf_dict = None
+
+    # Read-only access to original transaction
+    @property 
+    def transaction(self) -> Transaction:
+        return self._og_tx
 
     @property
     def trf_dict(self) -> Dict[EvmAddress,Dict[str,Dict[EvmAddress,Dict[int, TransferSignal]]]]:
         if self._trf_dict is None:
-            self._trf_dict = self._build_trf_dict()
+            self._build_trf_dict()
         return self._trf_dict
+
+    def add_signals(self, signals: Dict[int, Signal]):
+        self.signals.update(signals)
+        self._transfer_signals = None
+    
+    def add_events(self, events: Dict[DomainEventId, DomainEvent]):
+        self.events.update(events)
+    
+    def add_errors(self, errors: Dict[ErrorId, ProcessingError]):
+        self.errors.update(errors)
+
+    def group_logs_by_contract(self, decoded_logs: Dict[int, DecodedLog]) -> Dict[EvmAddress, List[DecodedLog]]:
+        logs_by_contract = defaultdict(list)
+        for log_index, log in decoded_logs.items():
+            contract = log.contract
+            logs_by_contract[contract].append(log)
+        return dict(logs_by_contract)
+    
+    def finalize_to_transaction(self) -> Transaction:
+        return Transaction(
+            block=self._og_tx.block,
+            timestamp=self._og_tx.timestamp,
+            tx_hash=self._og_tx.tx_hash,
+            index=self._og_tx.index,
+            origin_from=self._og_tx.origin_from,
+            origin_to=self._og_tx.origin_to,
+            function=self._og_tx.function,
+            value=self._og_tx.value,
+            tx_success=self._og_tx.tx_success,
+            logs=self._og_tx.logs,
+            signals=self.signals if self.signals else None,
+            events=self.events if self.events else None,
+            errors=self.errors if self.errors else None
+        )
+
+    def _init_signals(self) -> None:
+        if not self.signals:
+            return
+        self._build_transfer_signals()
+        self._build_event_signals()
+        self._build_trf_dict
+
+    def _build_transfer_signals(self) -> Dict[int, TransferSignal]:
+        if self._transfer_signals is None:
+            self._transfer_signals = {idx: signal for idx, signal in self.signals.items() if isinstance(signal, TransferSignal)}
+
+    def _build_event_signals(self) -> Dict[int, Signal]:
+        if self._event_signals is None:
+            self._event_signals = {idx: signal for idx, signal in self.signals.items() if not isinstance(signal, TransferSignal)}
 
     def _build_trf_dict(self) -> Dict[EvmAddress,Dict[str,Dict[EvmAddress,Dict[int, TransferSignal]]]]:
         trf_dict = defaultdict(lambda: defaultdict(lambda: defaultdict(dict)))
-        
-        # token: {in/out: {address: {idx: TransferSignal}}}
-        for idx, transfer in self.transfer_signals.items():
+        for idx, transfer in self._transfer_signals.items():
             trf_dict[transfer.token]["out"][transfer.from_address][idx] = transfer
             trf_dict[transfer.token]["in"][transfer.to_address][idx] = transfer
-        
-        return dict(trf_dict)
-
-    def add_signals(self, signals: Dict[int, Signal]) -> None:
-        for log_index, signal in signals.items():
-            self.all_signals[log_index]= signal
-
-            match signal:
-                case TransferSignal() if signal.token in self.config.tokens:
-                    self.transfer_signals[log_index]= signal
+        self._trf_dict = trf_dict
+    
+    # =============================================================================
+    # HELPER METHODS
+    # =============================================================================
 
     def get_signals_by_type(self, signal_types: Union[type, List[type]]) -> Dict[int, Signal]:
         if isinstance(signal_types, type):
@@ -69,25 +124,19 @@ class TransformerContext:
         self.matched_transfers.add(transfer_signal.log_index)
 
     def get_unmatched_transfers(self) -> Dict[int, TransferSignal]:
-        return {idx: t for idx, t in self.transfer_signals.items() 
+        return {idx: t for idx, t in self._transfer_signals.items() 
                 if idx not in self.matched_transfers}
 
-    def group_logs_by_contract(self, decoded_logs: Dict[int, DecodedLog]) -> Dict[EvmAddress, List[DecodedLog]]:
-        logs_by_contract = defaultdict(list)
-        for log_index, log in decoded_logs.items():
-            contract = log.contract
-            logs_by_contract[contract].append(log)
-        return dict(logs_by_contract)
+    def get_remaining_signals(self) -> Dict[int, Signal]:
+        return {idx: signal for idx, signal in self._event_signals.items()
+                if idx not in self.consumed_signals}
     
-    def get_non_transfer_signals(self) -> Dict[int, Signal]:
-        non_transfer_signals = {}
-        
-        for idx, signal in self.all_signals.items():
-            if not isinstance(signal, TransferSignal):
-                non_transfer_signals[idx] = signal
-                
-        return non_transfer_signals
-    
+
+    # =============================================================================
+    # REVIEW THESE METHODS
+    # =============================================================================
+
+
     def get_token_trfs(self, tokens: Union[EvmAddress, List[EvmAddress]]) -> Dict[EvmAddress,Dict[str,Dict[EvmAddress,Dict[int, TransferSignal]]]]:
         token_trfs = {}
         token_list = [tokens] if isinstance(tokens, EvmAddress) else tokens

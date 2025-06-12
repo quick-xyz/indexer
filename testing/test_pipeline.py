@@ -22,7 +22,7 @@ from indexer.core.logging_config import log_with_context
 from indexer.clients.quicknode_rpc import QuickNodeRpcClient
 from indexer.storage.gcs_handler import GCSHandler
 from indexer.decode.block_decoder import BlockDecoder
-from legacy_transformers.manager_simple import TransformationManager
+from legacy_transformers.manager_simple import TransformManager
 from indexer.types import EvmFilteredBlock, Block
 
 
@@ -39,7 +39,7 @@ class PipelineTester:
         self.rpc_client = self.testing_env.get_service(QuickNodeRpcClient)
         self.storage_handler = self.testing_env.get_service(GCSHandler)
         self.block_decoder = self.testing_env.get_service(BlockDecoder)
-        self.transform_manager = self.testing_env.get_service(TransformationManager)
+        self.transform_manager = self.testing_env.get_service(TransformManager)
         
         log_with_context(
             self.logger,

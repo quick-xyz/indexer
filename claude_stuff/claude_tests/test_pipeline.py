@@ -68,15 +68,15 @@ def test_transformation_pipeline():
     
     try:
         from indexer import create_indexer
-        from indexer.transform.registry import TransformerRegistry
-        from legacy_transformers.manager_simple import TransformationManager
+        from indexer.transform.registry import TransformRegistry
+        from legacy_transformers.manager_simple import TransformManager
         
         # Create services
         config_path = project_root / "config" / "config.json"
         indexer = create_indexer(config_path=str(config_path))
         
-        registry = indexer.get(TransformerRegistry)
-        manager = indexer.get(TransformationManager)
+        registry = indexer.get(TransformRegistry)
+        manager = indexer.get(TransformManager)
         
         print("✅ Transformation services created")
         
@@ -110,14 +110,14 @@ def test_end_to_end():
         from indexer.contracts.registry import ContractRegistry
         from indexer.contracts.manager import ContractManager
         from indexer.decode.block_decoder import BlockDecoder
-        from legacy_transformers.manager_simple import TransformationManager
+        from legacy_transformers.manager_simple import TransformManager
         
         services = [
             (QuickNodeRPCClient, "RPC Client"),
             (ContractRegistry, "Contract Registry"), 
             (ContractManager, "Contract Manager"),
             (BlockDecoder, "Block Decoder"),
-            (TransformationManager, "Transformation Manager")
+            (TransformManager, "Transformation Manager")
         ]
         
         created_services = {}
