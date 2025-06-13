@@ -2,6 +2,7 @@
 
 from typing import Tuple, Dict, List, Optional
 from msgspec import Struct
+from collections import defaultdict
 
 from ..core.config import IndexerConfig
 from .registry import TransformRegistry
@@ -13,13 +14,18 @@ from ..types import (
     ProcessingError,
     Signal,
     TransferSignal,
+    RouteSignal,
+    SwapBatchSignal,
+    Trade,
+    SwapSignal,
+    MultiRouteSignal,
     UnknownTransfer,
     Position,
     ZERO_ADDRESS,
     create_transform_error
 )
 from ..core.mixins import LoggingMixin
-from ..utils.amounts import amount_to_negative_str
+from ..utils.amounts import amount_to_negative_str, amount_to_int, amount_to_str
 
 TRADE_PATTERNS = ["Swap_A", "Route"]
 
@@ -116,13 +122,169 @@ class TransformManager(LoggingMixin):
 
     def _process_trade(self, trade_signals: Dict[int,Signal], context: TransformContext) -> bool:
         if not trade_signals:
-            return True        
+            return True  
 
-        # pool swaps
-        # route swaps
-        # unknown swaps
+        ''' Get user intent from Router Signals '''      
+        tokens_in, tokens_out, tos, senders = [], [], [], []
+        for log_index, signal in trade_signals.items():
+            if isinstance(signal, [RouteSignal, MultiRouteSignal]):
+                self.log_debug("Processing Route Pattern", log_index=log_index)
+                tokens_in.extend(signal.tokens_in if isinstance(signal, MultiRouteSignal) else [signal.token_in])
+                tokens_out.extend(signal.tokens_out if isinstance(signal, MultiRouteSignal) else [signal.token_out])
+                tos.append(signal.to)
+                senders.append(signal.sender)
+
+        ''' Aggregate SwapBatchSignals into SwapSignals '''   
+        batch_signals = context.get_batch_swap_signals()
+        batch_dict, batch_components, signal_components = {}, {}, {}
+
+        for log_index, signal in batch_signals.items():
+            key = "_".join((str(signal.pool), str(signal.to)))  
+            transformer = self.registry.get_transformer(signal.pool)
+
+            if key not in batch_dict:
+                batch_dict[key] = {
+                    "index": 0,
+                    "pool": signal.pool,
+                    "to": signal.to,
+                    "base_amount": 0,
+                    "quote_amount": 0,
+                    "base_token": transformer.base_token,
+                    "quote_token": transformer.quote_token,
+                    "batch": {},
+                    "sender": signal.to if signal.to else None
+                }
+            
+            batch_dict[key]["index"] += amount_to_int(signal.log_index)
+            batch_dict[key]["base_amount"] += amount_to_int(signal.base_amount)
+            batch_dict[key]["quote_amount"] += amount_to_int(signal.quote_amount)
+            batch_components[key][str(signal.id)] = (signal.base_amount, signal.quote_amount)
+            signal_components[key] = signal_components.update({log_index: signal})
+
+        for key, data in batch_dict.items():
+            swap_signal = SwapSignal(
+                log_index=data["index"]*100,
+                pattern="Swap_A",
+                pool=data["pool"],
+                base_amount=amount_to_str(data["base_amount"]),
+                base_token=data["base_token"],
+                quote_amount=amount_to_str(data["quote_amount"]),
+                quote_token=data["quote_token"],
+                to=data["to"],
+                sender=data["sender"] if data["sender"] else None,
+                batch=batch_components[key],
+                signals= signal_components.get(key, {})
+            )
+            context.add_signals({swap_signal.log_index: swap_signal})
+
+        ''' Process SwapSignals into PoolSwap Events '''  
+        swap_signals = context.get_swap_signals([SwapSignal])
+        for log_index, signal in swap_signals.items():
+            pattern = self.registry.get_pattern(signal.pattern)
+            if not pattern:
+                continue
+            try:
+                if not pattern.process_signal(signal, context):
+                    return False
+            except Exception as e:
+                self.log_error("Signal processing failed", error=str(e))
+                return False
+        
+        # TODO: Validate Swaps against Router Signals. Generate UnknownTransfer Events if required.         ''' 
+        
+        ''' Aggregate PoolSwap Events into Trade Events '''
+        buy_swaps, sell_swaps = context.get_swap_events()
+        swaps = buy_swaps + sell_swaps
+        if not swaps:
+            self.log_warning("No Swaps found during Trade Processing",)
+            return False
+
+        trade_dict, trade_swaps = {}, {}
+        for idx, swap in buy_swaps.items():
+            if swap.taker not in trade_dict:
+                key = "_".join((str(swap.taker), str(swap.base_token))) 
+                trade_dict["buy"][key] = {
+                    "index": 0,
+                    "taker": swap.taker,
+                    "direction": "buy",
+                    "base_amount": 0,
+                    "base_token": swap.base_token,
+                    "swaps": {},
+                }
+
+            trade_dict["buy"][key]["index"] += amount_to_int(signal.log_index)
+            trade_dict["buy"][key]["base_amount"] += amount_to_int(signal.base_amount)
+            trade_swaps["buy"][key][str(idx)] = swap
+
+        for idx, swap in sell_swaps.items():
+            if swap.taker not in trade_dict:
+                key = "_".join((str(swap.taker), str(swap.base_token))) 
+                trade_dict["sell"][key] = {
+                    "index": 0,
+                    "taker": swap.taker,
+                    "direction": "sell",
+                    "base_amount": 0,
+                    "base_token": swap.base_token,
+                    "swaps": {},
+                }
+
+            trade_dict["sell"][key]["index"] += amount_to_int(signal.log_index)
+            trade_dict["sell"][key]["base_amount"] += amount_to_int(signal.base_amount)
+            trade_swaps["sell"][key][str(idx)] = swap
 
 
+        for dir, keyed_data in trade_dict.items():
+            for key, data in keyed_data.items():
+                trade_event = Trade(
+                    timestamp= context.transaction.timestamp,
+                    tx_hash= context.transaction.tx_hash,
+                    taker=data["taker"],
+                    direction=data["direction"],
+                    base_token=data["base_token"],
+                    base_amount=amount_to_str(data["base_amount"]),
+                    trade_type="trade",
+                    swaps=trade_swaps[dir][key],
+                )
+                context.add_events({trade_event._content_id: trade_event})   
+                context.group_swap_events(trade_event.swaps.keys())       
+        
+        '''
+        if not (swap.base_token in context.tokens_of_interest and swap.quote_token in context.tokens_of_interest):
+            self.log_warning("Swap tokens not in tokens of interest", 
+                             base_token=swap.base_token, quote_token=swap.quote_token)
+            return False
+        if not (swap.base_amount and swap.quote_amount):
+            self.log_warning("Swap amounts are zero", 
+                             base_amount=swap.base_amount, quote_amount=swap.quote_amount)
+            return False
+        if not (swap.to and swap.sender):
+            self.log_warning("Swap addresses are invalid", 
+                             to=swap.to, sender=swap.sender)
+            return False
+
+        swap.positions = positions
+        swap.signals = {signal.log_index: signal for signal in trade_signals.values()}
+        context.add_events({swap._content_id: swap})
+        self.log_debug("Trade signals processed successfully", swap=swap)
+        if not (unmatched_transfers := context.get_unmatched_transfers()):
+            self.log_debug("No unmatched transfers found after processing trade signals")
+            return True
+        self.log_debug("Unmatched transfers found after processing trade signals", count=len(unmatched_transfers))
+        # Handle unmatched transfers
+        for idx, trf in unmatched_transfers.items():
+            if trf.token not in context.tokens_of_interest:
+                continue
+            
+            positions = self._generate_positions(trf)
+            self._produce_unknown_transfer(trf, context, positions)
+        self.log_debug("Trade signals processed successfully, unmatched transfers handled") 
+        '''
+
+        ''' BUILD TRADE EVENTS '''
+
+
+
+        return True
 
     def _reconcile_transfers(self, context: TransformContext) -> None:
         if not (unmatched_transfers := context.get_unmatched_transfers()):

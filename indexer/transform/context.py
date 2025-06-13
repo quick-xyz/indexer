@@ -1,6 +1,6 @@
 # indexer/transform/context.py
 
-from typing import Dict, List, Set, Optional, Type, TypeVar, Union
+from typing import Dict, List, Set, Optional, Type, TypeVar, Union, Tuple
 from collections import defaultdict
 import msgspec
 
@@ -16,6 +16,9 @@ from ..types import (
     DomainEventId,
     ErrorId,
     ProcessingError,
+    PoolSwap,
+    SwapSignal,
+    SwapBatchSignal,
 )
 
 SignalDict = Dict[int, Signal]
@@ -127,10 +130,17 @@ class TransformContext:
 
     def get_signals_by_type(self, signal_types: Union[type, List[type]]) -> Dict[int, Signal]:
         if isinstance(signal_types, type):
-            return {idx: s for idx, s in self.all_signals.items() if isinstance(s, signal_types)}
+            return {idx: s for idx, s in self.signals.items() if isinstance(s, signal_types)}
         else:
             signal_tuple = tuple(signal_types)
-            return {idx: s for idx, s in self.all_signals.items() if isinstance(s, signal_tuple)}
+            return {idx: s for idx, s in self.signals.items() if isinstance(s, signal_tuple)}
+    
+    def get_events_by_type(self, event_types: Union[Type[DomainEvent], List[Type[DomainEvent]]]) -> Dict[DomainEventId, DomainEvent]:
+        if isinstance(event_types, type):
+            return {eid: e for eid, e in self.events.items() if isinstance(e, event_types)}
+        else:
+            event_tuple = tuple(event_types)
+            return {eid: e for eid, e in self.events.items() if isinstance(e, event_tuple)}
     
     def mark_signal_consumed(self, log_index: int) -> None:
         self.consumed_signals.add(log_index)
@@ -159,6 +169,11 @@ class TransformContext:
             else:
                 self.mark_signal_consumed(idx)
 
+    def group_swap_events(self, events: List[DomainEventId]) -> None:
+        for idx in events:
+            if isinstance(self.events[idx], PoolSwap):
+                self.events[idx].grouped = True
+    
     def get_address_deltas_for_token(self, token: EvmAddress) -> Dict[EvmAddress, int]:
         deltas = defaultdict(int)
         
@@ -172,3 +187,15 @@ class TransformContext:
             
         return dict(deltas)
 
+    def get_batch_swap_signals(self) -> Dict[int, SwapBatchSignal]:
+        return self.get_signals_by_type([SwapBatchSignal])
+
+    def get_swap_signals(self) -> Dict[int, SwapSignal]:
+        return self.get_events_by_type([SwapSignal])
+    
+    def get_swap_events(self) -> Tuple[Dict[DomainEventId, PoolSwap],Dict[DomainEventId, PoolSwap]]:
+        all_swaps = self.get_events_by_type([PoolSwap])
+        buy_swaps = {eid: swap for eid, swap in all_swaps.items() if swap.direction == "buy"}
+        sell_swaps = {eid: swap for eid, swap in all_swaps.items() if swap.direction == "sell"}
+        
+        return buy_swaps, sell_swaps
