@@ -265,6 +265,7 @@ class LbPairTransformer(PoolTransformer):
 
         signals[log.index] = TransferSignal(
             log_index=log.index,
+            pattern="Transfer",
             token=self.contract_address,
             from_address=EvmAddress(trf[0].lower()),
             to_address=EvmAddress(trf[1].lower()),
@@ -286,6 +287,7 @@ class LbPairTransformer(PoolTransformer):
         
         signals[log.index] = LiquiditySignal(
             log_index=log.index,
+            pattern="Mint_A",
             pool=self.contract_address,
             base_amount=liq[0],
             base_token=self.base_token,
@@ -307,6 +309,7 @@ class LbPairTransformer(PoolTransformer):
         
         signals[log.index] = LiquiditySignal(
             log_index=log.index,
+            pattern="Burn_A",
             pool=self.contract_address,
             base_amount=liq[0],
             base_token=self.base_token,

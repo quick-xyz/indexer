@@ -20,7 +20,7 @@ from indexer.types import EvmFilteredBlock, Block, ProcessingMetadata, BlockStat
 from indexer.clients.quicknode_rpc import QuickNodeRpcClient
 from indexer.storage.gcs_handler import GCSHandler
 from indexer.decode.block_decoder import BlockDecoder
-from legacy_transformers.manager_simple import TransformManager
+from indexer.transform.manager import TransformManager
 
 
 def test_config_loading():

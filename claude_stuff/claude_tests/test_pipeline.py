@@ -69,7 +69,7 @@ def test_transformation_pipeline():
     try:
         from indexer import create_indexer
         from indexer.transform.registry import TransformRegistry
-        from legacy_transformers.manager_simple import TransformManager
+        from indexer.transform.manager import TransformManager
         
         # Create services
         config_path = project_root / "config" / "config.json"
@@ -110,7 +110,7 @@ def test_end_to_end():
         from indexer.contracts.registry import ContractRegistry
         from indexer.contracts.manager import ContractManager
         from indexer.decode.block_decoder import BlockDecoder
-        from legacy_transformers.manager_simple import TransformManager
+        from indexer.transform.manager import TransformManager
         
         services = [
             (QuickNodeRPCClient, "RPC Client"),

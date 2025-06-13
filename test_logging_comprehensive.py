@@ -35,7 +35,7 @@ try:
     
     # Get transformation manager
     print("Getting transformation manager...")
-    from legacy_transformers.manager_simple import TransformManager
+    from indexer.transform.manager import TransformManager
     transform_manager = container.get(TransformManager)
     
     # Get block decoder

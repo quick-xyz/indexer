@@ -93,7 +93,7 @@ class PharNfpTransformer(BaseTransformer):
         
         signals[log.index] = NfpCollectSignal(
             log_index=log.index,
-            pattern="Collect_D",
+            pattern="Info",
             contract=self.contract_address,
             token_id=collect[0],
             recipient=EvmAddress(collect[1].lower()),
@@ -111,7 +111,7 @@ class PharNfpTransformer(BaseTransformer):
         
         signals[log.index] = NfpLiquiditySignal(
             log_index=log.index,
-            pattern="Mint_D",
+            pattern="Info",
             contract=self.contract_address,
             token_id=liq[0],
             liquidity=liq[1],
@@ -130,7 +130,7 @@ class PharNfpTransformer(BaseTransformer):
         
         signals[log.index] = NfpLiquiditySignal(
             log_index=log.index,
-            pattern="Burn_D",
+            pattern="Info",
             contract=self.contract_address,
             token_id=liq[0],
             liquidity=f"-{liq[1]}" if not liq[1].startswith('-') else liq[1],

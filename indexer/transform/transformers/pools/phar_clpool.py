@@ -97,6 +97,7 @@ class PharClPoolTransformer(PoolTransformer):
         
         signals[log.index] = SwapSignal(
             log_index=log.index,
+            pattern="Swap_A",
             pool=self.contract_address,
             base_amount=swap[0],
             base_token=self.base_token,
@@ -117,6 +118,7 @@ class PharClPoolTransformer(PoolTransformer):
         
         signals[log.index] = LiquiditySignal(
             log_index=log.index,
+            pattern="Mint_A",
             pool=self.contract_address,
             base_amount=liq[0],
             base_token=self.base_token,
@@ -139,6 +141,7 @@ class PharClPoolTransformer(PoolTransformer):
         
         signals[log.index] = LiquiditySignal(
             log_index=log.index,
+            pattern="Burn_A",
             pool=self.contract_address,
             base_amount=f"-{liq[0]}" if not liq[0].startswith('-') else liq[0],
             base_token=self.base_token,
@@ -162,6 +165,7 @@ class PharClPoolTransformer(PoolTransformer):
         if not (is_zero(collect[0]) and is_zero(collect[1])):
             signals[log.index] = CollectSignal(
                 log_index=log.index,
+                pattern="Info",
                 contract=self.contract_address,
                 recipient=EvmAddress(collect[2].lower()),
                 base_amount= collect[0],

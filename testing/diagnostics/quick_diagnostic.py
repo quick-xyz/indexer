@@ -24,7 +24,7 @@ from indexer.core.logging_config import log_with_context
 from indexer.clients.quicknode_rpc import QuickNodeRpcClient
 from indexer.storage.gcs_handler import GCSHandler
 from indexer.decode.block_decoder import BlockDecoder
-from legacy_transformers.manager_simple import TransformManager
+from indexer.transform.manager import TransformManager
 from indexer.transform.registry import TransformRegistry
 from indexer.contracts.registry import ContractRegistry
 from indexer.contracts.manager import ContractManager

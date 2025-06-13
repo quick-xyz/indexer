@@ -110,3 +110,9 @@ class TransferPattern(ABC):
                 targets[leg.to_end] += int(leg.amount) if leg.amount else 0
         
         return deltas if deltas == targets else None
+    
+class Info(TransferPattern):
+    def __init__(self):
+        super().__init__("Mint_A")
+    
+    pass
