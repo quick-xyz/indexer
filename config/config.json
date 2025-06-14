@@ -155,8 +155,7 @@
                     "token0": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
                     "token1": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
                     "base_token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
-                    "fee_collector": "0xaaa2a49958a443dc9d19fddee873b5d1d6e84a2f",
-                    "nfp_manager": "0xaaa78e8c4241990b4ce159e105da08129345946a"
+                    "fee_collector": "0xaaa2a49958a443dc9d19fddee873b5d1d6e84a2f"
                 }
             },
             "token":{}

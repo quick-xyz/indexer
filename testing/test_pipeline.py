@@ -1,9 +1,7 @@
 # testing/test_pipeline.py
 """
 Pipeline Testing Script for Blockchain Indexer
-
-Uses the indexer's architecture and logging system for comprehensive testing.
-Updated for signal-based transformation architecture.
+Clean, focused output for rapid development iteration.
 """
 
 import sys
@@ -22,17 +20,29 @@ from indexer.core.logging_config import log_with_context
 from indexer.clients.quicknode_rpc import QuickNodeRpcClient
 from indexer.storage.gcs_handler import GCSHandler
 from indexer.decode.block_decoder import BlockDecoder
-from indexer.transform.manager import TransformManager  # Fixed import
+from indexer.transform.manager import TransformManager
 from indexer.types import EvmFilteredBlock, Block
 
 
 class PipelineTester:
     """
-    Pipeline tester using the indexer's dependency injection system
+    Pipeline tester with clean, focused output
     """
     
     def __init__(self, config_path: str = None):
-        self.testing_env = get_testing_environment(config_path, log_level="DEBUG")
+        # Set logging to ERROR level to reduce console noise
+        self.testing_env = get_testing_environment(config_path, log_level="ERROR")
+        
+        # Override specific loggers we want to see
+        critical_loggers = [
+            "indexer.testing.pipeline.tester",
+            "indexer.transform.manager.TransformManager"
+        ]
+        
+        for logger_name in critical_loggers:
+            logger = self.testing_env.get_logger(logger_name)
+            logger.setLevel(logging.INFO)
+        
         self.logger = self.testing_env.get_logger("pipeline.tester")
         
         # Get services from DI container
@@ -50,13 +60,9 @@ class PipelineTester:
         )
     
     def test_complete_pipeline(self, block_number: int) -> bool:
-        """Test the complete pipeline for a specific block"""
-        log_with_context(
-            self.logger,
-            logging.INFO,
-            "Starting complete pipeline test",
-            block_number=block_number
-        )
+        """Test the complete pipeline with clean output"""
+        
+        print(f"🔄 Testing block {block_number}...")
         
         try:
             # Phase 1: Block Retrieval
@@ -64,7 +70,7 @@ class PipelineTester:
             if raw_block is None:
                 return False
             
-            # Phase 2: Block Decoding
+            # Phase 2: Block Decoding  
             decoded_block = self._test_block_decoding(raw_block)
             if decoded_block is None:
                 return False
@@ -77,171 +83,55 @@ class PipelineTester:
             # Phase 4: Storage
             success = self._test_storage(transformed_block)
             
-            if success:
-                log_with_context(
-                    self.logger,
-                    logging.INFO,
-                    "Complete pipeline test passed",
-                    block_number=block_number
-                )
-            
             return success
             
         except Exception as e:
-            log_with_context(
-                self.logger,
-                logging.ERROR,
-                "Pipeline test failed with exception",
-                block_number=block_number,
-                error=str(e),
-                exception_type=type(e).__name__
-            )
-            import traceback
-            traceback.print_exc()
+            print(f"❌ Pipeline failed: {e}")
             return False
     
     def _test_block_retrieval(self, block_number: int) -> Optional[EvmFilteredBlock]:
         """Test block retrieval from GCS"""
-        print(f"\n=== Test 1: Block Retrieval (Block {block_number}) ===")
-        
-        log_with_context(
-            self.logger,
-            logging.INFO,
-            "Testing block retrieval",
-            block_number=block_number
-        )
-        
         try:
             raw_block = self.storage_handler.get_rpc_block(block_number)
             
             if raw_block is None:
-                log_with_context(
-                    self.logger,
-                    logging.ERROR,
-                    "Block not found in storage",
-                    block_number=block_number
-                )
                 print(f"❌ Block {block_number} not found in GCS")
                 return None
             
-            log_with_context(
-                self.logger,
-                logging.INFO,
-                "Block retrieved successfully",
-                block_number=block_number,
-                transaction_count=len(raw_block.transactions),
-                receipt_count=len(raw_block.receipts)
-            )
-            
-            print(f"✅ Retrieved block {block_number}")
-            print(f"   Transactions: {len(raw_block.transactions)}")
-            print(f"   Receipts: {len(raw_block.receipts)}")
-            
-            # Validation
-            if len(raw_block.transactions) != len(raw_block.receipts):
-                self.logger.warning(
-                    "Transaction/receipt count mismatch",
-                    block_number=block_number,
-                    tx_count=len(raw_block.transactions),
-                    receipt_count=len(raw_block.receipts)
-                )
-                print(f"⚠️  Warning: TX count != Receipt count")
-            
+            print(f"✅ Block retrieved: {len(raw_block.transactions)} transactions")
             return raw_block
             
         except Exception as e:
-            log_with_context(
-                self.logger,
-                logging.ERROR,
-                "Block retrieval failed",
-                block_number=block_number,
-                error=str(e),
-                exception_type=type(e).__name__
-            )
             print(f"❌ Block retrieval failed: {e}")
             return None
     
     def _test_block_decoding(self, raw_block: EvmFilteredBlock) -> Optional[Block]:
         """Test block decoding"""
-        print(f"\n=== Test 2: Block Decoding ===")
-        
-        log_with_context(
-            self.logger,
-            logging.INFO,
-            "Testing block decoding",
-            raw_transaction_count=len(raw_block.transactions)
-        )
-        
         try:
             decoded_block = self.block_decoder.decode_block(raw_block)
             
             decoded_tx_count = len(decoded_block.transactions) if decoded_block.transactions else 0
             
-            log_with_context(
-                self.logger,
-                logging.INFO,
-                "Block decoded successfully",
-                block_number=decoded_block.block_number,
-                decoded_transactions=decoded_tx_count,
-                timestamp=decoded_block.timestamp
-            )
-            
-            print(f"✅ Block decoded successfully")
-            print(f"   Block number: {decoded_block.block_number}")
-            print(f"   Decoded transactions: {decoded_tx_count}")
-            
             if decoded_block.transactions:
-                # Examine first transaction for details
-                first_tx_hash = next(iter(decoded_block.transactions.keys()))
-                first_tx = decoded_block.transactions[first_tx_hash]
-                
+                first_tx = next(iter(decoded_block.transactions.values()))
                 log_count = len(first_tx.logs)
                 decoded_log_count = sum(1 for log in first_tx.logs.values() if hasattr(log, 'name'))
-                
-                log_with_context(
-                    self.logger,
-                    logging.DEBUG,
-                    "Sample transaction analysis",
-                    tx_hash=first_tx.tx_hash,
-                    total_logs=log_count,
-                    decoded_logs=decoded_log_count,
-                    tx_success=first_tx.tx_success,
-                    origin_from=first_tx.origin_from,
-                    origin_to=first_tx.origin_to
-                )
-                
-                print(f"   Sample transaction:")
-                print(f"     Hash: {first_tx.tx_hash[:10]}...")
-                print(f"     Success: {first_tx.tx_success}")
-                print(f"     Logs: {log_count} (decoded: {decoded_log_count})")
+                print(f"✅ Block decoded: {decoded_tx_count} transactions, {decoded_log_count}/{log_count} logs decoded")
+            else:
+                print(f"⚠️  Block decoded but no transactions found")
             
             return decoded_block
             
         except Exception as e:
-            log_with_context(
-                self.logger,
-                logging.ERROR,
-                "Block decoding failed",
-                error=str(e),
-                exception_type=type(e).__name__
-            )
             print(f"❌ Block decoding failed: {e}")
             return None
     
     def _test_signal_generation(self, decoded_block: Block) -> Optional[Block]:
         """Test signal generation and transformation pipeline"""
-        print(f"\n=== Test 3: Signal Generation & Transformation ===")
         
         if not decoded_block.transactions:
             print("⚠️  No transactions to process")
             return decoded_block
-        
-        log_with_context(
-            self.logger,
-            logging.INFO,
-            "Testing signal generation and transformation pipeline",
-            input_transaction_count=len(decoded_block.transactions)
-        )
         
         try:
             processed_transactions = {}
@@ -252,19 +142,13 @@ class PipelineTester:
                 'with_errors': 0,
                 'total_signals': 0,
                 'total_events': 0,
-                'total_errors': 0
+                'total_errors': 0,
+                'signal_types': {},
+                'error_types': {},
+                'failed_transformers': set()
             }
             
             for tx_hash, transaction in decoded_block.transactions.items():
-                log_with_context(
-                    self.logger,
-                    logging.DEBUG,
-                    "Processing transaction for signals and events",
-                    tx_hash=tx_hash,
-                    log_count=len(transaction.logs),
-                    tx_success=transaction.tx_success
-                )
-                
                 try:
                     # Process transaction through transform manager
                     signals_generated, processed_tx = self.transform_manager.process_transaction(transaction)
@@ -274,60 +158,21 @@ class PipelineTester:
                     event_count = len(processed_tx.events) if processed_tx.events else 0
                     error_count = len(processed_tx.errors) if processed_tx.errors else 0
                     
-                    log_with_context(
-                        self.logger,
-                        logging.DEBUG,
-                        "Transaction processing completed",
-                        tx_hash=tx_hash,
-                        signals_generated=signals_generated,
-                        signal_count=signal_count,
-                        event_count=event_count,
-                        error_count=error_count
-                    )
-                    
-                    print(f"   TX {tx_hash[:10]}... - Signals: {signal_count}, Events: {event_count}, Errors: {error_count}")
-                    
-                    # Log detailed signal information
+                    # Track signal types
                     if processed_tx.signals:
-                        for signal_idx, signal in processed_tx.signals.items():
-                            log_with_context(
-                                self.logger,
-                                logging.DEBUG,
-                                "Signal generated",
-                                tx_hash=tx_hash,
-                                signal_index=signal_idx,
-                                signal_type=type(signal).__name__,
-                                log_index=signal.log_index,
-                                pattern=signal.pattern
-                            )
+                        for signal in processed_tx.signals.values():
+                            signal_type = type(signal).__name__
+                            stats['signal_types'][signal_type] = stats['signal_types'].get(signal_type, 0) + 1
                     
-                    # Log detailed event information
-                    if processed_tx.events:
-                        for event_id, event in processed_tx.events.items():
-                            log_with_context(
-                                self.logger,
-                                logging.DEBUG,
-                                "Event generated",
-                                tx_hash=tx_hash,
-                                event_id=event_id,
-                                event_type=type(event).__name__,
-                                timestamp=event.timestamp
-                            )
-                    
-                    # Log errors with detailed context
+                    # Track error types and transformers
                     if processed_tx.errors:
-                        for error_id, error in processed_tx.errors.items():
-                            log_with_context(
-                                self.logger,
-                                logging.WARNING,
-                                "Processing error encountered",
-                                tx_hash=tx_hash,
-                                error_id=error_id,
-                                error_type=error.error_type,
-                                error_message=error.message,
-                                error_stage=error.stage,
-                                error_context=error.context
-                            )
+                        for error in processed_tx.errors.values():
+                            error_type = error.error_type
+                            stats['error_types'][error_type] = stats['error_types'].get(error_type, 0) + 1
+                            
+                            # Track which transformer failed
+                            if error.context and 'transformer_name' in error.context:
+                                stats['failed_transformers'].add(error.context['transformer_name'])
                     
                     processed_transactions[tx_hash] = processed_tx
                     
@@ -344,17 +189,7 @@ class PipelineTester:
                         stats['total_errors'] += error_count
                 
                 except Exception as e:
-                    log_with_context(
-                        self.logger,
-                        logging.ERROR,
-                        "Transaction processing exception",
-                        tx_hash=tx_hash,
-                        error=str(e),
-                        exception_type=type(e).__name__
-                    )
-                    print(f"   TX {tx_hash[:10]}... - ❌ EXCEPTION: {e}")
-                    
-                    # Still add the original transaction to maintain block structure
+                    print(f"❌ Transaction processing exception: {e}")
                     processed_transactions[tx_hash] = transaction
                     stats['total_processed'] += 1
                     stats['with_errors'] += 1
@@ -364,61 +199,35 @@ class PipelineTester:
             transformed_block = msgspec.convert(decoded_block, type=Block)
             transformed_block.transactions = processed_transactions
             
-            log_with_context(
-                self.logger,
-                logging.INFO,
-                "Signal generation and transformation completed",
-                **stats
-            )
-            
-            print(f"✅ Signal generation and transformation completed")
-            print(f"   Transactions processed: {stats['total_processed']}")
-            print(f"   With signals: {stats['with_signals']} ({stats['total_signals']} total)")
-            print(f"   With events: {stats['with_events']} ({stats['total_events']} total)")
-            print(f"   With errors: {stats['with_errors']} ({stats['total_errors']} total)")
-            
-            # Show signal and error breakdown
-            if stats['total_signals'] > 0:
-                signal_types = {}
-                for tx in processed_transactions.values():
-                    if tx.signals:
-                        for signal in tx.signals.values():
-                            signal_type = type(signal).__name__
-                            signal_types[signal_type] = signal_types.get(signal_type, 0) + 1
-                
-                print(f"   Signal types: {dict(signal_types)}")
-                log_with_context(self.logger, logging.INFO, "Signal type breakdown", signal_types=signal_types)
-            
-            if stats['total_events'] > 0:
-                event_types = {}
-                for tx in processed_transactions.values():
-                    if tx.events:
-                        for event in tx.events.values():
-                            event_type = type(event).__name__
-                            event_types[event_type] = event_types.get(event_type, 0) + 1
-                
-                print(f"   Event types: {dict(event_types)}")
-                log_with_context(self.logger, logging.INFO, "Event type breakdown", event_types=event_types)
+            # Print clean summary
+            self._print_processing_summary(stats)
             
             return transformed_block
             
         except Exception as e:
-            log_with_context(
-                self.logger,
-                logging.ERROR,
-                "Signal generation pipeline failed",
-                error=str(e),
-                exception_type=type(e).__name__
-            )
             print(f"❌ Signal generation failed: {e}")
-            import traceback
-            traceback.print_exc()
             return None
+    
+    def _print_processing_summary(self, stats):
+        """Print clean processing summary"""
+        success_icon = "✅" if stats['total_errors'] == 0 else "⚠️"
+        
+        print(f"{success_icon} Processing: {stats['total_signals']} signals, {stats['total_events']} events, {stats['total_errors']} errors")
+        
+        if stats['signal_types']:
+            signal_summary = ", ".join(f"{k}({v})" for k, v in stats['signal_types'].items())
+            print(f"   📊 Signals: {signal_summary}")
+        
+        if stats['total_errors'] > 0:
+            error_summary = ", ".join(f"{k}({v})" for k, v in stats['error_types'].items())
+            print(f"   🚨 Errors: {error_summary}")
+            
+            if stats['failed_transformers']:
+                transformers = ", ".join(stats['failed_transformers'])
+                print(f"   🔧 Failed transformers: {transformers}")
     
     def _test_storage(self, transformed_block: Block) -> bool:
         """Test storage of processed block"""
-        print(f"\n=== Test 4: Storage ===")
-        
         try:
             # Check if block has errors
             error_count = sum(
@@ -428,98 +237,57 @@ class PipelineTester:
             
             has_errors = error_count > 0
             
-            log_with_context(
-                self.logger,
-                logging.INFO,
-                "Testing storage",
-                block_number=transformed_block.block_number,
-                has_errors=has_errors,
-                error_count=error_count
-            )
-            
             # Set processing metadata
-            from datetime import datetime
+            from datetime import datetime, timezone
             from indexer.types import ProcessingMetadata
             
             if not transformed_block.processing_metadata:
                 transformed_block.processing_metadata = ProcessingMetadata()
             
-            transformed_block.processing_metadata.completed_at = datetime.utcnow().isoformat()
+            transformed_block.processing_metadata.completed_at = datetime.now(timezone.utc).isoformat()
             transformed_block.processing_metadata.error_count = error_count
             
             if has_errors:
-                print(f"⚠️  Block has {error_count} errors - storing in processing/")
                 transformed_block.processing_metadata.error_stage = "transform"
                 transformed_block.indexing_status = "error"
-                
                 success = self.storage_handler.save_processing_block(
                     transformed_block.block_number,
                     transformed_block
                 )
-                
-                log_with_context(
-                    self.logger,
-                    logging.INFO,
-                    "Block stored in processing",
-                    block_number=transformed_block.block_number,
-                    success=success,
-                    error_count=error_count
-                )
-                
-                print(f"{'✅' if success else '❌'} Block stored in processing/")
-                
+                print(f"✅ Block stored in processing/ (with {error_count} errors)")
             else:
-                print(f"✅ Block processed successfully - storing in complete/")
                 transformed_block.indexing_status = "complete"
-                
                 success = self.storage_handler.save_complete_block(
                     transformed_block.block_number,
                     transformed_block
                 )
-                
-                log_with_context(
-                    self.logger,
-                    logging.INFO,
-                    "Block stored in complete",
-                    block_number=transformed_block.block_number,
-                    success=success
-                )
-                
-                print(f"{'✅' if success else '❌'} Block stored in complete/")
-            
-            # Show processing summary
-            summary = self.storage_handler.get_processing_summary()
-            
-            log_with_context(
-                self.logger,
-                logging.INFO,
-                "Storage summary retrieved",
-                processing_count=summary['processing_count'],
-                complete_count=summary['complete_count']
-            )
-            
-            print(f"\n📊 Processing Summary:")
-            print(f"   Processing: {summary['processing_count']} blocks")
-            print(f"   Complete: {summary['complete_count']} blocks")
-            if summary['latest_complete']:
-                print(f"   Latest complete: {summary['latest_complete']}")
+                print(f"✅ Block stored in complete/")
             
             return success
             
         except Exception as e:
-            log_with_context(
-                self.logger,
-                logging.ERROR,
-                "Storage test failed",
-                error=str(e),
-                exception_type=type(e).__name__
-            )
             print(f"❌ Storage failed: {e}")
             return False
 
 
+def print_debug_commands(block_number: int, tx_hash: str = None):
+    """Print helpful debug commands"""
+    print(f"\n🔍 Debug Commands:")
+    print(f"   Detailed transaction analysis:")
+    
+    if tx_hash:
+        print(f"   python testing/scripts/debug_session.py analyze {tx_hash} {block_number}")
+    else:
+        print(f"   python testing/scripts/debug_session.py block {block_number}")
+    
+    print(f"   Log analysis:")
+    print(f"   python testing/diagnostics/log_analyzer.py logs/indexer.log")
+    print(f"   Transformer report:")
+    print(f"   python testing/scripts/debug_session.py transformers")
+
+
 def main():
-    """Main testing function"""
+    """Main testing function with clean output"""
     print("🚀 BLOCKCHAIN INDEXER PIPELINE TEST")
     print("=" * 50)
     
@@ -535,10 +303,6 @@ def main():
         print("❌ Invalid block number. Please provide a valid integer.")
         sys.exit(1)
     
-    print(f"📄 Testing block: {block_number}")
-    print(f"📅 Started: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-    print()
-    
     try:
         # Initialize pipeline tester
         tester = PipelineTester()
@@ -546,19 +310,30 @@ def main():
         # Run complete pipeline test
         success = tester.test_complete_pipeline(block_number)
         
+        # Get first transaction hash for debug commands
+        try:
+            # Try to get the transaction hash from logs or storage
+            raw_block = tester.storage_handler.get_rpc_block(block_number)
+            first_tx_hash = None
+            if raw_block and raw_block.transactions:
+                first_tx = raw_block.transactions[0]
+                if hasattr(first_tx, 'hash'):
+                    first_tx_hash = first_tx.hash
+                    if hasattr(first_tx_hash, 'hex'):
+                        first_tx_hash = first_tx_hash.hex()
+        except:
+            first_tx_hash = None
+        
+        # Print results
         print(f"\n{'🎉' if success else '💥'} Pipeline test {'COMPLETED' if success else 'FAILED'}")
         
         if success:
-            print("✅ All pipeline stages passed!")
-            print("\n🎯 Next steps:")
-            print("   - Review logs/indexer.log for detailed signal analysis")
-            print("   - Run log analyzer: python testing/diagnostics/log_analyzer.py logs/indexer.log")
+            print("✅ All pipeline stages completed successfully!")
         else:
-            print("❌ Pipeline test failed - check logs for details")
-            print("\n🔍 Debugging tips:")
-            print("   - Check logs/indexer.log for error details")
-            print("   - Run: python testing/diagnostics/quick_diagnostic.py")
-            print("   - Try a different block number")
+            print("❌ Pipeline test encountered issues")
+        
+        # Print debug commands
+        print_debug_commands(block_number, first_tx_hash)
         
         sys.exit(0 if success else 1)
         
@@ -567,8 +342,6 @@ def main():
         sys.exit(130)
     except Exception as e:
         print(f"\n💥 Test failed with exception: {e}")
-        import traceback
-        traceback.print_exc()
         sys.exit(1)
 
 

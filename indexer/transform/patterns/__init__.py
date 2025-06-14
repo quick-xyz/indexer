@@ -2,7 +2,7 @@
 
 from .base import TransferPattern, TransferLeg, AddressContext, Info
 from .liquidity import Mint_A, Burn_A
-from .trading import Swap_A, Route
+from .trading import Swap_A
 
 __all__ = [
     "TransferPattern",
@@ -12,5 +12,4 @@ __all__ = [
     "Burn_A",
     "Swap_A",
     "Info",
-    "Route",
 ]

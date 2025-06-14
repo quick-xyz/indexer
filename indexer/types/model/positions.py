@@ -8,10 +8,14 @@ from .base import DomainEvent
 
 class Position(DomainEvent, tag=True):
     user: EvmAddress
-    custodian: EvmAddress = user
     token: EvmAddress
     amount: str
+    custodian: Optional[EvmAddress] = None
     token_id: Optional[int] = None
+
+    def __post_init__(self):
+        if self.custodian is None:
+            self.custodian = self.user
 
     def _get_identifying_content(self):
         return {

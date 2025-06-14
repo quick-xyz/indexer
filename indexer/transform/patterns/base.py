@@ -14,7 +14,6 @@ from ...types import (
     DomainEventId,
     Position
 )
-from .base import TransferLeg, AddressContext
 from ..context import TransformContext, TransfersDict
 from ...utils.amounts import amount_to_negative_str
 

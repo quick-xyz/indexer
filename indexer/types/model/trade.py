@@ -97,8 +97,8 @@ class Trade(DomainEvent, tag=True):
     direction: Literal["buy","sell"]
     base_token: EvmAddress
     base_amount: str
-    trade_type: Literal["arbitrage","trade","auction"] = "trade"
     swaps: Dict[DomainEventId,PoolSwap|UnknownSwap|AuctionPurchase]
+    trade_type: Literal["arbitrage","trade","auction"] = "trade"
 
     def _get_identifying_content(self):
         return {
