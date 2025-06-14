@@ -18,9 +18,8 @@ from ....utils.amounts import amount_to_str, is_zero
 
 class PharClPoolTransformer(PoolTransformer):
     def __init__(self, contract: EvmAddress, token0: EvmAddress, token1: EvmAddress, 
-                 base_token: EvmAddress, fee_collector: EvmAddress):
-        super().__init__(contract, token0, token1, base_token, fee_collector)
-        self.nfp_manager = nfp_manager.lower()
+                 base_token: EvmAddress):
+        super().__init__(contract, token0, token1, base_token)
         self.handler_map = {
             "Swap": self._handle_swap,
             "Mint": self._handle_mint,

@@ -152,8 +152,9 @@ class TransformContext:
         self.matched_transfers.add(log_index)
 
     def get_unmatched_transfers(self) -> Dict[int, TransferSignal]:
-        return {idx: t for idx, t in self._transfer_signals.items() 
+        unmatched_transfers = {idx: t for idx, t in self._transfer_signals.items() 
                 if idx not in self.matched_transfers}
+        return unmatched_transfers if unmatched_transfers else {}
 
     def get_remaining_signals(self) -> Dict[int, Signal]:
         return {idx: signal for idx, signal in self._event_signals.items()

@@ -8,8 +8,8 @@ from ....utils.amounts import amount_to_str
 
 
 class PharPairTransformer(PoolTransformer):
-    def __init__(self, contract: EvmAddress, token0: EvmAddress, token1: EvmAddress, base_token: EvmAddress, fee_collector: EvmAddress):
-        super().__init__(contract,token0,token1,base_token,fee_collector)
+    def __init__(self, contract: EvmAddress, token0: EvmAddress, token1: EvmAddress, base_token: EvmAddress):
+        super().__init__(contract,token0,token1,base_token)
 
     def _get_transfer_attributes(self, log: DecodedLog) -> Tuple[str, str, str, str]:
         from_addr = str(log.attributes.get("from", ""))

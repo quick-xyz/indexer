@@ -1,6 +1,6 @@
 # indexer/transform/registry.py
 
-from typing import Dict, Optional
+from typing import Dict, Optional, Any
 from msgspec import Struct
 
 from ..core.config import IndexerConfig
@@ -159,3 +159,26 @@ class TransformRegistry(LoggingMixin):
             for address, transformer in self._transformers.items() 
             if transformer.active
         }
+def get_setup_summary(self) -> Dict[str, Any]:
+    """Get summary of transformer setup for debugging"""
+    summary = {
+        "total_contracts": len(self._transformers),
+        "active_transformers": sum(1 for t in self._transformers.values() if t.active),
+        "transformer_types": {},
+        "contracts_by_transformer": {},
+        "setup_errors": []
+    }
+    
+    for address, transformer_info in self._transformers.items():
+        if transformer_info.active:
+            transformer_name = type(transformer_info.instance).__name__
+            
+            # Count transformer types
+            summary["transformer_types"][transformer_name] = summary["transformer_types"].get(transformer_name, 0) + 1
+            
+            # Group contracts by transformer type
+            if transformer_name not in summary["contracts_by_transformer"]:
+                summary["contracts_by_transformer"][transformer_name] = []
+            summary["contracts_by_transformer"][transformer_name].append(address)
+    
+    return summary

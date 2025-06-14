@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """
-Enhanced Debug Session for Blockchain Indexer
-
-Clean console output with comprehensive file analysis.
+Modular Debug Session - Creates multiple focused debug files
 """
 
 import sys
@@ -24,16 +22,16 @@ from indexer.transform.manager import TransformManager
 from indexer.transform.registry import TransformRegistry
 
 
-class EnhancedDebugSession:
-    """Interactive debugging session with clean output and comprehensive file analysis"""
+class ModularDebugSession:
+    """Debug session that creates multiple focused files instead of one large file"""
     
     def __init__(self, config_path: str = None):
         self.testing_env = get_testing_environment(config_path, log_level="ERROR")
-        self.logger = self.testing_env.get_logger("debug.session")
         
-        # Create output directory
-        self.output_dir = PROJECT_ROOT / "debug_output"
-        self.output_dir.mkdir(exist_ok=True)
+        # Create timestamped output directory
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        self.session_dir = PROJECT_ROOT / "debug_output" / f"session_{timestamp}"
+        self.session_dir.mkdir(parents=True, exist_ok=True)
         
         # Get services
         self.storage_handler = self.testing_env.get_service(GCSHandler)
@@ -41,381 +39,390 @@ class EnhancedDebugSession:
         self.transform_manager = self.testing_env.get_service(TransformManager)
         self.transformer_registry = self.testing_env.get_service(TransformRegistry)
     
-    def analyze_transaction_to_file(self, tx_hash: str, block_number: int) -> str:
-        """Deep analysis of a specific transaction with clean console output"""
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-        output_file = self.output_dir / f"transaction_analysis_{tx_hash[:10]}_{timestamp}.json"
+    def analyze_transaction_modular(self, tx_hash: str, block_number: int) -> str:
+        """Create multiple focused debug files for a transaction"""
         
-        print(f"🔬 Analyzing transaction {tx_hash[:10]}...")
-        
-        analysis = {
-            "metadata": {
-                "tx_hash": tx_hash,
-                "block_number": block_number,
-                "analysis_time": datetime.now().isoformat(),
-                "architecture": "signal-based",
-                "indexer": {
-                    "name": self.testing_env.config.name,
-                    "version": self.testing_env.config.version
-                }
-            },
-            "transaction": {},
-            "signal_generation": {},
-            "transformer_analysis": {},
-            "errors": [],
-            "summary": {},
-            "recommendations": []
-        }
+        print(f"🔬 Analyzing transaction {tx_hash[:10]}... (modular output)")
         
         try:
-            # Get transaction from block
+            # Get transaction
             raw_block = self.storage_handler.get_rpc_block(block_number)
             if not raw_block:
-                analysis["errors"].append(f"Block {block_number} not found")
-                self._save_analysis(output_file, analysis)
                 print(f"❌ Block {block_number} not found")
-                return str(output_file)
+                return str(self.session_dir)
             
             decoded_block = self.block_decoder.decode_block(raw_block)
             if not decoded_block.transactions or tx_hash not in decoded_block.transactions:
-                analysis["errors"].append(f"Transaction {tx_hash} not found in block {block_number}")
-                self._save_analysis(output_file, analysis)
                 print(f"❌ Transaction not found in block")
-                return str(output_file)
+                return str(self.session_dir)
             
             transaction = decoded_block.transactions[tx_hash]
             
-            # Analyze transaction structure
-            analysis["transaction"] = self._analyze_transaction_structure(transaction)
+            # Create modular files
+            self._create_summary_file(tx_hash, block_number, transaction)
+            self._create_logs_file(tx_hash, transaction)
+            self._create_transformers_file(tx_hash, transaction)
+            self._create_signals_file(tx_hash, transaction)
+            self._create_errors_file(tx_hash, transaction)
+            self._create_recommendations_file(tx_hash, transaction)
             
-            # Analyze transformers and their compatibility with logs
-            analysis["transformer_analysis"] = self._analyze_transformer_compatibility(transaction)
+            print(f"✅ Analysis completed - 6 files created")
+            print(f"📁 Session directory: {self.session_dir}")
             
-            # Run signal generation and capture detailed results
-            analysis["signal_generation"] = self._analyze_signal_generation(transaction)
-            
-            # Generate summary and recommendations
-            analysis["summary"] = self._generate_analysis_summary(analysis)
-            analysis["recommendations"] = self._generate_recommendations(analysis)
+            return str(self.session_dir)
             
         except Exception as e:
-            analysis["errors"].append({
-                "type": type(e).__name__,
-                "message": str(e),
-                "traceback": traceback.format_exc()
-            })
             print(f"❌ Analysis failed: {e}")
-        
-        # Save analysis to file
-        self._save_analysis(output_file, analysis)
-        
-        # Print clean console summary
-        self._print_analysis_summary(analysis)
-        
-        print(f"\n📄 Full analysis saved: {output_file}")
-        
-        return str(output_file)
+            error_file = self.session_dir / "error.json"
+            with open(error_file, 'w') as f:
+                json.dump({
+                    "error": str(e),
+                    "traceback": traceback.format_exc()
+                }, f, indent=2)
+            return str(self.session_dir)
     
-    def _analyze_transaction_structure(self, transaction) -> dict:
-        """Analyze basic transaction structure"""
-        decoded_logs = {}
-        encoded_logs = {}
+    def _create_summary_file(self, tx_hash: str, block_number: int, transaction):
+        """Create high-level summary file"""
+        
+        decoded_logs = sum(1 for log in transaction.logs.values() if hasattr(log, 'name'))
+        
+        # Quick signal generation test
+        try:
+            signals_generated, processed_tx = self.transform_manager.process_transaction(transaction)
+            signal_count = len(processed_tx.signals) if processed_tx.signals else 0
+            error_count = len(processed_tx.errors) if processed_tx.errors else 0
+            event_count = len(processed_tx.events) if processed_tx.events else 0
+        except Exception as e:
+            signal_count = 0
+            error_count = 1
+            event_count = 0
+        
+        summary = {
+            "transaction_hash": tx_hash,
+            "block_number": block_number,
+            "analysis_time": datetime.now().isoformat(),
+            "basic_info": {
+                "success": transaction.tx_success,
+                "from": transaction.origin_from,
+                "to": transaction.origin_to,
+                "value": transaction.value
+            },
+            "processing_summary": {
+                "total_logs": len(transaction.logs),
+                "decoded_logs": decoded_logs,
+                "signals_generated": signal_count,
+                "events_generated": event_count,
+                "errors_found": error_count
+            },
+            "status": "SUCCESS" if error_count == 0 else "HAS_ERRORS"
+        }
+        
+        with open(self.session_dir / "1_summary.json", 'w') as f:
+            json.dump(summary, f, indent=2)
+    
+    def _create_logs_file(self, tx_hash: str, transaction):
+        """Create detailed logs analysis file"""
+        
+        logs_analysis = {
+            "transaction_hash": tx_hash,
+            "total_logs": len(transaction.logs),
+            "logs_by_type": {"decoded": {}, "encoded": {}},
+            "contracts_involved": set(),
+            "log_names_found": set()
+        }
         
         for log_idx, log in transaction.logs.items():
+            logs_analysis["contracts_involved"].add(log.contract)
+            
             if hasattr(log, 'name'):
                 # Decoded log
-                transformer = self.transformer_registry.get_transformer(log.contract)
-                transformer_info = {
-                    "exists": transformer is not None,
-                    "name": type(transformer).__name__ if transformer else None,
-                    "has_process_logs": hasattr(transformer, 'process_logs') if transformer else False,
-                    "handler_available": False
-                }
-                
-                if transformer and hasattr(transformer, 'handler_map'):
-                    transformer_info["handler_available"] = log.name in transformer.handler_map
-                
-                decoded_logs[str(log_idx)] = {
-                    "type": "decoded",
+                logs_analysis["log_names_found"].add(log.name)
+                logs_analysis["logs_by_type"]["decoded"][str(log_idx)] = {
                     "name": log.name,
                     "contract": log.contract,
                     "attributes": dict(log.attributes),
-                    "transformer": transformer_info
+                    "attribute_count": len(log.attributes)
                 }
             else:
                 # Encoded log
-                encoded_logs[str(log_idx)] = {
-                    "type": "encoded",
+                logs_analysis["logs_by_type"]["encoded"][str(log_idx)] = {
                     "contract": log.contract,
                     "signature": log.signature,
                     "topics_count": len(log.topics) if log.topics else 0
                 }
         
-        return {
-            "hash": transaction.tx_hash,
-            "success": transaction.tx_success,
-            "from": transaction.origin_from,
-            "to": transaction.origin_to,
-            "value": transaction.value,
-            "total_logs": len(transaction.logs),
-            "decoded_logs": len(decoded_logs),
-            "encoded_logs": len(encoded_logs),
-            "logs": {**decoded_logs, **encoded_logs}
-        }
+        # Convert sets to lists for JSON serialization
+        logs_analysis["contracts_involved"] = list(logs_analysis["contracts_involved"])
+        logs_analysis["log_names_found"] = list(logs_analysis["log_names_found"])
+        
+        with open(self.session_dir / "2_logs.json", 'w') as f:
+            json.dump(logs_analysis, f, indent=2)
     
-    def _analyze_transformer_compatibility(self, transaction) -> dict:
-        """Analyze transformer compatibility with log attributes"""
-        compatibility_analysis = {}
+    def _create_transformers_file(self, tx_hash: str, transaction):
+        """Create transformer compatibility analysis"""
+        
+        transformer_analysis = {
+            "transaction_hash": tx_hash,
+            "transformer_registry_summary": self._get_safe_registry_summary(),
+            "log_transformer_mapping": {},
+            "compatibility_issues": []
+        }
         
         for log_idx, log in transaction.logs.items():
             if not hasattr(log, 'name'):
                 continue
-                
+            
             transformer = self.transformer_registry.get_transformer(log.contract)
-            if not transformer:
-                continue
             
-            transformer_name = type(transformer).__name__
-            
-            # Analyze attribute compatibility
-            expected_attrs = self._get_expected_attributes(transformer_name, log.name)
-            actual_attrs = set(log.attributes.keys())
-            
-            compatibility_analysis[f"{transformer_name}_{log_idx}"] = {
-                "transformer": transformer_name,
-                "log_name": log.name,
+            mapping_info = {
                 "log_index": log_idx,
-                "expected_attributes": expected_attrs,
-                "actual_attributes": list(actual_attrs),
-                "missing_attributes": list(set(expected_attrs) - actual_attrs) if expected_attrs else [],
-                "extra_attributes": list(actual_attrs - set(expected_attrs)) if expected_attrs else [],
-                "compatibility_score": self._calculate_compatibility_score(expected_attrs, actual_attrs)
+                "log_name": log.name,
+                "contract": log.contract,
+                "transformer_found": transformer is not None,
+                "transformer_name": type(transformer).__name__ if transformer else None,
+                "has_handler": False,
+                "available_attributes": list(log.attributes.keys())
             }
+            
+            if transformer and hasattr(transformer, 'handler_map'):
+                mapping_info["has_handler"] = log.name in transformer.handler_map
+                mapping_info["available_handlers"] = list(transformer.handler_map.keys())
+            
+            transformer_analysis["log_transformer_mapping"][str(log_idx)] = mapping_info
+            
+            # Check for issues
+            if transformer is None:
+                transformer_analysis["compatibility_issues"].append({
+                    "log_index": log_idx,
+                    "issue": "no_transformer",
+                    "description": f"No transformer found for contract {log.contract}"
+                })
+            elif not mapping_info["has_handler"]:
+                transformer_analysis["compatibility_issues"].append({
+                    "log_index": log_idx,
+                    "issue": "no_handler",
+                    "description": f"Transformer {mapping_info['transformer_name']} has no handler for '{log.name}'"
+                })
         
-        return compatibility_analysis
-    
-    def _get_expected_attributes(self, transformer_name: str, log_name: str) -> list:
-        """Get expected attributes for transformer/log combinations"""
-        attribute_map = {
-            "WavaxTransformer": {
-                "Transfer": ["from", "to", "value"]  # But WAVAX actually uses src, dst, wad
-            },
-            "TokenTransformer": {
-                "Transfer": ["from", "to", "value"]
-            },
-            "LfjPoolTransformer": {
-                "Swap": ["sender", "to", "amount0In", "amount1In", "amount0Out", "amount1Out"],
-                "Sync": ["reserve0", "reserve1"]
-            },
-            "OdosAggregatorTransformer": {
-                "Swap": ["sender", "inputAmount", "inputToken", "amountOut", "outputToken"]
-            },
-            "LfjAggregatorTransformer": {
-                "SwapExactIn": ["sender", "to", "tokenIn", "tokenOut", "amountIn", "amountOut"]
+        with open(self.session_dir / "3_transformers.json", 'w') as f:
+            json.dump(transformer_analysis, f, indent=2)
+
+    def _get_safe_registry_summary(self):
+        """Safely get registry summary, handling missing methods"""
+        try:
+            # Try the method if it exists
+            if hasattr(self.transformer_registry, 'get_setup_summary'):
+                return self.transformer_registry.get_setup_summary()
+            else:
+                # Fallback to manual summary
+                all_transformers = self.transformer_registry.get_all_contracts()
+                return {
+                    "total_contracts": len(all_transformers),
+                    "active_transformers": sum(1 for t in all_transformers.values() if t.active),
+                    "method_note": "get_setup_summary method not available, using fallback"
+                }
+        except Exception as e:
+            return {
+                "error": f"Failed to get registry summary: {str(e)}",
+                "fallback_used": True
             }
-        }
-        
-        return attribute_map.get(transformer_name, {}).get(log_name, [])
     
-    def _calculate_compatibility_score(self, expected: list, actual: set) -> float:
-        """Calculate compatibility score between expected and actual attributes"""
-        if not expected:
-            return 1.0  # No expectations means compatible
+    def _create_signals_file(self, tx_hash: str, transaction):
+        """Create signals generation analysis"""
         
-        expected_set = set(expected)
-        intersection = expected_set.intersection(actual)
-        return len(intersection) / len(expected_set)
-    
-    def _analyze_signal_generation(self, transaction) -> dict:
-        """Analyze signal generation with detailed error tracking"""
-        signal_analysis = {
-            "signals_generated": False,
+        signals_analysis = {
+            "transaction_hash": tx_hash,
             "signals": {},
-            "errors": {},
-            "transformer_results": {}
+            "signal_types": {},
+            "generation_success": False
         }
         
         try:
             signals_generated, processed_tx = self.transform_manager.process_transaction(transaction)
-            signal_analysis["signals_generated"] = signals_generated
+            signals_analysis["generation_success"] = signals_generated
             
-            # Analyze signals
             if processed_tx.signals:
                 for signal_idx, signal in processed_tx.signals.items():
-                    signal_analysis["signals"][str(signal_idx)] = {
-                        "type": type(signal).__name__,
+                    signal_type = type(signal).__name__
+                    signals_analysis["signal_types"][signal_type] = signals_analysis["signal_types"].get(signal_type, 0) + 1
+                    
+                    signals_analysis["signals"][str(signal_idx)] = {
+                        "type": signal_type,
                         "log_index": signal.log_index,
-                        "pattern": signal.pattern,
-                        "signal_data": self._serialize_signal(signal)
+                        "pattern": getattr(signal, 'pattern', 'unknown'),
+                        "key_attributes": self._extract_key_signal_attributes(signal)
                     }
             
-            # Analyze errors with categorization
+        except Exception as e:
+            signals_analysis["exception"] = {
+                "type": type(e).__name__,
+                "message": str(e)
+            }
+        
+        with open(self.session_dir / "4_signals.json", 'w') as f:
+            json.dump(signals_analysis, f, indent=2)
+    
+    def _create_errors_file(self, tx_hash: str, transaction):
+        """Create detailed errors analysis"""
+        
+        errors_analysis = {
+            "transaction_hash": tx_hash,
+            "errors": {},
+            "error_summary": {},
+            "transformer_errors": {}
+        }
+        
+        try:
+            _, processed_tx = self.transform_manager.process_transaction(transaction)
+            
             if processed_tx.errors:
                 for error_id, error in processed_tx.errors.items():
-                    signal_analysis["errors"][error_id] = {
+                    errors_analysis["errors"][error_id] = {
                         "error_type": error.error_type,
                         "message": error.message,
                         "stage": error.stage,
                         "context": error.context
                     }
+                    
+                    # Categorize by error type
+                    error_type = error.error_type
+                    errors_analysis["error_summary"][error_type] = errors_analysis["error_summary"].get(error_type, 0) + 1
+                    
+                    # Group by transformer
+                    if error.context and 'transformer_name' in error.context:
+                        transformer = error.context['transformer_name']
+                        if transformer not in errors_analysis["transformer_errors"]:
+                            errors_analysis["transformer_errors"][transformer] = []
+                        errors_analysis["transformer_errors"][transformer].append({
+                            "log_index": error.context.get('log_index'),
+                            "error_type": error.error_type,
+                            "message": error.message
+                        })
             
         except Exception as e:
-            signal_analysis["exception"] = {
+            errors_analysis["processing_exception"] = {
                 "type": type(e).__name__,
-                "message": str(e),
-                "traceback": traceback.format_exc()
+                "message": str(e)
             }
         
-        return signal_analysis
+        with open(self.session_dir / "5_errors.json", 'w') as f:
+            json.dump(errors_analysis, f, indent=2)
     
-    def _generate_analysis_summary(self, analysis) -> dict:
-        """Generate comprehensive analysis summary"""
-        tx_data = analysis.get("transaction", {})
-        signal_data = analysis.get("signal_generation", {})
-        transformer_data = analysis.get("transformer_analysis", {})
+    def _create_recommendations_file(self, tx_hash: str, transaction):
+        """Create actionable recommendations"""
         
-        # Compatibility analysis
-        compatibility_issues = []
-        for comp_key, comp_data in transformer_data.items():
-            if comp_data.get("compatibility_score", 1.0) < 1.0:
-                compatibility_issues.append({
-                    "transformer": comp_data["transformer"],
-                    "log_index": comp_data["log_index"],
-                    "log_name": comp_data["log_name"],
-                    "score": comp_data["compatibility_score"],
-                    "missing": comp_data["missing_attributes"]
-                })
-        
-        # Error categorization
-        error_breakdown = {}
-        for error_data in signal_data.get("errors", {}).values():
-            error_type = error_data["error_type"]
-            error_breakdown[error_type] = error_breakdown.get(error_type, 0) + 1
-        
-        return {
-            "total_logs": tx_data.get("total_logs", 0),
-            "decoded_logs": tx_data.get("decoded_logs", 0),
-            "signals_generated": len(signal_data.get("signals", {})),
-            "generation_errors": len(signal_data.get("errors", {})),
-            "has_exception": "exception" in signal_data,
-            "compatibility_issues_count": len(compatibility_issues),
-            "compatibility_issues": compatibility_issues,
-            "error_breakdown": error_breakdown,
-            "contracts_involved": list(set(
-                log_data["contract"] for log_data in tx_data.get("logs", {}).values()
-                if "contract" in log_data
-            )),
-            "transformers_available": list(set(
-                log_data["transformer"]["name"] for log_data in tx_data.get("logs", {}).values()
-                if log_data.get("transformer", {}).get("exists", False)
-            ))
+        recommendations = {
+            "transaction_hash": tx_hash,
+            "recommendations": [],
+            "quick_fixes": [],
+            "investigation_needed": []
         }
-    
-    def _generate_recommendations(self, analysis) -> list:
-        """Generate actionable recommendations"""
-        recommendations = []
         
-        transformer_data = analysis.get("transformer_analysis", {})
-        signal_data = analysis.get("signal_generation", {})
-        
-        # Check for attribute compatibility issues
-        wavax_issues = [comp for comp in transformer_data.values() 
-                       if comp["transformer"] == "WavaxTransformer" and comp["compatibility_score"] < 1.0]
-        
-        if wavax_issues:
-            recommendations.append({
-                "priority": "HIGH",
-                "category": "Transformer Fix",
-                "issue": "WavaxTransformer attribute mismatch",
-                "description": "WAVAX logs use 'src', 'dst', 'wad' but transformer expects 'from', 'to', 'value'",
-                "solution": "Update WavaxTransformer._get_transfer_attributes() to use correct attribute names",
-                "affected_logs": [issue["log_index"] for issue in wavax_issues]
-            })
-        
-        # Check for transfer reconciliation error
-        reconciliation_errors = [error for error in signal_data.get("errors", {}).values()
-                               if "transfer_reconciliation" in error.get("message", "")]
-        
-        if reconciliation_errors:
-            recommendations.append({
-                "priority": "HIGH", 
-                "category": "Code Bug",
-                "issue": "Transfer reconciliation NoneType error",
-                "description": "The _reconcile_transfers method has a bug with None.items()",
-                "solution": "Fix the _reconcile_transfers method in TransformManager to handle None values",
-                "error_message": reconciliation_errors[0].get("message", "")
-            })
-        
-        # Check for missing transfer signals
-        transfer_logs = [log for log in analysis["transaction"]["logs"].values() 
-                        if log.get("name") == "Transfer"]
-        transfer_signals = [signal for signal in signal_data.get("signals", {}).values()
-                           if signal["type"] == "TransferSignal"]
-        
-        if len(transfer_logs) > len(transfer_signals):
-            recommendations.append({
-                "priority": "MEDIUM",
-                "category": "Signal Generation",
-                "issue": "Missing transfer signals",
-                "description": f"Found {len(transfer_logs)} transfer logs but only {len(transfer_signals)} transfer signals",
-                "solution": "Fix transformer validation to allow transfer signal generation"
-            })
-        
-        return recommendations
-    
-    def _print_analysis_summary(self, analysis):
-        """Print clean console summary"""
-        summary = analysis["summary"]
-        recommendations = analysis["recommendations"]
-        
-        print(f"✅ Analysis completed")
-        print(f"   📊 Logs: {summary['decoded_logs']}/{summary['total_logs']} decoded")
-        print(f"   🔄 Signals: {summary['signals_generated']} generated")
-        print(f"   🚨 Errors: {summary['generation_errors']} found")
-        
-        if summary.get("compatibility_issues_count", 0) > 0:
-            print(f"   ⚠️  Compatibility issues: {summary['compatibility_issues_count']}")
-        
-        if summary.get("error_breakdown"):
-            error_summary = ", ".join(f"{k}({v})" for k, v in summary["error_breakdown"].items())
-            print(f"   🔧 Error types: {error_summary}")
-        
-        # Print high priority recommendations
-        high_priority = [r for r in recommendations if r.get("priority") == "HIGH"]
-        if high_priority:
-            print(f"\n🎯 Priority fixes needed:")
-            for rec in high_priority[:2]:  # Show top 2
-                print(f"   • {rec['issue']}: {rec['description']}")
-    
-    def _serialize_signal(self, signal) -> dict:
-        """Serialize signal object to dictionary for JSON output"""
+        # Load data from other files for analysis
         try:
-            signal_dict = {}
-            for attr_name in dir(signal):
-                if not attr_name.startswith('_') and not callable(getattr(signal, attr_name)):
-                    try:
-                        value = getattr(signal, attr_name)
-                        signal_dict[attr_name] = str(value) if value is not None else None
-                    except:
-                        signal_dict[attr_name] = "serialization_error"
-            return signal_dict
-        except Exception:
-            return {"error": "failed_to_serialize_signal"}
-    
-    def _save_analysis(self, output_file: Path, analysis: dict):
-        """Save analysis to JSON file with pretty formatting"""
-        try:
-            with open(output_file, 'w') as f:
-                json.dump(analysis, f, indent=2, default=str)
+            with open(self.session_dir / "3_transformers.json") as f:
+                transformer_data = json.load(f)
+            with open(self.session_dir / "5_errors.json") as f:
+                error_data = json.load(f)
+            
+            # Generate recommendations based on findings
+            self._analyze_and_recommend(recommendations, transformer_data, error_data)
+            
         except Exception as e:
-            print(f"❌ Failed to save analysis: {e}")
+            recommendations["analysis_error"] = str(e)
+        
+        with open(self.session_dir / "6_recommendations.json", 'w') as f:
+            json.dump(recommendations, f, indent=2)
+    
+    def _extract_key_signal_attributes(self, signal) -> dict:
+        """Extract key attributes from signal for summary"""
+        key_attrs = {}
+        
+        # Common signal attributes to extract
+        for attr in ['pool', 'token', 'amount', 'base_amount', 'quote_amount', 'from_address', 'to_address']:
+            if hasattr(signal, attr):
+                value = getattr(signal, attr)
+                key_attrs[attr] = str(value) if value is not None else None
+        
+        return key_attrs
+    
+    def _analyze_and_recommend(self, recommendations, transformer_data, error_data):
+        """Generate specific recommendations based on analysis"""
+        
+        # Check for missing transformers
+        missing_transformers = [
+            issue for issue in transformer_data.get("compatibility_issues", [])
+            if issue["issue"] == "no_transformer"
+        ]
+        
+        if missing_transformers:
+            recommendations["recommendations"].append({
+                "priority": "MEDIUM",
+                "category": "Missing Transformers",
+                "description": f"{len(missing_transformers)} contracts have no transformers",
+                "action": "Add transformer configurations to config.json",
+                "affected_contracts": [issue["description"] for issue in missing_transformers]
+            })
+        
+        # Check for missing handlers
+        missing_handlers = [
+            issue for issue in transformer_data.get("compatibility_issues", [])
+            if issue["issue"] == "no_handler"
+        ]
+        
+        if missing_handlers:
+            recommendations["recommendations"].append({
+                "priority": "HIGH",
+                "category": "Missing Handlers",
+                "description": f"{len(missing_handlers)} logs have no handlers",
+                "action": "Add missing event handlers to transformers",
+                "details": [issue["description"] for issue in missing_handlers]
+            })
+        
+        # Analyze error patterns
+        if error_data.get("transformer_errors"):
+            for transformer, errors in error_data["transformer_errors"].items():
+                if len(errors) > 2:  # Multiple errors from same transformer
+                    recommendations["recommendations"].append({
+                        "priority": "HIGH",
+                        "category": "Transformer Issues",
+                        "description": f"{transformer} has {len(errors)} errors",
+                        "action": f"Debug {transformer} attribute handling",
+                        "error_types": list(set(e["error_type"] for e in errors))
+                    })
+
+
+def print_session_summary(session_dir: Path):
+    """Print summary of created files"""
+    files = list(session_dir.glob("*.json"))
+    
+    print(f"\n📁 Debug files created in: {session_dir.name}")
+    print("─" * 50)
+    
+    file_descriptions = {
+        "1_summary.json": "High-level transaction overview",
+        "2_logs.json": "Detailed log structure analysis", 
+        "3_transformers.json": "Transformer compatibility check",
+        "4_signals.json": "Signal generation results",
+        "5_errors.json": "Detailed error breakdown",
+        "6_recommendations.json": "Actionable next steps"
+    }
+    
+    for file in sorted(files):
+        desc = file_descriptions.get(file.name, "Additional debug data")
+        size_kb = file.stat().st_size / 1024
+        print(f"   {file.name:<25} {desc} ({size_kb:.1f}KB)")
+    
+    print(f"\n🔍 Quick analysis commands:")
+    print(f"   cat {session_dir}/1_summary.json | jq")
+    print(f"   cat {session_dir}/6_recommendations.json | jq .recommendations")
 
 
 def main():
-    """Main debug session with clean output"""
+    """Main debug session with modular output"""
     
     try:
-        debug_session = EnhancedDebugSession()
+        debug_session = ModularDebugSession()
         
         if len(sys.argv) > 1:
             command = sys.argv[1]
@@ -423,15 +430,14 @@ def main():
             if command == "analyze" and len(sys.argv) > 3:
                 tx_hash = sys.argv[2]
                 block_number = int(sys.argv[3])
-                output_file = debug_session.analyze_transaction_to_file(tx_hash, block_number)
+                session_dir = debug_session.analyze_transaction_modular(tx_hash, block_number)
+                print_session_summary(Path(session_dir))
                 
             else:
                 print("Usage:")
                 print("  python testing/scripts/debug_session.py analyze <tx_hash> <block_number>")
-                print("\nExample:")
-                print("  python testing/scripts/debug_session.py analyze 0xab6908d3... 63269916")
         else:
-            print("Enhanced debug session - provide command to run analysis")
+            print("Modular debug session - generates multiple focused files")
             
     except Exception as e:
         print(f"❌ Debug session failed: {e}")
