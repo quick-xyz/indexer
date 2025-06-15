@@ -59,7 +59,7 @@ class Mint_A(TransferPattern):
             positions=mint_positions,
             signals= mint_signals
         )
-        events[mint._content_id]= mint
+        events[mint.content_id]= mint
 
         if fee_trf:
             amount = add_amounts([trf.amount for trf in fee_trf.values()])
@@ -74,7 +74,7 @@ class Mint_A(TransferPattern):
                 positions=fee_positions,
                 signals = fee_trf
             )
-            events[fee._content_id]= fee
+            events[fee.content_id]= fee
 
         context.match_all_signals(mint_signals + fee_trf if fee_trf else mint_signals)
         context.add_events(events)
@@ -191,7 +191,7 @@ class Burn_A(TransferPattern):
             positions=burn_positions,
             signals= burn_signals
         )
-        events[burn._content_id]= burn
+        events[burn.content_id]= burn
 
         if fee_trf:
             amount = add_amounts([trf.amount for trf in fee_trf.values()])
@@ -206,7 +206,7 @@ class Burn_A(TransferPattern):
                 positions=fee_positions,
                 signals = fee_trf
             )
-            events[fee._content_id]= fee
+            events[fee.content_id]= fee
 
         context.match_all_signals(burn_signals + fee_trf if fee_trf else burn_signals)
         context.add_events(events)

@@ -349,6 +349,13 @@ class ModularDebugSession:
     def _analyze_and_recommend(self, recommendations, transformer_data, error_data):
         """Generate specific recommendations based on analysis"""
         
+        # Define events that are intentionally not handled (domain-specific exclusions)
+        INTENTIONALLY_EXCLUDED_EVENTS = {
+            'Sync',  # Pool state monitoring - not needed for domain model
+            'Approval',  # Token approvals - not part of transfer tracking
+            # Add other events you intentionally exclude
+        }
+        
         # Check for missing transformers
         missing_transformers = [
             issue for issue in transformer_data.get("compatibility_issues", [])
@@ -364,19 +371,48 @@ class ModularDebugSession:
                 "affected_contracts": [issue["description"] for issue in missing_transformers]
             })
         
-        # Check for missing handlers
+        # Check for missing handlers (filter out intentionally excluded events)
         missing_handlers = [
             issue for issue in transformer_data.get("compatibility_issues", [])
             if issue["issue"] == "no_handler"
         ]
         
-        if missing_handlers:
+        # Separate intentionally excluded from actual missing handlers
+        excluded_handlers = []
+        actual_missing_handlers = []
+        
+        for issue in missing_handlers:
+            # Extract event name from description like "Transformer X has no handler for 'EventName'"
+            import re
+            event_match = re.search(r"no handler for '(\w+)'", issue["description"])
+            if event_match:
+                event_name = event_match.group(1)
+                if event_name in INTENTIONALLY_EXCLUDED_EVENTS:
+                    excluded_handlers.append(issue)
+                else:
+                    actual_missing_handlers.append(issue)
+            else:
+                actual_missing_handlers.append(issue)  # Default to missing if can't parse
+        
+        # Only flag actual missing handlers as HIGH priority
+        if actual_missing_handlers:
             recommendations["recommendations"].append({
                 "priority": "HIGH",
                 "category": "Missing Handlers",
-                "description": f"{len(missing_handlers)} logs have no handlers",
+                "description": f"{len(actual_missing_handlers)} logs have no handlers",
                 "action": "Add missing event handlers to transformers",
-                "details": [issue["description"] for issue in missing_handlers]
+                "details": [issue["description"] for issue in actual_missing_handlers]
+            })
+        
+        # Add excluded handlers as informational (low priority)
+        if excluded_handlers:
+            recommendations["recommendations"].append({
+                "priority": "LOW", 
+                "category": "Intentionally Excluded Events",
+                "description": f"{len(excluded_handlers)} events are intentionally not handled",
+                "action": "No action needed - these events are excluded by design",
+                "details": [issue["description"] for issue in excluded_handlers],
+                "note": "These events are not part of the domain model and can be safely ignored"
             })
         
         # Analyze error patterns
@@ -385,11 +421,28 @@ class ModularDebugSession:
                 if len(errors) > 2:  # Multiple errors from same transformer
                     recommendations["recommendations"].append({
                         "priority": "HIGH",
-                        "category": "Transformer Issues",
+                        "category": "Transformer Issues", 
                         "description": f"{transformer} has {len(errors)} errors",
                         "action": f"Debug {transformer} attribute handling",
                         "error_types": list(set(e["error_type"] for e in errors))
                     })
+        
+        # Add quick fixes section
+        if not actual_missing_handlers and not error_data.get("transformer_errors"):
+            recommendations["quick_fixes"].append({
+                "category": "Signal Generation",
+                "description": "All core transformers are working correctly",
+                "status": "SUCCESS"
+            })
+        
+        # Add investigation guidance
+        if error_data.get("processing_exception"):
+            recommendations["investigation_needed"].append({
+                "category": "Processing Pipeline",
+                "description": "Check for null reference errors in processing logic",
+                "suggested_files": ["context.py", "manager.py"],
+                "priority": "HIGH"
+            })
 
 
 def print_session_summary(session_dir: Path):

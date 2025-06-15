@@ -97,15 +97,18 @@ class TransformContext:
         self._build_event_signals()
         self._build_trf_dict
 
-    def _build_transfer_signals(self) -> Dict[int, TransferSignal]:
+    def _build_transfer_signals(self) -> None:
         if self._transfer_signals is None:
             self._transfer_signals = {idx: signal for idx, signal in self.signals.items() if isinstance(signal, TransferSignal)}
 
-    def _build_event_signals(self) -> Dict[int, Signal]:
+    def _build_event_signals(self) -> None:
         if self._event_signals is None:
             self._event_signals = {idx: signal for idx, signal in self.signals.items() if not isinstance(signal, TransferSignal)}
 
     def _build_trf_dict(self) -> None:
+        if self._transfer_signals is None: 
+            self._build_transfer_signals()
+            
         trf_dict = defaultdict(lambda: defaultdict(lambda: defaultdict(dict)))
         for idx, transfer in self._transfer_signals.items():
             trf_dict[transfer.token]["out"][transfer.from_address][idx] = transfer
@@ -152,11 +155,17 @@ class TransformContext:
         self.matched_transfers.add(log_index)
 
     def get_unmatched_transfers(self) -> Dict[int, TransferSignal]:
+        if self._transfer_signals is None:
+            self._build_transfer_signals()
+        
         unmatched_transfers = {idx: t for idx, t in self._transfer_signals.items() 
                 if idx not in self.matched_transfers}
         return unmatched_transfers if unmatched_transfers else {}
 
     def get_remaining_signals(self) -> Dict[int, Signal]:
+        if self._event_signals is None:
+            self._build_event_signals()
+            
         return {idx: signal for idx, signal in self._event_signals.items()
                 if idx not in self.consumed_signals}
     
@@ -174,25 +183,12 @@ class TransformContext:
         for idx in events:
             if isinstance(self.events[idx], PoolSwap):
                 self.events[idx].grouped = True
-    
-    def get_address_deltas_for_token(self, token: EvmAddress) -> Dict[EvmAddress, int]:
-        deltas = defaultdict(int)
-        
-        for transfer in self.transfer_signals.values():
-            if transfer.token != token:
-                continue
-                
-            amount = int(transfer.amount)
-            deltas[transfer.from_address] -= amount
-            deltas[transfer.to_address] += amount
-            
-        return dict(deltas)
 
     def get_batch_swap_signals(self) -> Dict[int, SwapBatchSignal]:
         return self.get_signals_by_type([SwapBatchSignal])
 
     def get_swap_signals(self) -> Dict[int, SwapSignal]:
-        return self.get_events_by_type([SwapSignal])
+        return self.get_signals_by_type([SwapSignal])
     
     def get_swap_events(self) -> Tuple[Dict[DomainEventId, PoolSwap],Dict[DomainEventId, PoolSwap]]:
         all_swaps = self.get_events_by_type([PoolSwap])

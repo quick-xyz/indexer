@@ -242,23 +242,37 @@ class BaseTransformer(ABC, LoggingMixin):
                         error_id=error.error_id)
 
     def _validate_null_attr(self, values: List[Any], log_index: int, 
-                      errors: Dict[ErrorId, ProcessingError]) -> bool:
-        """Validate that required attributes are not null"""
-        null_count = sum(1 for v in values if v is None or v == "")
+                        errors: Dict[ErrorId, ProcessingError]) -> bool:
+        """Validate that required attributes are not null/None"""
+        null_count = 0
+        
+        for i, v in enumerate(values):
+            # Check for None (null in Python)
+            if v is None:
+                null_count += 1
+                self.log_debug("Found None value in validation", 
+                            log_index=log_index,
+                            value_index=i)
+            # Check for empty strings (but allow integers, including 0)
+            elif isinstance(v, str) and v == "":
+                null_count += 1
+                self.log_debug("Found empty string in validation",
+                            log_index=log_index, 
+                            value_index=i)
         
         if null_count > 0:
-            self.log_warning("Null attribute validation failed",
-                           log_index=log_index,
-                           null_values=null_count,
-                           total_values=len(values),
-                           transformer_name=self.name)
+            self.log_warning("Null/empty attribute validation failed",
+                        log_index=log_index,
+                        null_values=null_count,
+                        total_values=len(values),
+                        transformer_name=self.name)
             
             self._create_attr_error(log_index, errors)
             return False
             
         self.log_debug("Attribute validation passed",
-                      log_index=log_index,
-                      attribute_count=len(values))
+                    log_index=log_index,
+                    attribute_count=len(values))
         return True
     
     def _validate_addresses(self, *addresses: str) -> bool:
@@ -279,18 +293,40 @@ class BaseTransformer(ABC, LoggingMixin):
                 return False
         return True
 
-    def _validate_amounts(self, *amounts: str) -> bool:
-        """Validate amount strings"""
+    def _validate_amounts(self, *amounts: Any) -> bool:
+        """Validate amount values (accepts both int and string)"""
         for i, amount in enumerate(amounts):
-            if not isinstance(amount, str):
-                self.log_warning("Amount is not string", amount_index=i, amount_type=type(amount).__name__)
+            # Handle None
+            if amount is None:
+                self.log_warning("Amount is None", amount_index=i)
                 return False
-            if not amount or amount == "0":
-                self.log_debug("Zero amount found", amount_index=i, amount=amount)
+            
+            # Handle integers (from EVM/ABI)
+            if isinstance(amount, (int, float)):
+                if amount < 0:
+                    self.log_warning("Negative amount", amount_index=i, amount=amount)
+                    return False
                 continue
-            if not is_positive(amount):
-                self.log_warning("Invalid amount", amount_index=i, amount=amount)
+            
+            # Handle strings    
+            if isinstance(amount, str):
+                if not amount or amount == "":
+                    self.log_debug("Empty amount string found", amount_index=i)
+                    continue
+                try:
+                    amount_val = int(amount)
+                    if amount_val < 0:
+                        self.log_warning("Negative string amount", amount_index=i, amount=amount)
+                        return False
+                except ValueError:
+                    self.log_warning("Invalid amount string", amount_index=i, amount=amount)
+                    return False
+            else:
+                self.log_warning("Amount is not int or string", 
+                            amount_index=i, 
+                            amount_type=type(amount).__name__)
                 return False
+        
         return True
 
     def _validate_log_attributes(self, log: DecodedLog, required_attrs: List[str],

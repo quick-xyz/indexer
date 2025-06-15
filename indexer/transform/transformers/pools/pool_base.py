@@ -1,6 +1,6 @@
 # indexer/transform/transformers/pools/pool_base.py
 
-from typing import Optional, Dict, Tuple
+from typing import Optional, Dict, Tuple, Any
 
 from ..base import BaseTransformer
 from ....types import (
@@ -82,34 +82,55 @@ class PoolTransformer(BaseTransformer):
     
     def _validate_swap_data(self, log: DecodedLog, swap: Tuple[str, str, str, str],
                             errors: Dict[ErrorId, ProcessingError]) -> bool:
-        if not self._validate_null_attr(swap, log.index, errors):
+        # Check for None values
+        if any(v is None for v in swap):
+            self.log_warning("Swap has null attributes", log_index=log.index)
+            self._create_attr_error(log.index, errors)
             return False
-        if is_zero(swap[0]) or is_zero(swap[1]):
+        
+        # Check amounts (can be int or string, but not zero)
+        base_amount, quote_amount = swap[0], swap[1]
+        
+        if self._is_zero_amount(base_amount) or self._is_zero_amount(quote_amount):
             self.log_warning("Swap amounts are zero", log_index=log.index)
             self._create_attr_error(log.index, errors)
             return False
+        
+        # Validate addresses (not empty strings)
         if not self._validate_addresses(swap[2], swap[3]):
             self.log_warning("Swap addresses are invalid", log_index=log.index)
             self._create_attr_error(log.index, errors)
             return False
+        
         return True
 
     def _validate_transfer_data(self, log: DecodedLog, trf: Tuple[str, str, str, str], 
                                 errors: Dict[ErrorId, ProcessingError]) -> bool:
-        if not self._validate_null_attr(trf, log.index, errors):
-            return False
-        if is_zero(trf[2]):
-            self.log_warning("Transfer amount is zero",log_index=log.index)
+        # Check for None values
+        if any(v is None for v in trf):
+            self.log_warning("Transfer has null attributes", log_index=log.index)
             self._create_attr_error(log.index, errors)
             return False
+        
+        # Check amount (can be int or string, but not zero)
+        if self._is_zero_amount(trf[2]):
+            self.log_warning("Transfer amount is zero", log_index=log.index)
+            self._create_attr_error(log.index, errors)
+            return False
+        
         return True
 
     def _validate_liquidity_data(self, log: DecodedLog, liq: Tuple[str, str, str, str],
-                                 errors: Dict[ErrorId, ProcessingError]) -> bool:
-        if not self._validate_null_attr(liq, log.index, errors):
+                                errors: Dict[ErrorId, ProcessingError]) -> bool:
+        # Check for None values
+        if any(v is None for v in liq):
+            self.log_warning("Liquidity has null attributes", log_index=log.index)
+            self._create_attr_error(log.index, errors)
             return False
-        if is_zero(liq[0]) or is_zero(liq[1]):
-            self.log_warning("A liquidity amount is zero", log_index=log.index)
+        
+        # Check amounts (can be int or string, but not both zero)
+        if self._is_zero_amount(liq[0]) and self._is_zero_amount(liq[1]):
+            self.log_warning("Both liquidity amounts are zero", log_index=log.index)
             self._create_attr_error(log.index, errors)
             return False
 
@@ -126,9 +147,9 @@ class PoolTransformer(BaseTransformer):
             log_index=log.index,
             pattern="Swap_A",
             pool=self.contract_address,
-            base_amount=swap[0],
+            base_amount=str(swap[0]),  # Convert to string here
             base_token=self.base_token,
-            quote_amount=swap[1],
+            quote_amount=str(swap[1]),  # Convert to string here
             quote_token=self.quote_token,
             to=EvmAddress(swap[2].lower()),
             sender=EvmAddress(swap[3].lower()) if swap[3] else None,
@@ -148,7 +169,7 @@ class PoolTransformer(BaseTransformer):
             token=self.contract_address,
             from_address=EvmAddress(trf[0].lower()),
             to_address=EvmAddress(trf[1].lower()),
-            amount=trf[2],
+            amount=str(trf[2]),  # Convert to string here
             sender=EvmAddress(trf[3].lower()) if trf[3] else None
         )
         self.log_debug("Transfer signal created", log_index=log.index)
@@ -164,9 +185,9 @@ class PoolTransformer(BaseTransformer):
             log_index=log.index,
             pattern="Mint_A",
             pool=self.contract_address,
-            base_amount=liq[0],
+            base_amount=str(liq[0]),   # Convert to string here
             base_token=self.base_token,
-            quote_amount=liq[1],
+            quote_amount=str(liq[1]),  # Convert to string here
             quote_token=self.quote_token,
             action="add",
             sender=EvmAddress(liq[2].lower()) if liq[2] else None,
@@ -181,16 +202,33 @@ class PoolTransformer(BaseTransformer):
         if not self._validate_liquidity_data(log, liq, errors):
             return
         
+        # Convert to string and make negative
+        base_amount = str(liq[0])
+        quote_amount = str(liq[1])
+        
         signals[log.index] = LiquiditySignal(
             log_index=log.index,
             pattern="Burn_A",
             pool=self.contract_address,
-            base_amount=f"-{liq[0]}" if not liq[0].startswith('-') else liq[0],
+            base_amount=f"-{base_amount}" if not base_amount.startswith('-') else base_amount,
             base_token=self.base_token,
-            quote_amount=f"-{liq[1]}" if not liq[1].startswith('-') else liq[1],
+            quote_amount=f"-{quote_amount}" if not quote_amount.startswith('-') else quote_amount,
             quote_token=self.quote_token,
             action="remove",
             sender=EvmAddress(liq[2].lower()) if liq[2] else None,
             owner=EvmAddress(liq[3].lower()) if liq[3] else None
         )
         self.log_debug("Burn signal created", log_index=log.index)
+
+    def _is_zero_amount(self, amount: Any) -> bool:
+        """Check if amount is zero (handles both int and string)"""
+        if amount is None:
+            return True
+        
+        if isinstance(amount, (int, float)):
+            return amount == 0
+        
+        if isinstance(amount, str):
+            return amount == "" or amount == "0"
+        
+        return True  # Unknown type, treat as zero

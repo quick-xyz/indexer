@@ -1,6 +1,6 @@
 # indexer/transform/patterns/__init__.py
 
-from .base import TransferPattern, TransferLeg, AddressContext, Info
+from .base import TransferPattern, TransferLeg, AddressContext
 from .liquidity import Mint_A, Burn_A
 from .trading import Swap_A
 
@@ -11,5 +11,4 @@ __all__ = [
     "Mint_A",
     "Burn_A",
     "Swap_A",
-    "Info",
 ]

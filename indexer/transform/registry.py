@@ -64,6 +64,8 @@ class TransformRegistry(LoggingMixin):
     def _load_pattern_classes(self) -> Dict[str, type]:
         return {
             "Mint_A": Mint_A,
+            "Burn_A": Burn_A,
+            "Swap_A": Swap_A,
         }
     
     def _setup_transformers(self):

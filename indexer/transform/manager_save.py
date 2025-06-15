@@ -245,7 +245,7 @@ class TransformManager(LoggingMixin):
                     trade_type="trade",
                     swaps=trade_swaps[dir][key],
                 )
-                context.add_events({trade_event._content_id: trade_event})   
+                context.add_events({trade_event.content_id: trade_event})   
                 context.group_swap_events(trade_event.swaps.keys())       
         
         '''
@@ -335,14 +335,14 @@ class TransformManager(LoggingMixin):
             token=transfer.token,
             amount=transfer.amount,
         ) if transfer.to_address != ZERO_ADDRESS else None
-        positions[position_in._content_id] = position_in
+        positions[position_in.content_id] = position_in
 
         position_out = Position(
             user=transfer.from_address,
             token=transfer.token,
             amount=amount_to_negative_str(transfer.amount),
         ) if transfer.from_address != ZERO_ADDRESS else None
-        positions[position_out._content_id] = position_out
+        positions[position_out.content_id] = position_out
 
         return positions
     
@@ -358,5 +358,5 @@ class TransformManager(LoggingMixin):
             positions=positions,
             signals={transfer.log_index: transfer}
         )
-        events[unknown_transfer._content_id] = unknown_transfer
+        events[unknown_transfer.content_id] = unknown_transfer
         context.add_events(events)

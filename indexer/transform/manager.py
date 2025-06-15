@@ -399,7 +399,6 @@ class TransformManager(LoggingMixin):
                         to=data["to"],
                         sender=data["sender"] if data["sender"] else None,
                         batch=batch_components[key],
-                        signals=signal_components.get(key, {})
                     )
                     context.add_signals({swap_signal.log_index: swap_signal})
                     
@@ -465,6 +464,17 @@ class TransformManager(LoggingMixin):
             return False
 
     def _reconcile_transfers(self, context: TransformContext) -> bool:
+        """Skip reconciliation for now - focus on core functionality"""
+        unmatched_transfers = context.get_unmatched_transfers()
+        
+        if unmatched_transfers:
+            self.log_info("Skipping transfer reconciliation - will implement later", 
+                        unmatched_count=len(unmatched_transfers),
+                        tx_hash=context.transaction.tx_hash)
+        
+        return True
+    '''
+    def _reconcile_transfers(self, context: TransformContext) -> bool:
         """Reconcile unmatched transfers with error handling"""
         try:
             unmatched_transfers = context.get_unmatched_transfers()
@@ -513,7 +523,7 @@ class TransformManager(LoggingMixin):
                           error=str(e),
                           exception_type=type(e).__name__)
             return False
-        
+    '''    
     def _produce_net_positions(self, context: TransformContext) -> bool:
         """Generate net positions with error handling"""
         try:

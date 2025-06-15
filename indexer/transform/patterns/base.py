@@ -83,14 +83,14 @@ class TransferPattern(ABC):
             token=transfer.token,
             amount=transfer.amount,
         ) if transfer.to_address != ZERO_ADDRESS else None
-        positions[position_in._content_id] = position_in
+        positions[position_in.content_id] = position_in
 
         position_out = Position(
             user=transfer.from_address,
             token=transfer.token,
             amount=amount_to_negative_str(transfer.amount),
         ) if transfer.from_address != ZERO_ADDRESS else None
-        positions[position_out._content_id] = position_out
+        positions[position_out.content_id] = position_out
 
         return positions
 
@@ -109,9 +109,3 @@ class TransferPattern(ABC):
                 targets[leg.to_end] += int(leg.amount) if leg.amount else 0
         
         return deltas if deltas == targets else None
-    
-class Info(TransferPattern):
-    def __init__(self):
-        super().__init__("Mint_A")
-    
-    pass

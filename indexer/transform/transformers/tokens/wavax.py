@@ -13,8 +13,13 @@ class WavaxTransformer(TokenTransformer):
         super().__init__(contract=contract)
 
     def _get_transfer_attributes(self, log: DecodedLog) -> Tuple[str, str, str, str]:
-        from_addr = str(log.attributes.get("src", ""))
-        to_addr = str(log.attributes.get("dst", ""))
-        value = amount_to_str(log.attributes.get("wad", 0))
-        sender = ""
-        return from_addr, to_addr, value, sender
+        from_addr = log.attributes.get("src", "")
+        to_addr = log.attributes.get("dst", "")
+        value = log.attributes.get("wad", 0)  # Keep as int initially
+        sender = ""  # WAVAX doesn't have sender in Transfer events
+        
+        # Convert addresses to strings if they're not already
+        from_addr = str(from_addr) if from_addr is not None else ""
+        to_addr = str(to_addr) if to_addr is not None else ""
+        
+        return from_addr, to_addr, value, sender 
