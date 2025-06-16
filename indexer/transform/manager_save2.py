@@ -1,4 +1,4 @@
-# indexer/transform/manager.py
+# indexer/transform/manager_save2.py
 
 from typing import Tuple, Dict, List, Optional
 from msgspec import Struct
@@ -36,19 +36,19 @@ class TransformManager(LoggingMixin):
         
         self.log_info("TransformManager initialized", 
                      contract_count=len(config.contracts),
-                     tokens_of_interest=len(config.get_indexer_tokens()))
+                     indexer_tokens=len(config.get_indexer_tokens()))
 
     def _create_context(self, transaction: Transaction) -> TransformContext:
         """Create transform context with error handling"""
         try:
             context = TransformContext(
                 transaction=transaction,
-                tokens_of_interest=self.config.get_indexer_tokens(),
+                indexer_tokens=self.config.get_indexer_tokens(),
             )
             
             self.log_debug("Transform context created", 
                           tx_hash=transaction.tx_hash,
-                          tokens_of_interest_count=len(self.config.get_indexer_tokens()))
+                          indexer_tokens_count=len(self.config.get_indexer_tokens()))
             
             return context
             
@@ -199,13 +199,13 @@ class TransformManager(LoggingMixin):
         """
         
         issues = []
-        tokens_of_interest = context.tokens_of_interest
+        indexer_tokens = context.indexer_tokens
         
         # Get all transfer signals for tokens of interest
         transfer_signals = context.get_signals_by_type(TransferSignal)
         interesting_transfers = {
             idx: signal for idx, signal in transfer_signals.items()
-            if signal.token in tokens_of_interest
+            if signal.token in indexer_tokens
         }
         
         if not interesting_transfers:
@@ -214,7 +214,7 @@ class TransformManager(LoggingMixin):
         
         self.log_debug("Validating token accounting",
                       tx_hash=context.transaction.tx_hash,
-                      tokens_of_interest_count=len(tokens_of_interest),
+                      indexer_tokens_count=len(indexer_tokens),
                       interesting_transfers_count=len(interesting_transfers))
         
         # Check what happened to each interesting transfer
@@ -277,11 +277,11 @@ class TransformManager(LoggingMixin):
         
         # Get unmatched transfers for tokens of interest
         unmatched_transfers = context.get_unmatched_transfers()
-        tokens_of_interest = context.tokens_of_interest
+        indexer_tokens = context.indexer_tokens
         
         unmatched_interesting = {
             idx: transfer for idx, transfer in unmatched_transfers.items()
-            if transfer.token in tokens_of_interest
+            if transfer.token in indexer_tokens
         }
         
         if not unmatched_interesting:
@@ -677,7 +677,7 @@ class TransformManager(LoggingMixin):
                     continue
                     
                 for position_id, position in event.positions.items():
-                    if position.token in context.tokens_of_interest:
+                    if position.token in context.indexer_tokens:
                         try:
                             amount = int(position.amount)
                             deltas[position.user][position.token]["net_amount"] += amount

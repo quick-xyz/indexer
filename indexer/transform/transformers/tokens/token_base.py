@@ -67,6 +67,8 @@ class TokenTransformer(BaseTransformer):
 
         trf = self._get_transfer_attributes(log)
         if not self._validate_transfer_data(log, trf, errors):
+            print("FAILED VALIDATION")
+            self.log_warning("Transfer validation failed", log_index=log.index)
             return
         
         # Convert amount to string only at signal creation

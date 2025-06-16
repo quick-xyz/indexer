@@ -12,7 +12,7 @@ class Mint_A(TransferPattern):
         super().__init__("Mint_A")
     
     def process_signal(self, signal: LiquiditySignal, context: TransformContext)-> bool:
-        tokens = context.tokens_of_interest
+        tokens = context.indexer_tokens
         events = {}
     
         if not (unmatched_transfers := context.get_unmatched_transfers()):
@@ -31,7 +31,7 @@ class Mint_A(TransferPattern):
         if fee_leg:
             fee_trf = self._match_transfers([fee_leg], unmatched_transfers)
 
-        if not (deltas := self._validate_net_transfers(legs, unmatched_transfers, context.tokens_of_interest)):
+        if not (deltas := self._validate_net_transfers(legs, unmatched_transfers, context.indexer_tokens)):
             return False
         
         mint_positions = {}
@@ -144,7 +144,7 @@ class Burn_A(TransferPattern):
         super().__init__("Burn_A")
     
     def process_signal(self, signal: LiquiditySignal, context: TransformContext)-> bool:
-        tokens = context.tokens_of_interest
+        tokens = context.indexer_tokens
         events = {}
     
         if not (unmatched_transfers := context.get_unmatched_transfers()):
@@ -163,7 +163,7 @@ class Burn_A(TransferPattern):
         if fee_leg:
             fee_trf = self._match_transfers([fee_leg], unmatched_transfers)
 
-        if not (deltas := self._validate_net_transfers(legs, unmatched_transfers, context.tokens_of_interest)):
+        if not (deltas := self._validate_net_transfers(legs, unmatched_transfers, context.indexer_tokens)):
             return False
         
         burn_positions = {}

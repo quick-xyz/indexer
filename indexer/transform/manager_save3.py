@@ -88,27 +88,17 @@ class TransformManager(LoggingMixin):
             # Phase 1: Signal Generation, Logs -> Signals
             self.log_debug("Starting signal generation phase", tx_hash=tx.tx_hash)
             signal_success = self._produce_signals(context)
-
-            event_signals = context.get_remaining_signals()
-            signal_len = len(event_signals)
-            print('EVENT SIGNALS :' + str(signal_len))
-            print(event_signals)
-            
-            unmatched_transfers = context.get_unmatched_transfers()
-            unmatched_len = len(unmatched_transfers)
-            print('UNMATCHED TRANSFERS :' + str(unmatched_len))
-            print(unmatched_transfers)
             
             # Phase 2: Event Generation: Signals -> Events
             self.log_debug("Starting event generation phase", 
                           tx_hash=tx.tx_hash,
                           signal_count=len(context.signals))
             event_success = self._produce_events(context)
-
+            
             # Phase 3: Transfer Reconciliation
             self.log_debug("Starting transfer reconciliation phase", tx_hash=tx.tx_hash)
-            reconcile_success = self.reconciliation_processor.reconcile_transfers(context)
-
+            reconcile_success = self._reconcile_transfers(context)
+            
             # Phase 4: Net Position Generation
             self.log_debug("Starting net position generation phase", tx_hash=tx.tx_hash)
             position_success = self._produce_net_positions(context)
@@ -181,17 +171,6 @@ class TransformManager(LoggingMixin):
                 # Process logs and handle results
                 signals, errors = transformer.process_logs(log_list)
                 
-                signals = context.get_remaining_signals()
-                signal_len = len(signals)
-                print('SIGNALS :' + str(signal_len))
-                print(signals)
-
-
-                event_signals = context.get_remaining_signals()
-                signal_len = len(event_signals)
-                print('EVENT SIGNALS :' + str(signal_len))
-                print(event_signals)
-
                 if signals:
                     context.add_signals(signals)
                     self.log_debug("Signals generated",
@@ -208,19 +187,6 @@ class TransformManager(LoggingMixin):
                                    contract_address=contract_address,
                                    error_count=len(errors))
                 
-                signals = context.get_remaining_signals()
-                signal_len = len(signals)
-                print('SIGNALS :' + str(signal_len))
-                print(signals)
-
-
-                event_signals = context.get_remaining_signals()
-                signal_len = len(event_signals)
-                print('EVENT SIGNALS :' + str(signal_len))
-                print(event_signals)
-
-
-
             except Exception as e:
                 error = self._create_transformer_error(e, context.transaction.tx_hash, contract_address)
                 context.add_errors({error.error_id: error})
@@ -238,13 +204,7 @@ class TransformManager(LoggingMixin):
         """Generate events from signals with error handling"""
         event_signals = context.get_remaining_signals()
         signal_len = len(event_signals)
-
-        print(f"DEBUG: _produce_events starting with {signal_len} event signals")
         
-        if not event_signals:
-            print("DEBUG: No event signals - returning early")
-            return True
-    
         self.log_debug("Starting event generation",
                       tx_hash=context.transaction.tx_hash,
                       remaining_signals=signal_len)
@@ -290,10 +250,6 @@ class TransformManager(LoggingMixin):
 
     def _process_signals(self, event_signals: Dict[int, Signal], context: TransformContext) -> Optional[Dict[int, Signal]]:
         """Process signals with error handling"""
-        print(f"DEBUG: _process_signals called with {len(event_signals)} signals")
-        for idx, signal in event_signals.items():
-            print(f"DEBUG: Signal {idx}: {type(signal).__name__} pattern='{signal.pattern}'")
-    
         reprocess_queue = {}
         
         for log_index, signal in event_signals.items():
@@ -318,8 +274,7 @@ class TransformManager(LoggingMixin):
                     try:
                         trade_signals = {k: v for k, v in context.get_remaining_signals().items() 
                                        if v.pattern in TRADE_PATTERNS}
-                        print("Trade signals found:", trade_signals)
-                        if not self.trade_processor.process_trade_signals(trade_signals, context):
+                        if not self._process_trade(trade_signals, context):
                             reprocess_queue.update(trade_signals)
                     except Exception as e:
                         error = self._create_processing_error(e, context.transaction.tx_hash, "trade_processing")
@@ -356,6 +311,213 @@ class TransformManager(LoggingMixin):
                               error=str(e))
         
         return reprocess_queue if reprocess_queue else None
+
+    def _process_trade(self, trade_signals: Dict[int,Signal], context: TransformContext) -> bool:
+        """Process trade signals with error handling"""
+        if not trade_signals:
+            self.log_debug("No trade signals to process", tx_hash=context.transaction.tx_hash)
+            return True  
+
+        self.log_debug("Processing trade signals",
+                      tx_hash=context.transaction.tx_hash,
+                      signal_count=len(trade_signals))
+
+        try:
+            # Get user intent from Router Signals
+            tokens_in, tokens_out, tos, senders = [], [], [], []
+            for log_index, signal in trade_signals.items():
+                if isinstance(signal, (RouteSignal, MultiRouteSignal)):
+                    self.log_debug("Processing Route Pattern", 
+                                  tx_hash=context.transaction.tx_hash,
+                                  log_index=log_index,
+                                  signal_type=type(signal).__name__)
+                    
+                    if isinstance(signal, MultiRouteSignal):
+                        tokens_in.extend(signal.tokens_in)
+                        tokens_out.extend(signal.tokens_out)
+                    else:
+                        tokens_in.append(signal.token_in)
+                        tokens_out.append(signal.token_out)
+                    
+                    tos.append(signal.to)
+                    senders.append(signal.sender)
+
+            # Aggregate SwapBatchSignals into SwapSignals
+            batch_signals = context.get_batch_swap_signals()
+            batch_dict, batch_components, signal_components = {}, {}, {}
+
+            self.log_debug("Processing batch swap signals",
+                          tx_hash=context.transaction.tx_hash,
+                          batch_signal_count=len(batch_signals))
+
+            for log_index, signal in batch_signals.items():
+                try:
+                    key = "_".join((str(signal.pool), str(signal.to)))  
+                    transformer = self.registry.get_transformer(signal.pool)
+
+                    if not transformer:
+                        self.log_warning("No transformer found for swap pool",
+                                        tx_hash=context.transaction.tx_hash,
+                                        pool=signal.pool,
+                                        log_index=log_index)
+                        continue
+
+                    if key not in batch_dict:
+                        batch_dict[key] = {
+                            "index": 0,
+                            "pool": signal.pool,
+                            "to": signal.to,
+                            "base_amount": 0,
+                            "quote_amount": 0,
+                            "base_token": transformer.base_token,
+                            "quote_token": transformer.quote_token,
+                            "batch": {},
+                            "sender": signal.to if signal.to else None
+                        }
+                        batch_components[key] = {}
+                        signal_components[key] = {}
+                    
+                    batch_dict[key]["index"] += amount_to_int(signal.log_index)
+                    batch_dict[key]["base_amount"] += amount_to_int(signal.base_amount)
+                    batch_dict[key]["quote_amount"] += amount_to_int(signal.quote_amount)
+                    batch_components[key][str(signal.id)] = (signal.base_amount, signal.quote_amount)
+                    signal_components[key][log_index] = signal
+                    
+                except Exception as e:
+                    error = self._create_processing_error(e, context.transaction.tx_hash, "batch_aggregation")
+                    context.add_errors({error.error_id: error})
+                    self.log_error("Batch signal aggregation failed",
+                                  tx_hash=context.transaction.tx_hash,
+                                  log_index=log_index,
+                                  error=str(e))
+
+            # Create SwapSignals from aggregated batches
+            for key, data in batch_dict.items():
+                try:
+                    swap_signal = SwapSignal(
+                        log_index=data["index"]*100,
+                        pattern="Swap_A",
+                        pool=data["pool"],
+                        base_amount=amount_to_str(data["base_amount"]),
+                        base_token=data["base_token"],
+                        quote_amount=amount_to_str(data["quote_amount"]),
+                        quote_token=data["quote_token"],
+                        to=data["to"],
+                        sender=data["sender"] if data["sender"] else None,
+                        batch=batch_components[key],
+                    )
+                    context.add_signals({swap_signal.log_index: swap_signal})
+                    
+                    self.log_debug("SwapSignal created from batch",
+                                  tx_hash=context.transaction.tx_hash,
+                                  swap_signal_index=swap_signal.log_index,
+                                  pool=data["pool"],
+                                  base_amount=data["base_amount"],
+                                  quote_amount=data["quote_amount"])
+                    
+                except Exception as e:
+                    error = self._create_processing_error(e, context.transaction.tx_hash, "swap_signal_creation")
+                    context.add_errors({error.error_id: error})
+                    self.log_error("SwapSignal creation failed",
+                                  tx_hash=context.transaction.tx_hash,
+                                  batch_key=key,
+                                  error=str(e))
+
+            # Process SwapSignals into PoolSwap Events
+            swap_signals = context.get_swap_signals()
+            self.log_debug("Processing swap signals into events",
+                          tx_hash=context.transaction.tx_hash,
+                          swap_signal_count=len(swap_signals))
+            
+            for log_index, signal in swap_signals.items():
+                try:
+                    pattern = self.registry.get_pattern(signal.pattern)
+                    if not pattern:
+                        self.log_warning("No pattern found for swap signal",
+                                        tx_hash=context.transaction.tx_hash,
+                                        log_index=log_index,
+                                        pattern_name=signal.pattern)
+                        continue
+                        
+                    if not pattern.process_signal(signal, context):
+                        self.log_warning("Swap signal pattern processing failed",
+                                        tx_hash=context.transaction.tx_hash,
+                                        log_index=log_index)
+                        return False
+                        
+                except Exception as e:
+                    error = self._create_processing_error(e, context.transaction.tx_hash, "swap_signal_processing")
+                    context.add_errors({error.error_id: error})
+                    self.log_error("Swap signal processing failed",
+                                  tx_hash=context.transaction.tx_hash,
+                                  log_index=log_index,
+                                  error=str(e))
+                    return False
+
+            # TODO: Validate Swaps against Router Signals and generate Trade Events
+            self.log_debug("Trade processing completed successfully",
+                          tx_hash=context.transaction.tx_hash)
+            
+            return True
+
+        except Exception as e:
+            error = self._create_processing_error(e, context.transaction.tx_hash, "trade_processing_general")
+            context.add_errors({error.error_id: error})
+            self.log_error("Trade processing failed with exception",
+                          tx_hash=context.transaction.tx_hash,
+                          error=str(e),
+                          exception_type=type(e).__name__)
+            return False
+
+    def _reconcile_transfers(self, context: TransformContext) -> bool:
+        """Reconcile unmatched transfers with error handling"""
+        try:
+            unmatched_transfers = context.get_unmatched_transfers()
+            if not unmatched_transfers:
+                self.log_debug("No unmatched transfers to reconcile",
+                              tx_hash=context.transaction.tx_hash)
+                return True
+            
+            self.log_debug("Reconciling unmatched transfers",
+                          tx_hash=context.transaction.tx_hash,
+                          unmatched_count=len(unmatched_transfers))
+            
+            for idx, trf in unmatched_transfers.items():
+                if trf.token not in context.indexer_tokens:
+                    self.log_debug("Skipping transfer for token not of interest",
+                                  tx_hash=context.transaction.tx_hash,
+                                  transfer_index=idx,
+                                  token=trf.token)
+                    continue
+                
+                try:
+                    positions = self._generate_positions(trf)
+                    self._produce_unknown_transfer(trf, context, positions)
+                    
+                    self.log_debug("Unknown transfer created",
+                                  tx_hash=context.transaction.tx_hash,
+                                  transfer_index=idx,
+                                  token=trf.token,
+                                  amount=trf.amount)
+                    
+                except Exception as e:
+                    error = self._create_processing_error(e, context.transaction.tx_hash, "transfer_reconciliation")
+                    context.add_errors({error.error_id: error})
+                    self.log_error("Transfer reconciliation failed",
+                                  tx_hash=context.transaction.tx_hash,
+                                  transfer_index=idx,
+                                  error=str(e))
+            
+            return True
+            
+        except Exception as e:
+            error = self._create_processing_error(e, context.transaction.tx_hash, "transfer_reconciliation_general")
+            context.add_errors({error.error_id: error})
+            self.log_error("Transfer reconciliation failed with exception",
+                          tx_hash=context.transaction.tx_hash,
+                          error=str(e),
+                          exception_type=type(e).__name__)
+            return False
  
     def _produce_net_positions(self, context: TransformContext) -> bool:
         """Generate net positions with error handling"""
@@ -444,3 +606,43 @@ class TransformManager(LoggingMixin):
             contract_address=None,
             transformer_name="TransformManager"
         )
+
+    def _generate_positions(self, transfer: TransferSignal) -> Dict[DomainEventId, Position]:
+        """Generate positions from transfer signal"""
+        positions = {}
+
+        if transfer.to_address != ZERO_ADDRESS:
+            position_in = Position(
+                timestamp=0,  # Will be set by event
+                tx_hash="",   # Will be set by event
+                user=transfer.to_address,
+                token=transfer.token,
+                amount=transfer.amount,
+            )
+            positions[position_in.content_id] = position_in
+
+        if transfer.from_address != ZERO_ADDRESS:
+            position_out = Position(
+                timestamp=0,  # Will be set by event
+                tx_hash="",   # Will be set by event
+                user=transfer.from_address,
+                token=transfer.token,
+                amount=amount_to_negative_str(transfer.amount),
+            )
+            positions[position_out.content_id] = position_out
+
+        return positions
+    
+    def _produce_unknown_transfer(self, transfer: TransferSignal, context: TransformContext, positions: Dict[DomainEventId, Position]) -> None:
+        """Produce unknown transfer event"""
+        unknown_transfer = UnknownTransfer(
+            timestamp=context.transaction.timestamp,
+            tx_hash=context.transaction.tx_hash,
+            token=transfer.token,
+            from_address=transfer.from_address,
+            to_address=transfer.to_address,
+            amount=transfer.amount,
+            positions=positions,
+            signals={transfer.log_index: transfer}
+        )
+        context.add_events({unknown_transfer.content_id: unknown_transfer})

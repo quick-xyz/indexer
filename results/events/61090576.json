@@ -1,0 +1,133 @@
+{
+    "block_number": 61090576,
+    "timestamp": 1745844478,
+    "transactions": {
+        "0xc6a25db4259e7133ee399c1981a80bba1b378519c72dd0cd5479fbb8bd8dde4a": {
+            "block": 61090576,
+            "timestamp": 1745844478,
+            "tx_hash": "0xc6a25db4259e7133ee399c1981a80bba1b378519c72dd0cd5479fbb8bd8dde4a",
+            "index": 0,
+            "origin_from": "0x9c4ee585f15ff7d4e295802b5bf522712094649d",
+            "function": {
+                "type": "DecodedMethod",
+                "selector": "0x83bd37f9",
+                "name": "swapCompact",
+                "args": {}
+            },
+            "value": "0",
+            "tx_success": true,
+            "logs": {
+                "0": {
+                    "type": "DecodedLog",
+                    "index": 0,
+                    "removed": false,
+                    "contract": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                    "signature": "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+                    "name": "Transfer",
+                    "attributes": {
+                        "from": "0x9C4ee585F15ff7d4e295802B5BF522712094649d",
+                        "to": "0x39888258d60FED9228F89e13eb57a92F1Fa832eb",
+                        "value": 42154817322819680507676
+                    }
+                },
+                "1": {
+                    "type": "DecodedLog",
+                    "index": 1,
+                    "removed": false,
+                    "contract": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+                    "signature": "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+                    "name": "Transfer",
+                    "attributes": {
+                        "src": "0x39888258d60FED9228F89e13eb57a92F1Fa832eb",
+                        "dst": "0x5f3454Fa53E5866a4f69bBc2E6B9A041092D9Ad7",
+                        "wad": 2940488050510011269
+                    }
+                },
+                "2": {
+                    "type": "DecodedLog",
+                    "index": 2,
+                    "removed": false,
+                    "contract": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+                    "signature": "0x1c411e9a96e071241c2f21f7726b17ae89e3cab4c78be50e062b03a9fffbbad1",
+                    "name": "Sync",
+                    "attributes": {
+                        "reserve0": 205642888030976226510981666,
+                        "reserve1": 14384729781074573907234
+                    }
+                },
+                "3": {
+                    "type": "DecodedLog",
+                    "index": 3,
+                    "removed": false,
+                    "contract": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+                    "signature": "0xd78ad95fa46c994b6551d0da85fc275fe613ce37657fb8d5e3d130840159d822",
+                    "name": "Swap",
+                    "attributes": {
+                        "sender": "0x5f3454Fa53E5866a4f69bBc2E6B9A041092D9Ad7",
+                        "to": "0x5f3454Fa53E5866a4f69bBc2E6B9A041092D9Ad7",
+                        "amount0In": 42154817322819680507676,
+                        "amount1In": 0,
+                        "amount0Out": 0,
+                        "amount1Out": 2940488050510011269
+                    }
+                },
+                "4": {
+                    "type": "DecodedLog",
+                    "index": 4,
+                    "removed": false,
+                    "contract": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+                    "signature": "0x7fcf532c15f0a6db0bd6d0e038bea71d30d808c7d98cb3bf7268a95bf5081b65",
+                    "name": "Withdrawal",
+                    "attributes": {
+                        "src": "0x5f3454Fa53E5866a4f69bBc2E6B9A041092D9Ad7",
+                        "wad": 2940488050510011269
+                    }
+                },
+                "5": {
+                    "type": "EncodedLog",
+                    "index": 5,
+                    "removed": false,
+                    "contract": "0x244a4a90e148ec318a85f8c138a274e16ffe3032",
+                    "signature": "0x3d0ce9bfc3ed7d6862dbb28b2dea94561fe714a1b4d019aa8af39730d1ad7c3d",
+                    "topics": [
+                        "0x3d0ce9bfc3ed7d6862dbb28b2dea94561fe714a1b4d019aa8af39730d1ad7c3d",
+                        "0x00000000000000000000000088de50b233052e4fb783d4f6db78cc34fea3e9fc"
+                    ],
+                    "data": "0x00000000000000000000000000000000000000000000000000042dbe4a4969e4"
+                },
+                "6": {
+                    "type": "DecodedLog",
+                    "index": 6,
+                    "removed": false,
+                    "contract": "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc",
+                    "signature": "0x823eaf01002d7353fbcadb2ea3305cc46fa35d799cb0914846d185ac06f8ad05",
+                    "name": "Swap",
+                    "attributes": {
+                        "sender": "0x9C4ee585F15ff7d4e295802B5BF522712094649d",
+                        "inputAmount": 42154817322819680507676,
+                        "inputToken": "0x0f669808d88B2b0b3D23214DCD2a1cc6A8B1B5cd",
+                        "amountOut": 2939017806484756263,
+                        "outputToken": "0x0000000000000000000000000000000000000000",
+                        "slippage": -665305,
+                        "referralCode": 3864677658
+                    }
+                }
+            },
+            "origin_to": "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc",
+            "signals": null,
+            "events": null,
+            "errors": null,
+            "indexing_status": null,
+            "processing_metadata": null
+        }
+    },
+    "indexing_status": "complete",
+    "processing_metadata": {
+        "error_count": 0,
+        "retry_count": 0,
+        "last_error": null,
+        "started_at": null,
+        "completed_at": "2025-06-16T16:31:12.415713+00:00",
+        "error_stage": null
+    }
+}

@@ -13,13 +13,9 @@ class Position(DomainEvent, tag=True):
     custodian: Optional[EvmAddress] = None
     token_id: Optional[int] = None
 
-    def __post_init__(self):
-        if self.custodian is None:
-            self.custodian = self.user
-
     def _get_identifying_content(self):
         return {
-            "event_type": "liquidity",
+            "event_type": "position",
             "tx_salt": self.tx_hash,
             "user": self.user,
             "custodian": self.custodian,

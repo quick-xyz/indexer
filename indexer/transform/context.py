@@ -30,9 +30,9 @@ TransfersDict = Dict[EvmAddress, DirectionDict]
 
 
 class TransformContext:
-    def __init__(self, transaction: Transaction, tokens_of_interest: Set[EvmAddress]):
+    def __init__(self, transaction: Transaction, indexer_tokens: Set[EvmAddress]):
         self._og_tx = transaction
-        self.tokens_of_interest = tokens_of_interest 
+        self.indexer_tokens = indexer_tokens 
 
         self.signals: Dict[int, Signal] = {}
         self.events: Dict[DomainEventId, DomainEvent] = {}
@@ -58,7 +58,6 @@ class TransformContext:
 
     def add_signals(self, signals: Dict[int, Signal]):
         self.signals.update(signals)
-        self._transfer_signals = None
     
     def add_events(self, events: Dict[DomainEventId, DomainEvent]):
         self.events.update(events)
