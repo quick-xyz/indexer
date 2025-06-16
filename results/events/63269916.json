@@ -596,7 +596,7 @@
         "retry_count": 0,
         "last_error": null,
         "started_at": null,
-        "completed_at": "2025-06-16T13:00:38.704905+00:00",
+        "completed_at": "2025-06-16T13:53:04.692634+00:00",
         "error_stage": "transform"
     }
 }

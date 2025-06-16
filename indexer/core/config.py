@@ -29,7 +29,7 @@ class IndexerConfig(Struct):
     database: DatabaseConfig
     rpc: RpcConfig
     gcs: GCSConfig
-    tokens: Set(EvmAddress)
+    tokens: Set[EvmAddress]
     contracts: Dict[EvmAddress, ContractConfig] = msgspec.field(default_factory=dict)
     addresses: Dict[EvmAddress, AddressConfig] = msgspec.field(default_factory=dict)
     paths: Optional[PathsConfig] = None
@@ -106,14 +106,7 @@ class IndexerConfig(Struct):
                         for addr, data in config_dict.get("addresses", {}).items()}
 
             logger.debug("Processing tokens")
-            for address in config_dict.get("tokens", []):
-                self.tokens.add(EvmAddress(address.lower())) 
-            tokens = 
-            
-            config_dict.get("tokens", [])
-
-tokens.add(EvmAddress(address.lower()))
-
+            tokens = {EvmAddress(address.lower()) for address in config_dict.get("tokens", [])}
 
             logger.debug("Creating database configuration")
             database = cls._create_database_config(env)
@@ -304,9 +297,5 @@ tokens.add(EvmAddress(address.lower()))
             
         return paths
     
-    def get_indexer_tokens(self) -> List[EvmAddress]:
-        tokens = set()
-        for address, contract in self.tokens.items():
-            if contract.token and contract.token.symbol and contract.token.decimals:
-                tokens.add(EvmAddress(address.lower()))
-        return tokens
+    def get_indexer_tokens(self) -> Set[EvmAddress]:
+        return self.tokens

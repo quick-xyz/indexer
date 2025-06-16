@@ -37,7 +37,7 @@ class TransformManager(LoggingMixin):
     def _create_context(self, transaction: Transaction) -> TransformContext:
         return TransformContext(
             transaction=transaction,
-            tokens_of_interest=self.config.get_tokens_of_interest(),
+            tokens_of_interest=self.config.get_indexer_tokens(),
         )
 
     def process_transaction(self, tx: Transaction) -> Tuple[bool, Transaction]:

@@ -36,19 +36,19 @@ class TransformManager(LoggingMixin):
         
         self.log_info("TransformManager initialized", 
                      contract_count=len(config.contracts),
-                     tokens_of_interest=len(config.get_tokens_of_interest()))
+                     tokens_of_interest=len(config.get_indexer_tokens()))
 
     def _create_context(self, transaction: Transaction) -> TransformContext:
         """Create transform context with error handling"""
         try:
             context = TransformContext(
                 transaction=transaction,
-                tokens_of_interest=self.config.get_tokens_of_interest(),
+                tokens_of_interest=self.config.get_indexer_tokens(),
             )
             
             self.log_debug("Transform context created", 
                           tx_hash=transaction.tx_hash,
-                          tokens_of_interest_count=len(self.config.get_tokens_of_interest()))
+                          tokens_of_interest_count=len(self.config.get_indexer_tokens()))
             
             return context
             
