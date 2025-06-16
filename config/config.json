@@ -266,7 +266,16 @@
             "type": "AggLogic",
             "project": "LFJ"
         }
-    }
+    },
+    "tokens": [
+        "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+        "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+        "0xcb4c6fdcfb7d868df5f1e3d0018438205b243fd6",
+        "0xa87866ba0d82155d0ff36ad06e555aebc98595ca",
+        "0x819fe65a885d40493f4b91e8a10e242018758432",
+        "0x3fc41c1ae339322ab87b6ba48e30781d88a304d4",
+        "0xaaa78e8c4241990b4ce159e105da08129345946a"    
+    ]
 }
 
 
