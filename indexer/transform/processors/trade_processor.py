@@ -41,11 +41,12 @@ class TradeProcessor(LoggingMixin):
                       signal_count=len(trade_signals))
         
         try:
-            # Phase 1: Extract user intent from Router Signals
+            # Phase 1: Extract route context and override SwapSignal takers
             route_context = self._extract_route_context(trade_signals, context)
+            corrected_signals = self._apply_route_corrections(trade_signals, route_context, context)
             
             # Phase 2: Aggregate SwapBatchSignals into SwapSignals
-            success = self._aggregate_batch_signals(trade_signals, context)
+            success = self._aggregate_batch_signals(corrected_signals, context)
             if not success:
                 return False
             
@@ -70,36 +71,103 @@ class TradeProcessor(LoggingMixin):
                           exception_type=type(e).__name__)
             return False
     
-    def _extract_route_context(self, trade_signals: Dict[int, Signal], context: TransformContext) -> Dict[str, Any]:
-        """Extract routing context from Route signals"""
+    def _extract_route_context(self, trade_signals: Dict[int, Signal], context: TransformContext) -> Optional[Dict[str, Any]]:
+        """Extract routing context from Route signals using log index order"""
+        route_signals = {idx: signal for idx, signal in trade_signals.items() 
+                        if isinstance(signal, (RouteSignal, MultiRouteSignal))}
+        
+        if not route_signals:
+            self.log_debug("No route signals found", tx_hash=context.transaction.tx_hash)
+            return None
+        
+        self.log_debug("Found route signals for context extraction",
+                      tx_hash=context.transaction.tx_hash,
+                      route_signal_count=len(route_signals),
+                      route_indices=list(route_signals.keys()))
+        
+        # Find the RouteSignal with the highest log_index (top-level aggregator)
+        top_level_idx = max(route_signals.keys())
+        top_level_route = route_signals[top_level_idx]
+        
         route_context = {
-            'tokens_in': [],
-            'tokens_out': [],
-            'tos': [],
-            'senders': [],
-            'route_signals': []
+            'taker': top_level_route.to,
+            'aggregator_contract': top_level_route.contract,
+            'top_level_route': top_level_route,
+            'all_routes': list(route_signals.values()),
+            'route_count': len(route_signals)
         }
         
-        for log_index, signal in trade_signals.items():
-            if isinstance(signal, (RouteSignal, MultiRouteSignal)):
-                self.log_debug("Processing Route Pattern", 
-                              tx_hash=context.transaction.tx_hash,
-                              log_index=log_index,
-                              signal_type=type(signal).__name__)
-                
-                route_context['route_signals'].append(signal)
-                
-                if isinstance(signal, MultiRouteSignal):
-                    route_context['tokens_in'].extend(signal.tokens_in)
-                    route_context['tokens_out'].extend(signal.tokens_out)
-                else:
-                    route_context['tokens_in'].append(signal.token_in)
-                    route_context['tokens_out'].append(signal.token_out)
-                
-                route_context['tos'].append(signal.to)
-                route_context['senders'].append(signal.sender)
+        self.log_debug("Route context extracted",
+                      tx_hash=context.transaction.tx_hash,
+                      top_level_index=top_level_idx,
+                      aggregator_contract=route_context['aggregator_contract'],
+                      taker=route_context['taker'],
+                      total_routes=route_context['route_count'])
         
         return route_context
+    
+    def _apply_route_corrections(self, trade_signals: Dict[int, Signal], 
+                               route_context: Optional[Dict[str, Any]], 
+                               context: TransformContext) -> Dict[int, Signal]:
+        """Apply route-based corrections to SwapSignals"""
+        if not route_context:
+            self.log_debug("No route context available - using original signals",
+                          tx_hash=context.transaction.tx_hash)
+            return trade_signals
+        
+        corrected_signals = trade_signals.copy()
+        swap_corrections = 0
+        
+        # Extract swap signals for correction
+        swap_signals = {idx: signal for idx, signal in trade_signals.items() 
+                       if isinstance(signal, SwapSignal)}
+        
+        if not swap_signals:
+            self.log_debug("No swap signals to correct",
+                          tx_hash=context.transaction.tx_hash)
+            return corrected_signals
+        
+        self.log_debug("Applying route corrections to swap signals",
+                      tx_hash=context.transaction.tx_hash,
+                      swap_signal_count=len(swap_signals),
+                      original_taker_candidates=[s.to for s in swap_signals.values()],
+                      route_taker=route_context['taker'])
+        
+        # Apply corrections to SwapSignals
+        for idx, signal in swap_signals.items():
+            if isinstance(signal, SwapSignal):
+                original_to = signal.to
+                
+                # Create corrected signal with updated taker
+                corrected_signal = SwapSignal(
+                    log_index=signal.log_index,
+                    pattern=signal.pattern,
+                    pool=signal.pool,
+                    base_amount=signal.base_amount,
+                    base_token=signal.base_token,
+                    quote_amount=signal.quote_amount,
+                    quote_token=signal.quote_token,
+                    to=route_context['taker'],  # Override with route taker
+                    sender=signal.sender,
+                    batch=signal.batch
+                )
+                
+                corrected_signals[idx] = corrected_signal
+                swap_corrections += 1
+                
+                self.log_debug("SwapSignal taker corrected",
+                              tx_hash=context.transaction.tx_hash,
+                              signal_index=idx,
+                              pool=signal.pool,
+                              original_to=original_to,
+                              corrected_to=route_context['taker'])
+        
+        self.log_info("Route corrections applied",
+                     tx_hash=context.transaction.tx_hash,
+                     corrections_applied=swap_corrections,
+                     route_context_used=route_context['aggregator_contract'])
+        
+        return corrected_signals
     
     def _aggregate_batch_signals(self, trade_signals: Dict[int, Signal], context: TransformContext) -> bool:
         """Aggregate SwapBatchSignals into SwapSignals"""
@@ -201,6 +269,13 @@ class TradeProcessor(LoggingMixin):
                                     log_index=log_index,
                                     pattern_name=signal.pattern)
                     continue
+                
+                self.log_debug("Processing swap signal with pattern",
+                              tx_hash=context.transaction.tx_hash,
+                              log_index=log_index,
+                              pattern_name=signal.pattern,
+                              pool=signal.pool,
+                              taker=signal.to)
                 
                 if not pattern.process_signal(signal, context):
                     self.log_warning("Swap signal pattern processing failed",

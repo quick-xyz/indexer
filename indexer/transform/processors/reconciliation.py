@@ -281,7 +281,25 @@ class ReconciliationProcessor(LoggingMixin):
                 token=transfer.token,
                 amount=transfer.amount,
             )
-            
+            print(f"DEBUG: About to call content_id on {type(position_in).__name__}")
+            print(f"DEBUG: Position has _generate_content_id: {hasattr(position_in, '_generate_content_id')}")
+
+            # Test direct method call
+            try:
+                content_id = position_in._generate_content_id()
+                print(f"DEBUG: Direct _generate_content_id worked: {content_id}")
+            except Exception as e:
+                print(f"DEBUG: Direct _generate_content_id failed: {e}")
+                import traceback
+                traceback.print_exc()
+
+            # Test the identifying content
+            try:
+                identifying = position_in._get_identifying_content()
+                print(f"DEBUG: _get_identifying_content worked: {identifying}")
+            except Exception as e:
+                print(f"DEBUG: _get_identifying_content failed: {e}")
+
             print(f"DEBUG: Position IN created: {position_in}")
             print(f"DEBUG: Position has tx_hash: {hasattr(position_in, 'tx_hash')}")
             print(f"DEBUG: Position tx_hash value: {getattr(position_in, 'tx_hash', 'MISSING')}")

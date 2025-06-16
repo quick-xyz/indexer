@@ -41,8 +41,8 @@ class PoolTransformer(BaseTransformer):
         amount1_in = amount_to_int(log.attributes.get("amount1In", 0))
         amount1_out = amount_to_int(log.attributes.get("amount1Out", 0))
         
-        amount0 = amount_to_str(amount0_in - amount0_out)
-        amount1 = amount_to_str(amount1_in - amount1_out)
+        amount0 = amount_to_str(amount0_out - amount0_in)
+        amount1 = amount_to_str(amount1_out - amount1_in)
 
         if self.token0 == self.base_token:
             return amount0, amount1

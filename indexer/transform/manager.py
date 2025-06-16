@@ -180,17 +180,6 @@ class TransformManager(LoggingMixin):
                 
                 # Process logs and handle results
                 signals, errors = transformer.process_logs(log_list)
-                
-                signals = context.get_remaining_signals()
-                signal_len = len(signals)
-                print('SIGNALS :' + str(signal_len))
-                print(signals)
-
-
-                event_signals = context.get_remaining_signals()
-                signal_len = len(event_signals)
-                print('EVENT SIGNALS :' + str(signal_len))
-                print(event_signals)
 
                 if signals:
                     context.add_signals(signals)
@@ -207,19 +196,6 @@ class TransformManager(LoggingMixin):
                                    tx_hash=context.transaction.tx_hash,
                                    contract_address=contract_address,
                                    error_count=len(errors))
-                
-                signals = context.get_remaining_signals()
-                signal_len = len(signals)
-                print('SIGNALS :' + str(signal_len))
-                print(signals)
-
-
-                event_signals = context.get_remaining_signals()
-                signal_len = len(event_signals)
-                print('EVENT SIGNALS :' + str(signal_len))
-                print(event_signals)
-
-
 
             except Exception as e:
                 error = self._create_transformer_error(e, context.transaction.tx_hash, contract_address)
@@ -231,7 +207,13 @@ class TransformManager(LoggingMixin):
                               contract_address=contract_address,
                               error=str(e),
                               exception_type=type(e).__name__)
-
+        print("=== FINAL SIGNAL SUMMARY ===")
+        all_signals = len(context.signals)
+        event_signals = context.get_remaining_signals()
+        signal_len = len(event_signals)
+        print(f'TOTAL SIGNALS: {all_signals}')
+        print(f'EVENT SIGNALS: {signal_len}')
+        print(event_signals)
         return overall_success
 
     def _produce_events(self, context: TransformContext) -> bool:
@@ -313,21 +295,33 @@ class TransformManager(LoggingMixin):
                 # Trade Patterns require transaction aggregation
                 if signal.pattern in TRADE_PATTERNS:
                     self.log_debug("Processing trade signals",
-                                  tx_hash=context.transaction.tx_hash,
-                                  log_index=log_index)
+                                tx_hash=context.transaction.tx_hash,
+                                log_index=log_index)
                     try:
                         trade_signals = {k: v for k, v in context.get_remaining_signals().items() 
-                                       if v.pattern in TRADE_PATTERNS}
-                        print("Trade signals found:", trade_signals)
-                        if not self.trade_processor.process_trade_signals(trade_signals, context):
+                                    if v.pattern in TRADE_PATTERNS}
+                        
+                        print(f"DEBUG: About to call trade_processor.process_trade_signals")
+                        print(f"  Trade signals to process: {len(trade_signals)}")
+                        print(f"  Trade patterns: {TRADE_PATTERNS}")
+                        
+                        result = self.trade_processor.process_trade_signals(trade_signals, context)
+                        print(f"  Trade processing result: {result}")
+                        
+                        if not result:
                             reprocess_queue.update(trade_signals)
                     except Exception as e:
+                        print(f"  EXCEPTION in trade processing: {e}")
+                        print(f"  Exception type: {type(e).__name__}")
+                        import traceback
+                        traceback.print_exc()
+                        
                         error = self._create_processing_error(e, context.transaction.tx_hash, "trade_processing")
                         context.add_errors({error.error_id: error})
                         self.log_error("Trade signal processing failed", 
-                                      tx_hash=context.transaction.tx_hash,
-                                      log_index=log_index,
-                                      error=str(e))
+                                    tx_hash=context.transaction.tx_hash,
+                                    log_index=log_index,
+                                    error=str(e))
                 
                 # Other Patterns can be processed directly
                 else:

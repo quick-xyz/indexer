@@ -25,16 +25,13 @@ class DomainEvent(Struct):
 
     @property
     def content_id(self) -> DomainEventId:
-        if not hasattr(self, '_content_id'):
-            self._content_id = self._generate_content_id()
-        return self._content_id
+        return self._generate_content_id()
 
     def _generate_content_id(self) -> str:
         content_struct = self._get_identifying_content()
         content_bytes = msgspec.msgpack.encode(content_struct)
         hash_hex = hashlib.sha256(content_bytes).hexdigest()
-        self._content_id = hash_hex[:12]
-        return hash_hex[:12]
+        return hash_hex[:12] 
     
     def _get_identifying_content(self):
         raise NotImplementedError

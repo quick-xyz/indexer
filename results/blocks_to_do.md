@@ -9,6 +9,10 @@
     ]
 
 
+
+CURRENT: python testing/test_pipeline.py 63269916
+
+
 # LFJ POOL: 0x39888258d60fed9228f89e13eb57a92f1fa832eb
 
 ## Simple Swap

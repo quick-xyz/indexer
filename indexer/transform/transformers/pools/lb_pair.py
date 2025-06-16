@@ -72,8 +72,8 @@ class LbPairTransformer(PoolTransformer):
         base_amount_in, quote_amount_in = self._unpack_amounts(log.attributes.get("amountsIn"))
         base_amount_out, quote_amount_out = self._unpack_amounts(log.attributes.get("amountsOut"))
         
-        base_amount = base_amount_in - base_amount_out
-        quote_amount = quote_amount_in - quote_amount_out
+        base_amount = base_amount_out - base_amount_in
+        quote_amount = quote_amount_out - quote_amount_in
 
         return amount_to_str(base_amount), amount_to_str(quote_amount)
 

@@ -38,9 +38,10 @@ class TransformContext:
         self.events: Dict[DomainEventId, DomainEvent] = {}
         self.errors: Dict[ErrorId, ProcessingError] = {}
 
-        self._transfer_signals: Dict[int, TransferSignal] = {}
+        # Initialize as None instead of empty dicts
+        self._transfer_signals: Optional[Dict[int, TransferSignal]] = None
         self.matched_transfers: Set[int] = set()
-        self._event_signals: Dict[int, Signal] = {}
+        self._event_signals: Optional[Dict[int, Signal]] = None
         self.consumed_signals: Set[int] = set()
 
         self._trf_dict = None
@@ -58,6 +59,10 @@ class TransformContext:
 
     def add_signals(self, signals: Dict[int, Signal]):
         self.signals.update(signals)
+        # Reset cached computations when signals are added
+        self._transfer_signals = None
+        self._event_signals = None
+        self._trf_dict = None
     
     def add_events(self, events: Dict[DomainEventId, DomainEvent]):
         self.events.update(events)
@@ -94,15 +99,14 @@ class TransformContext:
             return
         self._build_transfer_signals()
         self._build_event_signals()
-        self._build_trf_dict
+        self._build_trf_dict()
 
     def _build_transfer_signals(self) -> None:
-        if self._transfer_signals is None:
-            self._transfer_signals = {idx: signal for idx, signal in self.signals.items() if isinstance(signal, TransferSignal)}
+        self._transfer_signals = {idx: signal for idx, signal in self.signals.items() if isinstance(signal, TransferSignal)}
 
     def _build_event_signals(self) -> None:
-        if self._event_signals is None:
-            self._event_signals = {idx: signal for idx, signal in self.signals.items() if not isinstance(signal, TransferSignal)}
+        self._event_signals = {idx: signal for idx, signal in self.signals.items() 
+                              if not isinstance(signal, TransferSignal)}
 
     def _build_trf_dict(self) -> None:
         if self._transfer_signals is None: 
@@ -162,11 +166,26 @@ class TransformContext:
         return unmatched_transfers if unmatched_transfers else {}
 
     def get_remaining_signals(self) -> Dict[int, Signal]:
-        if self._event_signals is None:
-            self._build_event_signals()
-            
-        return {idx: signal for idx, signal in self._event_signals.items()
-                if idx not in self.consumed_signals}
+        # Always rebuild to ensure we have the latest signals
+        self._build_event_signals()
+        
+        # Show what signals we have by type
+        signal_types = {}
+        for idx, signal in self.signals.items():
+            signal_type = type(signal).__name__
+            signal_types[signal_type] = signal_types.get(signal_type, 0) + 1
+        
+        # Show event signals before filtering
+        if self._event_signals:
+            event_signal_types = {}
+            for idx, signal in self._event_signals.items():
+                signal_type = type(signal).__name__
+                event_signal_types[signal_type] = event_signal_types.get(signal_type, 0) + 1
+        
+        result = {idx: signal for idx, signal in self._event_signals.items()
+                  if idx not in self.consumed_signals}
+        
+        return result
     
     def get_unmatched_trf_dict(self) -> TransfersDict:
         return self._filter_trf_dict(self.matched_transfers)

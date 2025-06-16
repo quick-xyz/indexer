@@ -339,7 +339,8 @@ class ModularDebugSession:
         key_attrs = {}
         
         # Common signal attributes to extract
-        for attr in ['pool', 'token', 'amount', 'base_amount', 'quote_amount', 'from_address', 'to_address']:
+        for attr in ['pool', 'token', 'amount', 'base_amount', 'quote_amount', 'from_address', 'to_address', 
+                    'contract', 'token_in', 'amount_in', 'token_out', 'amount_out', 'sender', 'to']:
             if hasattr(signal, attr):
                 value = getattr(signal, attr)
                 key_attrs[attr] = str(value) if value is not None else None
