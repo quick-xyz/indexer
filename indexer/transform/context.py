@@ -23,10 +23,11 @@ from ..types import (
 
 SignalDict = Dict[int, Signal]
 EventDict = Dict[DomainEventId, DomainEvent]
-TransferList = Dict[int, TransferSignal]
-AddressTransfers = Dict[EvmAddress, TransferList]
-DirectionDict = Dict[str, AddressTransfers]
-TransfersDict = Dict[EvmAddress, DirectionDict]
+TransferDict = Dict[int, TransferSignal]
+TokenTrf = Dict[EvmAddress, TransferDict] 
+TrfDict = Dict[EvmAddress, TokenTrf] 
+
+
 
 
 class TransformContext:
@@ -44,7 +45,9 @@ class TransformContext:
         self._event_signals: Optional[Dict[int, Signal]] = None
         self.consumed_signals: Set[int] = set()
 
-        self._trf_dict = None
+        self._trf_dict: Dict[str,TrfDict] = None
+        self._trf_summary: Dict[EvmAddress, Dict[EvmAddress, Dict[str, int]]] = None
+
 
     # Read-only access to original transaction
     @property 
@@ -52,7 +55,7 @@ class TransformContext:
         return self._og_tx
 
     @property
-    def trf_dict(self) -> TransfersDict:
+    def trf_dict(self) -> Dict[str,TrfDict]:
         if self._trf_dict is None:
             self._build_trf_dict()
         return self._trf_dict
@@ -112,24 +115,25 @@ class TransformContext:
         if self._transfer_signals is None: 
             self._build_transfer_signals()
             
-        trf_dict = defaultdict(lambda: defaultdict(lambda: defaultdict(dict)))
+        trf_out = defaultdict(lambda: defaultdict(lambda: defaultdict(dict)))
+        trf_in = defaultdict(lambda: defaultdict(lambda: defaultdict(dict)))
         for idx, transfer in self._transfer_signals.items():
-            trf_dict[transfer.token]["out"][transfer.from_address][idx] = transfer
-            trf_dict[transfer.token]["in"][transfer.to_address][idx] = transfer
-        self._trf_dict = trf_dict
+            trf_out[transfer.from_address][transfer.token][idx] = transfer
+            trf_in[transfer.to_address][transfer.token][idx] = transfer
+            
+
+        self._trf_dict = {
+            "trf_out": trf_out,
+            "trf_in": trf_in,
+        }
     
-    def _filter_trf_dict(self, matched: set) -> TransfersDict:
-        filtered_dict = defaultdict(lambda: defaultdict(lambda: defaultdict(dict)))
-        
-        for token, directions in self.trf_dict.items():
-            for direction, addresses in directions.items():
-                for address, transfers in addresses.items():
-                    for idx, transfer in transfers.items():
-                        if idx not in matched:
-                            filtered_dict[token][direction][address][idx] = transfer
-        
-        return filtered_dict
+    def _get_trf_in(self) -> TrfDict:
+        return self._trf_dict["trf_in"]
+
+    def _get_trf_out(self) -> TrfDict:
+        return self._trf_dict["trf_out"]
     
+
     # =============================================================================
     # HELPER METHODS
     # =============================================================================
@@ -150,6 +154,10 @@ class TransformContext:
     
     def mark_signal_consumed(self, log_index: int) -> None:
         self.consumed_signals.add(log_index)
+
+    def mark_signals_consumed(self, log_indices: List[int]) -> None:
+        for log_index in log_indices:
+            self.mark_signal_consumed(log_index)
 
     def is_signal_consumed(self, log_index: int) -> bool:
         return log_index in self.consumed_signals
@@ -187,8 +195,6 @@ class TransformContext:
         
         return result
     
-    def get_unmatched_trf_dict(self) -> TransfersDict:
-        return self._filter_trf_dict(self.matched_transfers)
 
     def match_all_signals(self, signals: Dict[int, Signal]) -> None:
         for idx, signal in signals.items():
@@ -214,3 +220,8 @@ class TransformContext:
         sell_swaps = {eid: swap for eid, swap in all_swaps.items() if swap.direction == "sell"}
         
         return buy_swaps, sell_swaps
+    
+    def get_contract_transfers(self, contract: EvmAddress) -> Tuple[TokenTrf, TokenTrf]:
+        if self._trf_dict is None:
+            self._build_trf_dict()
+        return self._trf_dict.get("trf_in", {}).get(contract, {}), self._trf_dict.get("trf_out", {}).get(contract, {})

@@ -1,248 +1,102 @@
 # indexer/transform/patterns/trading.py
-"""
-Clean trading pattern using route context matcher
-"""
 
-from typing import Dict, List, Optional, Tuple
-from .matcher import TransferMatcher, RouteContext, PoolMatch
-from ..context import TransformContext
-from ...types import (
-    Signal, SwapSignal, RouteSignal, PoolSwap, Trade, Position,
-    EvmAddress, DomainEventId, ZERO_ADDRESS
-)
-from ...utils.amounts import amount_to_negative_str, is_positive
+from typing import Dict, List, Any, Tuple, Optional
+
+from ...types import SwapSignal, PoolSwap, Signal, ZERO_ADDRESS, Reward, SwapBatchSignal, EvmAddress, DomainEventId
+from .base import TransferPattern, TransferLeg, AddressContext
+from ..context import TransformContext, TransfersDict
+from ...utils.amounts import add_amounts, is_positive, amount_to_int, amount_to_str
 
 
-class TradePattern:
-    """Clean trade pattern: match known, infer routers for unmatched transfers"""
+'''
+Liquidity Book Batch Swaps
+just aggregate batch signals into single swap signal
+'''
+
+class Swap_A(TransferPattern):
+    def __init__(self, name: str = "Swap_A"):
+        super().__init__(name)
     
-    def __init__(self, indexer_tokens: set):
-        self.matcher = TransferMatcher(indexer_tokens)
-    
-    def process_trade_signals(self, trade_signals: Dict[int, Signal], 
-                             context: TransformContext) -> bool:
-        """
-        Process trade signals: RouteSignals + SwapSignals
-        """
-        
-        # 1. Build route context from RouteSignals only
-        route_context = self.matcher.build_route_context(trade_signals)
-        
-        # 2. Get swap signals
-        swap_signals = [
-            signal for signal in trade_signals.values()
-            if isinstance(signal, SwapSignal)
-        ]
-        
-        if not swap_signals:
-            # Just route signals, mark as consumed
-            self._consume_route_signals(trade_signals, context)
-            return True
-        
-        # 3. Match pool swaps with simple 1:1 transfer matching
-        available_transfers = context.get_unmatched_transfers()
-        pool_matches, remaining_transfers = self.matcher.match_pool_swaps(
-            swap_signals, available_transfers, route_context
-        )
-        
-        # 4. Find router transfers (known + inferred that net to zero)
-        router_transfers = {}
-        inferred_routers = set()
-        if route_context:
-            router_transfers, inferred_routers = self.matcher.find_router_transfers(
-                remaining_transfers, route_context
-            )
-        
-        # 5. Create events
-        events = self._create_trade_events(
-            pool_matches, router_transfers, route_context, inferred_routers, context
-        )
-        
-        if events:
-            context.add_events(events)
+    def produce_swap_events(self, signals: Dict[int,SwapSignal], context: TransformContext) -> Dict[DomainEventId, PoolSwap]:
+        swaps = {}
+
+        for signal in signals.values():
+            pool_in, pool_out = context.get_contract_transfers(signal.pool)
             
-            # 6. Mark all consumed signals and transfers
-            self._mark_consumed(
-                trade_signals, pool_matches, router_transfers, context
-            )
+            if is_positive(signal.base_amount):
+                quote_trf = pool_in.get(signal.quote_token, {})
+                base_trf = pool_out.get(signal.base_token, {})
+            else:
+                quote_trf = pool_out.get(signal.quote_token, {})
+                base_trf = pool_in.get(signal.base_token, {})
+
+            base_match = {idx: transfer for idx, transfer in base_trf.items() if transfer.amount == signal.base_amount}
+            quote_match = {idx: transfer for idx, transfer in quote_trf.items() if transfer.amount == signal.quote_amount}
+
+            if not len(base_match)==1 or not len(quote_match)==1:
+                continue
             
-            return True
-        
-        return False
-    
-    def _create_trade_events(self, pool_matches: List[PoolMatch],
-                            router_transfers: Dict[int, Signal],
-                            route_context: Optional[RouteContext],
-                            inferred_routers: set,
-                            context: TransformContext) -> Dict[DomainEventId, any]:
-        """Create appropriate trade events"""
-        
-        events = {}
-        
-        # Create PoolSwap events for each matched pool
-        pool_swaps = {}
-        for pool_match in pool_matches:
-            pool_swap = self._create_pool_swap(pool_match, route_context, context)
-            pool_swaps[pool_swap.content_id] = pool_swap
-            events[pool_swap.content_id] = pool_swap
-        
-        # Create Trade event if we have multiple pools or router transfers
-        if len(pool_matches) > 1 or router_transfers or inferred_routers:
-            trade = self._create_trade_event(
-                pool_swaps, router_transfers, route_context, inferred_routers, context
-            )
-            events[trade.content_id] = trade
-        
-        return events
-    
-    def _create_pool_swap(self, pool_match: PoolMatch, 
-                         route_context: Optional[RouteContext],
-                         context: TransformContext) -> PoolSwap:
-        """Create PoolSwap event from matched transfers"""
-        
-        # Generate positions from the two matched transfers
-        positions = {}
-        positions.update(self._generate_positions_from_transfer(pool_match.transfer_in, context))
-        positions.update(self._generate_positions_from_transfer(pool_match.transfer_out, context))
-        
-        # Determine trade direction from transfer amounts
-        in_amount = int(pool_match.transfer_in.amount)
-        out_amount = int(pool_match.transfer_out.amount)
-        
-        # Use route context for taker if available
-        taker = route_context.taker if route_context else pool_match.transfer_in.from_address
-        
-        return PoolSwap(
-            timestamp=context.transaction.timestamp,
-            tx_hash=context.transaction.tx_hash,
-            pool=pool_match.pool,
-            taker=taker,
-            direction="buy" if in_amount > out_amount else "sell",  # Simplified direction logic
-            base_token=pool_match.token_in,
-            base_amount=str(in_amount),
-            quote_token=pool_match.token_out,
-            quote_amount=str(out_amount),
-            positions=positions,
-            signals={
-                pool_match.transfer_in.log_index: pool_match.transfer_in,
-                pool_match.transfer_out.log_index: pool_match.transfer_out
-            }
-        )
-    
-    def _create_trade_event(self, pool_swaps: Dict[DomainEventId, PoolSwap],
-                           router_transfers: Dict[int, Signal],
-                           route_context: RouteContext,
-                           inferred_routers: set,
-                           context: TransformContext) -> Trade:
-        """Create Trade event for complex trades with multiple pools or routers"""
-        
-        # Generate positions from router transfers
-        router_positions = {}
-        for transfer in router_transfers.values():
-            router_positions.update(self._generate_positions_from_transfer(transfer, context))
-        
-        # Determine overall trade details
-        if route_context:
-            base_token = list(route_context.route_tokens)[0] if route_context.route_tokens else None
-            taker = route_context.taker
-        else:
-            # Fallback to first pool swap
-            first_swap = next(iter(pool_swaps.values())) if pool_swaps else None
-            base_token = first_swap.base_token if first_swap else None
-            taker = first_swap.taker if first_swap else None
-        
-        return Trade(
-            timestamp=context.transaction.timestamp,
-            tx_hash=context.transaction.tx_hash,
-            taker=taker,
-            direction="trade",  # Generic for complex trades
-            base_token=base_token,
-            base_amount="0",  # Calculate from pool swaps if needed
-            swaps=pool_swaps,
-            trade_type="trade",
-            metadata={
-                'pool_count': len(pool_swaps),
-                'router_transfer_count': len(router_transfers),
-                'known_routers': route_context.routers if route_context else [],
-                'inferred_routers': list(inferred_routers),
-                'route_tokens': list(route_context.route_tokens) if route_context else []
-            }
-        )
-    
-    def _generate_positions_from_transfer(self, transfer: Signal, 
-                                         context: TransformContext) -> Dict[DomainEventId, Position]:
-        """Generate positions from a transfer"""
-        positions = {}
-        
-        # Position for recipient (positive)
-        if transfer.to_address != ZERO_ADDRESS:
-            position_in = Position(
+            signals = base_match | quote_match
+            positions = self._generate_positions(signals, context)
+
+            signals[signal.log_index] = signal
+
+            swap = PoolSwap(
                 timestamp=context.transaction.timestamp,
                 tx_hash=context.transaction.tx_hash,
-                user=transfer.to_address,
-                token=transfer.token,
-                amount=transfer.amount,
+                pool=signal.pool,
+                taker=signal.to if signal.to else signal.sender or ZERO_ADDRESS,
+                direction="buy" if is_positive(signal.base_amount) else "sell",
+                base_token=signal.base_token,
+                base_amount=signal.base_amount,
+                quote_token=signal.quote_token,
+                quote_amount=signal.quote_amount,
+                positions=positions,
+                signals=signals,
             )
-            positions[position_in.content_id] = position_in
-        
-        # Position for sender (negative)
-        if transfer.from_address != ZERO_ADDRESS:
-            position_out = Position(
-                timestamp=context.transaction.timestamp,
-                tx_hash=context.transaction.tx_hash,
-                user=transfer.from_address,
-                token=transfer.token,
-                amount=amount_to_negative_str(transfer.amount),
-            )
-            positions[position_out.content_id] = position_out
-        
-        return positions
+            context.add_events({swap.content_id: swap})
+            context.mark_signals_consumed(signals.keys())
+            swaps[swap.content_id] = swap
+
+        return swaps
+
+
+class Swap_B(Swap_A):    
+    def __init__(self):
+        super().__init__("Swap_B")
     
-    def _mark_consumed(self, trade_signals: Dict[int, Signal],
-                      pool_matches: List[PoolMatch],
-                      router_transfers: Dict[int, Signal],
-                      context: TransformContext) -> None:
-        """Mark all consumed signals and transfers"""
+    def aggregate_batch_swaps(self, batch_dict: Dict[int, SwapBatchSignal], token_tuple: Tuple[EvmAddress, EvmAddress],
+                                      context: TransformContext) -> Optional[SwapSignal]:
+        if not batch_dict:
+            return None
         
-        consumed_signals = {}
+        template = next(iter(batch_dict.values()))
+        total_base_amount = sum(amount_to_int(signal.base_amount) for signal in batch_dict.values())
+        total_quote_amount = sum(amount_to_int(signal.quote_amount) for signal in batch_dict.values())
         
-        # Add all trade signals (RouteSignals + SwapSignals)
-        consumed_signals.update(trade_signals)
-        
-        # Add transfers from pool matches
-        for pool_match in pool_matches:
-            consumed_signals[pool_match.transfer_in.log_index] = pool_match.transfer_in
-            consumed_signals[pool_match.transfer_out.log_index] = pool_match.transfer_out
-        
-        # Add router transfers
-        consumed_signals.update(router_transfers)
-        
-        context.match_all_signals(consumed_signals)
-    
-    def _consume_route_signals(self, trade_signals: Dict[int, Signal],
-                              context: TransformContext) -> None:
-        """Consume route signals when no swaps to process"""
-        
-        route_signals = {
-            idx: signal for idx, signal in trade_signals.items()
-            if isinstance(signal, RouteSignal)
+        batch_mapping = {
+            str(signal.id): {
+                "base_amount": signal.base_amount,
+                "quote_amount": signal.quote_amount
+            }
+            for signal in batch_dict.values()
         }
         
-        for signal_idx in route_signals.keys():
-            context.mark_signal_consumed(signal_idx)
-
-
-# Usage in transform manager:
-"""
-def _process_trade_signals(self, context: TransformContext) -> bool:
-    trade_signals = {
-        idx: signal for idx, signal in context.signals.items()
-        if signal.pattern in ["Swap_A", "Route"]
-    }
-    
-    if not trade_signals:
-        return True
-    
-    trade_pattern = TradePattern(indexer_tokens=context.indexer_tokens)
-    return trade_pattern.process_trade_signals(trade_signals, context)
-"""
+        aggregated_log_index = 100 + min(batch_dict.keys())
+        
+        signal = SwapSignal(
+            log_index=aggregated_log_index,
+            pattern="Swap_A",
+            pool=template.pool,
+            base_amount=amount_to_str(total_base_amount),
+            base_token=token_tuple[0],
+            quote_amount=amount_to_str(total_quote_amount),
+            quote_token=token_tuple[1],
+            to=template.to,
+            sender=template.sender,
+            batch=batch_mapping
+        )
+        context.add_signals({signal.log_index: signal})
+        context.mark_signals_consumed(batch_dict.keys())
+        
+        return signal

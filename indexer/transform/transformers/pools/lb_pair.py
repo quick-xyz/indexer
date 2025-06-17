@@ -244,6 +244,7 @@ class LbPairTransformer(PoolTransformer):
         
         signals[log.index] = SwapBatchSignal(
             log_index=log.index,
+            pattern="Swap_B",
             pool=self.contract_address,
             to=EvmAddress(swap[3].lower()),
             id=swap[0],

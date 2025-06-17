@@ -54,7 +54,6 @@ class PoolSwap(DomainEvent, tag=True):
     quote_amount: str
     positions: Dict[DomainEventId,Position]
     signals: Dict[int,Signal]
-    grouped: bool = False
     batch: Optional[Dict[str,Dict[str,str]]] = None
 
     def _get_identifying_content(self):
@@ -87,7 +86,6 @@ class UnknownSwap(DomainEvent, tag=True):
             "taker": self.taker,
             "direction": self.direction,
             "base_amount": self.base_amount,
-            "quote_amount": self.quote_amount,
         }
 
 
@@ -99,6 +97,8 @@ class Trade(DomainEvent, tag=True):
     base_amount: str
     swaps: Dict[DomainEventId,PoolSwap|UnknownSwap|AuctionPurchase]
     trade_type: Literal["arbitrage","trade","auction"] = "trade"
+    quote_token: Optional[EvmAddress] = None
+    quote_amount: Optional[str] = None
 
     def _get_identifying_content(self):
         return {
@@ -110,5 +110,3 @@ class Trade(DomainEvent, tag=True):
             "base_amount": self.base_amount,
             "trade_type": self.trade_type,
         }
-    
-# TODO: PROBABLY NEED AN UNKNOWN TRADE TYPE AND UNKNOWN SWAP TYPE
