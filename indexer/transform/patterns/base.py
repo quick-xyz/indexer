@@ -12,33 +12,32 @@ from ...types import (
     ZERO_ADDRESS,
     TransferSignal,
     DomainEventId,
+    DomainEvent,
     Position
 )
 from ..context import TransformContext, TransfersDict
 from ...utils.amounts import amount_to_negative_str
 
 
-class TransferLeg(Struct):
-    token: EvmAddress
-    from_end: EvmAddress
-    to_end: EvmAddress
-    min_transfers: int = 1
-    max_transfers: int = 3
-    amount: Optional[str] = None
-
-class AddressContext(Struct):
-    base: EvmAddress
-    quote: Optional[EvmAddress] = None
-    provider: Optional[EvmAddress] = None
-    taker: Optional[EvmAddress] = None
-    pool: Optional[EvmAddress] = None
-    router: Optional[EvmAddress] = None
-    fee_collector: Optional[EvmAddress] = None
-
-
 class TransferPattern(ABC):
     def __init__(self, name: str):
         self.name = name
+
+    @abstractmethod
+    def produce_events(self, signals: Dict[int, Signal], context: TransformContext) -> Dict[DomainEventId, DomainEvent]:
+        """
+        Produce events based on transfer signals.
+        This method should be implemented by subclasses to define specific event
+        production logic based on the transfer signals provided.
+        """
+        pass
+
+    @abstractmethod
+    def aggregate_signals(self, signals: Dict[int, Signal], context: TransformContext) -> Optional[Signal]:
+        """
+        Aggregate batch signals into a single signal.
+        """
+        pass
 
     def _generate_positions(self, transfers: List[TransferSignal],context: TransformContext) -> Dict[DomainEventId, Position]:
         positions = {}
@@ -50,6 +49,7 @@ class TransferPattern(ABC):
             if transfer.to_address != ZERO_ADDRESS and transfer.token in context.indexer_tokens():
                 position_in = Position(
                     user=transfer.to_address,
+                    custodian=transfer.to_address,
                     token=transfer.token,
                     amount=transfer.amount,
                 )
@@ -58,26 +58,11 @@ class TransferPattern(ABC):
             if transfer.from_address != ZERO_ADDRESS and transfer.token in context.indexer_tokens():
                 position_out = Position(
                     user=transfer.from_address,
+                    custodian=transfer.from_address,
                     token=transfer.token,
                     amount=amount_to_negative_str(transfer.amount),
                 )
                 positions[position_out.content_id] = position_out
 
-        context.add_events(positions)
+        context.add_positions(positions)
         return positions
-
-    def _validate_net_transfers(self, legs: List[TransferLeg], transfers: Dict[int,TransferSignal], tokens: Set[EvmAddress]) -> bool:
-        deltas = defaultdict(int)
-        for transfer in transfers.values():
-            if transfer.token in tokens:
-                amount = int(transfer.amount)
-                deltas[transfer.from_address] -= amount
-                deltas[transfer.to_address] += amount
-        
-        targets = defaultdict(int)
-        for leg in legs:
-            if leg.token in tokens:
-                targets[leg.from_end] -= int(leg.amount) if leg.amount else 0
-                targets[leg.to_end] += int(leg.amount) if leg.amount else 0
-        
-        return deltas if deltas == targets else None

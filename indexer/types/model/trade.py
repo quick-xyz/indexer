@@ -6,6 +6,7 @@ from ..new import EvmAddress
 from .base import DomainEvent, DomainEventId, Signal
 from .auction import AuctionPurchase
 from .positions import Position
+from .transfer import Transfer, TransferSignal
 
 class SwapBatchSignal(Signal, tag=True):
     pool: EvmAddress
@@ -43,7 +44,6 @@ class MultiRouteSignal(Signal, tag=True):
     to: Optional[EvmAddress] = None
     sender: Optional[EvmAddress] = None
 
-
 class PoolSwap(DomainEvent, tag=True):
     pool: EvmAddress
     taker: EvmAddress
@@ -67,38 +67,18 @@ class PoolSwap(DomainEvent, tag=True):
             "quote_amount": self.quote_amount,
         }
 
-class UnknownSwap(DomainEvent, tag=True):
-    '''Unknown swap event, used when the swap contract is not recognized'''
-    pool: EvmAddress
-    taker: EvmAddress
-    direction: Literal["buy","sell"]
-    base_token: EvmAddress
-    base_amount: str
-    positions: Dict[DomainEventId,Position]
-    signals: Dict[int,Signal]
-    grouped: bool = False
-
-    def _get_identifying_content(self):
-        return {
-            "event_type": "unknown_swap",
-            "tx_salt": self.tx_hash,
-            "pool": self.pool,
-            "taker": self.taker,
-            "direction": self.direction,
-            "base_amount": self.base_amount,
-        }
-
-
 class Trade(DomainEvent, tag=True):
     '''Top level trade event '''
     taker: EvmAddress
     direction: Literal["buy","sell"]
     base_token: EvmAddress
     base_amount: str
-    swaps: Dict[DomainEventId,PoolSwap|UnknownSwap|AuctionPurchase]
+    swaps: Dict[DomainEventId,PoolSwap|AuctionPurchase]
     trade_type: Literal["arbitrage","trade","auction"] = "trade"
     quote_token: Optional[EvmAddress] = None
     quote_amount: Optional[str] = None
+    router: Optional[EvmAddress] = None
+    transfers: Optional[Dict[DomainEventId,Transfer]] = None
 
     def _get_identifying_content(self):
         return {

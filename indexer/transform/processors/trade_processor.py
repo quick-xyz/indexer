@@ -1,8 +1,9 @@
 # indexer/transform/processors/trade_processor.py
 
-from typing import Dict, Optional, Any, List
+from typing import Dict, Optional, Any, List, Tuple, Literal
 from collections import defaultdict
 from dataclasses import dataclass
+import msgspec
 
 from ..registry import TransformRegistry
 from ..context import TransformContext
@@ -21,17 +22,26 @@ from ...types import (
     PoolSwap,
     Trade,
     ZERO_ADDRESS,
+    TransferSignal,
+    Position,
+    Transfer,
 )
-from ...utils.amounts import amount_to_int, amount_to_str
+from ...utils.amounts import amount_to_int, amount_to_str, amount_to_negative_str
 
 
 @dataclass
 class RouteContext:
+    router: EvmAddress
     taker: EvmAddress
-    routers: List[EvmAddress]
-    top_level_router: EvmAddress
+    direction: Literal["buy", "sell"]
+    amount: str
 
-
+'''
+Trade definition:
+- Unique (transaction, taker, direction, base_token)
+- Can contain multiple swaps
+- There can be multiple trades in a single transaction
+'''
 class TradeProcessor(LoggingMixin):
     def __init__(self, registry: TransformRegistry, config: IndexerConfig):
         self.registry = registry
@@ -52,19 +62,20 @@ class TradeProcessor(LoggingMixin):
         try:
             # Stage 1: Aggregate batch signals → SwapSignals
             aggregated_signals = self._aggregate_batch_signals(trade_signals, context)
-            
+            route_signals = {idx: signal for idx, signal in trade_signals.items()
+                             if isinstance(signal, (RouteSignal, MultiRouteSignal))}
+            known_routers = set()
+            for route_signal in route_signals.values():
+                known_routers.add(route_signal.contract)
+
             # Stage 2: Process SwapSignals → PoolSwap events
             pool_swaps = self._process_swap_signals(aggregated_signals, context)
-
-            # Stage 3: Extract route context
-            route = self._build_route_context(trade_signals, context)
             
-            # Stage 4: Aggregate PoolSwaps → Trade events
-            trade_events = self._produce_trade_events(pool_swaps, route, context)
+            # Stage 3: Aggregate PoolSwaps → Trade events
+            trade_events = self._produce_trade_events(pool_swaps, route_signals, context)
             
-            # Stage 5: Add events to context and mark signals consumed
-            if trade_events or pool_swaps:
-                self._finalize_trade_processing(trade_events, pool_swaps, trade_signals, context)
+            # Stage 4: Check for arbitrage
+            arbitrage_events = self._check_arbitrage(trade_events, context)
                 
             self.log_info("Trade processing completed",
                          tx_hash=context.transaction.tx_hash,
@@ -110,7 +121,7 @@ class TradeProcessor(LoggingMixin):
 
                 pattern = self.registry.get_pattern(batch_dict[0].pattern)
 
-                batch_swap_signal = pattern.aggregate_batch_swaps(batch_dict, token_tuple, context)
+                batch_swap_signal = pattern.aggregate_signals(batch_dict, token_tuple, context)
                 if batch_swap_signal:
                     aggregated[batch_swap_signal.log_index] = batch_swap_signal
                     aggregated-= batch_dict.keys()
@@ -148,7 +159,7 @@ class TradeProcessor(LoggingMixin):
                               pool=signal.pool,
                               taker=signal.to)
                 
-                result = pattern.produce_swap_events(signal, context)
+                result = pattern.produce_events(signal, context)
                 if not result:
                     self.log_warning("Swap signal pattern processing failed",
                                     tx_hash=context.transaction.tx_hash,
@@ -167,32 +178,8 @@ class TradeProcessor(LoggingMixin):
                           error=str(e))
             return pool_swaps
 
-    def _build_route_context(self, trade_signals: Dict[int, Signal], 
-                              context: TransformContext) -> Optional[RouteContext]:        
-        route_signals = [
-            signal for signal in trade_signals.values() 
-            if isinstance(signal, (RouteSignal, MultiRouteSignal))
-        ]
-        
-        if not route_signals:
-            self.log_debug("No route signals found", tx_hash=context.transaction.tx_hash)
-            return None
-
-        top_route = max(route_signals, key=lambda s: s.log_index)
-        
-        known_routers = set()
-        for route_signal in route_signals:
-            known_routers.add(route_signal.contract)
-        
-        return RouteContext(
-            taker=top_route.to or top_route.sender,
-            routers=sorted(list(known_routers)),
-            router0=top_route.contract,
-            route=top_route
-        )
-    
     def _produce_trade_events(self, pool_swaps: Dict[DomainEventId, PoolSwap],
-                              route: Optional[RouteContext],
+                              route_signals: Dict[int, RouteSignal|MultiRouteSignal],
                               context: TransformContext) -> Dict[DomainEventId, Trade]:
         if not pool_swaps:
             self.log_debug("No pool swaps to produce trade events", tx_hash=context.transaction.tx_hash)
@@ -203,20 +190,35 @@ class TradeProcessor(LoggingMixin):
                       pool_swap_count=len(pool_swaps))
         
         trade_events = {}
+        trade_swaps = defaultdict(lambda: {"buy": {DomainEventId:PoolSwap}, "sell": {DomainEventId:PoolSwap}})
+        
         try:
             for id, swap in pool_swaps.items():
-                trade = Trade(
-                    timestamp=context.transaction.timestamp,
-                    tx_hash=context.transaction.tx_hash,
-                    taker=swap.taker,
-                    direction=swap.direction,
-                    base_token=swap.base_token,
-                    base_amount=swap.base_amount,
-                    swaps=pool_swaps,
-                    trade_type="trade",
-                )
-                context.add_events({trade.content_id: trade})
-                trade_events[trade.content_id] = trade
+                if swap.direction == "buy":
+                    trade_swaps[swap.base_token]["buy"][id] = swap
+                else:
+                    trade_swaps[swap.base_token]["sell"][id] = swap
+
+            for base_token, dir_swaps in trade_swaps.items():
+                buy_routes, sell_routes = self._build_route_context(base_token, route_signals)
+                buy_swaps = dir_swaps.get("buy", {})
+                sell_swaps = dir_swaps.get("sell", {})                
+
+                if buy_swaps:
+                    if buy_routes and len(buy_routes) == 1: # Note: complex multi routes are not supported yet. Only many:one not many:many
+                        trades = self._build_routed_trades(base_token, next(iter(buy_routes.values())), buy_swaps, context)
+                    else:
+                        trades = self._build_trades(base_token, buy_swaps, context)
+
+                    trade_events.update(trades)
+
+                if sell_swaps:
+                    if sell_routes and len(sell_routes) == 1: # Note: complex multi routes are not supported yet. Only many:one not many:many
+                        trades = self._build_routed_trades(base_token, sell_routes, sell_swaps, context)
+                    else:
+                        trades = self._build_trades(base_token, sell_swaps, context)
+
+                    trade_events.update(trades)
             
             return trade_events
         
@@ -227,6 +229,254 @@ class TradeProcessor(LoggingMixin):
                           tx_hash=context.transaction.tx_hash,
                           error=str(e))
             return trade_events
+
+    def _build_route_context(self, base_token: EvmAddress, route_signals: Dict[int, RouteSignal|MultiRouteSignal]) -> Tuple[Dict[int, RouteContext],Dict[int, RouteContext]]:        
+
+        buy_routes, sell_routes = {}, {}
+
+        for idx, route in route_signals.items():
+            if isinstance(route, RouteSignal):
+                if base_token == route.token_out:
+                    buy_routes[idx] = RouteContext(
+                        router= route.contract,
+                        taker=route.to or route.sender,
+                        direction="buy",
+                        amount= route.amount_out,
+                    )
+                if base_token == route.token_in:
+                    sell_routes[idx] = RouteContext(
+                        router= route.contract,
+                        taker=route.to or route.sender,
+                        direction="sell",
+                        amount= route.amount_in,
+                    )
+            elif isinstance(route, MultiRouteSignal):
+                if base_token in route.tokens_out:
+                    buy_routes[idx] = RouteContext(
+                        router=route.contract,
+                        taker=route.to or route.sender,
+                        direction="buy",
+                        amount=route.amounts_out[route.tokens_out.index(base_token)],
+                    )
+                if base_token in route.tokens_in:
+                    sell_routes[idx] = RouteContext(
+                        router=route.contract,
+                        taker=route.to or route.sender,
+                        direction="sell",
+                        amount=route.amounts_in[route.tokens_in.index(base_token)],
+                    )
+
+        if not buy_routes and not sell_routes:
+            return None, None
+        
+        if len(buy_routes) < 2 and len(sell_routes) < 2:
+            return buy_routes, sell_routes
+        
+        if buy_routes > 1:
+            # Aggregate buy routes
+            top_level = max(buy_routes.keys())
+            sum_remaining = sum(int(route.amount) for idx, route in buy_routes.items() if idx != top_level)
+            if sum_remaining == buy_routes[top_level].amount:
+                buy_routes = {top_level: buy_routes[top_level]}
+
+        if sell_routes > 1:
+            # Aggregate sell routes
+            top_level = max(sell_routes.keys())
+            sum_remaining = sum(int(route.amount) for idx, route in sell_routes.items() if idx != top_level)
+            if sum_remaining == sell_routes[top_level].amount:
+                sell_routes = {top_level: sell_routes[top_level]}
+        
+        return buy_routes, sell_routes
+
+        
+    def _build_trades(self, base_token: EvmAddress, swaps: Dict[DomainEventId, PoolSwap], context: TransformContext) -> Optional[Dict[DomainEventId,Trade]]:
+        trade_events = {}
+
+        if len(swaps) == 0:
+            self.log_debug("No swaps to build trades from", tx_hash=context.transaction.tx_hash)
+            return trade_events
+
+        direction = swaps[next(iter(swaps))].direction
+        if len(swaps) == 1:
+            single_swap = next(iter(swaps.values()))
+            trade = Trade(
+                timestamp=context.transaction.timestamp,
+                tx_hash=context.transaction.tx_hash,
+                taker=single_swap.taker,
+                direction=direction,
+                base_token=base_token,
+                base_amount=single_swap.base_amount,
+                quote_token=single_swap.quote_token,
+                quote_amount=single_swap.quote_amount,
+                swaps=swaps,
+                trade_type="trade",
+            )
+            context.add_events({trade.content_id: trade})
+            context.remove_events(swaps.keys())
+            return {trade.content_id: trade}
+
+        else:
+            grouped_swaps = {}
+            for idx, swap in swaps.items():
+                grouped_swaps[swap.taker]["swaps"][idx]= swap
+                grouped_swaps[swap.taker]["amount"] += amount_to_int(swap.base_amount)
+
+            for taker, dict in grouped_swaps.items():
+                trade = Trade(
+                    timestamp=context.transaction.timestamp,
+                    tx_hash=context.transaction.tx_hash,
+                    taker=taker,
+                    direction=direction,
+                    base_token=base_token,
+                    base_amount=amount_to_str(dict["amount"]),
+                    swaps=dict["swaps"],
+                    trade_type="trade",
+                )
+                context.add_events({trade.content_id: trade})
+                context.remove_events(dict["swaps"].keys())
+                trade_events[trade.content_id] = trade
+            
+            return trade_events
+    
+    def _build_routed_trades(self, base_token: EvmAddress, route: RouteContext, swaps: Dict[DomainEventId,PoolSwap],context: TransformContext) -> Optional[Dict[DomainEventId,Trade]]:
+        
+        base_amount = sum(amount_to_int(swap.base_amount) for swap in swaps.values())
+
+        address_balances = defaultdict(int)
+        for swap in swaps.values():
+            for position in swap.positions.values():
+                if position.token == base_token:
+                    address_balances[position.user] += amount_to_int(position.amount)
+            
+        trf_in, trf_out = context.get_unmatched_token_transfers(base_token)
+
+        # Check if PoolSwaps already cover route
+        if base_amount == route.amount:
+            # Pool side is complete, check taker side
+            if amount_to_int(route.amount) == address_balances[route.taker]:
+                self.log_debug("Routed trade matches exact amount",
+                              tx_hash=context.transaction.tx_hash,
+                              base_token=base_token,
+                              route_amount=route.amount,
+                              taker=route.taker)
+                
+                trade = Trade(
+                    timestamp=context.transaction.timestamp,
+                    tx_hash=context.transaction.tx_hash,
+                    taker=route.taker,
+                    router=route.router,
+                    direction=route.direction,
+                    base_token=base_token,
+                    base_amount=route.amount,
+                    swaps=swaps,
+                    trade_type="trade",
+                )
+                context.add_events({trade.content_id: trade})
+                context.remove_events(swaps.keys())
+                return trade
+                
+            else:
+                # Taker side is not complete, need to reconcile unmatched transfers
+                swaps_taker_bal = address_balances[route.taker]
+                taker_deficit = amount_to_int(route.amount) - swaps_taker_bal
+
+                if route.direction == "buy":
+                    unmatched_taker_transfers = {
+                        idx: transfer for idx, transfer in trf_in.items()
+                        if transfer.to == route.taker
+                    }
+                else:
+                    unmatched_taker_transfers = {
+                        idx: transfer for idx, transfer in trf_out.items()
+                        if transfer.to == route.taker
+                    }
+
+                # Check each transfer individually
+                for idx, transfer in unmatched_taker_transfers.items():
+                    if amount_to_int(transfer.amount) == taker_deficit:
+                        # Success
+                        positions = self._generate_positions([transfer], context)
+                        transfer = Transfer(
+                            token=transfer.token,
+                            from_address=transfer.from_address,
+                            to_address=transfer.to_address,
+                            amount=transfer.amount,
+                            positions=positions,
+                            signals={idx: transfer},
+                        )
+                        context.add_events({transfer.content_id: transfer})
+
+                        trade = Trade(
+                            timestamp=context.transaction.timestamp,
+                            tx_hash=context.transaction.tx_hash,
+                            taker=route.taker,
+                            router=route.router,
+                            direction=route.direction,
+                            base_token=base_token,
+                            base_amount=route.amount,
+                            swaps=swaps,
+                            trade_type="trade",
+                            transfers={transfer.content_id: transfer},
+                        )
+                        context.add_events({trade.content_id: trade})
+                        context.remove_events(swaps.keys())
+
+                        return trade
+        
+        # Unhandled PoolSwaps currently fail the route
+        return self._build_trades(base_token, swaps, context)
+
+    def _generate_positions(self, transfers: List[TransferSignal],context: TransformContext) -> Dict[DomainEventId, Position]:
+        positions = {}
+
+        if not transfers:
+            return positions
+        
+        for transfer in transfers:
+            if transfer.to_address != ZERO_ADDRESS and transfer.token in context.indexer_tokens():
+                position_in = Position(
+                    user=transfer.to_address,
+                    custodian=transfer.to_address,
+                    token=transfer.token,
+                    amount=transfer.amount,
+                )
+                positions[position_in.content_id] = position_in
+
+            if transfer.from_address != ZERO_ADDRESS and transfer.token in context.indexer_tokens():
+                position_out = Position(
+                    user=transfer.from_address,
+                    custodian=transfer.from_address,
+                    token=transfer.token,
+                    amount=amount_to_negative_str(transfer.amount),
+                )
+                positions[position_out.content_id] = position_out
+
+        context.add_positions(positions)
+        return positions
+            
+    def _check_arbitrage(self, trades: Dict[DomainEventId,Trade], context: TransformContext) -> bool:
+        if not trades:
+            self.log_debug("No trades to check for arbitrage", tx_hash=context.transaction.tx_hash)
+            return False
+        
+        buy_trades = {id: trade for id, trade in trades.items() if trade.direction == "buy"}
+        sell_trades = {id: trade for id, trade in trades.items() if trade.direction == "sell"}
+        buy_net_amount = sum(amount_to_int(trade.base_amount) for trade in buy_trades.values())
+        sell_net_amount = sum(amount_to_int(trade.base_amount) for trade in sell_trades.values())
+
+        if buy_net_amount == sell_net_amount:
+            self.log_info("Arbitrage detected",
+                          tx_hash=context.transaction.tx_hash,
+                          buy_amount=buy_net_amount,
+                          sell_amount=sell_net_amount)
+            
+            for trade in trades.values():
+                context.remove_events(trade.content_id)
+                new_trade = msgspec.structs.replace(trade, trade_type="arbitrage")
+                context.add_events({new_trade.content_id: new_trade})
+            return True
+        
+        return False
 
     def _create_processing_error(self, e: Exception, tx_hash: str, stage: str) -> ProcessingError:
         """Create processing error for trade operations"""

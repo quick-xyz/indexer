@@ -8,20 +8,15 @@ from ..context import TransformContext, TransfersDict
 from ...utils.amounts import add_amounts, is_positive, amount_to_int, amount_to_str
 
 
-'''
-Liquidity Book Batch Swaps
-just aggregate batch signals into single swap signal
-'''
-
 class Swap_A(TransferPattern):
     def __init__(self, name: str = "Swap_A"):
         super().__init__(name)
     
-    def produce_swap_events(self, signals: Dict[int,SwapSignal], context: TransformContext) -> Dict[DomainEventId, PoolSwap]:
+    def produce_events(self, signals: Dict[int,SwapSignal], context: TransformContext) -> Dict[DomainEventId, PoolSwap]:
         swaps = {}
 
         for signal in signals.values():
-            pool_in, pool_out = context.get_contract_transfers(signal.pool)
+            pool_in, pool_out = context.get_unmatched_contract_transfers(signal.pool)
             
             if is_positive(signal.base_amount):
                 quote_trf = pool_in.get(signal.quote_token, {})
@@ -65,7 +60,7 @@ class Swap_B(Swap_A):
     def __init__(self):
         super().__init__("Swap_B")
     
-    def aggregate_batch_swaps(self, batch_dict: Dict[int, SwapBatchSignal], token_tuple: Tuple[EvmAddress, EvmAddress],
+    def aggregate_signals(self, batch_dict: Dict[int, SwapBatchSignal], token_tuple: Tuple[EvmAddress, EvmAddress],
                                       context: TransformContext) -> Optional[SwapSignal]:
         if not batch_dict:
             return None

@@ -10,7 +10,7 @@ class Position(DomainEvent, tag=True):
     user: EvmAddress
     token: EvmAddress
     amount: str
-    custodian: Optional[EvmAddress] = None
+    custodian: Optional[EvmAddress]
     token_id: Optional[int] = None
 
     def _get_identifying_content(self):

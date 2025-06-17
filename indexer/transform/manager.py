@@ -1,6 +1,6 @@
 # indexer/transform/manager.py
 
-from typing import Tuple, Dict, Optional
+from typing import Tuple, Dict, Optional, List
 from collections import defaultdict
 
 from ..core.config import IndexerConfig
@@ -10,10 +10,15 @@ from ..types import (
     Transaction, 
     DecodedLog,
     ProcessingError,
-    create_transform_error
+    create_transform_error,
+    TransferSignal,
+    Position,
+    DomainEventId,
+    ZERO_ADDRESS,
 )
 from ..core.mixins import LoggingMixin
 from .processors import TradeProcessor, ReconciliationProcessor
+from ..utils.amounts import amount_to_negative_str
 
 
 class TransformManager(LoggingMixin):   
@@ -78,31 +83,29 @@ class TransformManager(LoggingMixin):
                           signal_count=len(context.signals))
             event_success = self._produce_events(context)
 
-            # Phase 3: Transfer Reconciliation
-            self.log_debug("Starting transfer reconciliation phase", tx_hash=tx.tx_hash)
-            reconcile_success = self.reconciliation_processor.reconcile_transfers(context)
-
-            # Phase 4: Net Position Generation
+            # Phase 3: Unmatched Transfers Reconciliation
             self.log_debug("Starting net position generation phase", tx_hash=tx.tx_hash)
-            position_success = self._produce_net_positions(context)
+            reconciliation = self._reconcile_unmatched_transfers(context)
 
             # Finalize transaction
             updated_tx = context.finalize_to_transaction()
             
             # Determine overall success
-            processing_success = signal_success and event_success and reconcile_success and position_success
+            processing_success = signal_success and event_success and reconciliation
             
             # Log final statistics
             signal_count = len(updated_tx.signals) if updated_tx.signals else 0
             event_count = len(updated_tx.events) if updated_tx.events else 0
             error_count = len(updated_tx.errors) if updated_tx.errors else 0
+            position_count = len(updated_tx.positions) if updated_tx.positions else 0
             
             self.log_info("Transaction processing completed",
                          tx_hash=tx.tx_hash,
                          processing_success=processing_success,
                          signal_count=signal_count,
                          event_count=event_count,
-                         error_count=error_count)
+                         error_count=error_count,
+                         position_count=position_count,)
 
             return processing_success, updated_tx
         
@@ -303,53 +306,59 @@ class TransformManager(LoggingMixin):
         
         return success
  
-    def _produce_net_positions(self, context: TransformContext) -> bool:
-        try:
-            self.log_debug("Starting net position generation",
-                          tx_hash=context.transaction.tx_hash,
-                          event_count=len(context.events))
-            
-            deltas = defaultdict(lambda: defaultdict(lambda: {"net_amount": 0, "positions": {}}))
-            
-            for event in context.events.values():
-                if not hasattr(event, 'positions') or not event.positions:
-                    continue
-                    
-                for position_id, position in event.positions.items():
-                    if position.token in context.indexer_tokens:
-                        try:
-                            amount = int(position.amount)
-                            deltas[position.user][position.token]["net_amount"] += amount
-                            deltas[position.user][position.token]["positions"][position_id] = position
-                        except (ValueError, TypeError) as e:
-                            self.log_warning("Invalid position amount",
-                                           tx_hash=context.transaction.tx_hash,
-                                           position_id=position_id,
-                                           amount=position.amount,
-                                           error=str(e))
 
-            for user, tokens in deltas.items():
-                for token, data in tokens.items():
-                    if data["net_amount"] != 0:
-                        context.add_events(data["positions"])
-                        
-                        self.log_debug("Net position generated",
-                                      tx_hash=context.transaction.tx_hash,
-                                      user=user,
-                                      token=token,
-                                      net_amount=data["net_amount"],
-                                      position_count=len(data["positions"]))
-
+    def _reconcile_unmatched_transfers(self, context: TransformContext) -> bool:
+        """Reconcile unmatched transfers to generate net positions"""
+        unmatched_transfers = context.get_unmatched_transfers()
+        
+        if not unmatched_transfers:
+            self.log_debug("No unmatched transfers to reconcile",
+                          tx_hash=context.transaction.tx_hash)
             return True
-            
-        except Exception as e:
-            error = self._create_processing_error(e, context.transaction.tx_hash, "net_position_generation")
-            context.add_errors({error.error_id: error})
-            self.log_error("Net position generation failed",
-                          tx_hash=context.transaction.tx_hash,
-                          error=str(e),
-                          exception_type=type(e).__name__)
-            return False
+        
+        self.log_debug("Starting unmatched transfers reconciliation",
+                      tx_hash=context.transaction.tx_hash,
+                      unmatched_count=len)
+
+        transfer_list = list()
+        for idx, trf in unmatched_transfers.items():
+            if trf.token in context.indexer_tokens:
+                transfer_list.append(trf)
+                
+        if not transfer_list:
+            return True
+        
+        positions = self._generate_positions(transfer_list, context)
+        
+        return True if positions else False
+
+    def _generate_positions(self, transfers: List[TransferSignal],context: TransformContext) -> Dict[DomainEventId, Position]:
+        positions = {}
+
+        if not transfers:
+            return positions
+        
+        for transfer in transfers:
+            if transfer.to_address != ZERO_ADDRESS and transfer.token in context.indexer_tokens():
+                position_in = Position(
+                    user=transfer.to_address,
+                    custodian=transfer.to_address,
+                    token=transfer.token,
+                    amount=transfer.amount,
+                )
+                positions[position_in.content_id] = position_in
+
+            if transfer.from_address != ZERO_ADDRESS and transfer.token in context.indexer_tokens():
+                position_out = Position(
+                    user=transfer.from_address,
+                    custodian=transfer.from_address,
+                    token=transfer.token,
+                    amount=amount_to_negative_str(transfer.amount),
+                )
+                positions[position_out.content_id] = position_out
+
+        context.add_positions(positions)
+        return positions
 
     def _get_decoded_logs(self, transaction: Transaction) -> Optional[Dict[int, DecodedLog]]:
         """Get decoded logs with validation"""
