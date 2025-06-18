@@ -286,7 +286,7 @@ class TransformManager(LoggingMixin):
                     continue
                 
                 # Process signal with pattern
-                if not pattern.produce_events(signal, context):
+                if not pattern.produce_events({log_index: signal}, context):
                     self.log_debug("Pattern processing returned false",
                                   tx_hash=context.transaction.tx_hash,
                                   log_index=log_index,
@@ -336,7 +336,7 @@ class TransformManager(LoggingMixin):
             return positions
         
         for transfer in transfers:
-            if transfer.to_address != ZERO_ADDRESS and transfer.token in context.indexer_tokens():
+            if transfer.to_address != ZERO_ADDRESS and transfer.token in context.indexer_tokens:
                 position_in = Position(
                     user=transfer.to_address,
                     custodian=transfer.to_address,
@@ -345,7 +345,7 @@ class TransformManager(LoggingMixin):
                 )
                 positions[position_in.content_id] = position_in
 
-            if transfer.from_address != ZERO_ADDRESS and transfer.token in context.indexer_tokens():
+            if transfer.from_address != ZERO_ADDRESS and transfer.token in context.indexer_tokens:
                 position_out = Position(
                     user=transfer.from_address,
                     custodian=transfer.from_address,

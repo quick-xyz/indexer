@@ -30,12 +30,6 @@ class TransferPattern(ABC):
         """
         pass
 
-    @abstractmethod
-    def aggregate_signals(self, signals: Dict[int, Signal], context: TransformContext) -> Optional[Signal]:
-        """
-        Aggregate batch signals into a single signal.
-        """
-        pass
 
     def _generate_positions(self, transfers: List[TransferSignal],context: TransformContext) -> Dict[DomainEventId, Position]:
         positions = {}
@@ -44,7 +38,7 @@ class TransferPattern(ABC):
             return positions
         
         for transfer in transfers:
-            if transfer.to_address != ZERO_ADDRESS and transfer.token in context.indexer_tokens():
+            if transfer.to_address != ZERO_ADDRESS and transfer.token in context.indexer_tokens:
                 position_in = Position(
                     user=transfer.to_address,
                     custodian=transfer.to_address,
@@ -53,7 +47,7 @@ class TransferPattern(ABC):
                 )
                 positions[position_in.content_id] = position_in
 
-            if transfer.from_address != ZERO_ADDRESS and transfer.token in context.indexer_tokens():
+            if transfer.from_address != ZERO_ADDRESS and transfer.token in context.indexer_tokens:
                 position_out = Position(
                     user=transfer.from_address,
                     custodian=transfer.from_address,
@@ -72,7 +66,7 @@ class TransferPattern(ABC):
             return positions
         
         for transfer in transfers:
-            if transfer.to_address not in (ZERO_ADDRESS,pool) and transfer.token in context.indexer_tokens():
+            if transfer.to_address not in (ZERO_ADDRESS,pool) and transfer.token in context.indexer_tokens:
                 position_in = Position(
                     user=transfer.to_address,
                     custodian=pool,
@@ -81,7 +75,7 @@ class TransferPattern(ABC):
                 )
                 positions[position_in.content_id] = position_in
 
-            if transfer.from_address not in (ZERO_ADDRESS,pool) and transfer.token in context.indexer_tokens():
+            if transfer.from_address not in (ZERO_ADDRESS,pool) and transfer.token in context.indexer_tokens:
                 position_out = Position(
                     user=transfer.from_address,
                     custodian=pool,

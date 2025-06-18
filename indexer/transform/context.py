@@ -19,14 +19,7 @@ from ..types import (
     Position,
 )
 
-SignalDict = Dict[int, Signal]
-EventDict = Dict[DomainEventId, DomainEvent]
-TransferDict = Dict[int, TransferSignal]
-AddrTrf = Dict[EvmAddress, TransferDict]  # Transfers grouped by address
-TokenTrf = Dict[EvmAddress, TransferDict] # Transfers grouped by token
-TrfDict = Dict[EvmAddress, TokenTrf] # {address: {token: {log_index: TransferSignal}}}
-
-
+TrfDict = Dict[EvmAddress, Dict[EvmAddress, Dict[int, TransferSignal]]] # {address: {token: {log_index: TransferSignal}}}
 
 
 class TransformContext:
@@ -229,25 +222,27 @@ class TransformContext:
         
         return buy_swaps, sell_swaps
     
-    def get_contract_transfers(self, contract: EvmAddress) -> Tuple[TokenTrf, TokenTrf]:
+    def get_contract_transfers(self, contract: EvmAddress) -> Tuple[Dict[EvmAddress, Dict[int, TransferSignal]], Dict[EvmAddress, Dict[int, TransferSignal]]]:
+        """ Get transfers for a specific contract, keyed by TOKEN, Tuple of (in_transfers, out_transfers) """
         if self._trf_dict is None:
             self._build_trf_dict()
         return self._trf_dict.get("trf_in", {}).get(contract, {}), self._trf_dict.get("trf_out", {}).get(contract, {})
     
-    def get_token_transfers(self, token: EvmAddress) -> Tuple[AddrTrf, AddrTrf]:
+    def get_token_transfers(self, token: EvmAddress) -> Tuple[Dict[EvmAddress, Dict[int, TransferSignal]], Dict[EvmAddress, Dict[int, TransferSignal]]]:
+        """ Get transfers of a specific token, keyed by ADDRESS, Tuple of (in_transfers, out_transfers) """
         if self._trf_dict is None:
             self._build_trf_dict()
         in_trf = {contract: trf for contract, trf in self._get_trf_in().items() if token in trf}
         out_trf = {contract: trf for contract, trf in self._get_trf_out().items() if token in trf}
         return in_trf, out_trf
 
-    def get_unmatched_contract_transfers(self, contract: EvmAddress) -> Tuple[TokenTrf, TokenTrf]:
+    def get_unmatched_contract_transfers(self, contract: EvmAddress) -> Tuple[Dict[EvmAddress, Dict[int, TransferSignal]], Dict[EvmAddress, Dict[int, TransferSignal]]]:
         in_trf, out_trf = self.get_contract_transfers(contract)
         unmatched_in = {idx: trf for idx, trf in in_trf.items() if idx not in self.matched_transfers}
         unmatched_out = {idx: trf for idx, trf in out_trf.items() if idx not in self.matched_transfers}
         return unmatched_in, unmatched_out
     
-    def get_unmatched_token_transfers(self, token: EvmAddress) -> Tuple[AddrTrf, AddrTrf]:
+    def get_unmatched_token_transfers(self, token: EvmAddress) -> Tuple[Dict[EvmAddress, Dict[int, TransferSignal]], Dict[EvmAddress, Dict[int, TransferSignal]]]:
         in_trf, out_trf = self.get_token_transfers(token)
         in_trf = {contract: {idx: trf for idx, trf in trf.items() if idx not in self.matched_transfers} for contract, trf in in_trf.items()}
         out_trf = {contract: {idx: trf for idx, trf in trf.items() if idx not in self.matched_transfers} for contract, trf in out_trf.items()}

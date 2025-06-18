@@ -124,7 +124,9 @@ class TradeProcessor(LoggingMixin):
                 batch_swap_signal = pattern.aggregate_signals(batch_dict, token_tuple, context)
                 if batch_swap_signal:
                     aggregated[batch_swap_signal.log_index] = batch_swap_signal
-                    aggregated-= batch_dict.keys()
+                    for idx in batch_dict.keys():
+                        del aggregated[idx]
+
         
         return aggregated
 
@@ -159,7 +161,7 @@ class TradeProcessor(LoggingMixin):
                               pool=signal.pool,
                               taker=signal.to)
                 
-                result = pattern.produce_events(signal, context)
+                result = pattern.produce_events({log_index: signal}, context)
                 if not result:
                     self.log_warning("Swap signal pattern processing failed",
                                     tx_hash=context.transaction.tx_hash,
@@ -433,7 +435,7 @@ class TradeProcessor(LoggingMixin):
             return positions
         
         for transfer in transfers:
-            if transfer.to_address != ZERO_ADDRESS and transfer.token in context.indexer_tokens():
+            if transfer.to_address != ZERO_ADDRESS and transfer.token in context.indexer_tokens:
                 position_in = Position(
                     user=transfer.to_address,
                     custodian=transfer.to_address,
@@ -442,7 +444,7 @@ class TradeProcessor(LoggingMixin):
                 )
                 positions[position_in.content_id] = position_in
 
-            if transfer.from_address != ZERO_ADDRESS and transfer.token in context.indexer_tokens():
+            if transfer.from_address != ZERO_ADDRESS and transfer.token in context.indexer_tokens:
                 position_out = Position(
                     user=transfer.from_address,
                     custodian=transfer.from_address,
