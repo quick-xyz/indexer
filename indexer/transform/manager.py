@@ -14,6 +14,7 @@ from ..types import (
     Position,
     DomainEventId,
     ZERO_ADDRESS,
+    UnknownTransfer,
 )
 from ..core.mixins import LoggingMixin
 from .processors import TradeProcessor
@@ -354,10 +355,29 @@ class TransformManager(LoggingMixin):
         if not transfer_dict:
             return True
         
-        print(f"DEBUG: Generating positions from unmatched transfers")
-        positions = self._generate_positions(transfer_dict, context)
-        print(f"DEBUG: Generated positions count: {len(positions)}")
-        return True if positions else False
+        events = {}
+        for idx, transfer in transfer_dict.items():
+            print(f"DEBUG: Processing unmatched transfer {idx}: {transfer}")
+
+            print(f"DEBUG: Generating positions from unmatched transfers")
+            positions = self._generate_positions(transfer_dict, context)
+            print(f"DEBUG: Generated positions count: {len(positions)}")
+
+            unknown_transfer = UnknownTransfer(
+                timestamp=context.transaction.timestamp,
+                tx_hash=context.transaction.tx_hash,
+                from_address=transfer.from_address,
+                to_address=transfer.to_address,
+                token=transfer.token,
+                amount=transfer.amount,
+                positions=positions,
+                signals={idx: transfer},
+            )
+            context.add_events({unknown_transfer.content_id: unknown_transfer})
+            context.mark_signals_consumed(transfer_dict.keys())
+            events[unknown_transfer.content_id] = unknown_transfer
+
+        return True if events else False
 
     def _generate_positions(self, transfers: Dict[int, TransferSignal],context: TransformContext) -> Dict[DomainEventId, Position]:
         positions = {}
