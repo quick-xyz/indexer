@@ -1,11 +1,11 @@
 # indexer/transform/patterns/liquidity.py
 
-from typing import List, Tuple, Optional, Dict
+from typing import Dict
 
-from ...types import LiquiditySignal, ZERO_ADDRESS, Liquidity, Reward, LiquiditySignal, DomainEventId, TransferSignal, Position, EvmAddress
-from .base import TransferPattern, TransferLeg, AddressContext
-from ..context import TransformContext, TransfersDict
-from ...utils.amounts import add_amounts, amount_to_int, amount_to_negative_str
+from ...types import LiquiditySignal, ZERO_ADDRESS, Liquidity, Reward, LiquiditySignal, DomainEventId
+from .base import TransferPattern
+from ..context import TransformContext
+from ...utils.amounts import amount_to_int
 
 
 class Mint_A(TransferPattern):    

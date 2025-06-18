@@ -1,6 +1,6 @@
 # indexer/transform/processors/trade_processor.py
 
-from typing import Dict, Optional, Any, List, Tuple, Literal
+from typing import Dict, Optional, List, Tuple, Literal
 from collections import defaultdict
 from dataclasses import dataclass
 import msgspec

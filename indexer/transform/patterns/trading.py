@@ -1,11 +1,11 @@
 # indexer/transform/patterns/trading.py
 
-from typing import Dict, List, Any, Tuple, Optional
+from typing import Dict, Tuple, Optional
 
-from ...types import SwapSignal, PoolSwap, Signal, ZERO_ADDRESS, Reward, SwapBatchSignal, EvmAddress, DomainEventId
-from .base import TransferPattern, TransferLeg, AddressContext
-from ..context import TransformContext, TransfersDict
-from ...utils.amounts import add_amounts, is_positive, amount_to_int, amount_to_str
+from ...types import SwapSignal, PoolSwap, ZERO_ADDRESS, SwapBatchSignal, EvmAddress, DomainEventId
+from .base import TransferPattern
+from ..context import TransformContext
+from ...utils.amounts import is_positive, amount_to_int, amount_to_str
 
 
 class Swap_A(TransferPattern):

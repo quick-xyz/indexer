@@ -1,8 +1,7 @@
 # indexer/transform/context.py
 
-from typing import Dict, List, Set, Optional, Type, TypeVar, Union, Tuple
+from typing import Dict, List, Set, Optional, Type, Union, Tuple
 from collections import defaultdict
-import msgspec
 
 from ..types import (
     Transaction,
@@ -11,8 +10,6 @@ from ..types import (
     TransferSignal,
     DomainEvent,
     EvmAddress,
-    TokenConfig,
-    AddressConfig,
     DomainEventId,
     ErrorId,
     ProcessingError,

@@ -1,7 +1,6 @@
 # indexer/transform/manager.py
 
 from typing import Tuple, Dict, Optional, List
-from collections import defaultdict
 
 from ..core.config import IndexerConfig
 from .registry import TransformRegistry

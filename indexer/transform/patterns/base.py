@@ -1,9 +1,7 @@
 # indexer/transform/patterns/base.py
 
-from typing import Dict, List, Set, Optional, Tuple
+from typing import Dict, List, Optional
 from abc import ABC, abstractmethod
-from msgspec import Struct
-from collections import defaultdict
 
 from ..context import TransformContext
 from ...types import (
@@ -15,7 +13,7 @@ from ...types import (
     DomainEvent,
     Position
 )
-from ..context import TransformContext, TransfersDict
+from ..context import TransformContext
 from ...utils.amounts import amount_to_negative_str
 
 
