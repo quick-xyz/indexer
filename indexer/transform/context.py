@@ -233,8 +233,8 @@ class TransformContext:
         """ Get transfers of a specific token, keyed by ADDRESS, Tuple of (in_transfers, out_transfers) """
         if self._trf_dict is None:
             self._build_trf_dict()
-        in_trf = {contract: trf for contract, trf in self._get_trf_in().items() if token in trf}
-        out_trf = {contract: trf for contract, trf in self._get_trf_out().items() if token in trf}
+        in_trf = {address: trf[token] for address, trf in self._get_trf_in().items() if token in trf}
+        out_trf = {address: trf[token] for address, trf in self._get_trf_out().items() if token in trf}
         return in_trf, out_trf
 
     def get_unmatched_contract_transfers(self, contract: EvmAddress) -> Tuple[Dict[EvmAddress, Dict[int, TransferSignal]], Dict[EvmAddress, Dict[int, TransferSignal]]]:
@@ -245,6 +245,6 @@ class TransformContext:
     
     def get_unmatched_token_transfers(self, token: EvmAddress) -> Tuple[Dict[EvmAddress, Dict[int, TransferSignal]], Dict[EvmAddress, Dict[int, TransferSignal]]]:
         in_trf, out_trf = self.get_token_transfers(token)
-        in_trf = {contract: {idx: trf for idx, trf in trf.items() if idx not in self.matched_transfers} for contract, trf in in_trf.items()}
-        out_trf = {contract: {idx: trf for idx, trf in trf.items() if idx not in self.matched_transfers} for contract, trf in out_trf.items()}
+        in_trf = {address: {idx: trf for idx, trf in trf.items() if idx not in self.matched_transfers} for address, trf in in_trf.items()}
+        out_trf = {address: {idx: trf for idx, trf in trf.items() if idx not in self.matched_transfers} for address, trf in out_trf.items()}
         return in_trf, out_trf

@@ -299,6 +299,7 @@ class TransformManager(LoggingMixin):
             try:
                 pattern = self.registry.get_pattern(signal.pattern)
                 if not pattern:
+                    print(f"DEBUG: No pattern found for signal pattern: {signal.pattern}")
                     self.log_debug("No pattern found for signal",
                                   tx_hash=context.transaction.tx_hash,
                                   log_index=log_index,
@@ -306,14 +307,20 @@ class TransformManager(LoggingMixin):
                                   pattern_name=signal.pattern)
                     continue
                 
+                print(f"DEBUG: Processing signal {log_index} with pattern {signal.pattern}")
                 # Process signal with pattern
                 if not pattern.produce_events({log_index: signal}, context):
+                    print(f"DEBUG: Pattern {signal.pattern} returned False for signal {log_index}")
                     self.log_debug("Pattern processing returned false",
                                   tx_hash=context.transaction.tx_hash,
                                   log_index=log_index,
                                   pattern_name=signal.pattern)
+                else:
+                    print(f"DEBUG: Pattern {signal.pattern} processed successfully for signal {log_index}")
                     
             except Exception as e:
+                print(f"DEBUG: Pattern processing exception for signal {log_index}, pattern {signal.pattern}: {e}")
+                print(f"DEBUG: Exception type: {type(e).__name__}")
                 error = self._create_processing_error(e, context.transaction.tx_hash, "pattern_processing")
                 context.add_errors({error.error_id: error})
                 success = False

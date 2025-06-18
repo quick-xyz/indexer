@@ -20,7 +20,6 @@ class EvmLog(Struct):
 class EvmTxReceipt(Struct):
     blockHash: EvmHash
     blockNumber: HexInt
-    contractAddress: Optional[EvmAddress]
     cumulativeGasUsed: HexStr
     effectiveGasPrice: HexStr
     from_: EvmAddress = field(name="from")  # from is protected word in python
@@ -28,31 +27,32 @@ class EvmTxReceipt(Struct):
     logs: list[EvmLog]
     logsBloom: Any
     status: HexInt # 1 (Success) or 2 (Failure)
-    to: Optional[EvmAddress]
     transactionHash: EvmHash
     transactionIndex: HexInt
     type: HexStr
+    contractAddress: Optional[EvmAddress] = None
+    to: Optional[EvmAddress] = None
 
 class EvmTransaction(Struct):
-    accessList: Optional[list[Any]]
     blockHash: EvmHash
     blockNumber: HexInt
-    chainId: Optional[HexInt]
     from_: EvmAddress = field(name="from")  # from is protected word in python
     gas: HexStr
     gasPrice: HexStr
     hash: EvmHash
     input: HexStr
-    maxFeePerGas: HexStr
-    maxPriorityFeePerGas: HexStr
     nonce: HexInt
     r: EvmHash
     s: EvmHash
-    to: Optional[EvmAddress]
     transactionIndex: HexInt
     type: HexInt
     v: HexInt
     value: HexInt
+    accessList: Optional[list[Any]] = None
+    chainId: Optional[HexInt] = None
+    maxFeePerGas: Optional[HexStr] = None
+    maxPriorityFeePerGas: Optional[HexStr] = None
+    to: Optional[EvmAddress] = None
 
 class EvmFilteredBlock(Struct):
     block: HexStr
