@@ -66,8 +66,6 @@ class TransformRegistry(LoggingMixin):
             "Mint_A": Mint_A,
             "Burn_A": Burn_A,
             "Swap_A": Swap_A,
-            "Transfer": Transfer_A,
-            "Route": Route_A,
         }
     
     def _setup_transformers(self):

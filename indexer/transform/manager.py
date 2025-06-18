@@ -17,7 +17,7 @@ from ..types import (
     ZERO_ADDRESS,
 )
 from ..core.mixins import LoggingMixin
-from .processors import TradeProcessor, ReconciliationProcessor
+from .processors import TradeProcessor
 from ..utils.amounts import amount_to_negative_str
 
 
@@ -26,7 +26,6 @@ class TransformManager(LoggingMixin):
         self.registry = registry
         self.config = config
         self.trade_processor = TradeProcessor(registry, config)  
-        self.reconciliation_processor = ReconciliationProcessor(config)
 
         self.log_info("TransformManager initialized", 
                      contract_count=len(config.contracts),
@@ -198,7 +197,7 @@ class TransformManager(LoggingMixin):
         try:
             # Process trade signals first (they require aggregation)
             trade_success = self._process_trade_signals(context)
-            
+
             # Process remaining signals with simple patterns
             pattern_success = self._process_remaining_signals(context)
 
@@ -256,7 +255,7 @@ class TransformManager(LoggingMixin):
                           error=str(e),
                           exception_type=type(e).__name__)
             return False
-        
+
     def _process_remaining_signals(self, context: TransformContext) -> bool:
         """Process remaining signals with simple patterns"""
         
@@ -288,7 +287,7 @@ class TransformManager(LoggingMixin):
                     continue
                 
                 # Process signal with pattern
-                if not pattern.process_signal(signal, context):
+                if not pattern.produce_events(signal, context):
                     self.log_debug("Pattern processing returned false",
                                   tx_hash=context.transaction.tx_hash,
                                   log_index=log_index,
@@ -306,7 +305,6 @@ class TransformManager(LoggingMixin):
         
         return success
  
-
     def _reconcile_unmatched_transfers(self, context: TransformContext) -> bool:
         """Reconcile unmatched transfers to generate net positions"""
         unmatched_transfers = context.get_unmatched_transfers()

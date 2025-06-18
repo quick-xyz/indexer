@@ -66,3 +66,31 @@ class TransferPattern(ABC):
 
         context.add_positions(positions)
         return positions
+    
+    def _generate_lp_positions(self, pool: EvmAddress, transfers: List[TransferSignal],context: TransformContext) -> Dict[DomainEventId, Position]:
+        positions = {}
+
+        if not transfers:
+            return positions
+        
+        for transfer in transfers:
+            if transfer.to_address not in (ZERO_ADDRESS,pool) and transfer.token in context.indexer_tokens():
+                position_in = Position(
+                    user=transfer.to_address,
+                    custodian=pool,
+                    token=transfer.token,
+                    amount=transfer.amount,
+                )
+                positions[position_in.content_id] = position_in
+
+            if transfer.from_address not in (ZERO_ADDRESS,pool) and transfer.token in context.indexer_tokens():
+                position_out = Position(
+                    user=transfer.from_address,
+                    custodian=pool,
+                    token=transfer.token,
+                    amount=amount_to_negative_str(transfer.amount),
+                )
+                positions[position_out.content_id] = position_out
+
+        context.add_positions(positions)
+        return positions
