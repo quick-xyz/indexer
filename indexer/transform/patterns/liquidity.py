@@ -5,7 +5,7 @@ from typing import Dict
 from ...types import LiquiditySignal, ZERO_ADDRESS, Liquidity, Reward, LiquiditySignal, DomainEventId
 from .base import TransferPattern
 from ..context import TransformContext
-from ...utils.amounts import amount_to_int
+from ...utils.amounts import amount_to_int, abs_amount
 
 
 class Mint_A(TransferPattern):    
@@ -24,8 +24,8 @@ class Mint_A(TransferPattern):
             base_trf = pool_in.get(signal.base_token, {})
             quote_trf = pool_in.get(signal.quote_token, {})
 
-            base_match = {idx: transfer for idx, transfer in base_trf.items() if transfer.amount == signal.base_amount}
-            quote_match = {idx: transfer for idx, transfer in quote_trf.items() if transfer.amount == signal.quote_amount}
+            base_match = {idx: transfer for idx, transfer in base_trf.items() if transfer.amount == abs_amount(signal.base_amount)}
+            quote_match = {idx: transfer for idx, transfer in quote_trf.items() if transfer.amount == abs_amount(signal.quote_amount)}
             
             if not len(base_match) == 1 or not len(quote_match) == 1:
                 continue
@@ -53,7 +53,7 @@ class Mint_A(TransferPattern):
 
             signals = base_match | quote_match
             token_positions = self._generate_positions(signals, context)
-            receipt_positions = self._generate_lp_positions(signal.pool,list(receipts_match.values()), context)
+            receipt_positions = self._generate_lp_positions(signal.pool,receipts_match, context)
             
             signals = signals | receipts_match
             positions = token_positions | receipt_positions
@@ -76,14 +76,13 @@ class Mint_A(TransferPattern):
             events[mint.content_id] = mint
 
             if fee_collector:
-                collection_trf = receipts_in.get(fee_collector, {})
-                fee_match = {idx: transfer for idx, transfer in collection_trf.items()}
+                fee_match = receipts_in.get(fee_collector, {})
                 fee_amount = sum(amount_to_int(transfer.amount) for transfer in fee_match.values() if transfer.amount)
 
                 if not len(fee_match) == 1:
                                 continue
 
-                fee_positions = self._generate_positions(list(fee_match.values()), context)
+                fee_positions = self._generate_positions(fee_match, context)
                 fee = Reward(
                     timestamp=context.transaction.timestamp,
                     tx_hash=context.transaction.tx_hash,
@@ -123,8 +122,8 @@ class Burn_A(TransferPattern):
             base_trf = pool_out.get(signal.base_token, {})
             quote_trf = pool_out.get(signal.quote_token, {})
 
-            base_match = {idx: transfer for idx, transfer in base_trf.items() if transfer.amount == signal.base_amount}
-            quote_match = {idx: transfer for idx, transfer in quote_trf.items() if transfer.amount == signal.quote_amount}
+            base_match = {idx: transfer for idx, transfer in base_trf.items() if transfer.amount == abs_amount(signal.base_amount)}
+            quote_match = {idx: transfer for idx, transfer in quote_trf.items() if transfer.amount == abs_amount(signal.quote_amount)}
             
             if not len(base_match) == 1 or not len(quote_match) == 1:
                 continue
@@ -144,7 +143,7 @@ class Burn_A(TransferPattern):
 
             signals = base_match | quote_match
             token_positions = self._generate_positions(signals, context)
-            receipt_positions = self._generate_lp_positions(signal.pool, list(receipts_match.values()), context)
+            receipt_positions = self._generate_lp_positions(signal.pool, receipts_match, context)
             
             signals = signals | receipts_match
             positions = token_positions | receipt_positions
@@ -173,7 +172,7 @@ class Burn_A(TransferPattern):
                 if not len(fee_match) == 1:
                     continue
 
-                fee_positions = self._generate_positions(list(fee_match.values()), context)
+                fee_positions = self._generate_positions(fee_match, context)
                 fee = Reward(
                     timestamp=context.transaction.timestamp,
                     tx_hash=context.transaction.tx_hash,

@@ -5,7 +5,7 @@ from typing import Dict, Tuple, Optional
 from ...types import SwapSignal, PoolSwap, ZERO_ADDRESS, SwapBatchSignal, EvmAddress, DomainEventId
 from .base import TransferPattern
 from ..context import TransformContext
-from ...utils.amounts import is_positive, amount_to_int, amount_to_str
+from ...utils.amounts import is_positive, amount_to_int, amount_to_str, abs_amount
 
 
 class Swap_A(TransferPattern):
@@ -14,28 +14,47 @@ class Swap_A(TransferPattern):
     
     def produce_events(self, signals: Dict[int,SwapSignal], context: TransformContext) -> Dict[DomainEventId, PoolSwap]:
         swaps = {}
+        print(f"DEBUG Swap_A: Processing {len(signals)} signals")
 
         for signal in signals.values():
+            print(f"DEBUG Swap_A: Processing signal for pool {signal.pool}")
+            print(f"DEBUG Swap_A: Base amount: {signal.base_amount}, Quote amount: {signal.quote_amount}")
+        
             pool_in, pool_out = context.get_unmatched_contract_transfers(signal.pool)
-            
+            print(f"DEBUG Swap_A: Pool transfers - in: {len(pool_in)}, out: {len(pool_out)}")
+            print(f"DEBUG Swap_A: pool_in structure: {type(pool_in)} = {pool_in}")
+            print(f"DEBUG Swap_A: pool_out structure: {type(pool_out)} = {pool_out}")
+
             if is_positive(signal.base_amount):
                 quote_trf = pool_in.get(signal.quote_token, {})
                 base_trf = pool_out.get(signal.base_token, {})
+                print(f"DEBUG Swap_A: Buy direction - quote_in: {len(quote_trf)}, base_out: {len(base_trf)}")
+                print(f"DEBUG Swap_A: quote_trf content: {quote_trf}")
+                print(f"DEBUG Swap_A: base_trf content: {base_trf}")
             else:
                 quote_trf = pool_out.get(signal.quote_token, {})
                 base_trf = pool_in.get(signal.base_token, {})
+                print(f"DEBUG Swap_A: Sell direction - quote_out: {len(quote_trf)}, base_in: {len(base_trf)}")
 
-            base_match = {idx: transfer for idx, transfer in base_trf.items() if transfer.amount == signal.base_amount}
-            quote_match = {idx: transfer for idx, transfer in quote_trf.items() if transfer.amount == signal.quote_amount}
+
+            base_match = {idx: transfer for idx, transfer in base_trf.items() if transfer.amount == abs_amount(signal.base_amount)}
+            quote_match = {idx: transfer for idx, transfer in quote_trf.items() if transfer.amount == abs_amount(signal.quote_amount)}
+            print(f"DEBUG Swap_A: Matches - base: {len(base_match)}, quote: {len(quote_match)}")
 
             if not len(base_match)==1 or not len(quote_match)==1:
+                print(f"DEBUG Swap_A: Match validation failed")
+
                 continue
-            
+            print(f"DEBUG Swap_A: Creating PoolSwap event")
+
             signals = base_match | quote_match
             positions = self._generate_positions(signals, context)
 
             signals[signal.log_index] = signal
 
+            print(f"DEBUG: About to create PoolSwap with timestamp={context.transaction.timestamp}")
+            print(f"DEBUG: timestamp type: {type(context.transaction.timestamp)}")
+            print(f"DEBUG: timestamp value: {context.transaction.timestamp}")
             swap = PoolSwap(
                 timestamp=context.transaction.timestamp,
                 tx_hash=context.transaction.tx_hash,
@@ -49,6 +68,7 @@ class Swap_A(TransferPattern):
                 positions=positions,
                 signals=signals,
             )
+            print(f"DEBUG Swap_A: Created PoolSwap event with content_id={swap.content_id}")
             context.add_events({swap.content_id: swap})
             context.mark_signals_consumed(signals.keys())
             swaps[swap.content_id] = swap

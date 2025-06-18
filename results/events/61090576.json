@@ -166,51 +166,98 @@
                 }
             },
             "events": {
-                "ba5e92e5e6ea": {
-                    "type": "UnknownTransfer",
+                "def8ca5bb568": {
+                    "type": "Trade",
                     "timestamp": 1745844478,
                     "tx_hash": "0xc6a25db4259e7133ee399c1981a80bba1b378519c72dd0cd5479fbb8bd8dde4a",
-                    "token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
-                    "from_address": "0x9c4ee585f15ff7d4e295802b5bf522712094649d",
-                    "to_address": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
-                    "amount": "42154817322819680507676",
-                    "positions": {
-                        "0f8a9097e637": {
-                            "type": "Position",
+                    "taker": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7",
+                    "direction": "sell",
+                    "base_token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                    "base_amount": "-42154817322819680507676",
+                    "swaps": {
+                        "37f1c52f37dd": {
+                            "type": "PoolSwap",
                             "timestamp": 1745844478,
                             "tx_hash": "0xc6a25db4259e7133ee399c1981a80bba1b378519c72dd0cd5479fbb8bd8dde4a",
-                            "user": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
-                            "token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
-                            "amount": "42154817322819680507676",
-                            "custodian": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
-                            "token_id": null
-                        },
-                        "636f91d0ee5e": {
-                            "type": "Position",
-                            "timestamp": 1745844478,
-                            "tx_hash": "0xc6a25db4259e7133ee399c1981a80bba1b378519c72dd0cd5479fbb8bd8dde4a",
-                            "user": "0x9c4ee585f15ff7d4e295802b5bf522712094649d",
-                            "token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
-                            "amount": "-42154817322819680507676",
-                            "custodian": "0x9c4ee585f15ff7d4e295802b5bf522712094649d",
-                            "token_id": null
+                            "pool": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+                            "taker": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7",
+                            "direction": "sell",
+                            "base_token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                            "base_amount": "-42154817322819680507676",
+                            "quote_token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+                            "quote_amount": "2940488050510011269",
+                            "positions": {
+                                "0f8a9097e637": {
+                                    "type": "Position",
+                                    "timestamp": 1745844478,
+                                    "tx_hash": "0xc6a25db4259e7133ee399c1981a80bba1b378519c72dd0cd5479fbb8bd8dde4a",
+                                    "user": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+                                    "token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                                    "amount": "42154817322819680507676",
+                                    "custodian": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+                                    "token_id": null
+                                },
+                                "636f91d0ee5e": {
+                                    "type": "Position",
+                                    "timestamp": 1745844478,
+                                    "tx_hash": "0xc6a25db4259e7133ee399c1981a80bba1b378519c72dd0cd5479fbb8bd8dde4a",
+                                    "user": "0x9c4ee585f15ff7d4e295802b5bf522712094649d",
+                                    "token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                                    "amount": "-42154817322819680507676",
+                                    "custodian": "0x9c4ee585f15ff7d4e295802b5bf522712094649d",
+                                    "token_id": null
+                                }
+                            },
+                            "signals": {
+                                "0": {
+                                    "type": "TransferSignal",
+                                    "log_index": 0,
+                                    "pattern": "Transfer",
+                                    "token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                                    "from_address": "0x9c4ee585f15ff7d4e295802b5bf522712094649d",
+                                    "to_address": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+                                    "amount": "42154817322819680507676",
+                                    "token_id": null,
+                                    "batch": null,
+                                    "sender": null
+                                },
+                                "1": {
+                                    "type": "TransferSignal",
+                                    "log_index": 1,
+                                    "pattern": "Transfer",
+                                    "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+                                    "from_address": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+                                    "to_address": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7",
+                                    "amount": "2940488050510011269",
+                                    "token_id": null,
+                                    "batch": null,
+                                    "sender": null
+                                },
+                                "3": {
+                                    "type": "SwapSignal",
+                                    "log_index": 3,
+                                    "pattern": "Swap_A",
+                                    "pool": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+                                    "base_amount": "-42154817322819680507676",
+                                    "base_token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                                    "quote_amount": "2940488050510011269",
+                                    "quote_token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+                                    "to": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7",
+                                    "sender": "0x5f3454fa53e5866a4f69bbc2e6b9a041092d9ad7",
+                                    "batch": null
+                                }
+                            },
+                            "batch": null
                         }
                     },
-                    "signals": {
-                        "0": {
-                            "type": "TransferSignal",
-                            "log_index": 0,
-                            "pattern": "Transfer",
-                            "token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
-                            "from_address": "0x9c4ee585f15ff7d4e295802b5bf522712094649d",
-                            "to_address": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
-                            "amount": "42154817322819680507676",
-                            "token_id": null,
-                            "batch": null,
-                            "sender": null
-                        }
-                    }
-                },
+                    "trade_type": "trade",
+                    "quote_token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+                    "quote_amount": "2940488050510011269",
+                    "router": null,
+                    "transfers": null
+                }
+            },
+            "positions": {
                 "0f8a9097e637": {
                     "type": "Position",
                     "timestamp": 1745844478,
@@ -243,7 +290,7 @@
         "retry_count": 0,
         "last_error": null,
         "started_at": null,
-        "completed_at": "2025-06-16T18:49:29.035044+00:00",
+        "completed_at": "2025-06-18T13:17:37.305930+00:00",
         "error_stage": null
     }
 }

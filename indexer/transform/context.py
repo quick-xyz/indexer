@@ -95,6 +95,7 @@ class TransformContext:
             logs=self._og_tx.logs,
             signals=self.signals if self.signals else None,
             events=self.events if self.events else None,
+            positions=self.positions if self.positions else None,
             errors=self.errors if self.errors else None
         )
 

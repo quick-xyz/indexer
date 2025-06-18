@@ -1,0 +1,19 @@
+{
+  "transaction_hash": "0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b",
+  "block_number": 63269916,
+  "analysis_time": "2025-06-18T01:25:18.313289",
+  "basic_info": {
+    "success": true,
+    "from": "0x9c7ad86e0836d72809d33dfe5673b1141382963f",
+    "to": "0x45a62b090df48243f12a21897e7ed91863e2c86b",
+    "value": "0"
+  },
+  "processing_summary": {
+    "total_logs": 29,
+    "decoded_logs": 15,
+    "signals_generated": 13,
+    "events_generated": 0,
+    "errors_found": 0
+  },
+  "status": "SUCCESS"
+}

@@ -31,15 +31,17 @@ class TransferPattern(ABC):
         pass
 
 
-    def _generate_positions(self, transfers: List[TransferSignal],context: TransformContext) -> Dict[DomainEventId, Position]:
+    def _generate_positions(self, transfers: Dict[int, TransferSignal],context: TransformContext) -> Dict[DomainEventId, Position]:
         positions = {}
 
         if not transfers:
             return positions
         
-        for transfer in transfers:
+        for transfer in transfers.values():
             if transfer.to_address != ZERO_ADDRESS and transfer.token in context.indexer_tokens:
                 position_in = Position(
+                    timestamp=context.transaction.timestamp,
+                    tx_hash=context.transaction.tx_hash,
                     user=transfer.to_address,
                     custodian=transfer.to_address,
                     token=transfer.token,
@@ -49,6 +51,8 @@ class TransferPattern(ABC):
 
             if transfer.from_address != ZERO_ADDRESS and transfer.token in context.indexer_tokens:
                 position_out = Position(
+                    timestamp=context.transaction.timestamp,
+                    tx_hash=context.transaction.tx_hash,
                     user=transfer.from_address,
                     custodian=transfer.from_address,
                     token=transfer.token,
@@ -59,15 +63,17 @@ class TransferPattern(ABC):
         context.add_positions(positions)
         return positions
     
-    def _generate_lp_positions(self, pool: EvmAddress, transfers: List[TransferSignal],context: TransformContext) -> Dict[DomainEventId, Position]:
+    def _generate_lp_positions(self, pool: EvmAddress, transfers: Dict[int, TransferSignal],context: TransformContext) -> Dict[DomainEventId, Position]:
         positions = {}
 
         if not transfers:
             return positions
         
-        for transfer in transfers:
+        for transfer in transfers.values():
             if transfer.to_address not in (ZERO_ADDRESS,pool) and transfer.token in context.indexer_tokens:
                 position_in = Position(
+                    timestamp=context.transaction.timestamp,
+                    tx_hash=context.transaction.tx_hash,
                     user=transfer.to_address,
                     custodian=pool,
                     token=transfer.token,
@@ -77,6 +83,8 @@ class TransferPattern(ABC):
 
             if transfer.from_address not in (ZERO_ADDRESS,pool) and transfer.token in context.indexer_tokens:
                 position_out = Position(
+                    timestamp=context.transaction.timestamp,
+                    tx_hash=context.transaction.tx_hash,
                     user=transfer.from_address,
                     custodian=pool,
                     token=transfer.token,

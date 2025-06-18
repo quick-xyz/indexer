@@ -1,0 +1,287 @@
+{
+  "transaction_hash": "0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b",
+  "transformer_registry_summary": {
+    "total_contracts": 11,
+    "active_transformers": 11,
+    "method_note": "get_setup_summary method not available, using fallback"
+  },
+  "log_transformer_mapping": {
+    "4": {
+      "log_index": 4,
+      "log_name": "Transfer",
+      "contract": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+      "transformer_found": true,
+      "transformer_name": "WavaxTransformer",
+      "has_handler": true,
+      "available_attributes": [
+        "src",
+        "dst",
+        "wad"
+      ],
+      "available_handlers": [
+        "Transfer"
+      ]
+    },
+    "10": {
+      "log_index": 10,
+      "log_name": "Transfer",
+      "contract": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+      "transformer_found": true,
+      "transformer_name": "WavaxTransformer",
+      "has_handler": true,
+      "available_attributes": [
+        "src",
+        "dst",
+        "wad"
+      ],
+      "available_handlers": [
+        "Transfer"
+      ]
+    },
+    "13": {
+      "log_index": 13,
+      "log_name": "Transfer",
+      "contract": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+      "transformer_found": true,
+      "transformer_name": "WavaxTransformer",
+      "has_handler": true,
+      "available_attributes": [
+        "src",
+        "dst",
+        "wad"
+      ],
+      "available_handlers": [
+        "Transfer"
+      ]
+    },
+    "16": {
+      "log_index": 16,
+      "log_name": "Transfer",
+      "contract": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+      "transformer_found": true,
+      "transformer_name": "WavaxTransformer",
+      "has_handler": true,
+      "available_attributes": [
+        "src",
+        "dst",
+        "wad"
+      ],
+      "available_handlers": [
+        "Transfer"
+      ]
+    },
+    "17": {
+      "log_index": 17,
+      "log_name": "Transfer",
+      "contract": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+      "transformer_found": true,
+      "transformer_name": "TokenTransformer",
+      "has_handler": true,
+      "available_attributes": [
+        "from",
+        "to",
+        "value"
+      ],
+      "available_handlers": [
+        "Transfer"
+      ]
+    },
+    "18": {
+      "log_index": 18,
+      "log_name": "Sync",
+      "contract": "0x819fe65a885d40493f4b91e8a10e242018758432",
+      "transformer_found": true,
+      "transformer_name": "LfjPoolTransformer",
+      "has_handler": false,
+      "available_attributes": [
+        "reserve0",
+        "reserve1"
+      ],
+      "available_handlers": [
+        "Swap",
+        "Mint",
+        "Burn",
+        "Transfer"
+      ]
+    },
+    "19": {
+      "log_index": 19,
+      "log_name": "Swap",
+      "contract": "0x819fe65a885d40493f4b91e8a10e242018758432",
+      "transformer_found": true,
+      "transformer_name": "LfjPoolTransformer",
+      "has_handler": true,
+      "available_attributes": [
+        "sender",
+        "to",
+        "amount0In",
+        "amount1In",
+        "amount0Out",
+        "amount1Out"
+      ],
+      "available_handlers": [
+        "Swap",
+        "Mint",
+        "Burn",
+        "Transfer"
+      ]
+    },
+    "20": {
+      "log_index": 20,
+      "log_name": "Transfer",
+      "contract": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+      "transformer_found": true,
+      "transformer_name": "WavaxTransformer",
+      "has_handler": true,
+      "available_attributes": [
+        "src",
+        "dst",
+        "wad"
+      ],
+      "available_handlers": [
+        "Transfer"
+      ]
+    },
+    "21": {
+      "log_index": 21,
+      "log_name": "Transfer",
+      "contract": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+      "transformer_found": true,
+      "transformer_name": "TokenTransformer",
+      "has_handler": true,
+      "available_attributes": [
+        "from",
+        "to",
+        "value"
+      ],
+      "available_handlers": [
+        "Transfer"
+      ]
+    },
+    "22": {
+      "log_index": 22,
+      "log_name": "Sync",
+      "contract": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+      "transformer_found": true,
+      "transformer_name": "LfjPoolTransformer",
+      "has_handler": false,
+      "available_attributes": [
+        "reserve0",
+        "reserve1"
+      ],
+      "available_handlers": [
+        "Swap",
+        "Mint",
+        "Burn",
+        "Transfer"
+      ]
+    },
+    "23": {
+      "log_index": 23,
+      "log_name": "Swap",
+      "contract": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+      "transformer_found": true,
+      "transformer_name": "LfjPoolTransformer",
+      "has_handler": true,
+      "available_attributes": [
+        "sender",
+        "to",
+        "amount0In",
+        "amount1In",
+        "amount0Out",
+        "amount1Out"
+      ],
+      "available_handlers": [
+        "Swap",
+        "Mint",
+        "Burn",
+        "Transfer"
+      ]
+    },
+    "24": {
+      "log_index": 24,
+      "log_name": "Transfer",
+      "contract": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+      "transformer_found": true,
+      "transformer_name": "TokenTransformer",
+      "has_handler": true,
+      "available_attributes": [
+        "from",
+        "to",
+        "value"
+      ],
+      "available_handlers": [
+        "Transfer"
+      ]
+    },
+    "25": {
+      "log_index": 25,
+      "log_name": "Swap",
+      "contract": "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc",
+      "transformer_found": true,
+      "transformer_name": "OdosAggregatorTransformer",
+      "has_handler": true,
+      "available_attributes": [
+        "sender",
+        "inputAmount",
+        "inputToken",
+        "amountOut",
+        "outputToken",
+        "slippage",
+        "referralCode"
+      ],
+      "available_handlers": [
+        "Swap",
+        "SwapMulti"
+      ]
+    },
+    "27": {
+      "log_index": 27,
+      "log_name": "Transfer",
+      "contract": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+      "transformer_found": true,
+      "transformer_name": "TokenTransformer",
+      "has_handler": true,
+      "available_attributes": [
+        "from",
+        "to",
+        "value"
+      ],
+      "available_handlers": [
+        "Transfer"
+      ]
+    },
+    "28": {
+      "log_index": 28,
+      "log_name": "SwapExactIn",
+      "contract": "0x45a62b090df48243f12a21897e7ed91863e2c86b",
+      "transformer_found": true,
+      "transformer_name": "LfjAggregatorTransformer",
+      "has_handler": true,
+      "available_attributes": [
+        "sender",
+        "to",
+        "tokenIn",
+        "tokenOut",
+        "amountIn",
+        "amountOut"
+      ],
+      "available_handlers": [
+        "SwapExactIn",
+        "SwapExactOut"
+      ]
+    }
+  },
+  "compatibility_issues": [
+    {
+      "log_index": 18,
+      "issue": "no_handler",
+      "description": "Transformer LfjPoolTransformer has no handler for 'Sync'"
+    },
+    {
+      "log_index": 22,
+      "issue": "no_handler",
+      "description": "Transformer LfjPoolTransformer has no handler for 'Sync'"
+    }
+  ]
+}

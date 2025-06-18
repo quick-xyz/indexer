@@ -135,6 +135,12 @@ class TradeProcessor(LoggingMixin):
         
         swap_signals = {idx: signal for idx, signal in signals.items() if isinstance(signal, SwapSignal)}
 
+        print(f"DEBUG: Processing {len(swap_signals)} swap signals")
+        
+        if not swap_signals:
+            print("DEBUG: No swap signals to process")
+            return {}
+
         if not swap_signals:
             self.log_debug("No swap signals to process", tx_hash=context.transaction.tx_hash)
             return {}
@@ -146,7 +152,11 @@ class TradeProcessor(LoggingMixin):
         pool_swaps = {}
         try:
             for log_index, signal in swap_signals.items():
+                print(f"DEBUG: Processing swap signal {log_index} for pool {signal.pool}")
+
                 pattern = self.registry.get_pattern(signal.pattern)
+                print(f"DEBUG: Pattern found: {pattern is not None}")
+
                 if not pattern:
                     self.log_warning("No pattern found for swap signal",
                                     tx_hash=context.transaction.tx_hash,
@@ -162,6 +172,8 @@ class TradeProcessor(LoggingMixin):
                               taker=signal.to)
                 
                 result = pattern.produce_events({log_index: signal}, context)
+                print(f"DEBUG: Pattern produced {len(result) if result else 0} events")
+
                 if not result:
                     self.log_warning("Swap signal pattern processing failed",
                                     tx_hash=context.transaction.tx_hash,
@@ -169,10 +181,14 @@ class TradeProcessor(LoggingMixin):
                                     pattern_name=signal.pattern)
                     continue
                 pool_swaps.update(result)
-            
+
+            print(f"DEBUG: Total pool swaps created: {len(pool_swaps)}")
+
             return pool_swaps
             
         except Exception as e:
+            print(f"DEBUG: Exception in swap processing: {e}")
+
             error = self._create_processing_error(e, context.transaction.tx_hash, "swap_signal_processing")
             context.add_errors({error.error_id: error})
             self.log_error("Swap signal processing failed",
@@ -183,7 +199,12 @@ class TradeProcessor(LoggingMixin):
     def _produce_trade_events(self, pool_swaps: Dict[DomainEventId, PoolSwap],
                               route_signals: Dict[int, RouteSignal|MultiRouteSignal],
                               context: TransformContext) -> Dict[DomainEventId, Trade]:
+        print(f"DEBUG: Trade event production starting")
+        print(f"DEBUG: pool_swaps: {len(pool_swaps)}")
+        print(f"DEBUG: route_signals: {len(route_signals)}")
+
         if not pool_swaps:
+            print("DEBUG: No pool swaps - returning empty")
             self.log_debug("No pool swaps to produce trade events", tx_hash=context.transaction.tx_hash)
             return {}
         
@@ -192,21 +213,36 @@ class TradeProcessor(LoggingMixin):
                       pool_swap_count=len(pool_swaps))
         
         trade_events = {}
-        trade_swaps = defaultdict(lambda: {"buy": {DomainEventId:PoolSwap}, "sell": {DomainEventId:PoolSwap}})
+        trade_swaps = defaultdict(lambda: {"buy": {}, "sell": {}})
         
         try:
+            print(f"DEBUG: About to process pool swaps")
             for id, swap in pool_swaps.items():
+                print(f"DEBUG: Processing pool swap {id} for base token {swap.base_token} in direction {swap.direction}")
                 if swap.direction == "buy":
                     trade_swaps[swap.base_token]["buy"][id] = swap
+                    print(f"DEBUG: Added to buy swaps")
                 else:
                     trade_swaps[swap.base_token]["sell"][id] = swap
+                    print(f"DEBUG: Added to sell swaps")
+                
+                print(f"DEBUG: Finished processing swap {id}")
+
+            print(f"DEBUG: Finished grouping swaps. Processing {len(trade_swaps)} base tokens")
 
             for base_token, dir_swaps in trade_swaps.items():
+                print(f"DEBUG: Processing base token {base_token} with swaps: {dir_swaps}")
+
                 buy_routes, sell_routes = self._build_route_context(base_token, route_signals)
+                print(f"DEBUG: Buy routes: {buy_routes}, Sell routes: {sell_routes}")
+
                 buy_swaps = dir_swaps.get("buy", {})
-                sell_swaps = dir_swaps.get("sell", {})                
+                sell_swaps = dir_swaps.get("sell", {})           
+                print(f"DEBUG: Buy swaps: {len(buy_swaps)}, Sell swaps: {len(sell_swaps)}")     
 
                 if buy_swaps:
+                    print(f"DEBUG: Processing buy swaps for base token {base_token}")
+
                     if buy_routes and len(buy_routes) == 1: # Note: complex multi routes are not supported yet. Only many:one not many:many
                         trades = self._build_routed_trades(base_token, next(iter(buy_routes.values())), buy_swaps, context)
                     else:
@@ -215,9 +251,18 @@ class TradeProcessor(LoggingMixin):
                     trade_events.update(trades)
 
                 if sell_swaps:
+                    print(f"DEBUG: Processing sell swaps for base token {base_token}")
+
                     if sell_routes and len(sell_routes) == 1: # Note: complex multi routes are not supported yet. Only many:one not many:many
-                        trades = self._build_routed_trades(base_token, sell_routes, sell_swaps, context)
+                        print(f"DEBUG: Using routed trades for sell")
+                        try:
+                            trades = self._build_routed_trades(base_token, next(iter(sell_routes.values())), sell_swaps, context)
+                            print(f"DEBUG: Routed trades created: {len(trades) if trades else 0}")
+                        except Exception as e:
+                            print(f"DEBUG: Routed trades failed: {e}")
+                            raise
                     else:
+                        print(f"DEBUG: Using simple trades for sell")
                         trades = self._build_trades(base_token, sell_swaps, context)
 
                     trade_events.update(trades)
@@ -269,19 +314,19 @@ class TradeProcessor(LoggingMixin):
                     )
 
         if not buy_routes and not sell_routes:
-            return None, None
+            return buy_routes, sell_routes
         
         if len(buy_routes) < 2 and len(sell_routes) < 2:
             return buy_routes, sell_routes
         
-        if buy_routes > 1:
+        if len(buy_routes) > 1:
             # Aggregate buy routes
             top_level = max(buy_routes.keys())
             sum_remaining = sum(int(route.amount) for idx, route in buy_routes.items() if idx != top_level)
             if sum_remaining == buy_routes[top_level].amount:
                 buy_routes = {top_level: buy_routes[top_level]}
 
-        if sell_routes > 1:
+        if len(sell_routes) > 1:
             # Aggregate sell routes
             top_level = max(sell_routes.keys())
             sum_remaining = sum(int(route.amount) for idx, route in sell_routes.items() if idx != top_level)
@@ -342,7 +387,13 @@ class TradeProcessor(LoggingMixin):
     
     def _build_routed_trades(self, base_token: EvmAddress, route: RouteContext, swaps: Dict[DomainEventId,PoolSwap],context: TransformContext) -> Optional[Dict[DomainEventId,Trade]]:
         
+        print(f"DEBUG: _build_routed_trades called")
+        print(f"DEBUG: base_token type: {type(base_token)}, value: {base_token}")
+        print(f"DEBUG: route type: {type(route)}, value: {route}")
+        print(f"DEBUG: swaps type: {type(swaps)}, value: {swaps}")
+
         base_amount = sum(amount_to_int(swap.base_amount) for swap in swaps.values())
+        print(f"DEBUG: base_amount calculated: {base_amount}")
 
         address_balances = defaultdict(int)
         for swap in swaps.values():
@@ -354,6 +405,7 @@ class TradeProcessor(LoggingMixin):
 
         # Check if PoolSwaps already cover route
         if base_amount == route.amount:
+            print(f"DEBUG: Checking route amount match")
             # Pool side is complete, check taker side
             if amount_to_int(route.amount) == address_balances[route.taker]:
                 self.log_debug("Routed trade matches exact amount",
@@ -397,8 +449,10 @@ class TradeProcessor(LoggingMixin):
                 for idx, transfer in unmatched_taker_transfers.items():
                     if amount_to_int(transfer.amount) == taker_deficit:
                         # Success
-                        positions = self._generate_positions([transfer], context)
+                        positions = self._generate_positions({idx: transfer}, context)
                         transfer = Transfer(
+                            timestamp=context.transaction.timestamp,
+                            tx_hash=context.transaction.tx_hash,
                             token=transfer.token,
                             from_address=transfer.from_address,
                             to_address=transfer.to_address,
@@ -428,15 +482,17 @@ class TradeProcessor(LoggingMixin):
         # Unhandled PoolSwaps currently fail the route
         return self._build_trades(base_token, swaps, context)
 
-    def _generate_positions(self, transfers: List[TransferSignal],context: TransformContext) -> Dict[DomainEventId, Position]:
+    def _generate_positions(self, transfers: Dict[int, TransferSignal],context: TransformContext) -> Dict[DomainEventId, Position]:
         positions = {}
 
         if not transfers:
             return positions
         
-        for transfer in transfers:
+        for transfer in transfers.values():
             if transfer.to_address != ZERO_ADDRESS and transfer.token in context.indexer_tokens:
                 position_in = Position(
+                    timestamp=context.transaction.timestamp,
+                    tx_hash=context.transaction.tx_hash,
                     user=transfer.to_address,
                     custodian=transfer.to_address,
                     token=transfer.token,
@@ -446,6 +502,8 @@ class TradeProcessor(LoggingMixin):
 
             if transfer.from_address != ZERO_ADDRESS and transfer.token in context.indexer_tokens:
                 position_out = Position(
+                    timestamp=context.transaction.timestamp,
+                    tx_hash=context.transaction.tx_hash,
                     user=transfer.from_address,
                     custodian=transfer.from_address,
                     token=transfer.token,

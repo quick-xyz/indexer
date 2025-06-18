@@ -83,12 +83,20 @@ class TransformManager(LoggingMixin):
 
             # Phase 3: Unmatched Transfers Reconciliation
             self.log_debug("Starting net position generation phase", tx_hash=tx.tx_hash)
+            print(f"DEBUG: Starting unmatched transfer reconciliation")
             reconciliation = self._reconcile_unmatched_transfers(context)
+            print(f"DEBUG: Unmatched transfer reconciliation completed: {reconciliation}")
 
             # Finalize transaction
+            self.log_debug("Finalizing transaction",
+                          tx_hash=tx.tx_hash,
+                          signal_success=signal_success,
+                          event_success=event_success,
+                          reconciliation=reconciliation)
             updated_tx = context.finalize_to_transaction()
-            
+            print(f"DEBUG: Transaction finalized")
             # Determine overall success
+
             processing_success = signal_success and event_success and reconciliation
             
             # Log final statistics
@@ -193,12 +201,25 @@ class TransformManager(LoggingMixin):
                       tx_hash=context.transaction.tx_hash,
                       total_signals=len(context.signals))
 
+        print(f"DEBUG: Total signals to process: {len(context.signals)}")
+        
+        # Before trade processing
+        trade_signals = {
+            idx: signal for idx, signal in context.signals.items()
+            if signal.pattern in ["Swap_A", "Route"]
+        }
+        print(f"DEBUG: Trade signals found: {len(trade_signals)}")
+        print(f"DEBUG: Trade signal patterns: {[s.pattern for s in trade_signals.values()]}")
+
         try:
             # Process trade signals first (they require aggregation)
             trade_success = self._process_trade_signals(context)
+            print(f"DEBUG: Trade processing success: {trade_success}")
 
             # Process remaining signals with simple patterns
+            print(f"DEBUG: Starting remaining signals processing")
             pattern_success = self._process_remaining_signals(context)
+            print(f"DEBUG: Remaining signals completed: {pattern_success}")
 
             event_count = len(context.events) if context.events else 0
             self.log_debug("Event generation completed",
@@ -257,7 +278,7 @@ class TransformManager(LoggingMixin):
 
     def _process_remaining_signals(self, context: TransformContext) -> bool:
         """Process remaining signals with simple patterns"""
-        
+
         remaining_signals = context.get_remaining_signals()
         
         if not remaining_signals:
@@ -274,7 +295,7 @@ class TransformManager(LoggingMixin):
         for log_index, signal in remaining_signals.items():
             if log_index in context.consumed_signals:
                 continue
-                
+
             try:
                 pattern = self.registry.get_pattern(signal.pattern)
                 if not pattern:
@@ -306,8 +327,10 @@ class TransformManager(LoggingMixin):
  
     def _reconcile_unmatched_transfers(self, context: TransformContext) -> bool:
         """Reconcile unmatched transfers to generate net positions"""
+        print(f"DEBUG: Starting unmatched transfers reconciliation")
         unmatched_transfers = context.get_unmatched_transfers()
-        
+        print(f"DEBUG: Unmatched transfers found: {len(unmatched_transfers)}")
+
         if not unmatched_transfers:
             self.log_debug("No unmatched transfers to reconcile",
                           tx_hash=context.transaction.tx_hash)
@@ -317,27 +340,30 @@ class TransformManager(LoggingMixin):
                       tx_hash=context.transaction.tx_hash,
                       unmatched_count=len)
 
-        transfer_list = list()
-        for idx, trf in unmatched_transfers.items():
-            if trf.token in context.indexer_tokens:
-                transfer_list.append(trf)
-                
-        if not transfer_list:
+        print(f"DEBUG: Unmatched transfers count: {len(unmatched_transfers)}")
+        transfer_dict = {idx: trf for idx, trf in unmatched_transfers.items() if trf.token in context.indexer_tokens}
+        print(f"DEBUG: Filtered unmatched transfers count: {len(transfer_dict)}")
+
+        if not transfer_dict:
             return True
         
-        positions = self._generate_positions(transfer_list, context)
-        
+        print(f"DEBUG: Generating positions from unmatched transfers")
+        positions = self._generate_positions(transfer_dict, context)
+        print(f"DEBUG: Generated positions count: {len(positions)}")
         return True if positions else False
 
-    def _generate_positions(self, transfers: List[TransferSignal],context: TransformContext) -> Dict[DomainEventId, Position]:
+    def _generate_positions(self, transfers: Dict[int, TransferSignal],context: TransformContext) -> Dict[DomainEventId, Position]:
         positions = {}
 
         if not transfers:
             return positions
         
-        for transfer in transfers:
+        print(f"DEBUG: Generating positions from transfers")
+        for transfer in transfers.values():
             if transfer.to_address != ZERO_ADDRESS and transfer.token in context.indexer_tokens:
                 position_in = Position(
+                    timestamp=context.transaction.timestamp,
+                    tx_hash=context.transaction.tx_hash,
                     user=transfer.to_address,
                     custodian=transfer.to_address,
                     token=transfer.token,
@@ -347,13 +373,16 @@ class TransformManager(LoggingMixin):
 
             if transfer.from_address != ZERO_ADDRESS and transfer.token in context.indexer_tokens:
                 position_out = Position(
+                    timestamp=context.transaction.timestamp,
+                    tx_hash=context.transaction.tx_hash, 
                     user=transfer.from_address,
                     custodian=transfer.from_address,
                     token=transfer.token,
                     amount=amount_to_negative_str(transfer.amount),
                 )
                 positions[position_out.content_id] = position_out
-
+        
+        print(f"DEBUG: Positions generated: {len(positions)}")
         context.add_positions(positions)
         return positions
 
