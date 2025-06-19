@@ -277,6 +277,21 @@
                             "token_id": null,
                             "batch": null,
                             "sender": null
+                        },
+                        "14": {
+                            "type": "LiquiditySignal",
+                            "log_index": 14,
+                            "pattern": "Burn_A",
+                            "pool": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+                            "base_amount": "-8620492009136536790302888",
+                            "base_token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                            "quote_amount": "-30311595008229678148731",
+                            "quote_token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+                            "action": "remove",
+                            "receipt_amount": null,
+                            "batch": null,
+                            "sender": "0x60ae616a2155ee3d9a68541ba4544862310933d4",
+                            "owner": "0x34ece273a96db92e942a22fd28133fa34cd44fc9"
                         }
                     },
                     "batch": null
@@ -302,20 +317,7 @@
                             "token_id": null
                         }
                     },
-                    "signals": {
-                        "9": {
-                            "type": "TransferSignal",
-                            "log_index": 9,
-                            "pattern": "Transfer",
-                            "token": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
-                            "from_address": "0x0000000000000000000000000000000000000000",
-                            "to_address": "0x60233142befce7d4ed73e7793ead2d6190fccaab",
-                            "amount": "152894868786059542844",
-                            "token_id": null,
-                            "batch": null,
-                            "sender": null
-                        }
-                    }
+                    "signals": {}
                 }
             },
             "positions": {
@@ -346,7 +348,7 @@
                     "user": "0x34ece273a96db92e942a22fd28133fa34cd44fc9",
                     "token": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
                     "amount": "-500000000000000000000000",
-                    "custodian": "0x34ece273a96db92e942a22fd28133fa34cd44fc9",
+                    "custodian": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
                     "token_id": null
                 },
                 "bc445429949f": {
@@ -357,26 +359,6 @@
                     "token": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
                     "amount": "152894868786059542844",
                     "custodian": "0x60233142befce7d4ed73e7793ead2d6190fccaab",
-                    "token_id": null
-                },
-                "be4d53d4d7ba": {
-                    "type": "Position",
-                    "timestamp": 1741207547,
-                    "tx_hash": "0xf047f0529b433121f6876ac862b4c4c4010182d3b9c6a6a1f88f8881dd1bf1a9",
-                    "user": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
-                    "token": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
-                    "amount": "500000000000000000000000",
-                    "custodian": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
-                    "token_id": null
-                },
-                "0ba664916250": {
-                    "type": "Position",
-                    "timestamp": 1741207547,
-                    "tx_hash": "0xf047f0529b433121f6876ac862b4c4c4010182d3b9c6a6a1f88f8881dd1bf1a9",
-                    "user": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
-                    "token": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
-                    "amount": "-500000000000000000000000",
-                    "custodian": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
                     "token_id": null
                 }
             },
@@ -391,7 +373,7 @@
         "retry_count": 0,
         "last_error": null,
         "started_at": null,
-        "completed_at": "2025-06-18T14:32:42.148558+00:00",
+        "completed_at": "2025-06-19T13:49:27.312531+00:00",
         "error_stage": null
     }
 }

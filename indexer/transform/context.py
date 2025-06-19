@@ -38,14 +38,13 @@ class TransformContext(LoggingMixin):
         self.errors: Dict[ErrorId, ProcessingError] = {}
         self.positions: Dict[DomainEventId, Position] = {}
 
-        # Initialize as None instead of empty dicts
-        self._transfer_signals: Optional[Dict[int, TransferSignal]] = None
-        self.matched_transfers: Set[int] = set()
-        self._event_signals: Optional[Dict[int, Signal]] = None
+        # Track consumed signals for non-transfer signals
         self.consumed_signals: Set[int] = set()
 
+        # Transfer tracking - trf_dict contains only UNMATCHED transfers
+        self._transfer_signals: Optional[Dict[int, TransferSignal]] = None
         self._trf_dict: Optional[Dict[str, TrfDict]] = None
-        self._trf_summary: Optional[Dict[EvmAddress, Dict[EvmAddress, Dict[str, int]]]] = None
+        self._trf_dict_built = False
 
         self.log_debug("Transform context initialized",
                       tx_hash=transaction.tx_hash,
@@ -58,7 +57,8 @@ class TransformContext(LoggingMixin):
 
     @property
     def trf_dict(self) -> Dict[str, TrfDict]:
-        if self._trf_dict is None:
+        """Get the unmatched transfers dictionary"""
+        if not self._trf_dict_built:
             self._build_trf_dict()
         return self._trf_dict
 
@@ -82,8 +82,8 @@ class TransformContext(LoggingMixin):
         
         # Reset cached computations when signals are added
         self._transfer_signals = None
-        self._event_signals = None
         self._trf_dict = None
+        self._trf_dict_built = False
         
         self.log_debug("Signals added to context",
                       tx_hash=self.transaction.tx_hash,
@@ -223,29 +223,6 @@ class TransformContext(LoggingMixin):
                           exception_type=type(e).__name__)
             raise
 
-    def _init_signals(self) -> None:
-        """Initialize signal categorization"""
-        if not self.signals:
-            self.log_debug("No signals to initialize", tx_hash=self.transaction.tx_hash)
-            return
-        
-        try:
-            self._build_transfer_signals()
-            self._build_event_signals()
-            self._build_trf_dict()
-            
-            self.log_debug("Signals initialized",
-                          tx_hash=self.transaction.tx_hash,
-                          transfer_signals=len(self._transfer_signals) if self._transfer_signals else 0,
-                          event_signals=len(self._event_signals) if self._event_signals else 0)
-            
-        except Exception as e:
-            self.log_error("Failed to initialize signals",
-                          tx_hash=self.transaction.tx_hash,
-                          error=str(e),
-                          exception_type=type(e).__name__)
-            raise
-
     def _build_transfer_signals(self) -> None:
         """Build transfer signals dictionary"""
         try:
@@ -265,33 +242,14 @@ class TransformContext(LoggingMixin):
                           exception_type=type(e).__name__)
             raise
 
-    def _build_event_signals(self) -> None:
-        """Build non-transfer signals dictionary"""
-        try:
-            self._event_signals = {
-                idx: signal for idx, signal in self.signals.items() 
-                if not isinstance(signal, TransferSignal)
-            }
-            
-            self.log_debug("Event signals built",
-                          tx_hash=self.transaction.tx_hash,
-                          event_signal_count=len(self._event_signals))
-            
-        except Exception as e:
-            self.log_error("Failed to build event signals",
-                          tx_hash=self.transaction.tx_hash,
-                          error=str(e),
-                          exception_type=type(e).__name__)
-            raise
-
     def _build_trf_dict(self) -> None:
-        """Build transfer dictionary for efficient lookups"""
-        if self._transfer_signals is None: 
+        """Build transfer dictionary containing only UNMATCHED transfers"""
+        if self._transfer_signals is None:
             self._build_transfer_signals()
         
         try:
-            trf_out = defaultdict(lambda: defaultdict(lambda: defaultdict(dict)))
-            trf_in = defaultdict(lambda: defaultdict(lambda: defaultdict(dict)))
+            trf_out = defaultdict(lambda: defaultdict(dict))
+            trf_in = defaultdict(lambda: defaultdict(dict))
             
             for idx, transfer in self._transfer_signals.items():
                 if not transfer.from_address or not transfer.to_address:
@@ -304,11 +262,12 @@ class TransformContext(LoggingMixin):
                 trf_in[transfer.to_address][transfer.token][idx] = transfer
 
             self._trf_dict = {
-                "trf_out": trf_out,
-                "trf_in": trf_in,
+                "trf_out": dict(trf_out),
+                "trf_in": dict(trf_in),
             }
+            self._trf_dict_built = True
             
-            self.log_debug("Transfer dictionary built",
+            self.log_debug("Transfer dictionary built (unmatched only)",
                           tx_hash=self.transaction.tx_hash,
                           transfers_processed=len(self._transfer_signals))
             
@@ -318,18 +277,109 @@ class TransformContext(LoggingMixin):
                           error=str(e),
                           exception_type=type(e).__name__)
             raise
-    
-    def _get_trf_in(self) -> TrfDict:
-        """Get incoming transfers dictionary"""
-        if self._trf_dict is None:
-            self._build_trf_dict()
-        return self._trf_dict["trf_in"]
 
-    def _get_trf_out(self) -> TrfDict:
-        """Get outgoing transfers dictionary"""
-        if self._trf_dict is None:
-            self._build_trf_dict()
-        return self._trf_dict["trf_out"]
+    def _remove_transfer_from_dict(self, log_index: int) -> None:
+        """Remove a matched transfer from the trf_dict"""
+        if not self._trf_dict_built or not self._transfer_signals:
+            return
+        
+        transfer = self._transfer_signals.get(log_index)
+        if not transfer:
+            return
+        
+        try:
+            # Remove from trf_out
+            if (transfer.from_address in self._trf_dict["trf_out"] and 
+                transfer.token in self._trf_dict["trf_out"][transfer.from_address] and
+                log_index in self._trf_dict["trf_out"][transfer.from_address][transfer.token]):
+                
+                del self._trf_dict["trf_out"][transfer.from_address][transfer.token][log_index]
+                
+                # Clean up empty dictionaries
+                if not self._trf_dict["trf_out"][transfer.from_address][transfer.token]:
+                    del self._trf_dict["trf_out"][transfer.from_address][transfer.token]
+                    if not self._trf_dict["trf_out"][transfer.from_address]:
+                        del self._trf_dict["trf_out"][transfer.from_address]
+            
+            # Remove from trf_in
+            if (transfer.to_address in self._trf_dict["trf_in"] and 
+                transfer.token in self._trf_dict["trf_in"][transfer.to_address] and
+                log_index in self._trf_dict["trf_in"][transfer.to_address][transfer.token]):
+                
+                del self._trf_dict["trf_in"][transfer.to_address][transfer.token][log_index]
+                
+                # Clean up empty dictionaries
+                if not self._trf_dict["trf_in"][transfer.to_address][transfer.token]:
+                    del self._trf_dict["trf_in"][transfer.to_address][transfer.token]
+                    if not self._trf_dict["trf_in"][transfer.to_address]:
+                        del self._trf_dict["trf_in"][transfer.to_address]
+            
+            self.log_debug("Transfer removed from trf_dict",
+                          tx_hash=self.transaction.tx_hash,
+                          log_index=log_index)
+                          
+        except Exception as e:
+            self.log_error("Failed to remove transfer from trf_dict",
+                          tx_hash=self.transaction.tx_hash,
+                          log_index=log_index,
+                          error=str(e),
+                          exception_type=type(e).__name__)
+
+    def rebuild_complete_trf_dict(self, include_matched: bool = True) -> Dict[str, TrfDict]:
+        """Rebuild complete transfer dictionary with option to include matched transfers"""
+        if self._transfer_signals is None:
+            self._build_transfer_signals()
+        
+        try:
+            trf_out = defaultdict(lambda: defaultdict(dict))
+            trf_in = defaultdict(lambda: defaultdict(dict))
+            
+            for idx, transfer in self._transfer_signals.items():
+                # Skip matched transfers if include_matched is False
+                if not include_matched and self._is_transfer_matched(idx):
+                    continue
+                
+                if not transfer.from_address or not transfer.to_address:
+                    continue
+                
+                trf_out[transfer.from_address][transfer.token][idx] = transfer
+                trf_in[transfer.to_address][transfer.token][idx] = transfer
+
+            result = {
+                "trf_out": dict(trf_out),
+                "trf_in": dict(trf_in),
+            }
+            
+            self.log_debug("Complete transfer dictionary rebuilt",
+                          tx_hash=self.transaction.tx_hash,
+                          include_matched=include_matched,
+                          transfers_included=len([t for idx, t in self._transfer_signals.items() 
+                                                if include_matched or not self._is_transfer_matched(idx)]))
+            
+            return result
+            
+        except Exception as e:
+            self.log_error("Failed to rebuild complete transfer dictionary",
+                          tx_hash=self.transaction.tx_hash,
+                          error=str(e),
+                          exception_type=type(e).__name__)
+            return {"trf_out": {}, "trf_in": {}}
+
+    def _is_transfer_matched(self, log_index: int) -> bool:
+        """Check if a transfer signal has been matched by checking if it's in current trf_dict"""
+        if not self._trf_dict_built or not self._transfer_signals:
+            return False
+        
+        transfer = self._transfer_signals.get(log_index)
+        if not transfer:
+            return True  # If we can't find it, consider it matched
+        
+        # Check if it exists in the unmatched trf_dict
+        return not (
+            transfer.from_address in self._trf_dict["trf_out"] and
+            transfer.token in self._trf_dict["trf_out"][transfer.from_address] and
+            log_index in self._trf_dict["trf_out"][transfer.from_address][transfer.token]
+        )
 
     # =============================================================================
     # HELPER METHODS
@@ -400,55 +450,57 @@ class TransformContext(LoggingMixin):
                       total_consumed=len(self.consumed_signals))
 
     def mark_signals_consumed(self, log_indices: List[int]) -> None:
-        """Mark multiple signals as consumed"""
+        """Mark signals as consumed and automatically mark transfer signals as matched"""
         if not log_indices:
             return
         
         if not all(isinstance(idx, int) for idx in log_indices):
             raise TypeError("All log indices must be integers")
         
+        transfer_count = 0
+        signal_count = 0
+        
         for log_index in log_indices:
             self.consumed_signals.add(log_index)
+            
+            # If this signal is a transfer, remove it from trf_dict (mark as matched)
+            if (log_index in self.signals and 
+                isinstance(self.signals[log_index], TransferSignal)):
+                self._remove_transfer_from_dict(log_index)
+                transfer_count += 1
+            else:
+                signal_count += 1
         
-        self.log_debug("Multiple signals marked as consumed",
+        self.log_debug("Signals marked as consumed, transfers marked as matched",
                       tx_hash=self.transaction.tx_hash,
-                      consumed_count=len(log_indices),
+                      total_processed=len(log_indices),
+                      transfers_matched=transfer_count,
+                      signals_consumed=signal_count,
                       total_consumed=len(self.consumed_signals))
 
     def is_signal_consumed(self, log_index: int) -> bool:
         """Check if a signal is already consumed"""
         return log_index in self.consumed_signals
 
-    def match_transfer(self, log_index: int) -> None:
-        """Mark a transfer as matched"""
-        if not isinstance(log_index, int):
-            raise TypeError("Log index must be an integer")
-        
-        self.matched_transfers.add(log_index)
-        
-        self.log_debug("Transfer marked as matched",
-                      tx_hash=self.transaction.tx_hash,
-                      log_index=log_index,
-                      total_matched=len(self.matched_transfers))
-
     def get_unmatched_transfers(self) -> Dict[int, TransferSignal]:
         """Get all unmatched transfer signals"""
-        if self._transfer_signals is None:
-            self._build_transfer_signals()
+        if not self._trf_dict_built:
+            self._build_trf_dict()
         
         try:
-            unmatched_transfers = {
-                idx: t for idx, t in self._transfer_signals.items() 
-                if idx not in self.matched_transfers
-            }
+            # Collect all transfers from the unmatched trf_dict
+            unmatched_transfers = {}
+            
+            for address_dict in self._trf_dict["trf_out"].values():
+                for token_dict in address_dict.values():
+                    unmatched_transfers.update(token_dict)
             
             self.log_debug("Retrieved unmatched transfers",
                           tx_hash=self.transaction.tx_hash,
-                          total_transfers=len(self._transfer_signals),
-                          matched_transfers=len(self.matched_transfers),
+                          total_transfers=len(self._transfer_signals) if self._transfer_signals else 0,
                           unmatched_transfers=len(unmatched_transfers))
             
-            return unmatched_transfers if unmatched_transfers else {}
+            return unmatched_transfers
             
         except Exception as e:
             self.log_error("Failed to get unmatched transfers",
@@ -458,23 +510,16 @@ class TransformContext(LoggingMixin):
             return {}
 
     def get_remaining_signals(self) -> Dict[int, Signal]:
-        """Get signals that haven't been consumed"""
-        # Always rebuild to ensure we have the latest signals
-        self._build_event_signals()
-        
-        if not self._event_signals:
-            self.log_debug("No event signals available", tx_hash=self.transaction.tx_hash)
-            return {}
-        
+        """Get signals that haven't been consumed (non-transfer signals only)"""
         try:
             result = {
-                idx: signal for idx, signal in self._event_signals.items()
-                if idx not in self.consumed_signals
+                idx: signal for idx, signal in self.signals.items()
+                if idx not in self.consumed_signals and not isinstance(signal, TransferSignal)
             }
             
             self.log_debug("Retrieved remaining signals",
                           tx_hash=self.transaction.tx_hash,
-                          total_event_signals=len(self._event_signals),
+                          total_signals=len(self.signals),
                           consumed_signals=len(self.consumed_signals),
                           remaining_signals=len(result))
             
@@ -488,25 +533,11 @@ class TransformContext(LoggingMixin):
             return {}
 
     def match_all_signals(self, signals: Dict[int, Signal]) -> None:
-        """Mark all provided signals as matched/consumed"""
+        """Mark all provided signals as consumed/matched"""
         if not signals:
             return
         
-        transfer_count = 0
-        signal_count = 0
-        
-        for idx, signal in signals.items():
-            if isinstance(signal, TransferSignal):
-                self.match_transfer(idx)
-                transfer_count += 1
-            else:
-                self.mark_signal_consumed(idx)
-                signal_count += 1
-        
-        self.log_debug("All signals marked as matched/consumed",
-                      tx_hash=self.transaction.tx_hash,
-                      transfers_matched=transfer_count,
-                      signals_consumed=signal_count)
+        self.mark_signals_consumed(list(signals.keys()))
 
     def group_swap_events(self, events: List[DomainEventId]) -> None:
         """Mark swap events as grouped"""
@@ -546,93 +577,25 @@ class TransformContext(LoggingMixin):
         
         return buy_swaps, sell_swaps
     
-    def get_contract_transfers(self, contract: EvmAddress) -> Tuple[Dict[EvmAddress, Dict[int, TransferSignal]], Dict[EvmAddress, Dict[int, TransferSignal]]]:
-        """Get transfers for a specific contract, keyed by TOKEN"""
+    def get_unmatched_contract_transfers(self, contract: EvmAddress) -> Tuple[Dict[EvmAddress, Dict[int, TransferSignal]], Dict[EvmAddress, Dict[int, TransferSignal]]]:
+        """Get unmatched transfers for a specific contract - EFFICIENT VERSION"""
         if not contract:
             raise ValueError("Contract address cannot be empty")
         
-        if self._trf_dict is None:
+        if not self._trf_dict_built:
             self._build_trf_dict()
         
         try:
-            in_transfers = self._trf_dict.get("trf_in", {}).get(contract, {})
-            out_transfers = self._trf_dict.get("trf_out", {}).get(contract, {})
+            in_transfers = self._trf_dict["trf_in"].get(contract, {})
+            out_transfers = self._trf_dict["trf_out"].get(contract, {})
             
-            self.log_debug("Retrieved contract transfers",
+            self.log_debug("Retrieved unmatched contract transfers",
                           tx_hash=self.transaction.tx_hash,
                           contract=contract,
                           in_tokens=len(in_transfers),
                           out_tokens=len(out_transfers))
             
             return in_transfers, out_transfers
-            
-        except Exception as e:
-            self.log_error("Failed to get contract transfers",
-                          tx_hash=self.transaction.tx_hash,
-                          contract=contract,
-                          error=str(e),
-                          exception_type=type(e).__name__)
-            return {}, {}
-    
-    def get_token_transfers(self, token: EvmAddress) -> Tuple[Dict[EvmAddress, Dict[int, TransferSignal]], Dict[EvmAddress, Dict[int, TransferSignal]]]:
-        """Get transfers of a specific token, keyed by ADDRESS"""
-        if not token:
-            raise ValueError("Token address cannot be empty")
-        
-        if self._trf_dict is None:
-            self._build_trf_dict()
-        
-        try:
-            in_trf = {
-                address: trf[token] for address, trf in self._get_trf_in().items() 
-                if token in trf
-            }
-            out_trf = {
-                address: trf[token] for address, trf in self._get_trf_out().items() 
-                if token in trf
-            }
-            
-            self.log_debug("Retrieved token transfers",
-                          tx_hash=self.transaction.tx_hash,
-                          token=token,
-                          in_addresses=len(in_trf),
-                          out_addresses=len(out_trf))
-            
-            return in_trf, out_trf
-            
-        except Exception as e:
-            self.log_error("Failed to get token transfers",
-                          tx_hash=self.transaction.tx_hash,
-                          token=token,
-                          error=str(e),
-                          exception_type=type(e).__name__)
-            return {}, {}
-
-    def get_unmatched_contract_transfers(self, contract: EvmAddress) -> Tuple[Dict[EvmAddress, Dict[int, TransferSignal]], Dict[EvmAddress, Dict[int, TransferSignal]]]:
-        """Get unmatched transfers for a specific contract"""
-        in_trf, out_trf = self.get_contract_transfers(contract)
-        
-        try:
-            unmatched_in = {
-                token: {idx: trf for idx, trf in transfers.items() if idx not in self.matched_transfers}
-                for token, transfers in in_trf.items()
-            }
-            unmatched_out = {
-                token: {idx: trf for idx, trf in transfers.items() if idx not in self.matched_transfers}
-                for token, transfers in out_trf.items()
-            }
-            
-            # Remove empty token dictionaries
-            unmatched_in = {token: transfers for token, transfers in unmatched_in.items() if transfers}
-            unmatched_out = {token: transfers for token, transfers in unmatched_out.items() if transfers}
-            
-            self.log_debug("Retrieved unmatched contract transfers",
-                          tx_hash=self.transaction.tx_hash,
-                          contract=contract,
-                          unmatched_in_tokens=len(unmatched_in),
-                          unmatched_out_tokens=len(unmatched_out))
-            
-            return unmatched_in, unmatched_out
             
         except Exception as e:
             self.log_error("Failed to get unmatched contract transfers",
@@ -643,30 +606,30 @@ class TransformContext(LoggingMixin):
             return {}, {}
     
     def get_unmatched_token_transfers(self, token: EvmAddress) -> Tuple[Dict[EvmAddress, Dict[int, TransferSignal]], Dict[EvmAddress, Dict[int, TransferSignal]]]:
-        """Get unmatched transfers of a specific token"""
-        in_trf, out_trf = self.get_token_transfers(token)
+        """Get unmatched transfers of a specific token - EFFICIENT VERSION"""
+        if not token:
+            raise ValueError("Token address cannot be empty")
+        
+        if not self._trf_dict_built:
+            self._build_trf_dict()
         
         try:
-            unmatched_in = {
-                address: {idx: trf for idx, trf in transfers.items() if idx not in self.matched_transfers}
-                for address, transfers in in_trf.items()
+            in_trf = {
+                address: trf[token] for address, trf in self._trf_dict["trf_in"].items() 
+                if token in trf
             }
-            unmatched_out = {
-                address: {idx: trf for idx, trf in transfers.items() if idx not in self.matched_transfers}
-                for address, transfers in out_trf.items()
+            out_trf = {
+                address: trf[token] for address, trf in self._trf_dict["trf_out"].items() 
+                if token in trf
             }
-            
-            # Remove empty address dictionaries
-            unmatched_in = {address: transfers for address, transfers in unmatched_in.items() if transfers}
-            unmatched_out = {address: transfers for address, transfers in unmatched_out.items() if transfers}
             
             self.log_debug("Retrieved unmatched token transfers",
                           tx_hash=self.transaction.tx_hash,
                           token=token,
-                          unmatched_in_addresses=len(unmatched_in),
-                          unmatched_out_addresses=len(unmatched_out))
+                          in_addresses=len(in_trf),
+                          out_addresses=len(out_trf))
             
-            return unmatched_in, unmatched_out
+            return in_trf, out_trf
             
         except Exception as e:
             self.log_error("Failed to get unmatched token transfers",
@@ -675,3 +638,11 @@ class TransformContext(LoggingMixin):
                           error=str(e),
                           exception_type=type(e).__name__)
             return {}, {}
+
+    def get_contract_transfers(self, contract: EvmAddress) -> Tuple[Dict[EvmAddress, Dict[int, TransferSignal]], Dict[EvmAddress, Dict[int, TransferSignal]]]:
+        """Get contract transfers (returns unmatched only for efficiency)"""
+        return self.get_unmatched_contract_transfers(contract)
+    
+    def get_token_transfers(self, token: EvmAddress) -> Tuple[Dict[EvmAddress, Dict[int, TransferSignal]], Dict[EvmAddress, Dict[int, TransferSignal]]]:
+        """Get token transfers (returns unmatched only for efficiency)"""
+        return self.get_unmatched_token_transfers(token)

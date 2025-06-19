@@ -251,6 +251,21 @@
                             "token_id": null,
                             "batch": null,
                             "sender": null
+                        },
+                        "10": {
+                            "type": "LiquiditySignal",
+                            "log_index": 10,
+                            "pattern": "Mint_A",
+                            "pool": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+                            "base_amount": "846041545259096309303",
+                            "base_token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                            "quote_amount": "334415089076497730",
+                            "quote_token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+                            "action": "add",
+                            "receipt_amount": null,
+                            "batch": null,
+                            "sender": "0x60ae616a2155ee3d9a68541ba4544862310933d4",
+                            "owner": null
                         }
                     },
                     "batch": null
@@ -276,20 +291,7 @@
                             "token_id": null
                         }
                     },
-                    "signals": {
-                        "7": {
-                            "type": "TransferSignal",
-                            "log_index": 7,
-                            "pattern": "Transfer",
-                            "token": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
-                            "from_address": "0x0000000000000000000000000000000000000000",
-                            "to_address": "0x60233142befce7d4ed73e7793ead2d6190fccaab",
-                            "amount": "810969532182238971628",
-                            "token_id": null,
-                            "batch": null,
-                            "sender": null
-                        }
-                    }
+                    "signals": {}
                 }
             },
             "positions": {
@@ -320,7 +322,7 @@
                     "user": "0xd70f5733da864ca282c5e7dd9ffece2bf46ef4d0",
                     "token": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
                     "amount": "15790480661875158595",
-                    "custodian": "0xd70f5733da864ca282c5e7dd9ffece2bf46ef4d0",
+                    "custodian": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
                     "token_id": null
                 },
                 "f7af57311848": {
@@ -345,7 +347,7 @@
         "retry_count": 0,
         "last_error": null,
         "started_at": null,
-        "completed_at": "2025-06-18T14:12:24.247027+00:00",
+        "completed_at": "2025-06-19T13:51:09.206259+00:00",
         "error_stage": null
     }
 }

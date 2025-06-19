@@ -205,6 +205,7 @@ class Mint_A(TransferPattern):
         try:
             # Combine all transfer signals
             all_signals = base_match | quote_match | receipts_trf
+            all_signals[signal.log_index] = signal
             
             # Generate positions
             token_positions = self._generate_positions(base_match | quote_match, context)
@@ -475,6 +476,7 @@ class Burn_A(TransferPattern):
             
             # Combine all transfer signals
             all_signals = base_match | quote_match | receipts_match
+            all_signals[signal.log_index] = signal
             
             # Generate positions
             token_positions = self._generate_positions(base_match | quote_match, context)
