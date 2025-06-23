@@ -10,7 +10,8 @@ from .clients.quicknode_rpc import QuickNodeRpcClient
 from .storage.gcs_handler import GCSHandler
 from .decode.block_decoder import BlockDecoder
 from .transform.manager import TransformManager
-
+from .database.connection import DatabaseManager
+from .database.repository import RepositoryManager
 
 def create_indexer(config_path: str = None, config_dict: dict = None, 
                   env_vars: dict = None, **overrides) -> IndexerContainer:
@@ -116,7 +117,23 @@ def _register_services(container: IndexerContainer):
     container.register_singleton(TransformRegistry, TransformRegistry)
     container.register_singleton(TransformManager, TransformManager)
 
+    # Database services
+    logger.debug("Registering database services")
+    container.register_factory(DatabaseManager, _create_database_manager)
+    container.register_singleton(RepositoryManager, RepositoryManager)
+
     logger.info("Service registration completed")
+
+def _create_database_manager(container: IndexerContainer) -> DatabaseManager:
+    """Create database manager from config"""
+    logger = IndexerLogger.get_logger('core.factory.database')
+    config = container._config
+    
+    logger.info("Creating database manager")
+    db_manager = DatabaseManager(config.database)
+    db_manager.initialize()
+    
+    return db_manager
 
 def _create_rpc_client(container: IndexerContainer) -> QuickNodeRpcClient:
     """Create RPC client from config"""
