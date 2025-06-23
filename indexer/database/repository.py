@@ -1,6 +1,6 @@
 # indexer/database/repository.py
 
-from typing import TypeVar, Generic, List, Optional, Dict, Any, Type
+from typing import List, Optional, Dict, Any, Type
 from abc import ABC, abstractmethod
 from datetime import datetime
 
@@ -21,20 +21,21 @@ from ..types.new import EvmAddress, EvmHash, DomainEventId
 
 import logging
 
-T = TypeVar('T', bound=BaseModel)
 
-
-class BaseRepository(ABC, Generic[T]):
-    def __init__(self, db_manager: DatabaseManager, model_class: Type[T]):
+class BaseRepository:
+    """Base repository providing common CRUD operations for all models."""
+    
+    def __init__(self, db_manager: DatabaseManager, model_class: Type):
         self.db_manager = db_manager
         self.model_class = model_class
         self.logger = IndexerLogger.get_logger(f'database.repository.{model_class.__name__.lower()}')
     
-    def create(self, session: Session, **kwargs) -> T:
+    def create(self, session: Session, **kwargs):
+        """Create a new record"""
         try:
             instance = self.model_class(**kwargs)
             session.add(instance)
-            session.flush()  # Get the ID without committing
+            session.flush()
             
             log_with_context(self.logger, logging.DEBUG, "Record created",
                             model=self.model_class.__name__,
@@ -47,7 +48,8 @@ class BaseRepository(ABC, Generic[T]):
                             error=str(e))
             raise
     
-    def get_by_id(self, session: Session, record_id: Any) -> Optional[T]:
+    def get_by_id(self, session: Session, record_id: Any):
+        """Get record by primary key"""
         try:
             return session.query(self.model_class).filter(
                 self.model_class.id == record_id
@@ -58,55 +60,13 @@ class BaseRepository(ABC, Generic[T]):
                             record_id=record_id,
                             error=str(e))
             raise
-    
-    def update(self, session: Session, record_id: Any, **kwargs) -> Optional[T]:
-        try:
-            record = self.get_by_id(session, record_id)
-            if not record:
-                return None
-            
-            for key, value in kwargs.items():
-                if hasattr(record, key):
-                    setattr(record, key, value)
-            
-            session.flush()
-            
-            log_with_context(self.logger, logging.DEBUG, "Record updated",
-                            model=self.model_class.__name__,
-                            record_id=record_id)
-            return record
-            
-        except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error updating record",
-                            model=self.model_class.__name__,
-                            record_id=record_id,
-                            error=str(e))
-            raise
-    
-    def delete(self, session: Session, record_id: Any) -> bool:
-        try:
-            record = self.get_by_id(session, record_id)
-            if not record:
-                return False
-            
-            session.delete(record)
-            session.flush()
-            
-            log_with_context(self.logger, logging.DEBUG, "Record deleted",
-                            model=self.model_class.__name__,
-                            record_id=record_id)
-            return True
-            
-        except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error deleting record",
-                            model=self.model_class.__name__,
-                            record_id=record_id,
-                            error=str(e))
-            raise
 
 
-class DomainEventRepository(BaseRepository[DomainEventModel]):
-    def get_by_content_id(self, session: Session, content_id: DomainEventId) -> Optional[DomainEventModel]:
+class DomainEventRepository(BaseRepository):
+    """Base repository for domain events with common query patterns."""
+    
+    def get_by_content_id(self, session: Session, content_id: DomainEventId):
+        """Get domain event by content_id"""
         try:
             return session.query(self.model_class).filter(
                 self.model_class.content_id == content_id
@@ -118,7 +78,8 @@ class DomainEventRepository(BaseRepository[DomainEventModel]):
                             error=str(e))
             raise
     
-    def get_by_tx_hash(self, session: Session, tx_hash: EvmHash) -> List[DomainEventModel]:
+    def get_by_tx_hash(self, session: Session, tx_hash: EvmHash) -> List:
+        """Get all events for a transaction"""
         try:
             return session.query(self.model_class).filter(
                 self.model_class.tx_hash == tx_hash
@@ -130,7 +91,8 @@ class DomainEventRepository(BaseRepository[DomainEventModel]):
                             error=str(e))
             raise
     
-    def get_by_block_range(self, session: Session, start_block: int, end_block: int) -> List[DomainEventModel]:
+    def get_by_block_range(self, session: Session, start_block: int, end_block: int) -> List:
+        """Get events in block range"""
         try:
             return session.query(self.model_class).filter(
                 and_(
@@ -146,7 +108,8 @@ class DomainEventRepository(BaseRepository[DomainEventModel]):
                             error=str(e))
             raise
     
-    def get_recent(self, session: Session, limit: int = 100) -> List[DomainEventModel]:
+    def get_recent(self, session: Session, limit: int = 100) -> List:
+        """Get most recent events"""
         try:
             return session.query(self.model_class).order_by(
                 desc(self.model_class.timestamp)
@@ -159,11 +122,14 @@ class DomainEventRepository(BaseRepository[DomainEventModel]):
             raise
 
 
-class TradeRepository(DomainEventRepository[Trade]):
+class TradeRepository(DomainEventRepository):
+    """Repository for trade events with trade-specific queries"""
+    
     def __init__(self, db_manager: DatabaseManager):
         super().__init__(db_manager, Trade)
     
     def get_by_taker(self, session: Session, taker: EvmAddress, limit: int = 100) -> List[Trade]:
+        """Get trades by taker address"""
         try:
             return session.query(Trade).filter(
                 Trade.taker == taker
@@ -175,6 +141,7 @@ class TradeRepository(DomainEventRepository[Trade]):
             raise
     
     def get_by_token(self, session: Session, token: EvmAddress, limit: int = 100) -> List[Trade]:
+        """Get trades involving a specific token"""
         try:
             return session.query(Trade).filter(
                 or_(Trade.base_token == token, Trade.quote_token == token)
@@ -186,6 +153,7 @@ class TradeRepository(DomainEventRepository[Trade]):
             raise
     
     def get_arbitrage_trades(self, session: Session, limit: int = 100) -> List[Trade]:
+        """Get arbitrage trades"""
         try:
             return session.query(Trade).filter(
                 Trade.trade_type == 'arbitrage'
@@ -196,11 +164,14 @@ class TradeRepository(DomainEventRepository[Trade]):
             raise
 
 
-class PoolSwapRepository(DomainEventRepository[PoolSwap]):
+class PoolSwapRepository(DomainEventRepository):
+    """Repository for pool swap events"""
+    
     def __init__(self, db_manager: DatabaseManager):
         super().__init__(db_manager, PoolSwap)
     
     def get_by_trade_id(self, session: Session, trade_id: DomainEventId) -> List[PoolSwap]:
+        """Get all swaps for a specific trade"""
         try:
             return session.query(PoolSwap).filter(
                 PoolSwap.trade_id == trade_id
@@ -212,6 +183,7 @@ class PoolSwapRepository(DomainEventRepository[PoolSwap]):
             raise
     
     def get_by_pool(self, session: Session, pool: EvmAddress, limit: int = 100) -> List[PoolSwap]:
+        """Get swaps for a specific pool"""
         try:
             return session.query(PoolSwap).filter(
                 PoolSwap.pool == pool
@@ -223,11 +195,14 @@ class PoolSwapRepository(DomainEventRepository[PoolSwap]):
             raise
 
 
-class PositionRepository(DomainEventRepository[Position]):
+class PositionRepository(DomainEventRepository):
+    """Repository for position events"""
+    
     def __init__(self, db_manager: DatabaseManager):
         super().__init__(db_manager, Position)
     
     def get_by_user(self, session: Session, user: EvmAddress, limit: int = 100) -> List[Position]:
+        """Get positions for a specific user"""
         try:
             return session.query(Position).filter(
                 Position.user == user
@@ -239,6 +214,7 @@ class PositionRepository(DomainEventRepository[Position]):
             raise
     
     def get_by_parent(self, session: Session, parent_id: DomainEventId, parent_type: str) -> List[Position]:
+        """Get positions created by a specific parent event"""
         try:
             return session.query(Position).filter(
                 and_(
@@ -254,6 +230,7 @@ class PositionRepository(DomainEventRepository[Position]):
             raise
     
     def get_user_token_positions(self, session: Session, user: EvmAddress, token: EvmAddress) -> List[Position]:
+        """Get all positions for a user-token pair"""
         try:
             return session.query(Position).filter(
                 and_(
@@ -269,11 +246,14 @@ class PositionRepository(DomainEventRepository[Position]):
             raise
 
 
-class ProcessingRepository(BaseRepository[TransactionProcessing]):
+class ProcessingRepository(BaseRepository):
+    """Repository for transaction processing status"""
+    
     def __init__(self, db_manager: DatabaseManager):
         super().__init__(db_manager, TransactionProcessing)
     
-    def get_by_tx_hash(self, session: Session, tx_hash: EvmHash) -> Optional[TransactionProcessing]:
+    def get_by_tx_hash(self, session: Session, tx_hash: EvmHash):
+        """Get processing status by transaction hash"""
         try:
             return session.query(TransactionProcessing).filter(
                 TransactionProcessing.tx_hash == tx_hash
@@ -285,6 +265,7 @@ class ProcessingRepository(BaseRepository[TransactionProcessing]):
             raise
     
     def get_failed_transactions(self, session: Session, max_retries: int = 3) -> List[TransactionProcessing]:
+        """Get failed transactions that can be retried"""
         try:
             return session.query(TransactionProcessing).filter(
                 and_(
@@ -299,10 +280,13 @@ class ProcessingRepository(BaseRepository[TransactionProcessing]):
 
 
 class RepositoryManager:
+    """Central manager for all repositories, integrates with DI container."""
+    
     def __init__(self, db_manager: DatabaseManager):
         self.db_manager = db_manager
         self.logger = IndexerLogger.get_logger('database.repository.manager')
         
+        # Initialize all repositories
         self.trades = TradeRepository(db_manager)
         self.pool_swaps = PoolSwapRepository(db_manager)
         self.positions = PositionRepository(db_manager)
@@ -314,7 +298,9 @@ class RepositoryManager:
         self.logger.info("RepositoryManager initialized with all repositories")
     
     def get_session(self):
+        """Get database session (delegates to DatabaseManager)"""
         return self.db_manager.get_session()
     
     def get_transaction(self):
+        """Get database transaction (delegates to DatabaseManager)"""
         return self.db_manager.get_transaction()

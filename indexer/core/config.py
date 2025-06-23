@@ -209,7 +209,7 @@ class IndexerConfig(Struct):
         db_host = env["INDEXER_DB_HOST"]
         db_port = env.get("INDEXER_DB_PORT", "5432")
         
-        db_url = f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+        db_url = f"postgresql+psycopg://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
         
         log_with_context(logger, logging.DEBUG, "Database configuration created",
                        db_host=db_host,
