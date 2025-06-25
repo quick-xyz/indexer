@@ -4,7 +4,7 @@ from typing import Generator, Optional
 from contextlib import contextmanager
 import logging
 
-from sqlalchemy import create_engine, Engine
+from sqlalchemy import create_engine, Engine, text
 from sqlalchemy.orm import sessionmaker, Session, scoped_session
 from sqlalchemy.pool import QueuePool
 
@@ -63,7 +63,7 @@ class DatabaseManager:
             self._scoped_session = scoped_session(self._session_factory)
             
             with self._engine.connect() as conn:
-                conn.execute("SELECT 1")
+                conn.execute(text("SELECT 1"))
             
             log_with_context(self.logger, logging.INFO, "Database initialized successfully",
                             pool_size=getattr(self.config, 'pool_size', 5),
@@ -149,7 +149,7 @@ class DatabaseManager:
     def health_check(self) -> bool:
         try:
             with self.get_session() as session:
-                session.execute("SELECT 1")
+                session.execute(text("SELECT 1"))
             return True
         except Exception as e:
             log_with_context(self.logger, logging.ERROR, "Database health check failed",

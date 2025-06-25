@@ -1,4 +1,4 @@
-# indexer/database/migrate.py
+# database/migrate.py
 
 import os
 import sys
