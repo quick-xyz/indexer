@@ -105,7 +105,7 @@ class IndexerConfig(Struct):
         db_password = db_credentials.get('password') or env.get("INDEXER_DB_PASSWORD")
         db_host = env.get("INDEXER_DB_HOST") or db_credentials.get('host') or "127.0.0.1"
         db_port = env.get("INDEXER_DB_PORT") or db_credentials.get('port') or "5432"
-        db_name = env.get("INDEXER_DB_NAME", "indexer-shared")
+        db_name = env.get("INDEXER_DB_NAME", "indexer_shared")
         
         if not db_user or not db_password:
             raise ValueError("Database credentials not found in secrets or environment variables")

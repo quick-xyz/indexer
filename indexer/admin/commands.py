@@ -25,7 +25,7 @@ class BaseCommands:
         self.db_manager = self._create_db_manager()
     
     def _create_db_manager(self) -> DatabaseManager:
-        """Create database manager for indexer-shared database"""
+        """Create database manager for indexer_shared database"""
         # Get credentials from environment or secrets
         project_id = os.getenv("INDEXER_GCP_PROJECT_ID")
         
@@ -53,7 +53,7 @@ class BaseCommands:
             db_host = os.getenv("INDEXER_DB_HOST", "127.0.0.1")
             db_port = os.getenv("INDEXER_DB_PORT", "5432")
         
-        db_name = "indexer-shared"
+        db_name = "indexer_shared"
         
         if not db_user or not db_password:
             raise ValueError("Database credentials not found. Set INDEXER_DB_USER and INDEXER_DB_PASSWORD environment variables or configure GCP secrets.")
