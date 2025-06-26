@@ -1,7 +1,0 @@
-
-# requirements-cloud.txt
-# Additional requirements for Cloud Run deployment
-flask>=2.3.0
-waitress>=2.1.0
-google-cloud-secret-manager>=2.16.0
-google-cloud-sql-connector>=0.11.0
