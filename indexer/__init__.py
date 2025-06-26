@@ -14,7 +14,9 @@ from .database.connection import DatabaseManager
 from .database.repository import RepositoryManager
 from .decode.block_decoder import BlockDecoder
 from .transform.manager import TransformManager
-
+from .database.writers.domain_event_writer import DomainEventWriter
+from .pipeline.indexing_pipeline import IndexingPipeline  
+from .pipeline.batch_pipeline import BatchPipeline
 from .core.secrets_service import SecretsService
 from .types import DatabaseConfig
 
@@ -120,7 +122,7 @@ def _register_services(container: IndexerContainer):
     # Core services - register SecretsService first as singleton
     logger.debug("Registering core services")
     container.register_factory(SecretsService, _create_secrets_service)
-    
+
     # Client services (need factory functions for config parameters)
     logger.debug("Registering client services")
     container.register_factory(QuickNodeRpcClient, _create_rpc_client)
@@ -149,7 +151,16 @@ def _register_services(container: IndexerContainer):
     logger.debug("Registering database services")
     container.register_factory(DatabaseManager, _create_model_database_manager)
     container.register_singleton(RepositoryManager, RepositoryManager)
-    
+
+    # NEW: Database writers
+    logger.debug("Registering database writers")
+    container.register_singleton(DomainEventWriter, DomainEventWriter)
+
+    # NEW: Pipeline services  
+    logger.debug("Registering pipeline services")
+    container.register_singleton(IndexingPipeline, IndexingPipeline)
+    container.register_singleton(BatchPipeline, BatchPipeline)
+
     logger.info("Service registration completed")
 
 
