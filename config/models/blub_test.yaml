@@ -1,0 +1,241 @@
+model:
+  name: blub_test
+  version: v1
+  display_name: BLUB Ecosystem Indexer for Testing
+  description: Tracks BLUB tokens and related DEX pools
+  database_name: blub_test
+  source_paths:
+    - path: "indexer-blocks/streams/quicknode/blub/"
+      format: "avalanche-mainnet_block_with_receipts_{:012d}-{:012d}.json"
+
+contracts:
+  - address: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+    name: "BLUB"
+    project: "Blub"
+    type: "token"
+    abi:
+      dir: "tokens"
+      file: "blub.json"
+    transformer:
+      name: "TokenTransformer"
+      config:
+        contract: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+
+  - address: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
+    name: "WAVAX"
+    project: "Avax"
+    type: "token"
+    abi:
+      dir: "tokens"
+      file: "wavax.json"
+    transformer:
+      name: "WavaxTransformer"
+      config:
+        contract: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
+
+  - address: "0x39888258d60fed9228f89e13eb57a92f1fa832eb"
+    name: "JLP:BLUB-AVAX"
+    project: "LFJ"
+    type: "pool"
+    abi:
+      dir: "pools"
+      file: "joepair.json"
+    transformer:
+      name: "LfjPoolTransformer"
+      config:
+        contract: "0x39888258d60fed9228f89e13eb57a92f1fa832eb"
+        token0: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+        token1: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
+        base_token: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+        fee_collector: "0x60233142befce7d4ed73e7793ead2d6190fccaab"
+
+  - address: "0xcb4c6fdcfb7d868df5f1e3d0018438205b243fd6"
+    name: "LB:BLUB-AVAX"
+    project: "LFJ"
+    type: "pool"
+    abi:
+      dir: "pools"
+      file: "lbpair.json"
+    transformer:
+      name: "LbPairTransformer"
+      config:
+        contract: "0xcb4c6fdcfb7d868df5f1e3d0018438205b243fd6"
+        token_x: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+        token_y: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
+        base_token: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+
+  - address: "0xa87866ba0d82155d0ff36ad06e555aebc98595ca"
+    name: "PLP:BLUB-AVAX"
+    project: "Pharaoh"
+    type: "pool"
+    abi:
+      dir: "pools"
+      file: "pair.json"
+    transformer:
+      name: "PharPairTransformer"
+      config:
+        contract: "0xa87866ba0d82155d0ff36ad06e555aebc98595ca"
+        token0: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+        token1: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
+        base_token: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+
+  - address: "0x819fe65a885d40493f4b91e8a10e242018758432"
+    name: "LP0:BLUB-AVAX"
+    project: "DWS"
+    type: "pool"
+    abi:
+      dir: "pools"
+      file: "joepair.json"
+    transformer:
+      name: "LfjPoolTransformer"
+      config:
+        contract: "0x819fe65a885d40493f4b91e8a10e242018758432"
+        token0: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+        token1: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
+        base_token: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+
+  - address: "0x3fc41c1ae339322ab87b6ba48e30781d88a304d4"
+    name: "PCL:BLUB-AVAX"
+    project: "Pharaoh"
+    type: "pool"
+    abi:
+      dir: "pools"
+      file: "clpool.json"
+    transformer:
+      name: "PharClPoolTransformer"
+      config:
+        contract: "0x3fc41c1ae339322ab87b6ba48e30781d88a304d4"
+        token0: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+        token1: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
+        base_token: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+
+  - address: "0x45a62b090df48243f12a21897e7ed91863e2c86b"
+    name: "AggregatorV2"
+    project: "LFJ"
+    type: "aggregator"
+    abi:
+      dir: "aggregators"
+      file: "lfj_agg.json"
+    transformer:
+      name: "LfjAggregatorTransformer"
+      config:
+        contract: "0x45a62b090df48243f12a21897e7ed91863e2c86b"
+
+  - address: "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc"
+    name: "RouterV2"
+    project: "Odos"
+    type: "aggregator"
+    abi:
+      dir: "aggregators"
+      file: "odos_agg.json"
+    transformer:
+      name: "OdosAggregatorTransformer"
+      config:
+        contract: "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc"
+
+  - address: "0x6131b5fae19ea4f9d964eac0408e4408b66337b5"
+    name: "MetaAggRouter2"
+    project: "Kyber"
+    type: "aggregator"
+    abi:
+      dir: "aggregators"
+      file: "kyber_agg.json"
+    transformer:
+      name: "KyberAggregatorTransformer"
+      config:
+        contract: "0x6131b5fae19ea4f9d964eac0408e4408b66337b5"
+
+global_tokens:
+  - address: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+    type: "token"
+    symbol: "BLUB"
+    name: "Blub Token"
+    decimals: 18
+    project: "Blub"
+
+  - address: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
+    type: "token"
+    symbol: "WAVAX"
+    name: "Wrapped AVAX"
+    decimals: 18
+    project: "Avax"
+
+  - address: "0x39888258d60fed9228f89e13eb57a92f1fa832eb"
+    type: "lp_receipt"
+    symbol: "JLP"
+    name: "Joe LP Token"
+    decimals: 18
+    project: "LFJ"
+
+  - address: "0xcb4c6fdcfb7d868df5f1e3d0018438205b243fd6"
+    type: "lp_receipt"
+    symbol: "LBT"
+    name: "LB Token"
+    decimals: 18
+    project: "LFJ"
+
+  - address: "0xa87866ba0d82155d0ff36ad06e555aebc98595ca"
+    type: "lp_receipt"
+    symbol: "PLP"
+    name: "Pharaoh LP Token"
+    decimals: 18
+    project: "Pharaoh"
+
+  - address: "0x819fe65a885d40493f4b91e8a10e242018758432"
+    type: "lp_receipt"
+    symbol: "LP0"
+    name: "DWS LP Token"
+    decimals: 18
+    project: "DWS"
+
+model_tokens:
+  - "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+  - "0x39888258d60fed9228f89e13eb57a92f1fa832eb"
+  - "0xcb4c6fdcfb7d868df5f1e3d0018438205b243fd6"
+  - "0xa87866ba0d82155d0ff36ad06e555aebc98595ca"
+  - "0x819fe65a885d40493f4b91e8a10e242018758432"
+  - "0x3fc41c1ae339322ab87b6ba48e30781d88a304d4"
+  - "0xaaa78e8c4241990b4ce159e105da08129345946a"    
+
+addresses:
+  - address: "0xe8afa8eb383ced1696c2d8ceb080f47df48f11af"
+    name: "Treasury"
+    type: "wallet"
+    project: "Blub"
+    description: "Blub treasury wallet"
+
+  - address: "0x60ae616a2155ee3d9a68541ba4544862310933d4"
+    name: "JoeRouter02"
+    type: "router"
+    project: "LFJ"
+    description: "TraderJoe V2 Router"
+
+  - address: "0x18556da13313f3532c54711497a8fedac273220e"
+    name: "LBRouterV2.2"
+    type: "router"
+    project: "LFJ"
+    description: "Liquidity Book Router"
+
+  - address: "0xaaa45c8f5ef92a000a121d102f4e89278a711faa"
+    name: "V1Router"
+    type: "router"
+    project: "Pharaoh"
+    description: "Pharaoh V1 Router"
+
+  - address: "0x38575264810371c15f0e5744fa2ab29cdef7245d"
+    name: "DexRouter"
+    type: "router"
+    project: "OKX"
+    description: "OKX DEX Router"
+
+  - address: "0xb35033d71cf5e13cab5eb8618260f94363dff9cf"
+    name: "RouterLogic"
+    type: "agg_logic"
+    project: "LFJ"
+    grouping: "aggregator_components"
+
+  - address: "0xb0787776ff90881cec3a0b8e3e91973e6183c146"
+    name: "ForwarderLogic"
+    type: "agg_logic"
+    project: "LFJ"
+    grouping: "aggregator_components"
