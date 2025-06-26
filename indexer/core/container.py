@@ -1,6 +1,6 @@
-# indexer/core/container.py
+# Update indexer/core/container.py - Add circular dependency detection
 
-from typing import TypeVar, Type, Callable
+from typing import TypeVar, Type, Callable, Set
 import inspect
 import logging
 
@@ -13,6 +13,7 @@ class IndexerContainer:
         self._config = config
         self._services = {}  # service_type -> (implementation, factory, is_singleton)
         self._instances = {}  # service_type -> instance (for singletons)
+        self._resolution_stack: Set[Type] = set()  # Track currently resolving services
         
         # Get logger for container operations
         self._logger = IndexerLogger.get_logger('core.container')
@@ -49,6 +50,14 @@ class IndexerContainer:
         """Get service instance, creating if necessary"""
         service_name = service_type.__name__
         
+        # Check for circular dependency
+        if service_type in self._resolution_stack:
+            circular_path = " -> ".join([t.__name__ for t in self._resolution_stack]) + f" -> {service_name}"
+            log_with_context(self._logger, logging.ERROR, "Circular dependency detected",
+                           service_type=service_name,
+                           circular_path=circular_path)
+            raise ValueError(f"Circular dependency detected: {circular_path}")
+        
         if service_type not in self._services:
             log_with_context(self._logger, logging.ERROR, "Service not registered",
                            service_type=service_name)
@@ -62,13 +71,16 @@ class IndexerContainer:
                            service_type=service_name)
             return self._instances[service_type]
             
-        # Create new instance
-        log_with_context(self._logger, logging.DEBUG, "Creating new service instance",
-                        service_type=service_name,
-                        is_singleton=is_singleton,
-                        has_factory=bool(factory))
+        # Add to resolution stack for circular dependency detection
+        self._resolution_stack.add(service_type)
         
         try:
+            # Create new instance
+            log_with_context(self._logger, logging.DEBUG, "Creating new service instance",
+                            service_type=service_name,
+                            is_singleton=is_singleton,
+                            has_factory=bool(factory))
+            
             if factory:
                 log_with_context(self._logger, logging.DEBUG, "Using factory function",
                                service_type=service_name,
@@ -98,6 +110,9 @@ class IndexerContainer:
                            error=str(e),
                            exception_type=type(e).__name__)
             raise
+        finally:
+            # Always remove from resolution stack
+            self._resolution_stack.discard(service_type)
         
     def _create_instance(self, implementation_type: Type):
         """Create instance with dependency injection"""

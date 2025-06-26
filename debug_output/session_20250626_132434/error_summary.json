@@ -1,0 +1,12 @@
+{
+  "transaction_hash": "0xf047f0529b433121f6876ac862b4c4c4010182d3b9c6a6a1f88f8881dd1bf1a9",
+  "block_number": 58277747,
+  "model": "blub_test",
+  "analysis_failed": true,
+  "error": {
+    "type": "TypeError",
+    "message": "object of type 'NoneType' has no len()",
+    "traceback": "Traceback (most recent call last):\n  File \"/Users/josh/progekt/indexer/indexer/testing/scripts/debug_session.py\", line 75, in analyze_transaction_modular\n    self._create_summary_file(tx_hash, block_number, transaction)\n  File \"/Users/josh/progekt/indexer/indexer/testing/scripts/debug_session.py\", line 111, in _create_summary_file\n    \"signals_generated\": len(getattr(transaction, 'signals', [])),\n                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nTypeError: object of type 'NoneType' has no len()\n"
+  },
+  "timestamp": "2025-06-26T13:24:35.267934"
+}

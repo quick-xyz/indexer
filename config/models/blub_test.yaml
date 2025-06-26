@@ -5,7 +5,7 @@ model:
   description: Tracks BLUB tokens and related DEX pools
   database_name: blub_test
   source_paths:
-    - path: "indexer-blocks/streams/quicknode/blub/"
+    - path: "streams/quicknode/blub/"
       format: "avalanche-mainnet_block_with_receipts_{:012d}-{:012d}.json"
 
 contracts:

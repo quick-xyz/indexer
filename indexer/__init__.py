@@ -110,11 +110,16 @@ def _register_services(container: IndexerContainer):
     
     from .contracts.registry import ContractRegistry
     from .contracts.manager import ContractManager
+    from .contracts.abi_loader import ABILoader
     from .decode.block_decoder import BlockDecoder
     from .decode.transaction_decoder import TransactionDecoder
     from .decode.log_decoder import LogDecoder
     from .transform.registry import TransformRegistry
     from .transform.manager import TransformManager
+    
+    # Core services - register SecretsService first as singleton
+    logger.debug("Registering core services")
+    container.register_factory(SecretsService, _create_secrets_service)
     
     # Client services (need factory functions for config parameters)
     logger.debug("Registering client services")
@@ -125,6 +130,7 @@ def _register_services(container: IndexerContainer):
 
     # Contract services (dependency injection handles relationships)
     logger.debug("Registering contract services")
+    container.register_singleton(ABILoader, ABILoader)
     container.register_singleton(ContractRegistry, ContractRegistry)
     container.register_singleton(ContractManager, ContractManager)
     
@@ -177,6 +183,18 @@ def _create_model_database_manager(container: IndexerContainer) -> DatabaseManag
     db_manager.initialize()
     
     return db_manager
+
+def _create_secrets_service(container: IndexerContainer) -> SecretsService:
+    """Factory function to create centralized SecretsService singleton"""
+    logger = IndexerLogger.get_logger('core.factory.secrets')
+    
+    project_id = os.environ.get("INDEXER_GCP_PROJECT_ID")
+    if not project_id:
+        raise ValueError("INDEXER_GCP_PROJECT_ID environment variable required for SecretsService")
+    
+    log_with_context(logger, logging.INFO, "Creating centralized SecretsService singleton", project_id=project_id)
+    
+    return SecretsService(project_id)
 
 # Optional: Convenience functions for common usage patterns
 def get_rpc_client(container: IndexerContainer) -> QuickNodeRpcClient:
