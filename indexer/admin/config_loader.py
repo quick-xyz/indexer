@@ -177,8 +177,10 @@ class ConfigLoader(BaseCommands):
     
     def _import_model(self, model_config: Dict[str, Any]) -> bool:
         """Import model configuration"""
+        model_name = model_config['name']
+        
         # Handle source paths - can be strings or objects
-        source_paths = model_config.get('source_paths', [f"indexer-blocks/streams/quicknode/{model_config['name']}/"])
+        source_paths = model_config.get('source_paths', [f"indexer-blocks/streams/quicknode/{model_name}/"])
         
         formatted_sources = []
         for source in source_paths:
@@ -197,14 +199,59 @@ class ConfigLoader(BaseCommands):
                 # Already an object with path and format
                 formatted_sources.append(source)
         
-        return self.model_commands.create_model(
-            name=model_config['name'],
+        # Create the model first
+        success = self.model_commands.create_model(
+            name=model_name,
             version=model_config.get('version', 'v1'),
             display_name=model_config.get('display_name'),
             description=model_config.get('description'),
             database_name=model_config['database_name'],
             source_paths=formatted_sources
         )
+        
+        if not success:
+            return False
+        
+        # Now create sources in the sources table and link them
+        from ..database.models.config import Source, ModelSource, Model
+        
+        try:
+            with self.db_manager.get_session() as session:
+                # Get the model we just created
+                model = session.query(Model).filter(Model.name == model_name).first()
+                if not model:
+                    print(f"❌ Failed to find created model: {model_name}")
+                    return False
+                
+                # Create sources and link them
+                for i, source_data in enumerate(formatted_sources):
+                    source_name = f"{model_name}-source-{i}"
+                    
+                    # Create source
+                    source = Source(
+                        name=source_name,
+                        path=source_data['path'],
+                        format=source_data['format'],
+                        status='active'
+                    )
+                    session.add(source)
+                    session.flush()  # Get the ID
+                    
+                    # Link model to source
+                    model_source = ModelSource(
+                        model_id=model.id,
+                        source_id=source.id
+                    )
+                    session.add(model_source)
+                    
+                    print(f"   📝 Source: {source_data['path']} | {source_data['format']}")
+                
+                session.commit()
+                return True
+                
+        except Exception as e:
+            print(f"❌ Failed to create sources: {e}")
+            return False
     
     def _import_global_token(self, token_config: Dict[str, Any]) -> bool:
         """Import global token metadata"""
