@@ -36,7 +36,7 @@ class TransformManager(LoggingMixin):
 
         self.log_info("TransformManager initialized", 
                      contract_count=len(config.contracts),
-                     indexer_tokens=len(config.get_indexer_tokens()))
+                     indexer_tokens=len(config.model_tokens.keys()))
 
     def _create_context(self, transaction: Transaction) -> TransformContext:
         """Create transform context with validation"""
@@ -46,12 +46,12 @@ class TransformManager(LoggingMixin):
         try:
             context = TransformContext(
                 transaction=transaction,
-                indexer_tokens=self.config.get_indexer_tokens(),
+                indexer_tokens=self.config.model_tokens.keys(),
             )
             
             self.log_debug("Transform context created", 
                           tx_hash=transaction.tx_hash,
-                          indexer_tokens_count=len(self.config.get_indexer_tokens()))
+                          indexer_tokens_count=len(self.config.model_tokens.keys()))
             
             return context
             

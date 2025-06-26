@@ -12,10 +12,8 @@ class GCSConfig(Struct):
     credentials_path: Optional[str] = None
 
 class StorageConfig(Struct):
-    rpc_prefix: str
     processing_prefix: str
     complete_prefix: str
-    rpc_format: str
     processing_format: str
     complete_format: str
 

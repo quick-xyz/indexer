@@ -7,15 +7,22 @@ from google.cloud import storage
 import msgspec
 
 from ..types import Block, EvmFilteredBlock, StorageConfig
+from ..database.models.config import Source
 
 class GCSHandler:
     def __init__(self, storage_config: StorageConfig, gcs_project: str, bucket_name: str,
-                 credentials_path: Optional[str] = None):
+                 credentials_path: Optional[str] = None, 
+                 # DEPRECATED: For backward compatibility only
+                 rpc_prefix: Optional[str] = None, rpc_format: Optional[str] = None):
         
         self.storage_config = storage_config
         self.gcs_project = gcs_project
         self.bucket_name = bucket_name
         self.credentials_path = credentials_path if credentials_path else None
+        
+        # DEPRECATED: Keep for backward compatibility
+        self.rpc_prefix = rpc_prefix
+        self.rpc_format = rpc_format
 
         self.client = None
         self._initialize_gcs_client()
@@ -33,91 +40,37 @@ class GCSHandler:
 
         if not bucket_obj.exists():
             raise Exception(f"Cannot connect to bucket {bucket_name}.")
-
+        
         return bucket_obj
 
-    def list_blobs(self, prefix: Optional[str] = None) -> List[storage.Blob]:
-        return list(self.client.list_blobs(self.bucket_name, prefix=prefix))
+    def get_blob(self, blob_name: str):
+        return self.bucket.blob(blob_name)
 
-    def list_blobs_updated_since(self, timestamp: datetime, 
-                                prefix: Optional[str] = None) -> List[storage.Blob]:
-        # Convert timestamp to RFC 3339 format for the API
-        timestamp_str = timestamp.astimezone(timezone.utc).strftime('%Y-%m-%dT%H:%M:%SZ')
-        
-        # Create a list of conditions for the storage API
-        conditions = []
-        conditions.append(f"timeCreated > {timestamp_str} OR updated > {timestamp_str}")
-
-        if prefix:
-            conditions.append(f"name.startsWith('{prefix}')")
-
-        blobs = self.client.list_blobs(self.bucket_name, prefix=prefix)
-        
-        # Since the API might not support all our filtering needs directly,
-        # we'll do an additional filter in Python
-        updated_blobs = []
-        for blob in blobs:
-            # Check if the blob was updated after the timestamp
-            if blob.updated and blob.updated > timestamp:
-                updated_blobs.append(blob)
-            elif blob.time_created and blob.time_created > timestamp:
-                updated_blobs.append(blob)
-        
-        return updated_blobs
-
-    def list_blobs_with_versions(self, prefix: Optional[str] = None) -> Dict[str, Any]:
-        blobs = self.list_blobs(prefix)
-        return {
-            blob.name: {
-                'generation': blob.generation,
-                'metageneration': blob.metageneration,
-                'updated': blob.updated,
-                'md5_hash': blob.md5_hash,
-                'size': blob.size
-            }
-            for blob in blobs
-        }
-    
-    def get_blob(self, blob_name: str) -> Optional[storage.Blob]:
-        blob = self.bucket.blob(blob_name)
-        if blob.exists():
-            return blob
-        return None
-
-    def download_blob_as_bytes(self, blob_name: str) -> Optional[bytes]:
+    def download_blob_as_bytes(self, blob_name: str) -> bytes:
         blob = self.get_blob(blob_name)
-        if not blob:
-            return None
         return blob.download_as_bytes()
-    
-    def download_blob_as_text(self, blob_name: str) -> Optional[str]:
-        blob = self.get_blob(blob_name)
-        if not blob:
-            return None
-        return blob.download_as_text()
 
-    
-    def get_changed_files(self, previous_versions: Dict[str, Any], 
-                         prefix: Optional[str] = None) -> Tuple[List[str], List[str], List[str]]:
-        current_versions = self.list_blobs_with_versions(prefix)
+    def list_blobs(self, prefix: str = None, max_results: int = None) -> List:
+        return list(self.bucket.list_blobs(prefix=prefix, max_results=max_results))
+
+    def compare_blob_versions(self, previous_blobs_info: Dict, current_blobs_info: Dict) -> Tuple[List, List, List]:
+        previous_blobs = set(previous_blobs_info.keys())
+        current_blobs = set(current_blobs_info.keys())
         
-        changed_files = []
-        new_files = []
+        previous_versions = {
+            blob_name: blob_info for blob_name, blob_info in previous_blobs_info.items()
+        }
+        current_versions = {
+            blob_name: blob_info for blob_name, blob_info in current_blobs_info.items()
+        }
         
-        for blob_name, current_info in current_versions.items():
-            if blob_name in previous_versions:
-                prev_info = previous_versions[blob_name]
-                if (current_info['generation'] != prev_info['generation'] or
-                    current_info['metageneration'] != prev_info['metageneration'] or
-                    current_info['md5_hash'] != prev_info['md5_hash']):
-                    changed_files.append(blob_name)
-            else:
-                new_files.append(blob_name)
-        
-        deleted_files = [
-            blob_name for blob_name in previous_versions
-            if blob_name not in current_versions
+        changed_files = [
+            blob_name for blob_name in current_blobs.intersection(previous_blobs)
+            if current_versions[blob_name]['generation'] != previous_versions[blob_name]['generation']
         ]
+        
+        new_files = list(current_blobs - previous_blobs)
+        deleted_files = list(previous_blobs - current_blobs)
         
         return changed_files, new_files, deleted_files
     
@@ -139,23 +92,50 @@ class GCSHandler:
         blob = self.bucket.blob(blob_name)
         return blob.exists()
 
-
-    def get_blob_string(self, stage, block_number):
+    def get_blob_string(self, stage: str, block_number: int, source: Optional[Source] = None) -> str:
+        """
+        Get blob path string for different stages
+        
+        Args:
+            stage: "rpc", "processing", or "complete"
+            block_number: Block number
+            source: Source object for RPC stage, optional for others
+        """
         if stage == "rpc":
-            return self.storage_config.rpc_format.format(block_number, block_number)
+            if source:
+                # NEW: Use source configuration
+                return f"{source.path}{source.format.format(block_number, block_number)}"
+            elif self.rpc_prefix and self.rpc_format:
+                # LEGACY: Fallback to old configuration
+                return f"{self.rpc_prefix}{self.rpc_format.format(block_number, block_number)}"
+            else:
+                raise ValueError("No source configuration available for RPC stage")
         elif stage == "processing":
-            return self.storage_config.processing_format.format(block_number)
+            return f"{self.storage_config.processing_prefix}{self.storage_config.processing_format.format(block_number)}"
         elif stage == "complete":
-            return self.storage_config.complete_format.format(block_number)
+            return f"{self.storage_config.complete_prefix}{self.storage_config.complete_format.format(block_number)}"
+        else:
+            raise ValueError(f"Unknown stage: {stage}")
 
-    def get_rpc_block(self, block_number: int) -> Optional[EvmFilteredBlock]:
-        block_path = self.get_blob_string("rpc", block_number)
+    def get_rpc_block(self, block_number: int, source_id: Optional[int] = None, source: Optional[Source] = None) -> Optional[EvmFilteredBlock]:
+        """
+        Get RPC block data
+        
+        Args:
+            block_number: Block number to retrieve
+            source_id: DEPRECATED - use source parameter instead
+            source: Source object containing path and format information
+        """
+        if source:
+            block_path = self.get_blob_string("rpc", block_number, source)
+        else:
+            # LEGACY: Fall back to old method
+            block_path = self.get_blob_string("rpc", block_number)
 
         if self.blob_exists(block_path):
             data_bytes = self.download_blob_as_bytes(block_path)
             return msgspec.json.decode(data_bytes, type=EvmFilteredBlock)
         else:
-            #self.logger.warning(f"Cannot find block number {block_number} at block path {block_path}.")
             return None
 
     def save_processing_block(self, block_number: int, data: Block) -> bool:
@@ -165,7 +145,7 @@ class GCSHandler:
         )
         data.indexing_status = "error" if has_errors else "processing"
         
-        destination_str = self.storage_config.processing_format.format(block_number)
+        destination_str = self.get_blob_string("processing", block_number)
         encoded_data = msgspec.json.encode(data)
         try:
             return self.upload_blob_from_string(
@@ -179,7 +159,7 @@ class GCSHandler:
     def save_complete_block(self, block_number: int, data: Block) -> bool:
         data.indexing_status = "complete"
         
-        destination_str = self.storage_config.complete_format.format(block_number)
+        destination_str = self.get_blob_string("complete", block_number)
         encoded_data = msgspec.json.encode(data)
         
         try:
@@ -190,7 +170,7 @@ class GCSHandler:
             )
             
             if success:
-                processing_path = self.storage_config.processing_format.format(block_number)
+                processing_path = self.get_blob_string("processing", block_number)
                 if self.blob_exists(processing_path):
                     self.delete_blob(processing_path)
                     
@@ -198,9 +178,9 @@ class GCSHandler:
             
         except Exception as e:
             return False
-        
+
     def get_processing_block(self, block_number: int) -> Optional[Block]:
-        block_path = self.storage_config.processing_format.format(block_number)
+        block_path = self.get_blob_string("processing", block_number)
         
         if self.blob_exists(block_path):
             data_bytes = self.download_blob_as_bytes(block_path)
@@ -208,7 +188,7 @@ class GCSHandler:
         return None
 
     def get_complete_block(self, block_number: int) -> Optional[Block]:
-        block_path = self.storage_config.complete_format.format(block_number)
+        block_path = self.get_blob_string("complete", block_number)
         
         if self.blob_exists(block_path):
             data_bytes = self.download_blob_as_bytes(block_path)
@@ -216,7 +196,7 @@ class GCSHandler:
         return None
     
     def list_processing_blocks(self) -> List[int]:
-        blobs = self.list_blobs(prefix="processing/")
+        blobs = self.list_blobs(prefix=self.storage_config.processing_prefix)
         block_numbers = []
         
         for blob in blobs:
@@ -231,7 +211,7 @@ class GCSHandler:
         return sorted(block_numbers)
 
     def list_complete_blocks(self) -> List[int]:
-        blobs = self.list_blobs(prefix="complete/")
+        blobs = self.list_blobs(prefix=self.storage_config.complete_prefix)
         block_numbers = []
         
         for blob in blobs:
@@ -245,6 +225,41 @@ class GCSHandler:
                     
         return sorted(block_numbers)
 
+    def list_rpc_blocks(self, source: Optional[Source] = None) -> List[int]:
+        """
+        List RPC blocks for a given source
+        
+        Args:
+            source: Source object containing path information
+        """
+        if source:
+            prefix = source.path
+        elif self.rpc_prefix:
+            # LEGACY: Fallback to old configuration
+            prefix = self.rpc_prefix
+        else:
+            raise ValueError("No source configuration available for listing RPC blocks")
+            
+        blobs = self.list_blobs(prefix=prefix)
+        block_numbers = []
+        
+        for blob in blobs:
+            if blob.name.endswith('.json'):
+                try:
+                    filename = blob.name.split('/')[-1]
+                    
+                    if 'block_with_receipts_' in filename:
+                        parts = filename.split('block_with_receipts_')[1]
+                        block_num_str = parts.split('-')[0]
+                        block_numbers.append(int(block_num_str))
+                    elif filename.startswith('block_'):
+                        block_num_str = filename.replace('block_', '').replace('.json', '')
+                        block_numbers.append(int(block_num_str))
+                except:
+                    continue
+                    
+        return sorted(block_numbers)
+
     def get_processing_summary(self) -> Dict[str, Any]:
         processing_blocks = self.list_processing_blocks()
         complete_blocks = self.list_complete_blocks()
@@ -252,7 +267,7 @@ class GCSHandler:
         return {
             "processing_count": len(processing_blocks),
             "complete_count": len(complete_blocks),
-            "processing_blocks": processing_blocks[:10],  # Sample
+            "processing_blocks": processing_blocks[:10],
             "latest_complete": max(complete_blocks) if complete_blocks else None,
             "oldest_processing": min(processing_blocks) if processing_blocks else None,
         }

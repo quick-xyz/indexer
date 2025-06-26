@@ -53,7 +53,7 @@ class TradeProcessor(LoggingMixin):
         self.config = config
         
         self.log_info("TradeProcessor initialized", 
-                     indexer_tokens=len(config.get_indexer_tokens()))
+                     indexer_tokens=len(config.model_tokens.keys()))
     
     def process_trade_signals(self, trade_signals: Dict[int, Signal], context: TransformContext) -> bool:
         """Main entry point for trade signal processing"""

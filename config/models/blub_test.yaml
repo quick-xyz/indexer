@@ -93,6 +93,7 @@ contracts:
         token0: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
         token1: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
         base_token: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+        fee_collector: "0x60233142befce7d4ed73e7793ead2d6190fccaab"
 
   - address: "0x3fc41c1ae339322ab87b6ba48e30781d88a304d4"
     name: "PCL:BLUB-AVAX"

@@ -2,12 +2,13 @@
 """
 Quick Diagnostic Tool for Blockchain Indexer
 
-Updated for signal-based transformation architecture.
+Updated for signal-based transformation architecture and database-driven sources.
 Uses the indexer's configuration system and dependency injection
 to verify setup and identify issues.
 """
 
 import sys
+import os
 import logging
 from pathlib import Path
 from datetime import datetime
@@ -36,15 +37,15 @@ class QuickDiagnostic:
     Diagnostic checker that leverages the indexer's signal-based architecture
     """
     
-    def __init__(self, config_path: str = None, verbose: bool = False):
+    def __init__(self, model_name: str = None, verbose: bool = False):
+        self.model_name = model_name or os.getenv("INDEXER_MODEL_NAME", "blub_test")
         self.verbose = verbose
-        self.config_path = config_path
         self.results = {}
         self.detailed_errors = []
         
         # Initialize with minimal logging
         with self._diagnostic_logging_context():
-            self.testing_env = get_testing_environment(config_path, log_level="ERROR")
+            self.testing_env = get_testing_environment(self.model_name, log_level="ERROR")
             self.logger = self.testing_env.get_logger("diagnostic")
     
     @contextmanager
@@ -81,13 +82,14 @@ class QuickDiagnostic:
         print("🔍 BLOCKCHAIN INDEXER QUICK DIAGNOSTIC")
         print("=" * 60)
         print(f"📅 {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-        print(f"📄 Config: {self.config_path or 'default'}")
-        print(f"🏗️  Indexer: {self.testing_env.config.name} v{self.testing_env.config.version}")
-        print(f"🔧 Architecture: Signal-based transformation")
+        print(f"📄 Model: {self.model_name}")
+        print(f"🏗️  Indexer: {self.testing_env.config.model_name} v{self.testing_env.config.model_version}")
+        print(f"🔧 Architecture: Signal-based transformation with database-driven sources")
         print()
         
         checks = [
             ("Configuration Loading", self.check_configuration),
+            ("Sources Configuration", self.check_sources_configuration),
             ("Dependency Injection", self.check_dependency_injection), 
             ("Contract Registry", self.check_contract_registry),
             ("Signal Transformer Setup", self.check_signal_transformer_setup),
@@ -141,13 +143,14 @@ class QuickDiagnostic:
         import json
         diagnostic_data = {
             "timestamp": datetime.now().isoformat(),
-            "config_path": self.config_path,
+            "model_name": self.model_name,
             "results": self.results,
             "detailed_errors": self.detailed_errors,
             "environment_info": {
-                "indexer_name": self.testing_env.config.name,
-                "indexer_version": self.testing_env.config.version,
+                "indexer_name": self.testing_env.config.model_name,
+                "indexer_version": self.testing_env.config.model_version,
                 "total_contracts": len(self.testing_env.config.contracts),
+                "total_sources": len(getattr(self.testing_env.config, 'sources', {})),
                 "total_addresses": len(self.testing_env.config.addresses) if self.testing_env.config.addresses else 0
             }
         }
@@ -166,8 +169,8 @@ class QuickDiagnostic:
             
             # Validate key configuration sections
             checks = [
-                (config.name, "Missing indexer name"),
-                (config.version, "Missing indexer version"),
+                (config.model_name, "Missing indexer name"),
+                (config.model_version, "Missing indexer version"),
                 (config.storage, "Missing storage config"),
                 (config.rpc, "Missing RPC config"),
                 (config.gcs, "Missing GCS config"),
@@ -192,6 +195,68 @@ class QuickDiagnostic:
                 "exception_type": type(e).__name__
             })
             return False
+
+    def check_sources_configuration(self) -> bool:
+        """Check database-driven sources configuration"""
+        try:
+            config = self.testing_env.get_config()
+            
+            # Check if sources are available
+            sources = getattr(config, 'sources', {})
+            if not sources:
+                self.detailed_errors.append({
+                    "check": "Sources Configuration",
+                    "error": "No sources configured",
+                    "details": "Model has no sources in database. Run sources migration.",
+                    "legacy_source_paths": getattr(config, 'source_paths', [])
+                })
+                return False
+            
+            # Validate each source
+            invalid_sources = []
+            for source_id, source in sources.items():
+                if not hasattr(source, 'path') or not source.path:
+                    invalid_sources.append(f"Source {source_id} missing path")
+                if not hasattr(source, 'format') or not source.format:
+                    invalid_sources.append(f"Source {source_id} missing format")
+                if not hasattr(source, 'name') or not source.name:
+                    invalid_sources.append(f"Source {source_id} missing name")
+            
+            if invalid_sources:
+                self.detailed_errors.append({
+                    "check": "Sources Configuration",
+                    "error": "Invalid source configurations",
+                    "invalid_sources": invalid_sources
+                })
+                return False
+            
+            # Test source methods
+            try:
+                primary_source = config.get_primary_source()
+                if not primary_source:
+                    self.detailed_errors.append({
+                        "check": "Sources Configuration",
+                        "error": "No primary source available",
+                        "source_count": len(sources)
+                    })
+                    return False
+            except Exception as e:
+                self.detailed_errors.append({
+                    "check": "Sources Configuration",
+                    "error": f"Source method failed: {str(e)}",
+                    "exception_type": type(e).__name__
+                })
+                return False
+            
+            return True
+            
+        except Exception as e:
+            self.detailed_errors.append({
+                "check": "Sources Configuration",
+                "error": str(e),
+                "exception_type": type(e).__name__
+            })
+            return False
     
     def check_dependency_injection(self) -> bool:
         """Check dependency injection container"""
@@ -208,7 +273,7 @@ class QuickDiagnostic:
                 TransformRegistry,
                 TransformManager
             ]
-            
+
             failed_services = []
             for service_type in services_to_test:
                 try:
@@ -346,14 +411,26 @@ class QuickDiagnostic:
             return False
     
     def check_storage_connection(self) -> bool:
-        """Check GCS storage connection"""
+        """Check GCS storage connection with sources support"""
         try:
             storage_handler = self.testing_env.get_service(GCSHandler)
+            config = self.testing_env.get_config()
             
-            # Test basic connection by listing blobs (limit to small number)
-            blobs = storage_handler.list_blobs(prefix=storage_handler.storage_config.rpc_prefix)
+            # Test basic connection by listing blobs
+            # Use sources if available, otherwise fall back to legacy
+            sources = getattr(config, 'sources', {})
+            if sources:
+                # Test with first source
+                primary_source = config.get_primary_source()
+                blobs = storage_handler.list_blobs(prefix=primary_source.path, max_results=5)
+            else:
+                # Legacy: use storage config
+                blobs = storage_handler.list_blobs(
+                    prefix=storage_handler.storage_config.processing_prefix, 
+                    max_results=5
+                )
+            
             # Just check if we can connect, don't need to validate blob count
-            
             return True
             
         except Exception as e:
@@ -393,7 +470,7 @@ class QuickDiagnostic:
             return False
     
     def check_signal_generation(self) -> bool:
-        """Test signal generation with a sample transaction"""
+        """Test signal generation with a sample transaction using sources"""
         try:
             # Get a known block for testing
             test_block_number = 63269916  # Use the same block from your examples
@@ -401,9 +478,17 @@ class QuickDiagnostic:
             storage_handler = self.testing_env.get_service(GCSHandler)
             block_decoder = self.testing_env.get_service(BlockDecoder)
             transform_manager = self.testing_env.get_service(TransformManager)
+            config = self.testing_env.get_config()
             
-            # Get and decode a test block
-            raw_block = storage_handler.get_rpc_block(test_block_number)
+            # Get test block using sources if available
+            sources = getattr(config, 'sources', {})
+            if sources:
+                primary_source = config.get_primary_source()
+                raw_block = storage_handler.get_rpc_block(test_block_number, source=primary_source)
+            else:
+                # Legacy method
+                raw_block = storage_handler.get_rpc_block(test_block_number)
+            
             if not raw_block:
                 # Not an error - test block might not be available
                 return True
@@ -416,7 +501,7 @@ class QuickDiagnostic:
             first_tx_hash = next(iter(decoded_block.transactions.keys()))
             first_tx = decoded_block.transactions[first_tx_hash]
             
-            signals_generated, processed_tx = transform_manager.process_transaction(first_tx)
+            success, processed_tx = transform_manager.process_transaction(first_tx)
             
             # Signal generation working is success, even if no signals produced
             return True
@@ -451,31 +536,33 @@ class QuickDiagnostic:
             print("\n❌ Some checks failed. Review errors above.")
             print("\n💡 Common fixes:")
             print("   - Check environment variables in .env")
-            print("   - Verify config/config.json is valid")
+            print("   - Verify database sources migration completed")
             print("   - Ensure ABI files exist in config/abis/")
             print("   - Check network connectivity")
             print("   - Verify transformers have process_logs() method")
             
             if not self.verbose:
-                # Show exact command to copy/paste for verbose mode
-                config_arg = f" {self.config_path}" if self.config_path else ""
                 print(f"\n🔍 For detailed error information, run:")
-                print(f"   python testing/diagnostics/quick_diagnostic.py{config_arg} --verbose")
+                print(f"   python testing/diagnostics/quick_diagnostic.py --verbose")
 
 
 def main():
     """Run quick diagnostic"""
     try:
         verbose = "--verbose" in sys.argv or "-v" in sys.argv
-        config_path = None
+        model_name = None
         
-        # Simple argument parsing
+        # Simple argument parsing - look for model name
         for i, arg in enumerate(sys.argv[1:], 1):
             if arg not in ["--verbose", "-v"] and not arg.startswith("-"):
-                config_path = arg
+                model_name = arg
                 break
         
-        diagnostic = QuickDiagnostic(config_path=config_path, verbose=verbose)
+        # Use environment variable if no model name provided
+        if not model_name:
+            model_name = os.getenv("INDEXER_MODEL_NAME")
+        
+        diagnostic = QuickDiagnostic(model_name=model_name, verbose=verbose)
         success = diagnostic.run_all_checks()
         exit(0 if success else 1)
         

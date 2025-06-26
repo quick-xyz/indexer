@@ -14,21 +14,21 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
 def get_alembic_config():
-    alembic_cfg_path = Path(__file__).parent / "migrations" / "alembic.ini"
+    alembic_cfg_path = Path(__file__).parent / "infra_migrations" / "alembic.ini"
     
     if not alembic_cfg_path.exists():
         raise FileNotFoundError(f"Alembic config not found at {alembic_cfg_path}")
     
     alembic_cfg = Config(str(alembic_cfg_path))
     
-    migrations_dir = Path(__file__).parent / "migrations"
+    migrations_dir = Path(__file__).parent / "infra_migrations"
     alembic_cfg.set_main_option("script_location", str(migrations_dir))
     
     return alembic_cfg
 
 
 def init_migrations():
-    migrations_dir = Path(__file__).parent / "migrations"
+    migrations_dir = Path(__file__).parent / "infra_migrations"
     
     if migrations_dir.exists() and (migrations_dir / "versions").exists():
         print("Migrations already initialized!")

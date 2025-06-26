@@ -1,10 +1,10 @@
 # indexer/core/config_service.py
 
-from typing import Dict, Optional
+from typing import Dict, Optional, List
 from sqlalchemy import and_
 
 from ..database.connection import DatabaseManager
-from ..database.models.config import Model, Contract, Token, Address, ModelContract, ModelToken
+from ..database.models.config import Model, Contract, Token, Address, ModelContract, ModelToken, Source, ModelSource
 from ..core.logging_config import IndexerLogger, log_with_context
 from ..types import EvmAddress
 
@@ -140,6 +140,150 @@ class ConfigService:
             
             return addr
     
+    def get_source_by_id(self, source_id: int) -> Optional[Source]:
+        """Get source by ID"""
+        with self.db_manager.get_session() as session:
+            return session.query(Source).filter(Source.id == source_id).first()
+
+    def get_source_by_name(self, source_name: str) -> Optional[Source]:
+        """Get source by name"""
+        with self.db_manager.get_session() as session:
+            return session.query(Source).filter(Source.name == source_name).first()
+
+    def get_sources_for_model(self, model_name: str) -> List[Source]:
+        """Get all sources for a model"""
+        with self.db_manager.get_session() as session:
+            model = self.get_model_by_name(model_name)
+            if not model:
+                return []
+            
+            sources = session.query(Source)\
+                .join(ModelSource, Source.id == ModelSource.source_id)\
+                .filter(ModelSource.model_id == model.id)\
+                .filter(Source.status == 'active')\
+                .all()
+            
+            return sources
+
+    def get_all_sources(self) -> List[Source]:
+        """Get all active sources"""
+        with self.db_manager.get_session() as session:
+            return session.query(Source).filter(Source.status == 'active').all()
+
+    def create_source(self, name: str, path: str, format_string: str) -> Optional[Source]:
+        """Create a new source"""
+        try:
+            with self.db_manager.get_session() as session:
+                # Check if source already exists
+                existing = session.query(Source).filter(Source.name == name).first()
+                if existing:
+                    return existing
+                
+                source = Source(
+                    name=name,
+                    path=path,
+                    format=format_string,
+                    status='active'
+                )
+                
+                session.add(source)
+                session.commit()
+                session.refresh(source)
+                
+                return source
+        except Exception as e:
+            self.logger.error(f"Failed to create source: {e}")
+            return None
+
+    def link_model_to_source(self, model_name: str, source_id: int) -> bool:
+        """Link a model to a source"""
+        try:
+            with self.db_manager.get_session() as session:
+                model = self.get_model_by_name(model_name)
+                if not model:
+                    return False
+                
+                # Check if link already exists
+                existing = session.query(ModelSource)\
+                    .filter(ModelSource.model_id == model.id)\
+                    .filter(ModelSource.source_id == source_id)\
+                    .first()
+                
+                if existing:
+                    return True
+                
+                model_source = ModelSource(
+                    model_id=model.id,
+                    source_id=source_id
+                )
+                
+                session.add(model_source)
+                session.commit()
+                
+                return True
+        except Exception as e:
+            self.logger.error(f"Failed to link model to source: {e}")
+            return False
+
+    def migrate_model_sources(self, model_name: str) -> bool:
+        """Migrate a model's source_paths JSONB to Sources table"""
+        try:
+            with self.db_manager.get_session() as session:
+                model = self.get_model_by_name(model_name)
+                if not model:
+                    self.logger.error(f"Model {model_name} not found")
+                    return False
+                
+                if not model.source_paths:
+                    self.logger.warning(f"No source_paths to migrate for model {model_name}")
+                    return True
+                
+                for i, source_data in enumerate(model.source_paths):
+                    if isinstance(source_data, str):
+                        # Old format: just a path string
+                        path = source_data
+                        format_string = "block_{:012d}.json"  # Default format
+                    elif isinstance(source_data, dict):
+                        # New format: {"path": "...", "format": "..."}
+                        path = source_data.get('path', '')
+                        format_string = source_data.get('format', 'block_{:012d}.json')
+                    else:
+                        self.logger.warning(f"Unknown source format: {source_data}")
+                        continue
+                    
+                    # Create source name from model and index
+                    source_name = f"{model_name}-source-{i}"
+                    
+                    # Create or get source
+                    source = self.create_source(source_name, path, format_string)
+                    if source:
+                        # Link model to source
+                        self.link_model_to_source(model_name, source.id)
+                        self.logger.info(f"Migrated source {source_name} for model {model_name}")
+                
+                return True
+                
+        except Exception as e:
+            self.logger.error(f"Failed to migrate sources for model {model_name}: {e}")
+            return False
+
+    def get_model_source_configuration(self, model_name: str) -> Dict:
+        """Get source configuration for a model in the new format"""
+        sources = self.get_sources_for_model(model_name)
+        
+        return {
+            'sources': [
+                {
+                    'id': source.id,
+                    'name': source.name,
+                    'path': source.path,
+                    'format': source.format
+                }
+                for source in sources
+            ]
+        }
+
+
     def validate_model_configuration(self, model_name: str) -> bool:
         model = self.get_model_by_name(model_name)
         if not model:

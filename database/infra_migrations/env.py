@@ -10,16 +10,9 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from indexer.database.models.base import Base
-from indexer.database.connection import DatabaseManager
-from indexer.core.config import IndexerConfig
 import indexer.database.models.types
+from indexer.database.models.config import Model, Contract, Token, Address, ModelContract, ModelToken, Source, ModelSource
 
-from indexer.database.models.processing import TransactionProcessing, BlockProcessing, ProcessingJob
-from indexer.database.models.events.trade import Trade, PoolSwap
-from indexer.database.models.events.position import Position
-from indexer.database.models.events.transfer import Transfer
-from indexer.database.models.events.liquidity import Liquidity
-from indexer.database.models.events.reward import Reward
 
 config = context.config
 
@@ -30,16 +23,53 @@ target_metadata = Base.metadata
 
 
 def get_database_url():
+    """Get database URL for migrations"""
+    # Check for explicit migration database URL first
     db_url = os.getenv('INDEXER_DATABASE_URL')
     if db_url:
         return db_url
     
+    # Build URL from environment variables and secrets (for infrastructure database)
     try:
-        config_path = os.getenv('INDEXER_CONFIG_PATH', 'config/config.json')
-        indexer_config = IndexerConfig.from_file(config_path)
-        return indexer_config.database.url
+        from indexer.core.secrets_service import SecretsService
+        
+        project_id = os.getenv("INDEXER_GCP_PROJECT_ID")
+        
+        if project_id:
+            try:
+                secrets_service = SecretsService(project_id)
+                db_credentials = secrets_service.get_database_credentials()
+                
+                db_user = db_credentials.get('user') or os.getenv("INDEXER_DB_USER")
+                db_password = db_credentials.get('password') or os.getenv("INDEXER_DB_PASSWORD")
+                db_host = os.getenv("INDEXER_DB_HOST") or db_credentials.get('host') or "127.0.0.1"
+                db_port = os.getenv("INDEXER_DB_PORT") or db_credentials.get('port') or "5432"
+                
+            except Exception:
+                # Fall back to environment variables
+                db_user = os.getenv("INDEXER_DB_USER")
+                db_password = os.getenv("INDEXER_DB_PASSWORD")
+                db_host = os.getenv("INDEXER_DB_HOST", "127.0.0.1")
+                db_port = os.getenv("INDEXER_DB_PORT", "5432")
+        else:
+            # Use environment variables only
+            db_user = os.getenv("INDEXER_DB_USER")
+            db_password = os.getenv("INDEXER_DB_PASSWORD")
+            db_host = os.getenv("INDEXER_DB_HOST", "127.0.0.1")
+            db_port = os.getenv("INDEXER_DB_PORT", "5432")
+        
+        # Infrastructure database name
+        db_name = os.getenv("INDEXER_DB_NAME", "indexer_shared")
+        
+        if not db_user or not db_password:
+            raise RuntimeError("Database credentials not found. Set INDEXER_DB_USER and INDEXER_DB_PASSWORD environment variables or configure GCP secrets.")
+        
+        db_url = f"postgresql+psycopg://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+        return db_url
+        
     except Exception as e:
         raise RuntimeError(f"Could not determine database URL: {e}")
+
 
 def render_item(type_, obj, autogen_context):
     """Custom rendering for our types during autogenerate"""
@@ -54,6 +84,7 @@ def render_item(type_, obj, autogen_context):
         return "DomainEventIdType()"
     return False
 
+
 def run_migrations_offline() -> None:
     url = get_database_url()
     context.configure(
@@ -63,7 +94,7 @@ def run_migrations_offline() -> None:
         dialect_opts={"paramstyle": "named"},
         compare_type=True,
         compare_server_default=True,
-        render_item=render_item,  # Add this line
+        render_item=render_item,
     )
 
     with context.begin_transaction():
@@ -85,7 +116,7 @@ def run_migrations_online() -> None:
             target_metadata=target_metadata,
             compare_type=True,
             compare_server_default=True,
-            render_item=render_item,  # Add this line
+            render_item=render_item,
         )
 
         with context.begin_transaction():

@@ -26,6 +26,7 @@ class Model(Base):
 
     model_contracts = relationship("ModelContract", back_populates="model", cascade="all, delete-orphan")
     model_tokens = relationship("ModelToken", back_populates="model", cascade="all, delete-orphan")
+    model_sources = relationship("ModelSource", back_populates="model", cascade="all, delete-orphan")
 
     # Indexes
     __table_args__ = (
@@ -44,6 +45,9 @@ class Model(Base):
             cls.status == 'active'
         ).order_by(cls.version.desc()).first()
 
+    def get_sources(self):
+        """Get all sources for this model via the junction table"""
+        return [ms.source for ms in self.model_sources]
 
 class Contract(Base):
     __tablename__ = 'contracts'
@@ -132,7 +136,53 @@ class Address(Base):
     def __repr__(self) -> str:
         return f"<Address(name='{self.name}', address='{self.address}', type='{self.type}')>"
 
+class Source(Base):
+    """Sources define where block data is stored (path + format)"""
+    __tablename__ = 'sources'
+    
+    id = Column(Integer, primary_key=True)
+    name = Column(String(255), nullable=False)  # "quicknode-blub", "alchemy-mainnet"
+    path = Column(String(500), nullable=False)  # "indexer-blocks/streams/quicknode/blub/"
+    format = Column(String(255), nullable=False)  # "avalanche-mainnet_block_with_receipts_{:012d}-{:012d}.json"
+    status = Column(String(50), default='active')  # 'active', 'inactive', 'deprecated'
+    created_at = Column(TIMESTAMP, default=func.now())
 
+    # Relationships
+    model_sources = relationship("ModelSource", back_populates="source", cascade="all, delete-orphan")
+
+    # Indexes
+    __table_args__ = (
+        Index('idx_sources_name', 'name'),
+        Index('idx_sources_status', 'status'),
+    )
+    
+    def __repr__(self) -> str:
+        return f"<Source(name='{self.name}', path='{self.path}')>"
+
+
+class ModelSource(Base):
+    """Junction table linking Models to their Sources"""
+    __tablename__ = 'model_sources'
+    
+    id = Column(Integer, primary_key=True)
+    model_id = Column(Integer, ForeignKey('models.id', ondelete='CASCADE'), nullable=False)
+    source_id = Column(Integer, ForeignKey('sources.id', ondelete='CASCADE'), nullable=False)
+    created_at = Column(TIMESTAMP, default=func.now())
+
+    # Relationships
+    model = relationship("Model", back_populates="model_sources")
+    source = relationship("Source", back_populates="model_sources")
+
+    # Indexes and constraints
+    __table_args__ = (
+        Index('idx_model_sources_model_id', 'model_id'),
+        Index('idx_model_sources_source_id', 'source_id'),
+        UniqueConstraint('model_id', 'source_id', name='uq_model_source'),
+    )
+    
+    def __repr__(self) -> str:
+        return f"<ModelSource(model_id={self.model_id}, source_id={self.source_id})>"
+    
 class ModelToken(Base):
     __tablename__ = 'model_tokens'
     

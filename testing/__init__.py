@@ -8,6 +8,7 @@ dependency injection container, and logging infrastructure.
 
 import sys
 import logging
+import os
 from pathlib import Path
 
 # Add project root to Python path for imports
@@ -24,11 +25,11 @@ from indexer.core.logging_config import IndexerLogger, log_with_context
 
 class TestingEnvironment:
     """
-    Testing environment that uses the indexer's configuration and DI system
+    Testing environment that uses the indexer's database-driven configuration system
     """
     
-    def __init__(self, config_path: str = None, log_level: str = "DEBUG"):
-        self.config_path = config_path or str(PROJECT_ROOT / "config" / "config.json")
+    def __init__(self, model_name: str = None, log_level: str = "DEBUG"):
+        self.model_name = model_name or os.getenv("INDEXER_MODEL_NAME", "blub_test")
         self.log_level = log_level
         self.container: IndexerContainer = None
         self.config: IndexerConfig = None
@@ -52,18 +53,19 @@ class TestingEnvironment:
         self.logger.info("Testing environment initialized")
     
     def _initialize_indexer(self):
-        """Initialize indexer using the standard configuration system"""
+        """Initialize indexer using the database-driven configuration system"""
         try:
-            self.container = create_indexer(config_path=self.config_path)
+            # Use the new database-driven configuration
+            self.container = create_indexer(model_name=self.model_name)
             self.config = self.container._config
             
             log_with_context(
                 self.logger, 
                 logging.INFO,
                 "Indexer container initialized for testing",
-                config_path=self.config_path,
-                indexer_name=self.config.name,
-                indexer_version=self.config.version
+                model_name=self.model_name,
+                indexer_name=self.config.model_name,
+                indexer_version=self.config.model_version
             )
             
         except Exception as e:
@@ -73,7 +75,7 @@ class TestingEnvironment:
                 "Failed to initialize indexer for testing",
                 error=str(e),
                 exception_type=type(e).__name__,
-                config_path=self.config_path
+                model_name=self.model_name
             )
             raise
     
@@ -96,11 +98,11 @@ class TestingEnvironment:
 # Global testing environment instance
 _testing_env = None
 
-def get_testing_environment(config_path: str = None, log_level: str = "DEBUG") -> TestingEnvironment:
+def get_testing_environment(model_name: str = None, log_level: str = "DEBUG") -> TestingEnvironment:
     """Get or create the global testing environment"""
     global _testing_env
     if _testing_env is None:
-        _testing_env = TestingEnvironment(config_path, log_level)
+        _testing_env = TestingEnvironment(model_name, log_level)
     return _testing_env
 
 def reset_testing_environment():

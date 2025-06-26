@@ -77,7 +77,10 @@ def _create_infrastructure_db_manager(env: dict) -> DatabaseManager:
     log_with_context(logger, logging.DEBUG, "Database configuration created",
                     db_host=db_host, db_port=db_port, db_name=db_name)
     
-    return DatabaseManager(infrastructure_db_config)
+    db_manager = DatabaseManager(infrastructure_db_config)
+    db_manager.initialize()  # ADD THIS LINE
+    
+    return db_manager
 
 
 def _configure_logging_early(env: dict) -> None:
@@ -116,8 +119,10 @@ def _register_services(container: IndexerContainer):
     # Client services (need factory functions for config parameters)
     logger.debug("Registering client services")
     container.register_factory(QuickNodeRpcClient, _create_rpc_client)
+
+    logger.debug("Registering storage services")
     container.register_factory(GCSHandler, _create_gcs_handler)
-    
+
     # Contract services (dependency injection handles relationships)
     logger.debug("Registering contract services")
     container.register_singleton(ContractRegistry, ContractRegistry)
@@ -146,22 +151,22 @@ def _create_rpc_client(container: IndexerContainer) -> QuickNodeRpcClient:
     """Factory function to create RPC client with configuration"""
     config = container._config
     return QuickNodeRpcClient(
-        endpoint_url=config.rpc.endpoint_url,
-        timeout=config.rpc.timeout,
-        max_retries=config.rpc.max_retries
+        endpoint_url=config.rpc.endpoint_url
     )
 
 
 def _create_gcs_handler(container: IndexerContainer) -> GCSHandler:
-    """Factory function to create GCS handler with configuration"""
+    """Factory function to create single GCS handler with backward compatibility"""
     config = container._config
+    
+    # Create GCS handler without specific source configuration
+    # Sources will be passed to methods as needed
     return GCSHandler(
         storage_config=config.storage,
         gcs_project=config.gcs.project_id,
         bucket_name=config.gcs.bucket_name,
-        credentials_path=config.gcs.credentials_path
+        credentials_path=config.gcs.credentials_path,
     )
-
 
 def _create_model_database_manager(container: IndexerContainer) -> DatabaseManager:
     logger = IndexerLogger.get_logger('core.factory.database')

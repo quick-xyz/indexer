@@ -15,22 +15,33 @@ from ..database.models.config import Model, Contract, Token, Address, ModelContr
 from ..types import DatabaseConfig
 from ..core.logging_config import IndexerLogger
 from ..core.secrets_service import SecretsService
+from ..core.logging_config import log_with_context, logging
 
 
 class BaseCommands:
     """Base class for admin commands with database access"""
     
-    def __init__(self):
+    def __init__(self, db_manager: DatabaseManager = None):
         self.logger = IndexerLogger.get_logger('admin.commands')
-        self.db_manager = self._create_db_manager()
+        
+        if db_manager:
+            # Use provided database manager (dependency injection)
+            self.db_manager = db_manager
+            log_with_context(self.logger, logging.DEBUG, "Using injected database manager")
+        else:
+            # Create own database manager (backwards compatibility)
+            self.db_manager = self._create_db_manager()
+            log_with_context(self.logger, logging.DEBUG, "Created own database manager")
     
+
     def _create_db_manager(self) -> DatabaseManager:
-        """Create database manager for indexer_shared database"""
-        # Get credentials from environment or secrets
+        """Create database manager for infrastructure database (backwards compatibility)"""
+        log_with_context(self.logger, logging.WARNING, "Creating database manager directly - consider using AdminContext")
+        
+        # ... existing logic from the old _create_db_manager method ...
         project_id = os.getenv("INDEXER_GCP_PROJECT_ID")
         
         if project_id:
-            # Try to use secrets first
             try:
                 secrets_service = SecretsService(project_id)
                 db_credentials = secrets_service.get_database_credentials()
@@ -41,13 +52,11 @@ class BaseCommands:
                 db_port = os.getenv("INDEXER_DB_PORT") or db_credentials.get('port', "5432")
                 
             except Exception:
-                # Fall back to environment variables
                 db_user = os.getenv("INDEXER_DB_USER")
                 db_password = os.getenv("INDEXER_DB_PASSWORD")
                 db_host = os.getenv("INDEXER_DB_HOST", "127.0.0.1")
                 db_port = os.getenv("INDEXER_DB_PORT", "5432")
         else:
-            # Use environment variables only
             db_user = os.getenv("INDEXER_DB_USER")
             db_password = os.getenv("INDEXER_DB_PASSWORD")
             db_host = os.getenv("INDEXER_DB_HOST", "127.0.0.1")
@@ -61,12 +70,17 @@ class BaseCommands:
         db_url = f"postgresql+psycopg://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
         config = DatabaseConfig(url=db_url)
         
-        return DatabaseManager(config)
+        db_manager = DatabaseManager(config)
+        db_manager.initialize()
+        
+        return db_manager     
 
 
 class ModelCommands(BaseCommands):
     """Commands for managing models"""
-    
+    def __init__(self, db_manager: DatabaseManager = None):
+        super().__init__(db_manager)
+
     def create_model(self, name: str, version: str, display_name: str, 
                     description: Optional[str], database_name: str, 
                     source_paths: List[str]) -> bool:
@@ -331,7 +345,9 @@ class ModelCommands(BaseCommands):
 
 class ContractCommands(BaseCommands):
     """Commands for managing contracts"""
-    
+    def __init__(self, db_manager: DatabaseManager = None):
+        super().__init__(db_manager)
+
     def add_contract(self, address: str, name: str, project: Optional[str],
                     contract_type: str, abi_dir: Optional[str], abi_file: Optional[str],
                     transformer_name: Optional[str], transformer_config: Optional[str],
@@ -501,7 +517,9 @@ class ContractCommands(BaseCommands):
 
 class TokenCommands(BaseCommands):
     """Commands for managing global token metadata"""
-    
+    def __init__(self, db_manager: DatabaseManager = None):
+        super().__init__(db_manager)
+
     def create_token(self, address: str, symbol: Optional[str], name: Optional[str],
                     decimals: Optional[int], project: Optional[str], token_type: str,
                     description: Optional[str]) -> bool:
@@ -602,7 +620,9 @@ class TokenCommands(BaseCommands):
 
 class AddressCommands(BaseCommands):
     """Commands for managing addresses"""
-    
+    def __init__(self, db_manager: DatabaseManager = None):
+        super().__init__(db_manager)
+        
     def add_address(self, address: str, name: str, address_type: str,
                    project: Optional[str], description: Optional[str],
                    grouping: Optional[str]) -> bool:

@@ -14,7 +14,7 @@ from ..types import (
     PathsConfig,
     GCSConfig,
 )
-from ..database.models.config import Contract, Token, Address
+from ..database.models.config import Contract, Token, Address, Source
 from .config_service import ConfigService
 from .secrets_service import SecretsService
 from .logging_config import IndexerLogger, log_with_context
@@ -23,7 +23,7 @@ class IndexerConfig(Struct):
     model_name: str
     model_version: str
     model_db_name: str
-    streams: List[str]
+    source_paths: List[str]  # Deprecated, use sources instead
 
     database: DatabaseConfig
     rpc: RpcConfig
@@ -34,6 +34,7 @@ class IndexerConfig(Struct):
     contracts: Dict[EvmAddress, Contract]
     model_tokens: Dict[EvmAddress, Token]
     addresses: Dict[EvmAddress, Address]
+    sources: Dict[int, Source]  # source_id -> Source object
 
     
     @classmethod
@@ -54,12 +55,20 @@ class IndexerConfig(Struct):
         model_tokens = config_service.get_model_tokens(model_name)
         addresses = config_service.get_all_addresses()
         
+        # NEW: Get sources from database
+        sources_list = config_service.get_sources_for_model(model_name)
+        sources = {source.id: source for source in sources_list}
+        
+        # Fallback to old source_paths for backward compatibility
+        source_paths = model.source_paths if model.source_paths else []
+        
         log_with_context(logger, logging.INFO, "Model configuration loaded from database",
                        model_name=model_name,
                        model_version=model.version,
                        contract_count=len(contracts),
                        model_tokens_count=len(model_tokens),
-                       address_count=len(addresses))
+                       address_count=len(addresses),
+                       sources_count=len(sources))
         
         database = cls._create_database_config(env)
         rpc = cls._create_rpc_config(env)
@@ -71,10 +80,11 @@ class IndexerConfig(Struct):
             model_name=model_name,
             model_version=model.version,
             model_db_name=model.database_name,
-            source_paths=model.source_paths,
+            source_paths=source_paths,  # Backward compatibility
             contracts=contracts,
             model_tokens=model_tokens,
             addresses=addresses,
+            sources=sources,  # NEW
             database=database,
             rpc=rpc,
             gcs=gcs,
@@ -234,3 +244,30 @@ class IndexerConfig(Struct):
     
     def get_address_metadata(self, address: str) -> Optional[Address]:
         return self.addresses.get(EvmAddress(address.lower()))
+    
+    def get_source_by_id(self, source_id: int) -> Optional[Source]:
+        """Get source by ID"""
+        return self.sources.get(source_id)
+
+    def get_all_sources(self) -> List[Source]:
+        """Get all sources for this model"""
+        return list(self.sources.values())
+
+    def get_primary_source(self) -> Optional[Source]:
+        """Get the primary (first) source for this model"""
+        if self.sources:
+            return next(iter(self.sources.values()))
+        return None
+
+    def get_rpc_path_for_block(self, block_number: int, source_id: Optional[int] = None) -> str:
+        if source_id is None:
+            source = self.get_primary_source()
+        else:
+            source = self.get_source_by_id(source_id)
+            if not source:
+                raise ValueError(f"Source ID {source_id} not found")
+        
+        path = source.path
+        format_str = source.format
+        
+        return f"{path}{format_str.format(block_number, block_number)}"

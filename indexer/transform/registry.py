@@ -2,6 +2,7 @@
 
 from typing import Dict, Optional, Any
 from msgspec import Struct
+import json
 
 from ..core.config import IndexerConfig
 from ..core.mixins import LoggingMixin
@@ -147,42 +148,54 @@ class TransformRegistry(LoggingMixin):
             try:
                 self.log_debug("Processing contract for transformation", **contract_context)
                 
-                if not contract.transform:
-                    self.log_debug("No transform config - skipping", **contract_context)
+                # UPDATED: Check for database-style transformer configuration
+                transformer_name = getattr(contract, 'transformer_name', None)
+                transformer_config = getattr(contract, 'transformer_config', None)
+                
+                # Also check for legacy format for backward compatibility
+                if not transformer_name and hasattr(contract, 'transform') and contract.transform:
+                    transformer_name = getattr(contract.transform, 'name', None)
+                    transformer_config = getattr(contract.transform, 'instantiate', {})
+                
+                if not transformer_name:
+                    self.log_debug("No transformer configured - skipping", **contract_context)
                     setup_stats['skipped'] += 1
                     continue
                 
-                if not hasattr(contract.transform, 'name') or not contract.transform.name:
-                    self.log_error("Transform config missing transformer name", **contract_context)
-                    setup_stats['failed'] += 1
-                    continue
-                    
-                transformer_config = contract.transform
-                transformer_context = {**contract_context, 'transformer_name': transformer_config.name}
+                transformer_context = {**contract_context, 'transformer_name': transformer_name}
                 
                 self.log_debug("Creating transformer", **transformer_context)
                 
-                transformer_class = self._transformer_classes.get(transformer_config.name)
+                transformer_class = self._transformer_classes.get(transformer_name)
                 
                 if not transformer_class:
                     self.log_error("Transformer class not found", 
-                                  available_classes=list(self._transformer_classes.keys()),
-                                  **transformer_context)
+                                available_classes=list(self._transformer_classes.keys()),
+                                **transformer_context)
                     setup_stats['failed'] += 1
                     continue
                 
-                # Validate instantiation parameters
-                instantiate_params = getattr(transformer_config, 'instantiate', {}) or {}
+                # UPDATED: Handle transformer config - it's already a dict from database
+                if isinstance(transformer_config, str):
+                    try:
+                        instantiate_params = json.loads(transformer_config)
+                    except json.JSONDecodeError as e:
+                        self.log_error("Failed to parse transformer config JSON", error=str(e), **transformer_context)
+                        setup_stats['failed'] += 1
+                        continue
+                else:
+                    instantiate_params = transformer_config or {}
+
                 if not isinstance(instantiate_params, dict):
                     self.log_error("Invalid instantiate parameters - must be dict",
-                                  params_type=type(instantiate_params).__name__,
-                                  **transformer_context)
+                                params_type=type(instantiate_params).__name__,
+                                **transformer_context)
                     setup_stats['failed'] += 1
                     continue
                 
                 self.log_debug("Instantiating transformer", 
-                              params=instantiate_params,
-                              **transformer_context)
+                            params=instantiate_params,
+                            **transformer_context)
                 
                 transformer_instance = transformer_class(**instantiate_params)
 
@@ -195,8 +208,8 @@ class TransformRegistry(LoggingMixin):
                 
                 if missing_methods:
                     self.log_error("Transformer missing required methods",
-                                  missing_methods=missing_methods,
-                                  **transformer_context)
+                                missing_methods=missing_methods,
+                                **transformer_context)
                     setup_stats['failed'] += 1
                     continue
                     
@@ -209,23 +222,22 @@ class TransformRegistry(LoggingMixin):
                 
             except (TypeError, AttributeError) as e:
                 self.log_error("Transformer instantiation failed", 
-                              error=str(e),
-                              exception_type=type(e).__name__,
-                              **contract_context)
+                            error=str(e),
+                            exception_type=type(e).__name__,
+                            **contract_context)
                 setup_stats['failed'] += 1
             except Exception as e:
                 self.log_error("Unexpected error creating transformer", 
-                              error=str(e),
-                              exception_type=type(e).__name__,
-                              **contract_context)
+                            error=str(e),
+                            exception_type=type(e).__name__,
+                            **contract_context)
                 setup_stats['failed'] += 1
-        
-        # Log final setup statistics
+
         total_processed = sum(setup_stats.values())
         if setup_stats['failed'] > 0:
             self.log_error("Transformer setup completed with failures", 
-                          **setup_stats,
-                          success_rate=f"{(setup_stats['successful']/total_processed)*100:.1f}%" if total_processed > 0 else "0%")
+                        **setup_stats,
+                        success_rate=f"{(setup_stats['successful']/total_processed)*100:.1f}%" if total_processed > 0 else "0%")
         else:
             self.log_info("Transformer setup completed successfully", **setup_stats)
 

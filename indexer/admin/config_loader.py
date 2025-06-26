@@ -10,18 +10,31 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional
 
 from .commands import BaseCommands, ModelCommands, ContractCommands, TokenCommands, AddressCommands
-
+from .admin_context import AdminContext
+from .commands import ModelCommands, ContractCommands, TokenCommands, AddressCommands
+from ..core.logging_config import IndexerLogger, log_with_context
+import logging
 
 class ConfigLoader(BaseCommands):
     """Load and save configuration files"""
     
-    def __init__(self):
-        super().__init__()
-        self.model_commands = ModelCommands()
-        self.contract_commands = ContractCommands()
-        self.token_commands = TokenCommands()
-        self.address_commands = AddressCommands()
+    def __init__(self, admin_context: AdminContext = None):
+        if admin_context is None:
+            admin_context = AdminContext()
+        
+        self.admin_context = admin_context
+        self.logger = IndexerLogger.get_logger('admin.config_loader')
+        
+        # All commands share the same infrastructure database manager
+        self.db_manager = admin_context.infrastructure_db_manager
+        self.model_commands = admin_context.get_model_commands()
+        self.contract_commands = admin_context.get_contract_commands()
+        self.token_commands = admin_context.get_token_commands()
+        self.address_commands = admin_context.get_address_commands()
+        
+        log_with_context(self.logger, logging.DEBUG, "ConfigLoader initialized with AdminContext")
     
+
     def import_config_file(self, config_file: str, dry_run: bool = False) -> bool:
         """Import configuration from YAML or JSON file"""
         config_path = Path(config_file)

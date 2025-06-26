@@ -10,15 +10,17 @@ import os
 import sys
 from pathlib import Path
 from typing import Optional
+import atexit
 
 # Add project root to path
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from indexer.admin.commands import ModelCommands, ContractCommands, TokenCommands, AddressCommands
-from indexer.admin.config_loader import ConfigLoader
+from indexer.admin.admin_context import AdminContext
 from indexer.core.logging_config import IndexerLogger
 
+# Create a global admin context to be shared across CLI commands
+admin_context = AdminContext()
 
 @click.group()
 @click.option('--verbose', '-v', is_flag=True, help='Enable verbose logging')
@@ -28,6 +30,7 @@ def cli(ctx, verbose):
     # Ensure that ctx.obj exists and is a dict
     ctx.ensure_object(dict)
     ctx.obj['verbose'] = verbose
+    ctx.obj['admin_context'] = admin_context
     
     # Configure logging
     log_level = "DEBUG" if verbose else "INFO"
@@ -54,9 +57,11 @@ def model():
 @click.option('--database', required=True, help='Database name for this model')
 @click.option('--source-path', multiple=True, help='Source data paths (can specify multiple)')
 @click.option('--version', default='v1', help='Initial version (default: v1)')
-def create(name, display_name, description, database, source_path, version):
+@click.pass_context
+def create(ctx, name, display_name, description, database, source_path, version):
     """Create a new indexer model"""
-    cmd = ModelCommands()
+    admin_context = ctx.obj['admin_context']
+    cmd = admin_context.get_model_commands()
     
     source_paths = list(source_path) if source_path else [f"indexer-blocks/streams/quicknode/{name}/"]
     
@@ -78,16 +83,20 @@ def create(name, display_name, description, database, source_path, version):
 
 @model.command()
 @click.argument('name')
-def show(name):
+@click.pass_context
+def show(ctx, name):
     """Show model details"""
-    cmd = ModelCommands()
+    admin_context = ctx.obj['admin_context']
+    cmd = admin_context.get_model_commands()
     cmd.show_model(name)
 
 
 @model.command()
-def list():
+@click.pass_context
+def list(ctx):
     """List all models"""
-    cmd = ModelCommands()
+    admin_context = ctx.obj['admin_context']
+    cmd = admin_context.get_model_commands()
     cmd.list_models()
 
 
@@ -96,9 +105,11 @@ def list():
 @click.argument('new_version')
 @click.option('--copy-contracts', is_flag=True, help='Copy contracts from current version')
 @click.option('--copy-tokens', is_flag=True, help='Copy tokens from current version')
-def upgrade(name, new_version, copy_contracts, copy_tokens):
+@click.pass_context
+def upgrade(ctx, name, new_version, copy_contracts, copy_tokens):
     """Upgrade model to new version"""
-    cmd = ModelCommands()
+    admin_context = ctx.obj['admin_context']
+    cmd = admin_context.get_model_commands()
     success = cmd.upgrade_model(name, new_version, copy_contracts, copy_tokens)
     
     if success:
@@ -111,9 +122,11 @@ def upgrade(name, new_version, copy_contracts, copy_tokens):
 @model.command()
 @click.argument('model_name')
 @click.argument('token_address')
-def add_token(model_name, token_address):
+@click.pass_context
+def add_token(ctx, model_name, token_address):
     """Add token to model's tracking list (token of interest)"""
-    cmd = ModelCommands()
+    admin_context = ctx.obj['admin_context']
+    cmd = admin_context.get_model_commands()
     success = cmd.add_model_token(model_name, token_address)
     
     if success:
@@ -126,9 +139,11 @@ def add_token(model_name, token_address):
 @model.command()
 @click.argument('model_name')
 @click.argument('token_address')
-def remove_token(model_name, token_address):
+@click.pass_context
+def remove_token(ctx, model_name, token_address):
     """Remove token from model's tracking list"""
-    cmd = ModelCommands()
+    admin_context = ctx.obj['admin_context']
+    cmd = admin_context.get_model_commands()
     success = cmd.remove_model_token(model_name, token_address)
     
     if success:
@@ -140,9 +155,11 @@ def remove_token(model_name, token_address):
 
 @model.command()
 @click.argument('model_name')
-def list_tokens(model_name):
+@click.pass_context
+def list_tokens(ctx, model_name):
     """List tokens being tracked by a model"""
-    cmd = ModelCommands()
+    admin_context = ctx.obj['admin_context']
+    cmd = admin_context.get_model_commands()
     cmd.list_model_tokens(model_name)
 
 
@@ -163,9 +180,11 @@ def contract():
 @click.option('--transformer', help='Transformer class name')
 @click.option('--transformer-config', help='Transformer config as JSON string')
 @click.option('--model', 'models', multiple=True, help='Associate with model(s)')
-def add(address, name, project, contract_type, abi_dir, abi_file, transformer, transformer_config, models):
+@click.pass_context
+def add(ctx, address, name, project, contract_type, abi_dir, abi_file, transformer, transformer_config, models):
     """Add a new contract"""
-    cmd = ContractCommands()
+    admin_context = ctx.obj['admin_context']
+    cmd = admin_context.get_contract_commands()
     
     success = cmd.add_contract(
         address=address,
@@ -189,9 +208,11 @@ def add(address, name, project, contract_type, abi_dir, abi_file, transformer, t
 @contract.command()
 @click.argument('address')
 @click.argument('model')
-def associate(address, model):
+@click.pass_context
+def associate(ctx, address, model):
     """Associate contract with a model"""
-    cmd = ContractCommands()
+    admin_context = ctx.obj['admin_context']
+    cmd = admin_context.get_contract_commands()
     success = cmd.associate_with_model(address, model)
     
     if success:
@@ -202,18 +223,12 @@ def associate(address, model):
 
 
 @contract.command()
-@click.argument('address')
-def show(address):
-    """Show contract details"""
-    cmd = ContractCommands()
-    cmd.show_contract(address)
-
-
-@contract.command()
-@click.option('--model', help='Filter by model')
-def list(model):
+@click.option('--model', help='Filter by model name')
+@click.pass_context
+def list(ctx, model):
     """List contracts"""
-    cmd = ContractCommands()
+    admin_context = ctx.obj['admin_context']
+    cmd = admin_context.get_contract_commands()
     cmd.list_contracts(model)
 
 
@@ -232,9 +247,11 @@ def token():
 @click.option('--project', help='Project name')
 @click.option('--type', 'token_type', default='token', help='Token type (token, lp_receipt, nft)')
 @click.option('--description', help='Token description')
-def create(address, symbol, name, decimals, project, token_type, description):
+@click.pass_context
+def create(ctx, address, symbol, name, decimals, project, token_type, description):
     """Create global token metadata"""
-    cmd = TokenCommands()
+    admin_context = ctx.obj['admin_context']
+    cmd = admin_context.get_token_commands()
     
     success = cmd.create_token(
         address=address,
@@ -247,47 +264,22 @@ def create(address, symbol, name, decimals, project, token_type, description):
     )
     
     if success:
-        click.echo(f"✅ Global token metadata created for '{symbol}'")
+        click.echo(f"✅ Token '{symbol}' created successfully")
     else:
-        click.echo(f"❌ Failed to create token metadata")
+        click.echo(f"❌ Failed to create token")
         sys.exit(1)
 
 
 @token.command()
-@click.argument('address')
-@click.option('--symbol', help='Update token symbol')
-@click.option('--name', help='Update token name')
-@click.option('--decimals', type=int, help='Update token decimals')
-@click.option('--project', help='Update project name')
-@click.option('--description', help='Update description')
-def update(address, symbol, name, decimals, project, description):
-    """Update global token metadata"""
-    cmd = TokenCommands()
-    
-    success = cmd.update_token(
-        address=address,
-        symbol=symbol,
-        name=name,
-        decimals=decimals,
-        project=project,
-        description=description
-    )
-    
-    if success:
-        click.echo(f"✅ Token metadata updated")
-    else:
-        click.echo(f"❌ Failed to update token metadata")
-        sys.exit(1)
+@click.pass_context
+def list(ctx):
+    """List all tokens"""
+    admin_context = ctx.obj['admin_context']
+    cmd = admin_context.get_token_commands()
+    cmd.list_tokens()
 
 
-@token.command()
-def list():
-    """List all global token metadata"""
-    cmd = TokenCommands()
-    cmd.list_all_tokens()
-
-
-# Address management commands  
+# Address management commands
 @cli.group()
 def address():
     """Manage addresses"""
@@ -301,9 +293,11 @@ def address():
 @click.option('--project', help='Project name')
 @click.option('--description', help='Address description')
 @click.option('--grouping', help='Grouping for UI')
-def add(address, name, address_type, project, description, grouping):
+@click.pass_context
+def add(ctx, address, name, address_type, project, description, grouping):
     """Add a new address"""
-    cmd = AddressCommands()
+    admin_context = ctx.obj['admin_context']
+    cmd = admin_context.get_address_commands()
     
     success = cmd.add_address(
         address=address,
@@ -322,9 +316,11 @@ def add(address, name, address_type, project, description, grouping):
 
 
 @address.command()
-def list():
+@click.pass_context
+def list(ctx):
     """List addresses"""
-    cmd = AddressCommands()
+    admin_context = ctx.obj['admin_context']
+    cmd = admin_context.get_address_commands()
     cmd.list_addresses()
 
 
@@ -338,9 +334,11 @@ def config():
 @config.command()
 @click.argument('config_file')
 @click.option('--dry-run', is_flag=True, help='Show what would be imported without making changes')
-def import_file(config_file, dry_run):
+@click.pass_context
+def import_file(ctx, config_file, dry_run):
     """Import configuration from YAML/JSON file"""
-    loader = ConfigLoader()
+    admin_context = ctx.obj['admin_context']
+    loader = admin_context.get_config_loader()
     
     try:
         success = loader.import_config_file(config_file, dry_run=dry_run)
@@ -361,9 +359,11 @@ def import_file(config_file, dry_run):
 @config.command()
 @click.argument('model_name')
 @click.argument('output_file')
-def export(model_name, output_file):
+@click.pass_context
+def export(ctx, model_name, output_file):
     """Export model configuration to YAML file"""
-    loader = ConfigLoader()
+    admin_context = ctx.obj['admin_context']
+    loader = admin_context.get_config_loader()
     
     try:
         success = loader.export_model_config(model_name, output_file)
@@ -377,6 +377,15 @@ def export(model_name, output_file):
     except Exception as e:
         click.echo(f"❌ Error exporting config: {e}")
         sys.exit(1)
+
+
+def cleanup():
+    """Cleanup function to properly shutdown database connections"""
+    admin_context.shutdown()
+
+
+# Register cleanup handler
+atexit.register(cleanup)
 
 
 if __name__ == '__main__':
