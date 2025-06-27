@@ -10,7 +10,7 @@ from .core.config_service import ConfigService
 from .core.logging_config import IndexerLogger, log_with_context
 from .clients.quicknode_rpc import QuickNodeRpcClient
 from .storage.gcs_handler import GCSHandler
-from .database.connection import DatabaseManager
+from .database.connection import DatabaseManager, InfrastructureDatabaseManager, ModelDatabaseManager
 from .database.repository import RepositoryManager
 from .decode.block_decoder import BlockDecoder
 from .transform.manager import TransformManager
@@ -48,14 +48,14 @@ def create_indexer(model_name: str = None, env_vars: dict = None, **overrides) -
                     model_database=config.model_db_name)
     
     container = IndexerContainer(config)
-    container.register_singleton(ConfigService, lambda c: config_service)
-    _register_services(container)
+    container.register_instance(ConfigService, config_service)
+    _register_services(container, infrastructure_db_manager)
     
     logger.info("Indexer instance created successfully")
     return container
 
 
-def _create_infrastructure_db_manager(env: dict) -> DatabaseManager:
+def _create_infrastructure_db_manager(env: dict) -> InfrastructureDatabaseManager:
     """Create database manager for the infrastructure database (where configuration is stored)"""
     logger = IndexerLogger.get_logger('core.init.infrastructure_db')
     
@@ -79,8 +79,8 @@ def _create_infrastructure_db_manager(env: dict) -> DatabaseManager:
     log_with_context(logger, logging.DEBUG, "Database configuration created",
                     db_host=db_host, db_port=db_port, db_name=db_name)
     
-    db_manager = DatabaseManager(infrastructure_db_config)
-    db_manager.initialize()  # ADD THIS LINE
+    db_manager = InfrastructureDatabaseManager(infrastructure_db_config)
+    db_manager.initialize()
     
     return db_manager
 
@@ -106,7 +106,7 @@ def _configure_logging_early(env: dict) -> None:
     )
 
 
-def _register_services(container: IndexerContainer):
+def _register_services(container: IndexerContainer, infrastructure_db_manager: InfrastructureDatabaseManager):
     logger = IndexerLogger.get_logger('core.services')
     logger.info("Registering services in container")
     
@@ -149,7 +149,8 @@ def _register_services(container: IndexerContainer):
     
     # Database services (model-specific database)
     logger.debug("Registering database services")
-    container.register_factory(DatabaseManager, _create_model_database_manager)
+    container.register_instance(InfrastructureDatabaseManager, infrastructure_db_manager)
+    container.register_factory(ModelDatabaseManager, _create_model_database_manager)
     container.register_singleton(RepositoryManager, RepositoryManager)
 
     # NEW: Database writers
@@ -185,18 +186,43 @@ def _create_gcs_handler(container: IndexerContainer) -> GCSHandler:
         credentials_path=config.gcs.credentials_path,
     )
 
-def _create_model_database_manager(container: IndexerContainer) -> DatabaseManager:
+def _create_model_database_manager(container: IndexerContainer) -> ModelDatabaseManager:
     logger = IndexerLogger.get_logger('core.factory.database')
     config = container._config
     
     logger.info("Creating database manager")
-    db_manager = DatabaseManager(config.database)
+
+    env = os.environ
+    project_id = env.get("INDEXER_GCP_PROJECT_ID")
+
+    if project_id:
+        secrets_service = SecretsService(project_id)
+        db_credentials = secrets_service.get_database_credentials()
+        
+        db_user = db_credentials.get('user') or env.get("INDEXER_DB_USER")
+        db_password = db_credentials.get('password') or env.get("INDEXER_DB_PASSWORD")
+        db_host = env.get("INDEXER_DB_HOST") or db_credentials.get('host') or "127.0.0.1"
+        db_port = env.get("INDEXER_DB_PORT") or db_credentials.get('port') or "5432"
+    else:
+        db_user = env.get("INDEXER_DB_USER")
+        db_password = env.get("INDEXER_DB_PASSWORD")
+        db_host = env.get("INDEXER_DB_HOST", "127.0.0.1")
+        db_port = env.get("INDEXER_DB_PORT", "5432")
+
+    if not db_user or not db_password:
+        raise ValueError("Database credentials not found")
+
+    # Use the model-specific database name
+    model_db_url = f"postgresql+psycopg://{db_user}:{db_password}@{db_host}:{db_port}/{config.model_db_name}"
+    model_db_config = DatabaseConfig(url=model_db_url)
+
+    db_manager = ModelDatabaseManager(model_db_config)
     db_manager.initialize()
     
     return db_manager
 
 def _create_secrets_service(container: IndexerContainer) -> SecretsService:
-    """Factory function to create centralized SecretsService singleton"""
+    """Factory function - container not used for this leaf dependency"""
     logger = IndexerLogger.get_logger('core.factory.secrets')
     
     project_id = os.environ.get("INDEXER_GCP_PROJECT_ID")

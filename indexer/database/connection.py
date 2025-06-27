@@ -156,3 +156,11 @@ class DatabaseManager:
                             error=str(e),
                             exception_type=type(e).__name__)
             return False
+
+class InfrastructureDatabaseManager(DatabaseManager):
+    """Database manager for infrastructure database (indexer_shared)"""
+    pass
+
+class ModelDatabaseManager(DatabaseManager):
+    """Database manager for model-specific database (e.g. blub_test)"""
+    pass

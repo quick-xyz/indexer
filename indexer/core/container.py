@@ -169,7 +169,18 @@ class IndexerContainer:
                            exception_type=type(e).__name__,
                            provided_kwargs=list(kwargs.keys()))
             raise
+
+    def register_instance(self, interface: Type[T], instance: T) -> 'IndexerContainer':
+        """Register an already-created instance"""
+        log_with_context(self._logger, logging.DEBUG, "Registering instance",
+                        interface=interface.__name__,
+                        instance_type=type(instance).__name__)
         
+        # Store the instance directly, mark as singleton with no implementation or factory
+        self._instances[interface] = instance
+        self._services[interface] = (None, None, True)
+        return self
+
     def has_service(self, service_type: Type) -> bool:
         """Check if a service is registered"""
         has_service = service_type in self._services

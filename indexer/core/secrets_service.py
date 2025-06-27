@@ -36,7 +36,6 @@ class SecretsService:
             'user': 'indexer-db-user',
             'password': 'indexer-db-password',
             'host': 'indexer-db-host',  # Optional - might use env for local dev
-            'port': 'indexer-db-port'   # Optional - might use env for local dev
         }
         
         for field, secret_name in secret_mapping.items():

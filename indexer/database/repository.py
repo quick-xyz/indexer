@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import desc, asc, and_, or_
 from sqlalchemy.exc import IntegrityError, NoResultFound
 
-from .connection import DatabaseManager
+from .connection import DatabaseManager, ModelDatabaseManager, InfrastructureDatabaseManager
 from .models.base import DomainEventModel, BaseModel
 from .models.events.trade import Trade, PoolSwap
 from .models.events.position import Position
@@ -25,7 +25,7 @@ import logging
 class BaseRepository:
     """Base repository providing common CRUD operations for all models."""
     
-    def __init__(self, db_manager: DatabaseManager, model_class: Type):
+    def __init__(self, db_manager: ModelDatabaseManager, model_class: Type):
         self.db_manager = db_manager
         self.model_class = model_class
         self.logger = IndexerLogger.get_logger(f'database.repository.{model_class.__name__.lower()}')
@@ -125,7 +125,7 @@ class DomainEventRepository(BaseRepository):
 class TradeRepository(DomainEventRepository):
     """Repository for trade events with trade-specific queries"""
     
-    def __init__(self, db_manager: DatabaseManager):
+    def __init__(self, db_manager: ModelDatabaseManager):
         super().__init__(db_manager, Trade)
     
     def get_by_taker(self, session: Session, taker: EvmAddress, limit: int = 100) -> List[Trade]:
@@ -167,7 +167,7 @@ class TradeRepository(DomainEventRepository):
 class PoolSwapRepository(DomainEventRepository):
     """Repository for pool swap events"""
     
-    def __init__(self, db_manager: DatabaseManager):
+    def __init__(self, db_manager: ModelDatabaseManager):
         super().__init__(db_manager, PoolSwap)
     
     def get_by_trade_id(self, session: Session, trade_id: DomainEventId) -> List[PoolSwap]:
@@ -198,7 +198,7 @@ class PoolSwapRepository(DomainEventRepository):
 class PositionRepository(DomainEventRepository):
     """Repository for position events"""
     
-    def __init__(self, db_manager: DatabaseManager):
+    def __init__(self, db_manager: ModelDatabaseManager):
         super().__init__(db_manager, Position)
     
     def get_by_user(self, session: Session, user: EvmAddress, limit: int = 100) -> List[Position]:
@@ -249,7 +249,7 @@ class PositionRepository(DomainEventRepository):
 class ProcessingRepository(BaseRepository):
     """Repository for transaction processing status"""
     
-    def __init__(self, db_manager: DatabaseManager):
+    def __init__(self, db_manager: ModelDatabaseManager):
         super().__init__(db_manager, TransactionProcessing)
     
     def get_by_tx_hash(self, session: Session, tx_hash: EvmHash):
@@ -282,7 +282,7 @@ class ProcessingRepository(BaseRepository):
 class RepositoryManager:
     """Central manager for all repositories, integrates with DI container."""
     
-    def __init__(self, db_manager: DatabaseManager):
+    def __init__(self, db_manager: ModelDatabaseManager):
         self.db_manager = db_manager
         self.logger = IndexerLogger.get_logger('database.repository.manager')
         

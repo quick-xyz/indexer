@@ -67,9 +67,8 @@ def config_service(testing_env):
 @pytest.fixture(scope="session")
 def model_db_manager(testing_env):
     """Get model-specific database manager"""
-    from indexer.database.connection import DatabaseManager
-    return testing_env.get_service(DatabaseManager)
-
+    from indexer.database.connection import ModelDatabaseManager
+    return testing_env.get_service(ModelDatabaseManager)
 
 @pytest.fixture
 def logger():
