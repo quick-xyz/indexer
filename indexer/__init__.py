@@ -48,54 +48,29 @@ def create_indexer(model_name: str = None, env_vars: dict = None, **overrides) -
                     model_database=config.model_db_name)
     
     container = IndexerContainer(config)
-    container.register_instance(ConfigService, config_service)
-    _register_services(container, infrastructure_db_manager)
     
-    logger.info("Indexer instance created successfully")
+    # Create singleton SecretsService before registering other services
+    secrets_service = _create_secrets_service_singleton(env)
+    
+    _register_services(container, infrastructure_db_manager, secrets_service)
+    
+    log_with_context(logger, logging.INFO, "Indexer created successfully")
+    
     return container
 
 
-def _create_infrastructure_db_manager(env: dict) -> InfrastructureDatabaseManager:
-    """Create database manager for the infrastructure database (where configuration is stored)"""
-    logger = IndexerLogger.get_logger('core.init.infrastructure_db')
-    
-    project_id = env.get("INDEXER_GCP_PROJECT_ID")
-    if not project_id:
-        raise ValueError("INDEXER_GCP_PROJECT_ID environment variable required")
-    
-    secrets_service = SecretsService(project_id)
-    db_credentials = secrets_service.get_database_credentials()
-    
-    db_user = db_credentials.get('user') or env.get("INDEXER_DB_USER")
-    db_password = db_credentials.get('password') or env.get("INDEXER_DB_PASSWORD")
-    db_host = env.get("INDEXER_DB_HOST") or db_credentials.get('host') or "127.0.0.1"
-    db_port = env.get("INDEXER_DB_PORT") or db_credentials.get('port') or "5432"
-    db_name = env.get("INDEXER_DB_NAME", "indexer_shared")
-    
-    db_url = f"postgresql+psycopg://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
-    
-    infrastructure_db_config = DatabaseConfig(url=db_url)
-    
-    log_with_context(logger, logging.DEBUG, "Database configuration created",
-                    db_host=db_host, db_port=db_port, db_name=db_name)
-    
-    db_manager = InfrastructureDatabaseManager(infrastructure_db_config)
-    db_manager.initialize()
-    
-    return db_manager
-
-
-def _configure_logging_early(env: dict) -> None:
+def _configure_logging_early(env: dict):
+    # Get log directory from environment or use default
     log_dir_env = env.get("INDEXER_LOG_DIR")
     if log_dir_env:
         log_dir = Path(log_dir_env)
     else:
         log_dir = Path.cwd() / "logs"
     
-    log_level = env.get("LOG_LEVEL", "INFO").upper()
+    log_level = env.get("INDEXER_LOG_LEVEL", "INFO")
     console_enabled = env.get("INDEXER_LOG_CONSOLE", "true").lower() == "true"
     file_enabled = env.get("INDEXER_LOG_FILE", "true").lower() == "true"
-    structured_format = env.get("INDEXER_LOG_STRUCTURED", "true").lower() == "true"
+    structured_format = env.get("INDEXER_LOG_STRUCTURED", "false").lower() == "true"
     
     IndexerLogger.configure(
         log_dir=log_dir,
@@ -106,7 +81,7 @@ def _configure_logging_early(env: dict) -> None:
     )
 
 
-def _register_services(container: IndexerContainer, infrastructure_db_manager: InfrastructureDatabaseManager):
+def _register_services(container: IndexerContainer, infrastructure_db_manager: InfrastructureDatabaseManager, secrets_service: SecretsService):
     logger = IndexerLogger.get_logger('core.services')
     logger.info("Registering services in container")
     
@@ -119,9 +94,9 @@ def _register_services(container: IndexerContainer, infrastructure_db_manager: I
     from .transform.registry import TransformRegistry
     from .transform.manager import TransformManager
     
-    # Core services - register SecretsService first as singleton
+    # Core services - register SecretsService as singleton instance
     logger.debug("Registering core services")
-    container.register_factory(SecretsService, _create_secrets_service)
+    container.register_instance(SecretsService, secrets_service)
 
     # Client services (need factory functions for config parameters)
     logger.debug("Registering client services")
@@ -196,7 +171,8 @@ def _create_model_database_manager(container: IndexerContainer) -> ModelDatabase
     project_id = env.get("INDEXER_GCP_PROJECT_ID")
 
     if project_id:
-        secrets_service = SecretsService(project_id)
+        # Use the singleton SecretsService from the container
+        secrets_service = container.get(SecretsService)
         db_credentials = secrets_service.get_database_credentials()
         
         db_user = db_credentials.get('user') or env.get("INDEXER_DB_USER")
@@ -221,17 +197,53 @@ def _create_model_database_manager(container: IndexerContainer) -> ModelDatabase
     
     return db_manager
 
-def _create_secrets_service(container: IndexerContainer) -> SecretsService:
-    """Factory function - container not used for this leaf dependency"""
+def _create_secrets_service_singleton(env: dict) -> SecretsService:
+    """Create a singleton SecretsService instance before container initialization"""
     logger = IndexerLogger.get_logger('core.factory.secrets')
     
-    project_id = os.environ.get("INDEXER_GCP_PROJECT_ID")
+    project_id = env.get("INDEXER_GCP_PROJECT_ID")
     if not project_id:
         raise ValueError("INDEXER_GCP_PROJECT_ID environment variable required for SecretsService")
     
-    log_with_context(logger, logging.INFO, "Creating centralized SecretsService singleton", project_id=project_id)
+    log_with_context(logger, logging.INFO, "Creating singleton SecretsService", project_id=project_id)
     
     return SecretsService(project_id)
+
+def _create_infrastructure_db_manager(env: dict) -> InfrastructureDatabaseManager:
+    """Create infrastructure database manager for config service"""
+    logger = IndexerLogger.get_logger('core.factory.infrastructure_db')
+    
+    project_id = env.get("INDEXER_GCP_PROJECT_ID")
+    
+    if project_id:
+        # Use temporary SecretsService instance for infrastructure setup only
+        # The main singleton will be created later
+        temp_secrets_service = SecretsService(project_id)
+        db_credentials = temp_secrets_service.get_database_credentials()
+        
+        db_user = db_credentials.get('user') or env.get("INDEXER_DB_USER") 
+        db_password = db_credentials.get('password') or env.get("INDEXER_DB_PASSWORD")
+        db_host = env.get("INDEXER_DB_HOST") or db_credentials.get('host') or "127.0.0.1"
+        db_port = env.get("INDEXER_DB_PORT") or db_credentials.get('port') or "5432"
+    else:
+        db_user = env.get("INDEXER_DB_USER")
+        db_password = env.get("INDEXER_DB_PASSWORD")  
+        db_host = env.get("INDEXER_DB_HOST", "127.0.0.1")
+        db_port = env.get("INDEXER_DB_PORT", "5432")
+
+    if not db_user or not db_password:
+        raise ValueError("Infrastructure database credentials not found")
+
+    infrastructure_db_name = env.get("INDEXER_INFRASTRUCTURE_DB_NAME", "indexer_shared")
+    infrastructure_db_url = f"postgresql+psycopg://{db_user}:{db_password}@{db_host}:{db_port}/{infrastructure_db_name}"
+    infrastructure_db_config = DatabaseConfig(url=infrastructure_db_url)
+
+    log_with_context(logger, logging.INFO, "Creating infrastructure database manager", database=infrastructure_db_name)
+
+    db_manager = InfrastructureDatabaseManager(infrastructure_db_config)
+    db_manager.initialize()
+    
+    return db_manager
 
 # Optional: Convenience functions for common usage patterns
 def get_rpc_client(container: IndexerContainer) -> QuickNodeRpcClient:

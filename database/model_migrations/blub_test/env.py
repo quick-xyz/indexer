@@ -1,31 +1,72 @@
-# database/model_migrations/template/env.py
+# database/model_migrations/blub_test/env.py
 
 from logging.config import fileConfig
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import engine_from_config, pool, MetaData
 from alembic import context
 import os
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
+# Add project root to Python path - handle both scenarios
+current_file = Path(__file__).resolve()
+project_root = current_file.parent.parent.parent.parent  # Go up 4 levels from blub_test/env.py
 
-from indexer.database.models.base import Base
-import indexer.database.models.types
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
-# Import ONLY model-specific tables (NOT config tables)
-from indexer.database.models.processing import TransactionProcessing, BlockProcessing, ProcessingJob
-from indexer.database.models.events.trade import Trade, PoolSwap
-from indexer.database.models.events.position import Position
-from indexer.database.models.events.transfer import Transfer
-from indexer.database.models.events.liquidity import Liquidity
-from indexer.database.models.events.reward import Reward
+print(f"DEBUG: Project root: {project_root}")
+print(f"DEBUG: Python path includes: {[p for p in sys.path if 'indexer' in p]}")
+
+try:
+    from indexer.database.models.base import Base
+    import indexer.database.models.types
+
+    # Import ONLY model-specific tables (NOT config tables)
+    from indexer.database.models.processing import TransactionProcessing, BlockProcessing, ProcessingJob
+    from indexer.database.models.events.trade import Trade, PoolSwap
+    from indexer.database.models.events.position import Position
+    from indexer.database.models.events.transfer import Transfer
+    from indexer.database.models.events.liquidity import Liquidity
+    from indexer.database.models.events.reward import Reward
+    
+    print("DEBUG: Successfully imported indexer modules")
+except ImportError as e:
+    print(f"DEBUG: Import error: {e}")
+    print(f"DEBUG: Current working directory: {os.getcwd()}")
+    print(f"DEBUG: __file__ location: {__file__}")
+    raise
 
 config = context.config
 
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-target_metadata = Base.metadata
+# Create filtered metadata that ONLY includes model tables
+def get_model_metadata():
+    """Create metadata with only model-specific tables"""
+    filtered_metadata = MetaData()
+    
+    # List of table names that belong to model database (NOT infrastructure)
+    model_table_names = {
+        'transaction_processing',
+        'block_processing', 
+        'processing_jobs',
+        'trades',
+        'pool_swaps',
+        'positions',
+        'transfers',
+        'liquidity',
+        'rewards'
+    }
+    
+    # Copy only the tables we want from Base.metadata
+    for table_name, table in Base.metadata.tables.items():
+        if table_name in model_table_names:
+            table.tometadata(filtered_metadata)
+    
+    return filtered_metadata
+
+target_metadata = get_model_metadata()
 
 
 def get_database_url():
