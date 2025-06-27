@@ -105,11 +105,9 @@ def get_database_url():
             db_host = os.getenv("INDEXER_DB_HOST", "127.0.0.1")
             db_port = os.getenv("INDEXER_DB_PORT", "5432")
         
-        # Get model database name from environment
-        model_db_name = os.getenv("MODEL_DB_NAME")
-        if not model_db_name:
-            raise RuntimeError("MODEL_DB_NAME environment variable required for model migrations")
-        
+        # Hardcode model database name when model is created
+        model_db_name = "blub_test"
+
         if not db_user or not db_password:
             raise RuntimeError("Database credentials not found. Set INDEXER_DB_USER and INDEXER_DB_PASSWORD environment variables or configure GCP secrets.")
         

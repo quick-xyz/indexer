@@ -20,17 +20,17 @@ class TransactionStatus(enum.Enum):
 
 
 class JobType(enum.Enum):
-    BLOCK = "block"                    # Process single block
-    BLOCK_RANGE = "block_range"        # Process range of blocks
-    TRANSACTIONS = "transactions"       # Process specific transactions
-    REPROCESS_FAILED = "reprocess_failed"  # Reprocess failed items
+    BLOCK = "BLOCK"                    # Process single block
+    BLOCK_RANGE = "BLOCK_RANGE"        # Process range of blocks
+    TRANSACTIONS = "TRANSACTIONS"       # Process specific transactions
+    REPROCESS_FAILED = "REPROCESS_FAILED"  # Reprocess failed items
 
 
 class JobStatus(enum.Enum):
-    PENDING = "pending"
-    PROCESSING = "processing"
-    COMPLETE = "complete"
-    FAILED = "failed"
+    PENDING = "PENDING"
+    PROCESSING = "PROCESSING"
+    COMPLETE = "COMPLETE"
+    FAILED = "FAILED"
 
 
 class TransactionProcessing(BaseModel):
@@ -160,24 +160,27 @@ class ProcessingJob(BaseModel):
         """Create a job for processing a single block"""
         return cls(
             job_type=JobType.BLOCK,
+            status=JobStatus.PENDING,  # Explicitly set the default
             job_data={'block_number': block_number},
             priority=priority
         )
     
-    @classmethod
+    @classmethod  
     def create_block_range_job(cls, start_block: int, end_block: int, priority: int = 0):
         """Create a job for processing a block range"""
         return cls(
             job_type=JobType.BLOCK_RANGE,
+            status=JobStatus.PENDING,  # Explicitly set the default
             job_data={'start_block': start_block, 'end_block': end_block},
             priority=priority
         )
-    
+
     @classmethod
     def create_transactions_job(cls, tx_hashes: list, priority: int = 0):
         """Create a job for processing specific transactions"""
         return cls(
             job_type=JobType.TRANSACTIONS,
+            status=JobStatus.PENDING,  # Explicitly set the default
             job_data={'tx_hashes': tx_hashes},
             priority=priority
         )
@@ -214,4 +217,6 @@ class ProcessingJob(BaseModel):
         self.error_message = None
     
     def __repr__(self) -> str:
-        return f"<ProcessingJob(type={self.job_type.value}, status={self.status.value})>"
+        job_type_str = self.job_type.value if self.job_type else 'None'
+        status_str = self.status.value if self.status else 'None'
+        return f"<ProcessingJob(type={job_type_str}, status={status_str})>"
