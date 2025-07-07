@@ -1,7 +1,8 @@
 # indexer/clients/quicknode_rpc.py
 
 from datetime import datetime
-from typing import List, Dict, Union, Any
+from typing import List, Dict, Union, Any, Optional
+from decimal import Decimal
 from web3 import Web3
 
 
@@ -10,8 +11,10 @@ class QuickNodeRpcClient:
     A client for interacting with Ethereum blockchain via QuickNode RPC.
     """
     
+    # Chainlink AVAX/USD price feed on Avalanche mainnet
+    CHAINLINK_AVAX_USD_FEED = "0x0A77230d17318075983913bC2145DB16C7366156"
+    
     def __init__(self, endpoint_url: str):
-
         self.endpoint_url = endpoint_url
         self.w3 = Web3(Web3.HTTPProvider(endpoint_url))
         
@@ -69,7 +72,7 @@ class QuickNodeRpcClient:
         if isinstance(block_identifier, int):
             block = self.get_block(block_identifier, full_transactions)
         else:
-            # Handle 'latest', 'earliest', etc. or hash
+            # Handle 'latest', 'earliest', etc.
             block = self.w3.eth.get_block(block_identifier, full_transactions=full_transactions)
             block = dict(block)
         
@@ -123,68 +126,6 @@ class QuickNodeRpcClient:
     def find_address_transactions(self, block_identifier: Union[int, str], address: str) -> List[Dict]:
         """
         Find transactions involving a specific address in a block.
-
-        """
-        address = address.lower()
-        
-        if isinstance(block_identifier, int):
-            block = self.get_block(block_identifier, full_transactions=True)
-        else:
-            block = self.w3.eth.get_block(block_identifier, full_transactions=True)
-            block = dict(block)
-        
-        matching_txs = []
-        for tx in block['transactions']:
-            tx_dict = dict(tx) if not isinstance(tx, dict) else tx
-            
-            from_address = tx_dict.get('from', '').lower()
-            to_address = tx_dict.get('to', '').lower() if tx_dict.get('to') else None
-            
-            if from_address == address or to_address == address:
-                # Format values for better readability
-                if 'value' in tx_dict:
-                    tx_dict['value_eth'] = self.w3.from_wei(tx_dict['value'], 'ether')
-                
-                # Format hashes
-                if 'hash' in tx_dict and hasattr(tx_dict['hash'], 'hex'):
-                    tx_dict['hash_hex'] = tx_dict['hash'].hex()
-                
-                matching_txs.append(tx_dict)
-        
-        return matching_txs
-    
-    def get_finalized_block(self) -> Dict:
-        """
-        Get the latest finalized block (post-merge Ethereum).
-        """
-        try:
-            block = self.w3.eth.get_block('finalized')
-            return dict(block)
-        except Exception as e:
-            raise Exception(f"Failed to get finalized block. This might not be supported: {e}")
-    
-    def get_finalization_status(self) -> Dict:
-        """
-        Get information about block finalization status.
-        """
-        try:
-            latest = self.w3.eth.get_block('latest')
-            finalized = self.w3.eth.get_block('finalized')
-            safe = self.w3.eth.get_block('safe')
-            
-            return {
-                'latest_block': latest.number,
-                'safe_block': safe.number,
-                'finalized_block': finalized.number,
-                'blocks_until_safe': latest.number - safe.number,
-                'blocks_until_finalized': latest.number - finalized.number,
-            }
-        except Exception as e:
-            raise Exception(f"Failed to get finalization status: {e}")
-    
-    def get_gas_information(self, block_identifier: Union[int, str] = 'latest') -> Dict:
-        """
-        Get gas information from a block.
         """
         if isinstance(block_identifier, int):
             block = self.get_block(block_identifier)
@@ -199,6 +140,73 @@ class QuickNodeRpcClient:
             'base_fee_per_gas': block.get('baseFeePerGas', 0),
             'base_fee_per_gas_gwei': self.w3.from_wei(block.get('baseFeePerGas', 0), 'gwei')
         }
+    
+    def get_chainlink_price_latest(self) -> Optional[Decimal]:
+        """
+        Get the latest AVAX/USD price from Chainlink price feed.
+        
+        Returns:
+            Latest AVAX price in USD as Decimal, or None if error
+        """
+        try:
+            # latestRoundData() function selector
+            function_selector = "0xfeaf968c"
+            
+            # Call the contract
+            response = self.w3.eth.call({
+                'to': self.CHAINLINK_AVAX_USD_FEED,
+                'data': function_selector
+            })
+            
+            # Decode the response: (roundId, answer, startedAt, updatedAt, answeredInRound)
+            # We only need the answer (index 1)
+            decoded = self.w3.codec.decode(['uint80', 'int256', 'uint256', 'uint256', 'uint80'], response)
+            raw_price = decoded[1]  # answer field
+            
+            # Chainlink AVAX/USD has 8 decimal places
+            # Convert to Decimal for precision
+            price = Decimal(raw_price) / Decimal(10 ** 8)
+            
+            return price
+            
+        except Exception as e:
+            # Log error but don't raise - let caller handle None return
+            return None
+    
+    def get_chainlink_price_at_block(self, block_number: int) -> Optional[Decimal]:
+        """
+        Get AVAX/USD price from Chainlink price feed at a specific block.
+        
+        Args:
+            block_number: Block number to query price at
+            
+        Returns:
+            AVAX price in USD as Decimal at the given block, or None if error
+        """
+        try:
+            # latestRoundData() function selector
+            function_selector = "0xfeaf968c"
+            
+            # Call the contract at specific block
+            response = self.w3.eth.call({
+                'to': self.CHAINLINK_AVAX_USD_FEED,
+                'data': function_selector
+            }, block_number)
+            
+            # Decode the response: (roundId, answer, startedAt, updatedAt, answeredInRound)
+            # We only need the answer (index 1)
+            decoded = self.w3.codec.decode(['uint80', 'int256', 'uint256', 'uint256', 'uint80'], response)
+            raw_price = decoded[1]  # answer field
+            
+            # Chainlink AVAX/USD has 8 decimal places
+            # Convert to Decimal for precision
+            price = Decimal(raw_price) / Decimal(10 ** 8)
+            
+            return price
+            
+        except Exception as e:
+            # Log error but don't raise - let caller handle None return
+            return None
     
     def make_custom_request(self, method: str, params: List) -> Any:
         """

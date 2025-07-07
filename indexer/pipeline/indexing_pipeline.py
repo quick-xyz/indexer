@@ -11,6 +11,7 @@ from sqlalchemy.exc import IntegrityError
 
 from ..core.logging_config import IndexerLogger, log_with_context
 from ..database.repository import RepositoryManager
+from ..database.repositories.block_prices_repository import BlockPricesRepository
 from ..database.models.processing import ProcessingJob, JobStatus, JobType, TransactionStatus
 from ..database.writers.domain_event_writer import DomainEventWriter
 from ..clients.quicknode_rpc import QuickNodeRpcClient
@@ -293,15 +294,24 @@ class IndexingPipeline:
             if raw_block is None:
                 return False
             
-            # Step 2: Decode block  
+            # Step 2: Fetch AVAX price for this block
+            success = self._fetch_and_store_block_price(session, block_number, raw_block.timestamp)
+            if not success:
+                # Log warning but don't fail the whole job
+                log_with_context(
+                    self.logger, logging.WARNING, "Failed to fetch block price, continuing with processing",
+                    block_number=block_number
+                )
+            
+            # Step 3: Decode block  
             decoded_block = self._decode_block(raw_block)
             if decoded_block is None:
                 return False
             
-            # Step 3: Transform and persist transactions
+            # Step 4: Transform and persist transactions
             success = self._process_block_transactions(session, decoded_block)
             
-            # Step 4: Update block processing summary
+            # Step 5: Update block processing summary
             if success:
                 self._update_block_summary(session, decoded_block)
             
@@ -310,6 +320,62 @@ class IndexingPipeline:
         except Exception as e:
             log_with_context(
                 self.logger, logging.ERROR, "Block job execution failed",
+                block_number=block_number,
+                error=str(e)
+            )
+            return False
+
+    def _fetch_and_store_block_price(self, session, block_number: int, timestamp: int) -> bool:
+        """Fetch AVAX price from Chainlink and store in database"""
+        try:
+            # Check if price already exists for this block            
+            prices_repo = BlockPricesRepository(self.repository_manager.db_manager)
+            existing_price = prices_repo.get_price_at_block(session, block_number)
+            
+            if existing_price:
+                log_with_context(
+                    self.logger, logging.DEBUG, "Block price already exists",
+                    block_number=block_number,
+                    existing_price=str(existing_price.price_usd)
+                )
+                return True
+            
+            # Fetch price from Chainlink at this specific block
+            price_usd = self.rpc_client.get_chainlink_price_at_block(block_number)
+            
+            if price_usd is None:
+                log_with_context(
+                    self.logger, logging.WARNING, "Failed to fetch Chainlink price for block",
+                    block_number=block_number
+                )
+                return False
+            
+            # Store the price
+            price_record = prices_repo.create_block_price(
+                session=session,
+                block_number=block_number,
+                timestamp=timestamp,
+                price_usd=price_usd
+            )
+            
+            if price_record:
+                log_with_context(
+                    self.logger, logging.DEBUG, "Block price stored successfully",
+                    block_number=block_number,
+                    price_usd=str(price_usd),
+                    timestamp=timestamp
+                )
+                return True
+            else:
+                log_with_context(
+                    self.logger, logging.WARNING, "Block price creation returned None (likely duplicate)",
+                    block_number=block_number
+                )
+                return True  # Treat as success since price exists
+            
+        except Exception as e:
+            log_with_context(
+                self.logger, logging.ERROR, "Error fetching/storing block price",
                 block_number=block_number,
                 error=str(e)
             )
