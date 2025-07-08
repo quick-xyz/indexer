@@ -15,6 +15,9 @@ from .indexer.repositories.pool_swap_repository import PoolSwapRepository
 from .indexer.repositories.position_repository import PositionRepository
 from .indexer.repositories.event_repository import DomainEventRepository
 from .indexer.repositories.processing_repository import ProcessingRepository
+from .indexer.repositories.pool_swap_detail_repository import PoolSwapDetailRepository
+from .indexer.repositories.trade_detail_repository import TradeDetailRepository
+from .indexer.repositories.event_detail_repository import EventDetailRepository
 
 
 import logging
@@ -75,7 +78,9 @@ class RepositoryManager:
         self.liquidity = DomainEventRepository(db_manager, Liquidity)
         self.rewards = DomainEventRepository(db_manager, Reward)
         self.processing = ProcessingRepository(db_manager)
-        
+        self.pool_swap_details = PoolSwapDetailRepository(db_manager)
+        self.trade_details = TradeDetailRepository(db_manager)
+        self.event_details = EventDetailRepository(db_manager)
         self.logger.info("RepositoryManager initialized with all repositories")
     
     def get_session(self):

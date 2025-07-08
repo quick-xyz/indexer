@@ -11,6 +11,8 @@ from ..database.shared.tables.periods import Period, PeriodType
 from ..database.shared.repositories.block_prices_repository import BlockPricesRepository
 from ..database.shared.repositories.periods_repository import PeriodsRepository
 from ..clients.quicknode_rpc import QuickNodeRpcClient
+from ..database.indexer.tables.detail.pool_swap_detail import PricingDenomination, PricingMethod
+
 
 import logging
 
@@ -629,3 +631,411 @@ class PricingService:
             )
             status['error'] = str(e)
             return status
+
+
+    def calculate_swap_pricing(
+        self,
+        indexer_session,  # Session for indexer database (pool swaps)
+        shared_session,   # Session for shared database (configs, block prices)
+        pool_swap_details_repo,  # PoolSwapDetailRepository 
+        pool_pricing_config_repo,  # PoolPricingConfigRepository
+        swap_content_id,
+        pool_address: str,
+        base_amount: Decimal,  # Amount of base token in swap
+        quote_amount: Decimal,  # Amount of quote token in swap
+        block_number: int,
+        model_id: int,
+        contract_id: int
+    ) -> Dict[str, any]:
+        """
+        Calculate USD and AVAX pricing for a pool swap using direct pricing configurations.
+        
+        Logic:
+        1. Check if pool has active pricing configuration at this block
+        2. If DIRECT_AVAX: Use quote_amount directly as AVAX value, convert to USD
+        3. If DIRECT_USD: Use quote_amount directly as USD value, convert to AVAX  
+        4. If GLOBAL or no config: Mark as GLOBAL (not implemented yet)
+        5. Always create both USD and AVAX detail records for direct pricing
+        
+        Args:
+            indexer_session: Database session for indexer database operations
+            shared_session: Database session for shared database operations
+            pool_swap_details_repo: Repository for creating swap detail records
+            pool_pricing_config_repo: Repository for pool configurations
+            swap_content_id: Content ID of the pool swap
+            pool_address: Pool contract address
+            base_amount: Amount of base token swapped
+            quote_amount: Amount of quote token swapped  
+            block_number: Block number of the swap
+            model_id: Model ID for configuration lookup
+            contract_id: Contract ID for configuration lookup
+            
+        Returns:
+            Dict with pricing results and status
+        """
+        try:
+            log_with_context(
+                self.logger, logging.DEBUG, "Starting swap pricing calculation",
+                swap_content_id=swap_content_id,
+                pool_address=pool_address,
+                base_amount=str(base_amount),
+                quote_amount=str(quote_amount),
+                block_number=block_number
+            )
+            
+            # 1. Get active pricing configuration for this pool at this block
+            pricing_config = pool_pricing_config_repo.get_active_config_for_pool(
+                shared_session, model_id, contract_id, block_number
+            )
+            
+            if not pricing_config or pricing_config.pricing_strategy != 'DIRECT':
+                # No configuration or global pricing - defer to future global implementation
+                log_with_context(
+                    self.logger, logging.DEBUG, "Pool uses global pricing (not implemented)",
+                    swap_content_id=swap_content_id,
+                    pool_address=pool_address,
+                    pricing_strategy=pricing_config.pricing_strategy if pricing_config else 'UNCONFIGURED'
+                )
+                return {
+                    'success': False,
+                    'reason': 'global_pricing_not_implemented',
+                    'pricing_method': 'GLOBAL' if pricing_config else 'UNCONFIGURED',
+                    'records_created': 0
+                }
+            
+            # 2. Get AVAX-USD price at this block for conversion
+            avax_price_usd = self._get_avax_price_at_block(shared_session, block_number)
+            if avax_price_usd is None:
+                log_with_context(
+                    self.logger, logging.WARNING, "No AVAX price available for block",
+                    swap_content_id=swap_content_id,
+                    block_number=block_number
+                )
+                return {
+                    'success': False,
+                    'reason': 'missing_avax_price',
+                    'pricing_method': 'ERROR',
+                    'records_created': 0
+                }
+            
+            # 3. Calculate pricing based on quote token type
+            current_timestamp = int(datetime.now(timezone.utc).timestamp())
+            records_created = 0
+            
+            if pricing_config.quote_token_type == 'AVAX':
+                # DIRECT_AVAX: quote_amount is in AVAX, convert to USD
+                avax_value = quote_amount
+                usd_value = quote_amount * avax_price_usd
+                
+                # Per-unit prices (value / base_amount)
+                avax_price_per_base = avax_value / base_amount if base_amount > 0 else Decimal('0')
+                usd_price_per_base = usd_value / base_amount if base_amount > 0 else Decimal('0')
+                
+                # Create AVAX detail record (direct from quote)
+                avax_detail = pool_swap_details_repo.create_detail(
+                    session=indexer_session,
+                    content_id=swap_content_id,
+                    denom=PricingDenomination.AVAX,
+                    value=float(avax_value),
+                    price=float(avax_price_per_base),
+                    price_method=PricingMethod.DIRECT_AVAX,
+                    price_config_id=pricing_config.id,
+                    price_block_number=block_number,
+                    calculated_at=current_timestamp
+                )
+                records_created += 1
+                
+                # Create USD detail record (converted)
+                usd_detail = pool_swap_details_repo.create_detail(
+                    session=indexer_session,
+                    content_id=swap_content_id,
+                    denom=PricingDenomination.USD,
+                    value=float(usd_value),
+                    price=float(usd_price_per_base),
+                    price_method=PricingMethod.DIRECT_AVAX,
+                    price_config_id=pricing_config.id,
+                    price_block_number=block_number,
+                    calculated_at=current_timestamp
+                )
+                records_created += 1
+                
+                log_with_context(
+                    self.logger, logging.DEBUG, "DIRECT_AVAX pricing completed",
+                    swap_content_id=swap_content_id,
+                    avax_value=str(avax_value),
+                    usd_value=str(usd_value),
+                    avax_price_used=str(avax_price_usd)
+                )
+                
+            elif pricing_config.quote_token_type == 'USD_EQUIVALENT':
+                # DIRECT_USD: quote_amount is in USD equivalent, convert to AVAX
+                usd_value = quote_amount
+                avax_value = quote_amount / avax_price_usd
+                
+                # Per-unit prices (value / base_amount)
+                usd_price_per_base = usd_value / base_amount if base_amount > 0 else Decimal('0')
+                avax_price_per_base = avax_value / base_amount if base_amount > 0 else Decimal('0')
+                
+                # Create USD detail record (direct from quote)
+                usd_detail = pool_swap_details_repo.create_detail(
+                    session=indexer_session,
+                    content_id=swap_content_id,
+                    denom=PricingDenomination.USD,
+                    value=float(usd_value),
+                    price=float(usd_price_per_base),
+                    price_method=PricingMethod.DIRECT_USD,
+                    price_config_id=pricing_config.id,
+                    price_block_number=block_number,
+                    calculated_at=current_timestamp
+                )
+                records_created += 1
+                
+                # Create AVAX detail record (converted)
+                avax_detail = pool_swap_details_repo.create_detail(
+                    session=indexer_session,
+                    content_id=swap_content_id,
+                    denom=PricingDenomination.AVAX,
+                    value=float(avax_value),
+                    price=float(avax_price_per_base),
+                    price_method=PricingMethod.DIRECT_USD,
+                    price_config_id=pricing_config.id,
+                    price_block_number=block_number,
+                    calculated_at=current_timestamp
+                )
+                records_created += 1
+                
+                log_with_context(
+                    self.logger, logging.DEBUG, "DIRECT_USD pricing completed",
+                    swap_content_id=swap_content_id,
+                    usd_value=str(usd_value),
+                    avax_value=str(avax_value),
+                    avax_price_used=str(avax_price_usd)
+                )
+                
+            else:
+                # OTHER quote token type - use global pricing (not implemented)
+                log_with_context(
+                    self.logger, logging.DEBUG, "Quote token type OTHER requires global pricing",
+                    swap_content_id=swap_content_id,
+                    quote_token_type=pricing_config.quote_token_type
+                )
+                return {
+                    'success': False,
+                    'reason': 'quote_type_other_not_implemented',
+                    'pricing_method': 'GLOBAL',
+                    'records_created': 0
+                }
+            
+            # Flush the detail records
+            indexer_session.flush()
+            
+            return {
+                'success': True,
+                'pricing_method': f"DIRECT_{pricing_config.quote_token_type}",
+                'records_created': records_created,
+                'avax_price_used': float(avax_price_usd),
+                'config_id': pricing_config.id
+            }
+            
+        except Exception as e:
+            log_with_context(
+                self.logger, logging.ERROR, "Error calculating swap pricing",
+                swap_content_id=swap_content_id,
+                pool_address=pool_address,
+                error=str(e),
+                exception_type=type(e).__name__
+            )
+            return {
+                'success': False,
+                'reason': 'calculation_error',
+                'pricing_method': 'ERROR',
+                'records_created': 0,
+                'error': str(e)
+            }
+
+
+    def _get_avax_price_at_block(self, session, block_number: int) -> Optional[Decimal]:
+        """
+        Get AVAX-USD price at a specific block.
+        
+        Uses the shared database block_prices table.
+        """
+        try:
+            block_price = self.block_prices_repo.get_price_at_block(session, block_number)
+            if block_price:
+                return block_price.price_usd
+            
+            # Try to find the closest earlier block price
+            closest_price = self.block_prices_repo.get_price_before_block(session, block_number)
+            if closest_price:
+                log_with_context(
+                    self.logger, logging.DEBUG, "Using closest earlier block price",
+                    requested_block=block_number,
+                    price_block=closest_price.block_number,
+                    price_usd=str(closest_price.price_usd)
+                )
+                return closest_price.price_usd
+            
+            log_with_context(
+                self.logger, logging.WARNING, "No AVAX price found for block or earlier",
+                block_number=block_number
+            )
+            return None
+            
+        except Exception as e:
+            log_with_context(
+                self.logger, logging.ERROR, "Error fetching AVAX price",
+                block_number=block_number,
+                error=str(e)
+            )
+            return None
+
+
+    def calculate_missing_swap_pricing(
+        self,
+        indexer_session,
+        shared_session,
+        pool_swap_repo,  # PoolSwapRepository
+        pool_swap_details_repo,  # PoolSwapDetailRepository
+        pool_pricing_config_repo,  # PoolPricingConfigRepository
+        model_id: int,
+        limit: int = 1000
+    ) -> Dict[str, int]:
+        """
+        Batch calculation of pricing for swaps that don't have detail records yet.
+        
+        This method can be used for:
+        1. Backfilling pricing for existing swaps
+        2. Processing swaps that had pricing errors
+        3. Periodic cleanup to ensure all swaps have pricing
+        
+        Args:
+            indexer_session: Session for indexer database
+            shared_session: Session for shared database  
+            pool_swap_repo: Repository for pool swaps
+            pool_swap_details_repo: Repository for swap details
+            pool_pricing_config_repo: Repository for configurations
+            model_id: Model ID to process swaps for
+            limit: Maximum number of swaps to process in this batch
+            
+        Returns:
+            Dict with batch processing statistics
+        """
+        try:
+            log_with_context(
+                self.logger, logging.INFO, "Starting batch swap pricing calculation",
+                model_id=model_id,
+                limit=limit
+            )
+            
+            # Get recent swaps that don't have pricing details yet
+            recent_swaps = pool_swap_repo.get_recent(indexer_session, limit=limit * 2)  # Get more to filter
+            
+            # Filter to swaps missing USD pricing (assuming if USD exists, AVAX exists too)
+            swap_content_ids = [swap.content_id for swap in recent_swaps]
+            missing_usd_ids = pool_swap_details_repo.get_missing_valuations(
+                indexer_session, swap_content_ids, PricingDenomination.USD
+            )
+            
+            swaps_to_process = [swap for swap in recent_swaps if swap.content_id in missing_usd_ids[:limit]]
+            
+            log_with_context(
+                self.logger, logging.INFO, "Found swaps missing pricing",
+                total_recent_swaps=len(recent_swaps),
+                missing_pricing_count=len(swaps_to_process)
+            )
+            
+            # Process each swap
+            stats = {
+                'processed': 0,
+                'success': 0,
+                'failed': 0,
+                'skipped': 0,
+                'errors': []
+            }
+            
+            for swap in swaps_to_process:
+                try:
+                    stats['processed'] += 1
+                    
+                    # Get contract ID for this pool (needed for configuration lookup)
+                    # This assumes you have a way to map pool address to contract_id
+                    # You might need to add a method to get this mapping
+                    contract_id = self._get_contract_id_for_pool(shared_session, swap.pool)
+                    if not contract_id:
+                        stats['skipped'] += 1
+                        continue
+                    
+                    # Calculate pricing for this swap
+                    result = self.calculate_swap_pricing(
+                        indexer_session=indexer_session,
+                        shared_session=shared_session,
+                        pool_swap_details_repo=pool_swap_details_repo,
+                        pool_pricing_config_repo=pool_pricing_config_repo,
+                        swap_content_id=swap.content_id,
+                        pool_address=swap.pool,
+                        base_amount=Decimal(str(swap.base_amount)),
+                        quote_amount=Decimal(str(swap.quote_amount)),
+                        block_number=swap.block_number,
+                        model_id=model_id,
+                        contract_id=contract_id
+                    )
+                    
+                    if result['success']:
+                        stats['success'] += 1
+                    else:
+                        stats['failed'] += 1
+                        if 'error' in result:
+                            stats['errors'].append(f"Swap {swap.content_id}: {result['error']}")
+                    
+                except Exception as e:
+                    stats['failed'] += 1
+                    stats['errors'].append(f"Swap {swap.content_id}: {str(e)}")
+                    log_with_context(
+                        self.logger, logging.ERROR, "Error processing swap in batch",
+                        swap_content_id=swap.content_id,
+                        error=str(e)
+                    )
+            
+            # Commit all changes
+            indexer_session.flush()
+            
+            log_with_context(
+                self.logger, logging.INFO, "Batch swap pricing completed",
+                **{k: v for k, v in stats.items() if k != 'errors'},
+                error_count=len(stats['errors'])
+            )
+            
+            return stats
+            
+        except Exception as e:
+            log_with_context(
+                self.logger, logging.ERROR, "Error in batch swap pricing",
+                model_id=model_id,
+                error=str(e)
+            )
+            raise
+
+
+    def _get_contract_id_for_pool(self, session, pool_address: str) -> Optional[int]:
+        """
+        Get contract ID for a pool address.
+        
+        This helper method looks up the contract_id needed for configuration queries.
+        """
+        try:
+            from ..database.shared.tables.config import Contract
+            
+            contract = session.query(Contract).filter(
+                Contract.address == pool_address.lower()
+            ).first()
+            
+            return contract.id if contract else None
+            
+        except Exception as e:
+            log_with_context(
+                self.logger, logging.ERROR, "Error getting contract ID for pool",
+                pool_address=pool_address,
+                error=str(e)
+            )
+            return None

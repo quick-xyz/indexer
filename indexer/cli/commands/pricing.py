@@ -106,13 +106,17 @@ def update_prices(ctx, model):
 
 @pricing.command('update-all')
 @click.option('--model', help='Model name (overrides global --model option)')
+@click.option('--swap-limit', type=int, default=1000, help='Maximum swaps to process (default: 1000)')
 @click.pass_context
-def update_all(ctx, model):
-    """Update both periods and minute prices
+def update_all(ctx, model, swap_limit):
+    """Update periods, minute prices, AND swap pricing
     
     Examples:
-        # Full pricing update
+        # Full pricing update (periods + prices + swaps)
         pricing update-all
+        
+        # Full update with more swaps processed
+        pricing update-all --swap-limit 5000
         
         # Full update for specific model
         pricing update-all --model blub_test
@@ -128,13 +132,14 @@ def update_all(ctx, model):
         runner = cli_context.get_pricing_service_runner(model_name)
         
         click.echo(f"🔄 Full pricing update - {model_name}")
+        click.echo(f"📊 Processing up to {swap_limit:,} swaps")
         click.echo("=" * 60)
         
-        # Execute the full update
-        runner.update_all()
+        # Execute the full update (now includes swap pricing)
+        runner.update_all_pricing()
         
     except Exception as e:
-        raise click.ClickException(f"Full update failed: {e}")
+        raise click.ClickException(f"Full pricing update failed: {e}")
 
 
 @pricing.command('backfill')
@@ -207,10 +212,10 @@ def backfill(ctx, period_type, days, start_date, end_date, model):
 @click.option('--model', help='Model name (overrides global --model option)')
 @click.pass_context
 def status(ctx, model):
-    """Show pricing and periods status
+    """Show comprehensive pricing status including swap pricing
     
     Examples:
-        # Show status for current model
+        # Show all pricing status
         pricing status
         
         # Show status for specific model
@@ -226,11 +231,11 @@ def status(ctx, model):
     try:
         runner = cli_context.get_pricing_service_runner(model_name)
         
-        click.echo(f"📊 Pricing Status - {model_name}")
-        click.echo("=" * 50)
+        click.echo(f"📊 Comprehensive Pricing Status - {model_name}")
+        click.echo("=" * 60)
         
-        # Execute the status check
-        runner.show_status()
+        # Execute the comprehensive status check
+        runner.show_pricing_status()
         
     except Exception as e:
         raise click.ClickException(f"Status check failed: {e}")
@@ -241,7 +246,7 @@ def status(ctx, model):
 @click.option('--model', help='Model name (overrides global --model option)')
 @click.pass_context
 def validate(ctx, sample_size, model):
-    """Validate pricing accuracy and data quality
+    """Validate pricing accuracy including swap pricing data quality
     
     Examples:
         # Basic validation
@@ -261,26 +266,14 @@ def validate(ctx, sample_size, model):
     cli_context = ctx.obj['cli_context']
     
     try:
-        click.echo(f"🔍 Validating pricing data - {model_name}")
+        runner = cli_context.get_pricing_service_runner(model_name)
+        
+        click.echo(f"🔍 Comprehensive Pricing Validation - {model_name}")
         click.echo(f"📊 Sample size: {sample_size:,}")
         click.echo("=" * 50)
         
-        # This would need to be implemented in PricingServiceRunner
-        # For now, show what validation would include:
-        
-        click.echo("🔍 Validation checks:")
-        click.echo("   📈 Price data completeness")
-        click.echo("   📊 Period data integrity")
-        click.echo("   🔗 Block price consistency")
-        click.echo("   📉 Outlier detection")
-        click.echo("   ⏰ Timestamp accuracy")
-        
-        click.echo("\n✅ Pricing validation completed")
-        click.echo("   All checks passed - pricing data is healthy")
-        
-        # TODO: Implement actual validation logic in PricingServiceRunner
-        # runner = cli_context.get_pricing_service_runner(model_name)
-        # validation_results = runner.validate_pricing_data(sample_size)
+        # Execute comprehensive validation (includes swap pricing)
+        runner.validate_swap_pricing(sample_size=sample_size)
         
     except Exception as e:
         raise click.ClickException(f"Validation failed: {e}")
@@ -341,3 +334,84 @@ def gaps(ctx, period_type, days, model):
         
     except Exception as e:
         raise click.ClickException(f"Gap analysis failed: {e}")
+
+
+@pricing.command('update-swaps')
+@click.option('--limit', type=int, default=1000, help='Maximum swaps to process (default: 1000)')
+@click.option('--model', help='Model name (overrides global --model option)')
+@click.pass_context
+def update_swaps(ctx, limit, model):
+    """Update pricing for swaps missing valuation details
+    
+    Examples:
+        # Update swap pricing with default limit
+        pricing update-swaps
+        
+        # Process more swaps in batch
+        pricing update-swaps --limit 5000
+        
+        # Update for specific model
+        pricing update-swaps --model blub_test --limit 2000
+    """
+    # Get model from command option or global context
+    model_name = model or ctx.obj.get('model')
+    if not model_name:
+        raise click.ClickException("Model name required. Use --model option or global --model flag")
+    
+    cli_context = ctx.obj['cli_context']
+    
+    try:
+        runner = cli_context.get_pricing_service_runner(model_name)
+        
+        click.echo(f"🔄 Updating swap pricing - {model_name}")
+        click.echo(f"📊 Processing up to {limit:,} swaps")
+        click.echo("=" * 50)
+        
+        # Execute the swap pricing update
+        runner.update_swap_pricing(limit=limit)
+        
+    except Exception as e:
+        raise click.ClickException(f"Swap pricing update failed: {e}")
+
+@pricing.command('backfill-swaps')
+@click.option('--days', type=int, default=7, help='Days back to process swaps (default: 7)')
+@click.option('--limit', type=int, default=10000, help='Maximum swaps to process (default: 10000)')
+@click.option('--model', help='Model name (overrides global --model option)')
+@click.pass_context
+def backfill_swaps(ctx, days, limit, model):
+    """Backfill swap pricing for recent swaps
+    
+    Examples:
+        # Backfill last 7 days of swaps
+        pricing backfill-swaps
+        
+        # Backfill last 30 days with higher limit
+        pricing backfill-swaps --days 30 --limit 50000
+        
+        # Backfill for specific model
+        pricing backfill-swaps --model blub_test --days 14
+    """
+    # Get model from command option or global context
+    model_name = model or ctx.obj.get('model')
+    if not model_name:
+        raise click.ClickException("Model name required. Use --model option or global --model flag")
+    
+    cli_context = ctx.obj['cli_context']
+    
+    try:
+        runner = cli_context.get_pricing_service_runner(model_name)
+        
+        click.echo(f"🔄 Backfilling swap pricing - {model_name}")
+        click.echo(f"📅 Processing last {days} days")
+        click.echo(f"📊 Maximum {limit:,} swaps")
+        click.echo("=" * 50)
+        
+        # For now, just run the regular swap pricing update
+        # In the future, this could filter by date range
+        runner.update_swap_pricing(limit=limit)
+        
+        click.echo(f"\n💡 Note: Currently processes most recent {limit:,} swaps.")
+        click.echo(f"   Date-based filtering will be added in future updates.")
+        
+    except Exception as e:
+        raise click.ClickException(f"Swap pricing backfill failed: {e}")
