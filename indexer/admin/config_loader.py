@@ -213,7 +213,7 @@ class ConfigLoader(BaseCommands):
             return False
         
         # Now create sources in the sources table and link them
-        from ..database.models.config import Source, ModelSource, Model
+        from ..database.shared.tables.config import Source, ModelSource, Model
         
         try:
             with self.db_manager.get_session() as session:
@@ -298,7 +298,7 @@ class ConfigLoader(BaseCommands):
         """Export model configuration to YAML file"""
         try:
             with self.db_manager.get_session() as session:
-                from ..database.models.config import Model, Contract, Token, Address, ModelContract, ModelToken
+                from ..database.shared.tables.config import Model, Contract, Token, Address, ModelContract, ModelToken
                 
                 # Get model
                 model = session.query(Model).filter(Model.name == model_name).first()

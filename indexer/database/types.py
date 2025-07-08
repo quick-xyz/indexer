@@ -1,8 +1,8 @@
-# indexer/database/models/types.py
+# indexer/database/types.py
 
 from typing import Optional
 from sqlalchemy.dialects.postgresql import VARCHAR
-from ...types.new import EvmAddress, EvmHash, DomainEventId
+from ..types.new import EvmAddress, EvmHash, DomainEventId
 
 
 class EvmAddressType(VARCHAR):

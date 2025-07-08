@@ -9,7 +9,7 @@ from sqlalchemy import and_, or_
 
 from ..core.logging_config import IndexerLogger, log_with_context
 from ..database.repository import RepositoryManager
-from ..database.models.processing import ProcessingJob, JobStatus, JobType
+from ..database.indexer.tables.processing import ProcessingJob, JobStatus, JobType
 from ..storage.gcs_handler import GCSHandler
 from .indexing_pipeline import IndexingPipeline
 

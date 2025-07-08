@@ -1,4 +1,4 @@
-# indexer/database/models/base.py
+# indexer/database/base.py
 
 from datetime import datetime, timezone
 from typing import Any, Dict
@@ -10,7 +10,7 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import declarative_mixin
 import msgspec
 
-from ...types.new import EvmAddress, EvmHash, DomainEventId
+from ..types.new import EvmAddress, EvmHash, DomainEventId
 from .types import EvmHashType, DomainEventIdType
 
 

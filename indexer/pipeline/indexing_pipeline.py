@@ -12,7 +12,7 @@ from sqlalchemy.exc import IntegrityError
 from ..core.logging_config import IndexerLogger, log_with_context
 from ..database.repository import RepositoryManager
 from ..database.repositories.block_prices_repository import BlockPricesRepository
-from ..database.models.processing import ProcessingJob, JobStatus, JobType, TransactionStatus
+from ..database.indexer.tables.processing import ProcessingJob, JobStatus, JobType, TransactionStatus
 from ..database.writers.domain_event_writer import DomainEventWriter
 from ..clients.quicknode_rpc import QuickNodeRpcClient
 from ..storage.gcs_handler import GCSHandler
@@ -591,7 +591,7 @@ class IndexingPipeline:
         """Update block processing summary in database"""
         try:
             # Get or create block processing record
-            from ..database.models.processing import BlockProcessing
+            from ..database.indexer.tables.processing import BlockProcessing
             
             block_processing = session.query(BlockProcessing).filter(
                 BlockProcessing.block_number == block.block_number

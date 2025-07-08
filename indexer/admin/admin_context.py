@@ -91,7 +91,7 @@ class AdminContext:
         
         # Get model info from infrastructure database to find its database name
         with self.infrastructure_db_manager.get_session() as session:
-            from ..database.models.config import Model
+            from ..database.shared.tables.config import Model
             model = session.query(Model).filter(Model.name == model_name).first()
             if not model:
                 raise ValueError(f"Model '{model_name}' not found in configuration")

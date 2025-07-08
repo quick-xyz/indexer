@@ -14,7 +14,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from indexer import create_indexer
 from indexer.database.repository import RepositoryManager
-from indexer.database.models.processing import ProcessingJob, JobStatus, JobType
+from indexer.database.indexer.tables.processing import ProcessingJob, JobStatus, JobType
 import logging
 
 

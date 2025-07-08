@@ -9,11 +9,11 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
-from indexer.database.models.base import Base
+from indexer.database.models.base_model import Base
 import indexer.database.models.types
 
 # Import ONLY model-specific tables (NOT config tables)
-from indexer.database.models.processing import TransactionProcessing, BlockProcessing, ProcessingJob
+from indexer.database.indexer.tables.processing import TransactionProcessing, BlockProcessing, ProcessingJob
 from indexer.database.models.events.trade import Trade, PoolSwap
 from indexer.database.models.events.position import Position
 from indexer.database.models.events.transfer import Transfer

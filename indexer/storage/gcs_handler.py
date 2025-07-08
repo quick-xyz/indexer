@@ -7,7 +7,7 @@ from google.cloud import storage
 import msgspec
 
 from ..types import Block, EvmFilteredBlock, StorageConfig
-from ..database.models.config import Source
+from ..database.shared.tables.config import Source
 
 class GCSHandler:
     def __init__(self, storage_config: StorageConfig, gcs_project: str, bucket_name: str,

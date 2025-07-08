@@ -1,11 +1,11 @@
-# indexer/database/models/events/liquidity.py
+# indexer/database/indexer/tables/events/staking.py
 
 from sqlalchemy import Column, Enum, Integer
 from sqlalchemy.dialects.postgresql import NUMERIC
 import enum
 
-from ..base import DomainEventModel
-from ..types import EvmAddressType
+from ....base import DomainEventModel
+from ....types import EvmAddressType
 
 
 class StakingAction(enum.Enum):

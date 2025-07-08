@@ -1,12 +1,13 @@
-# indexer/database/models/config.py
+# indexer/database/shared/tables/config.py
 
 from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, ForeignKey, UniqueConstraint, Index
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
-from .base import Base
-from .types import EvmAddressType
+
+from ...base import Base
+from ...types import EvmAddressType
 
 
 class Model(Base):

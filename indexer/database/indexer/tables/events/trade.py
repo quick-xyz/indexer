@@ -1,11 +1,11 @@
-# indexer/database/models/events/trade.py
+# indexer/database/indexer/tables/events/trade.py
 
 from sqlalchemy import Column, Integer, Enum
 from sqlalchemy.dialects.postgresql import NUMERIC
 import enum
 
-from ..base import DomainEventModel
-from ..types import EvmAddressType, DomainEventIdType
+from ....base import DomainEventModel
+from ....types import EvmAddressType, DomainEventIdType
 
 
 class TradeDirection(enum.Enum):

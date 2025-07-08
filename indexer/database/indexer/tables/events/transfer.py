@@ -1,10 +1,10 @@
-# indexer/database/models/events/transfer.py
+# indexer/database/indexer/tables/events/transfer.py
 
 from sqlalchemy import Column, String
 from sqlalchemy.dialects.postgresql import NUMERIC
 
-from ..base import DomainEventModel
-from ..types import EvmAddressType, DomainEventIdType
+from ....base import DomainEventModel
+from ....types import EvmAddressType, DomainEventIdType
 
 
 class Transfer(DomainEventModel):

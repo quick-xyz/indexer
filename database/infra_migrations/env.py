@@ -9,9 +9,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from indexer.database.models.base import Base
+from indexer.database.models.base_model import Base
 import indexer.database.models.types
-from indexer.database.models.config import Model, Contract, Token, Address, ModelContract, ModelToken, Source, ModelSource
+from indexer.database.shared.tables.config import Model, Contract, Token, Address, ModelContract, ModelToken, Source, ModelSource
 
 
 config = context.config

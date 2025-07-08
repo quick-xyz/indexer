@@ -1,12 +1,11 @@
-# indexer/database/models/events/liquidity.py
+# indexer/database/indexer/tables/events/liquidity.py
 
 from sqlalchemy import Column, Enum
 from sqlalchemy.dialects.postgresql import NUMERIC
 import enum
 
-from ..base import DomainEventModel
-from ..types import EvmAddressType
-
+from ....base import DomainEventModel
+from ....types import EvmAddressType
 
 class LiquidityAction(enum.Enum):
     ADD = "add"

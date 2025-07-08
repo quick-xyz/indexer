@@ -2,140 +2,151 @@
 
 ## Recent Accomplishments (This Chat)
 
-### ✅ **Completed: Block-Level Pricing Infrastructure**
+### ✅ **Completed: Database Architecture Design & Implementation**
 
-**1. Chainlink Integration**
-- Added `get_chainlink_price_latest()` and `get_chainlink_price_at_block()` to QuickNodeRpcClient
-- Returns Decimal type for financial precision
-- Uses official Chainlink AVAX/USD feed: `0x0A77230d17318075983913bC2145DB16C7366156`
+**1. Dual Database Architecture Clarification**
+- **Shared Database** (`indexer_shared`): Chain-level data shared across all indexers
+  - Configuration tables: models, contracts, tokens, sources, addresses
+  - Chain-level pricing: block_prices (MOVED from model DB)
+  - Time periods: periods (MOVED from model DB) 
+  - Pool configuration: pool_pricing_configs (NEW)
+- **Indexer Database** (per model): Model-specific indexing data
+  - Processing tables: transaction_processing, block_processing, processing_jobs
+  - Domain events: trades, pool_swaps, positions, transfers, liquidity, rewards
 
-**2. Block Prices Database Model**
-- Created `BlockPrice` model (`indexer/database/models/pricing/block_prices.py`)
-- Primary key: `block_number` (one price per block)
-- Fields: `block_number`, `timestamp`, `price_usd`, optional Chainlink metadata
-- Serves both block-level (sparse) and time-based (dense) pricing needs
+**2. Pool Pricing Configuration System**
+- Created `PoolPricingConfig` model with block range support
+- Supports per-pool, per-model configuration with time-based changes
+- Two pricing strategies: DIRECT (configured) vs GLOBAL (canonical)
+- Primary pool designation for canonical price calculation
+- Block range validation and overlap prevention
+- Comprehensive repository with CRUD operations and business logic
 
-**3. Block Prices Repository**
-- Comprehensive repository (`indexer/database/repositories/block_prices_repository.py`)
-- Query methods: by block, by timestamp, ranges, gaps, statistics
-- Bulk operations and duplicate handling
+**3. Block Prices Infrastructure**
+- Moved `BlockPrice` model to shared database (chain-level data)
+- Updated `BlockPricesRepository` to use infrastructure database connection
+- Chain-level AVAX-USD pricing shared across all indexers
+- No duplication of price data across models
 
-**4. Pipeline Integration**
-- Modified `IndexingPipeline._execute_block_job()` to fetch AVAX price for each processed block
-- Non-blocking: warns on price fetch failure but continues processing
-- Automatic for both individual and batch block processing
+**4. Updated Services Architecture**
+- **PricingService**: Handles dual database connections properly
+  - Block prices operations use shared database
+  - Periods operations use model database (until reorganization)
+  - Clear separation of concerns
+- **PricingServiceRunner**: CLI with infrastructure database support
+- **Pipeline Integration**: BlockPrice operations during indexing
 
-### ✅ **Completed: Periods Table & Time Infrastructure**
+**5. CLI Commands for Pool Configuration**
+- Add, close, show, list pool pricing configurations
+- Block range management for configuration changes over time
+- Per-model pool configuration support
 
-**5. Periods Database Model**
-- Created `Period` model (`indexer/database/models/pricing/periods.py`)
-- Composite primary key: `(period_type, time_open)`
-- Period types: 1min, 5min, 1hr, 4hr, 1day
-- Maps time periods to block ranges using QuickNode block-timestamp lookup
+### ✅ **Architecture Patterns Established**
 
-**6. Periods Repository**
-- Full CRUD operations for time periods
-- Gap detection and time/block range queries
-- Statistics and maintenance operations
+**6. Dependency Injection Clarity**
+- Services receive database connections via constructor injection
+- Clear separation: infrastructure services vs indexer services
+- Container manages all database connections and service lifecycles
 
-**7. Pricing Service Foundation**
-- Created `PricingService` (`indexer/services/pricing_service.py`)
-- Populates periods table using binary search for block-timestamp mapping
-- Updates minute-by-minute AVAX prices in `block_prices` table
-- Foundation for future OHLCV and VWAP calculations
+**7. Repository Pattern Consistency**
+- Repositories handle query operations for specific tables
+- Business logic belongs in services, not repositories
+- Each table type has appropriate repository in correct database
 
-**8. CLI Runner for Cron Jobs**
-- Created `PricingServiceRunner` (`indexer/services/pricing_service_runner.py`)
-- Commands: `update-periods`, `update-prices`, `update-all`, `backfill`, `status`
-- Ready for cron job scheduling (every 1-5 minutes)
+## Database Reorganization Status
+
+### **⚠️ PENDING: Directory Structure Reorganization**
+
+**Current Issues:**
+- Inconsistent directory organization between shared and indexer databases
+- Some tables in wrong database (periods should be in shared)
+- Repository files scattered and inconsistently organized
+- Import statements need to be updated for new structure
+
+**Target Structure:**
+```
+indexer/database/
+├── connection.py              # Database managers
+├── writers/                   # Domain event writers
+├── shared/                    # Shared database (indexer_shared)
+│   ├── tables/               # Shared table definitions
+│   │   ├── config.py         # Model, Contract, Token, Source
+│   │   ├── block_prices.py   # Chain-level AVAX pricing
+│   │   ├── periods.py        # Time periods (MOVE HERE)
+│   │   └── pool_pricing_config.py
+│   └── repositories/         # Shared database operations
+└── indexer/                  # Per-indexer database
+    ├── tables/               # Indexer table definitions  
+    │   ├── processing.py     # Processing state tables
+    │   └── events/           # Domain event tables
+    └── repositories/         # Indexer database operations
+```
 
 ## Current Database State
 
-### Existing Tables
-- **Event Tables**: `trades`, `pool_swaps`, `positions`, `transfers`, `liquidity`, `rewards`
-- **Processing Tables**: `transaction_processing`, `block_processing`, `processing_jobs`
-- **Config Tables**: `models`, `contracts`, `tokens`, `sources` with junction tables
+### Shared Database Tables (indexer_shared)
+- **Configuration**: `models`, `contracts`, `tokens`, `sources`, `addresses`, `model_contracts`, `model_tokens`, `model_sources`
+- **Pricing Infrastructure**: `block_prices`, `pool_pricing_configs`
+- **Time Infrastructure**: `periods` (NEEDS TO BE MOVED HERE)
 
-### New Pricing Tables
-- **`block_prices`**: AVAX-USD prices (both block-level and time-based records)
-- **`periods`**: Time period to block range mappings
+### Indexer Database Tables (per model)
+- **Processing**: `transaction_processing`, `block_processing`, `processing_jobs`
+- **Domain Events**: `trades`, `pool_swaps`, `positions`, `transfers`, `liquidity`, `rewards`
+- **Pricing**: `periods` (CURRENTLY HERE, SHOULD BE MOVED TO SHARED)
 
 ### Data Flow Status
-1. ✅ **Pipeline** → Populates event tables + block-level prices
-2. ✅ **Pricing Service** → Populates periods + time-based prices  
-3. 🔲 **Pool Price Calculation** → Apply block prices to pool_swaps (NEXT)
-4. 🔲 **Token Price Table** → Build BLUB price from pool swaps (NEXT)
-5. 🔲 **Calculation Service** → Value events/balances using prices (NEXT)
-6. 🔲 **Aggregation Service** → Metrics and time-series (NEXT)
+1. ✅ **Pipeline** → Populates event tables + block-level prices (shared DB)
+2. ✅ **Pricing Service** → Uses both databases correctly for different operations
+3. 🔲 **Pool Swap USD Valuation** → Next phase after reorganization
+4. 🔲 **Direct Pool Pricing** → Calculate USD values for configured pools
+5. 🔲 **Canonical Price Calculation** → Volume-weighted price from primary pools
 
-## Next Phase: Pricing & Valuation Implementation
+## Files Created/Modified This Chat
 
-### **Immediate Next Tasks**
+### **New Infrastructure Database Models:**
+- `pool_pricing_config.py` - Pool pricing configuration with block ranges
+- `block_prices.py` - Chain-level AVAX-USD pricing (moved from model DB)
 
-**Task 1: Pool Swap Pricing Integration**
-- Modify `pool_swaps` table to include USD valuations using block prices
-- Add repository methods for price lookup and valuation
-- Update pipeline to calculate USD values when creating pool_swaps
+### **New Infrastructure Database Repositories:**
+- `pool_pricing_config_repository.py` - Full CRUD with validation
+- `block_prices_repository.py` - Updated for infrastructure DB connection
 
-**Task 2: BLUB Token Price Table**
-- Create new table for BLUB-USD prices derived from pool swap data
-- Implement price calculation logic using weighted averages from main pools
-- Build repository for token price queries
+### **Updated Services:**
+- `pricing_service.py` - Dual database connection handling
+- `pricing_service_runner.py` - CLI with infrastructure DB support
 
-**Task 3: Calculation Service - Event Valuations**
-- Create materialized views for event valuations (trades, transfers, etc.)
-- Implement `CalculationService` with 5-minute refresh schedule
-- Value all events using prices from their specific timestamps
+### **New CLI Commands:**
+- `pool_pricing_commands.py` - Pool configuration management
 
-**Task 4: Calculation Service - Balance Valuations**  
-- Create materialized views for current balances and historical snapshots
-- Value user positions using current and historical token prices
-- Handle late-arriving position data automatically
+### **Database Architecture:**
+- Updated `__init__.py` files for new models
+- Service integration for dual database pattern
 
-**Task 5: Aggregation Service - Metrics**
-- Create calculated tables for user/pool daily metrics
-- Implement time-series aggregations (TVL, user activity, etc.)
-- Build aggregation service with 15-minute schedule
+## Next Phase: Database Table Design for Pool Pricing
 
-### **Architecture Alignment**
+### **After Reorganization - Phase 1: Pool Swap USD Valuation**
 
-Following the pricing & valuation architecture design:
+**Database Tables to Design:**
+1. **Enhanced `pool_swaps` table** - Add USD valuation columns
+2. **Token price tables** - Store calculated token prices 
+3. **Price calculation metadata** - Track calculation methods and timestamps
 
-**Service Dependencies:**
-```
-Indexer → Raw Data + Block Prices ✅
-↓  
-Pricing Service → Canonical Token Prices (NEXT)
-↓
-Calculation Service → Event/Balance Valuations (NEXT)  
-↓
-Aggregation Service → Metrics & Time-Series (NEXT)
-↓
-API Layer → Read Replicas → Frontend (FUTURE)
-```
+**Implementation Tasks:**
+1. **Design USD valuation schema** for pool_swaps table
+2. **Create token pricing tables** for BLUB and other tokens
+3. **Update pool swap processing** to calculate USD values using block prices
+4. **Repository methods** for USD-valued pool swap queries
+5. **Validation and testing** of direct pricing calculations
 
-### **Development Approach for Next Chat**
+### **Phase 2: Canonical Price Calculation (Future)**
+- Volume-weighted price calculation from primary pools
+- Global pricing fallback for unconfigured pools
+- Price propagation and materialized view updates
 
-1. **Item-by-item progression**: Handle each task systematically
-2. **Table design first**: Define models and schemas before repositories
-3. **Repository pattern**: Create comprehensive repositories for each new table
-4. **Service integration**: Connect new functionality to existing pipeline
-5. **Testing approach**: Validate each piece before moving to next
+## Development Preferences Established
 
-### **Key Design Decisions Needed**
-
-- **Pool weighting strategy**: How to weight different pools for canonical BLUB price
-- **Price amendment handling**: How to handle late blockchain data affecting historical prices
-- **Materialized view vs calculated tables**: Which approach for different aggregation types
-- **Data retention policies**: How long to keep detailed vs aggregated data
-
-## Files Modified This Chat
-
-- `indexer/clients/quicknode_rpc.py` - Added Chainlink price methods
-- `indexer/pipeline/indexing_pipeline.py` - Added price fetch integration
-- Created `indexer/database/models/pricing/block_prices.py`
-- Created `indexer/database/repositories/block_prices_repository.py` 
-- Created `indexer/database/models/pricing/periods.py`
-- Created `indexer/database/repositories/periods_repository.py`
-- Created `indexer/services/pricing_service.py`
-- Created `indexer/services/pricing_service_runner.py`
+- **No migration generation**: Delete and recreate databases during development
+- **Incremental approach**: Build piece by piece with validation
+- **Dual database clarity**: Always specify which database for new tables
+- **Dependency injection**: All services use DI container pattern
+- **Repository pattern**: Query operations only, business logic in services

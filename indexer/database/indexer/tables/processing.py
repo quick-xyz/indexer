@@ -1,15 +1,13 @@
-# indexer/database/models/processing.py
+# indexer/database/indexer/tables/processing.py
 
 from datetime import datetime, timezone
-from typing import Optional, Dict, Any
-import json
 import enum
 
 from sqlalchemy import Column, String, Integer, Enum, DateTime, Boolean, Index, Text, BigInteger
 from sqlalchemy.dialects.postgresql import JSONB
 
-from .base import BaseModel
-from .types import EvmHashType
+from ...base import BaseModel
+from ...types import EvmHashType
 
 
 class TransactionStatus(enum.Enum):

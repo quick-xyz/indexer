@@ -30,7 +30,7 @@ from indexer.core.logging_config import IndexerLogger, log_with_context
 from indexer.database.repository import RepositoryManager
 from indexer.clients.quicknode_rpc import QuickNodeRpcClient
 from indexer.services.pricing_service import PricingService
-from indexer.database.models.pricing.periods import Period, PeriodType
+from indexer.database.shared.tables.periods import Period, PeriodType
 
 import logging
 

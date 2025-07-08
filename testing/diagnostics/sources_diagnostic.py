@@ -111,7 +111,7 @@ class SourcesDiagnostic:
     
     def _get_sources_for_model(self, config_service, model_name):
         """Get all sources for a model"""
-        from indexer.database.models.config import Source, ModelSource
+        from indexer.database.shared.tables.config import Source, ModelSource
         
         with config_service.db_manager.get_session() as session:
             model = config_service.get_model_by_name(model_name)

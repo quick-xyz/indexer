@@ -18,11 +18,11 @@ print(f"DEBUG: Project root: {project_root}")
 print(f"DEBUG: Python path includes: {[p for p in sys.path if 'indexer' in p]}")
 
 try:
-    from indexer.database.models.base import Base
+    from indexer.database.models.base_model import Base
     import indexer.database.models.types
 
     # Import ONLY model-specific tables (NOT config tables)
-    from indexer.database.models.processing import TransactionProcessing, BlockProcessing, ProcessingJob
+    from indexer.database.indexer.tables.processing import TransactionProcessing, BlockProcessing, ProcessingJob
     from indexer.database.models.events.trade import Trade, PoolSwap
     from indexer.database.models.events.position import Position
     from indexer.database.models.events.transfer import Transfer

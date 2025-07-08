@@ -1,10 +1,10 @@
-# indexer/database/models/events/position.py
+# indexer/database/indexer/tables/events/position.py
 
 from sqlalchemy import Column, Integer, String
 from sqlalchemy.dialects.postgresql import NUMERIC
 
-from ..base import DomainEventModel
-from ..types import EvmAddressType, DomainEventIdType
+from ....base import DomainEventModel
+from ....types import EvmAddressType, DomainEventIdType
 
 
 class Position(DomainEventModel):

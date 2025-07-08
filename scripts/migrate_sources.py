@@ -22,7 +22,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from indexer.admin.admin_context import AdminContext
 from indexer.core.config_service import ConfigService
-from indexer.database.models.config import Model, Source, ModelSource
+from indexer.database.shared.tables.config import Model, Source, ModelSource
 
 
 def migrate_single_model(admin_context: AdminContext, model_name: str) -> bool:

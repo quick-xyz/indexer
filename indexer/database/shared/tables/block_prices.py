@@ -1,23 +1,26 @@
-# indexer/database/models/pricing/block_prices.py
+# indexer/database/shared/tables/block_prices.py
 
-from sqlalchemy import Column, Integer, TIMESTAMP, UniqueConstraint, Index
+from sqlalchemy import Column, Integer, TIMESTAMP, Index
 from sqlalchemy.dialects.postgresql import NUMERIC
 from sqlalchemy.sql import func
 
-from ..base import BaseModel
+from ...base import Base
 
 
-class BlockPrice(BaseModel):
+class BlockPrice(Base):
     """
-    Block-level AVAX-USD prices from Chainlink price feed.
+    Chain-level AVAX-USD prices from Chainlink price feed.
     
-    Stores the AVAX/USD price at each block that the indexer processes.
-    Used for valuing events and transactions at their exact block timestamp.
+    Stores the AVAX/USD price at each block across the entire chain.
+    This is infrastructure-level data shared by all models since
+    AVAX-USD pricing is universal regardless of the specific indexer.
+    
+    Located in shared database since:
+    - Chain-level data (not indexer-specific)
+    - Used by all indexers for USD valuations
+    - Single source of truth for base currency pricing
     """
     __tablename__ = 'block_prices'
-    
-    # Remove inherited UUID id, use composite primary key
-    id = None
     
     block_number = Column(Integer, primary_key=True, nullable=False)
     timestamp = Column(Integer, nullable=False, index=True)  # Block timestamp

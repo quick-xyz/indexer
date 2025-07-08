@@ -11,7 +11,7 @@ from pathlib import Path
 from sqlalchemy.sql import func
 
 from ..database.connection import DatabaseManager
-from ..database.models.config import Model, Contract, Token, Address, ModelContract, ModelToken
+from ..database.shared.tables.config import Model, Contract, Token, Address, ModelContract, ModelToken
 from ..types import DatabaseConfig
 from ..core.logging_config import IndexerLogger
 from ..core.secrets_service import SecretsService

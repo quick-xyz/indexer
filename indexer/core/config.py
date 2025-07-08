@@ -14,7 +14,7 @@ from ..types import (
     PathsConfig,
     GCSConfig,
 )
-from ..database.models.config import Contract, Token, Address, Source
+from ..database.shared.tables.config import Contract, Token, Address, Source
 from .config_service import ConfigService
 from .secrets_service import SecretsService
 from .logging_config import IndexerLogger, log_with_context

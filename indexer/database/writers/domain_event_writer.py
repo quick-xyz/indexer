@@ -1,15 +1,12 @@
 # indexer/database/writers/domain_event_writer.py
 
-from typing import Dict, List, Optional, Tuple
-from contextlib import contextmanager
-from datetime import datetime, timezone
+from typing import Dict, Tuple
 
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy import select, and_
 
 from ..repository import RepositoryManager
-from ..models.processing import TransactionProcessing, TransactionStatus
+from ..indexer.tables.processing import TransactionProcessing, TransactionStatus
 from ...core.logging_config import IndexerLogger, log_with_context
 from ...types.new import EvmHash, DomainEventId
 from ...types.model.positions import Position
