@@ -27,7 +27,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from indexer import create_indexer
 from indexer.core.logging_config import IndexerLogger, log_with_context
-from indexer.database.repository import RepositoryManager
+from indexer.database.connection import InfrastructureDatabaseManager
 from indexer.clients.quicknode_rpc import QuickNodeRpcClient
 from indexer.services.pricing_service import PricingService
 from indexer.database.shared.tables.periods import Period, PeriodType
@@ -43,13 +43,13 @@ class PricingServiceRunner:
         self.container = create_indexer(model_name=model_name)
         self.config = self.container._config
         
-        # Get services from container
-        self.repository_manager = self.container.get(RepositoryManager)
+        # Get services from container - using shared database for pricing service
+        self.infrastructure_db_manager = self.container.get(InfrastructureDatabaseManager)
         self.rpc_client = self.container.get(QuickNodeRpcClient)
         
-        # Create pricing service
+        # Create pricing service with shared database manager
         self.pricing_service = PricingService(
-            repository_manager=self.repository_manager,
+            shared_db_manager=self.infrastructure_db_manager,
             rpc_client=self.rpc_client
         )
         
@@ -57,7 +57,8 @@ class PricingServiceRunner:
         
         log_with_context(
             self.logger, logging.INFO, "PricingServiceRunner initialized",
-            model_name=self.config.model_name
+            model_name=self.config.model_name,
+            shared_database=self.infrastructure_db_manager.config.url.split('/')[-1]
         )
     
     def update_periods(self, period_types: Optional[List[str]] = None) -> None:
@@ -157,63 +158,6 @@ class PricingServiceRunner:
         
         # Then update minute prices
         self.update_minute_prices()
-        """Update periods to present time"""
-        print(f"🕐 Updating periods to present - {self.config.model_name}")
-        print("=" * 50)
-        
-        # Parse period types
-        if period_types:
-            try:
-                parsed_types = []
-                for pt_str in period_types:
-                    # Map string to enum
-                    type_mapping = {
-                        '1min': PeriodType.ONE_MINUTE,
-                        '5min': PeriodType.FIVE_MINUTES, 
-                        '1hr': PeriodType.ONE_HOUR,
-                        '4hr': PeriodType.FOUR_HOURS,
-                        '1day': PeriodType.ONE_DAY
-                    }
-                    
-                    if pt_str not in type_mapping:
-                        print(f"❌ Unknown period type: {pt_str}")
-                        print(f"   Available types: {', '.join(type_mapping.keys())}")
-                        return
-                    
-                    parsed_types.append(type_mapping[pt_str])
-                
-                print(f"📊 Updating period types: {', '.join(period_types)}")
-            except Exception as e:
-                print(f"❌ Error parsing period types: {e}")
-                return
-        else:
-            parsed_types = None
-            print(f"📊 Updating all period types")
-        
-        # Run the update
-        try:
-            stats = self.pricing_service.update_periods_to_present(parsed_types)
-            
-            print(f"\n✅ Period Update Results:")
-            print(f"   📈 Total periods created: {stats['total_periods_created']:,}")
-            print(f"   🔢 Latest block processed: {stats['latest_block_processed']:,}")
-            
-            if stats['periods_by_type']:
-                print(f"   📋 By period type:")
-                for period_type, count in stats['periods_by_type'].items():
-                    print(f"      {period_type}: {count:,} periods")
-            
-            if stats['errors']:
-                print(f"   ⚠️  Errors ({len(stats['errors'])}):")
-                for error in stats['errors']:
-                    print(f"      • {error}")
-            
-        except Exception as e:
-            print(f"❌ Period update failed: {e}")
-            log_with_context(
-                self.logger, logging.ERROR, "Period update failed",
-                error=str(e)
-            )
     
     def backfill_periods(
         self, 
@@ -278,7 +222,7 @@ class PricingServiceRunner:
         print("=" * 50)
         
         try:
-            with self.repository_manager.get_session() as session:
+            with self.infrastructure_db_manager.get_session() as session:
                 # Get stats for each period type
                 for period_type in PeriodType:
                     periods = session.query(Period).filter(
@@ -308,8 +252,8 @@ class PricingServiceRunner:
                 print(f"   Latest block: {latest_block:,}")
                 
                 # Show price data stats
-                from ..database.repositories.block_prices_repository import BlockPricesRepository
-                price_repo = BlockPricesRepository(self.repository_manager.db_manager)
+                from indexer.database.shared.repositories.block_prices_repository import BlockPricesRepository
+                price_repo = BlockPricesRepository(self.infrastructure_db_manager)
                 price_stats = price_repo.get_price_stats(session)
                 
                 print(f"\n💰 Price Data:")

@@ -1,31 +1,42 @@
-# indexer/admin/admin_context.py
+# indexer/cli/context.py
+
+"""
+Unified CLI Context
+
+This replaces AdminContext and provides a single point for managing:
+- Database connections (infrastructure + model-specific)
+- Service factories for all CLI commands
+- Dependency injection for CLI operations
+"""
 
 import os
-from typing import Optional
+from typing import Optional, Dict, Any
 
 from ..database.connection import DatabaseManager
 from ..types import DatabaseConfig
 from ..core.logging_config import IndexerLogger, log_with_context
 from ..core.secrets_service import SecretsService
+from ..services.pricing_service_runner import PricingServiceRunner
 import logging
 
 
-class AdminContext:
+class CLIContext:
     """
-    Admin context that manages database connections and command dependencies.
+    Unified CLI context that manages database connections and service dependencies.
     
     This follows the dependency injection pattern used throughout the indexer,
     providing a single point to manage:
     - Infrastructure database (indexer_shared) - contains configuration
     - Model-specific databases (e.g., blub_test) - contains indexing data
+    - Service factories for all CLI commands
     """
     
     def __init__(self):
-        self.logger = IndexerLogger.get_logger('admin.context')
+        self.logger = IndexerLogger.get_logger('cli.context')
         self._infrastructure_db_manager: Optional[DatabaseManager] = None
-        self._model_db_managers: dict = {}  # Cache for model-specific DB managers
+        self._model_db_managers: Dict[str, DatabaseManager] = {}  # Cache for model-specific DB managers
         
-        log_with_context(self.logger, logging.INFO, "AdminContext initialized")
+        log_with_context(self.logger, logging.INFO, "CLIContext initialized")
     
     @property
     def infrastructure_db_manager(self) -> DatabaseManager:
@@ -69,7 +80,7 @@ class AdminContext:
             db_port = os.getenv("INDEXER_DB_PORT", "5432")
         
         # Infrastructure database name
-        db_name = os.getenv("INDEXER_DB_NAME", "indexer_shared")
+        db_name = os.getenv("INDEXER_INFRASTRUCTURE_DB_NAME", "indexer_shared")
         
         if not db_user or not db_password:
             raise ValueError("Database credentials not found. Set INDEXER_DB_USER and INDEXER_DB_PASSWORD environment variables or configure GCP secrets.")
@@ -133,30 +144,32 @@ class AdminContext:
         
         return db_manager
     
+    # Service Factory Methods
+    # These create command instances with proper database connections
+    
     def get_model_commands(self):
         """Get ModelCommands with infrastructure database manager"""
-        from .commands import ModelCommands
+        from ..admin.commands import ModelCommands
         return ModelCommands(self.infrastructure_db_manager)
     
     def get_contract_commands(self):
         """Get ContractCommands with infrastructure database manager"""
-        from .commands import ContractCommands
+        from ..admin.commands import ContractCommands
         return ContractCommands(self.infrastructure_db_manager)
     
     def get_token_commands(self):
         """Get TokenCommands with infrastructure database manager"""
-        from .commands import TokenCommands
+        from ..admin.commands import TokenCommands
         return TokenCommands(self.infrastructure_db_manager)
     
     def get_address_commands(self):
         """Get AddressCommands with infrastructure database manager"""
-        from .commands import AddressCommands
+        from ..admin.commands import AddressCommands
         return AddressCommands(self.infrastructure_db_manager)
     
-    def get_config_loader(self):
-        """Get ConfigLoader with this admin context"""
-        from .config_loader import ConfigLoader
-        return ConfigLoader(self)
+    def get_pricing_service_runner(self, model_name: Optional[str] = None):
+        """Get PricingServiceRunner for pricing operations"""
+        return PricingServiceRunner(model_name=model_name)
     
     def shutdown(self):
         """Shutdown all database connections"""
@@ -166,4 +179,4 @@ class AdminContext:
         for db_manager in self._model_db_managers.values():
             db_manager.shutdown()
         
-        log_with_context(self.logger, logging.INFO, "AdminContext shutdown completed")
+        log_with_context(self.logger, logging.INFO, "CLIContext shutdown completed")
