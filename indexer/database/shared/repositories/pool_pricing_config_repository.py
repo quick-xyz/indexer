@@ -46,7 +46,7 @@ class PoolPricingConfigRepository(BaseRepository):
             primary_pool: Whether this pool is used for canonical pricing
             end_block: Ending block number (None for indefinite)
             quote_token_address: Quote token address (for DIRECT pricing)
-            quote_token_type: 'AVAX', 'USD_EQUIVALENT', or 'OTHER'
+            quote_token_type: 'AVAX', 'USD', or 'OTHER'
             created_by: Who created this config
             notes: Additional notes about this configuration
             

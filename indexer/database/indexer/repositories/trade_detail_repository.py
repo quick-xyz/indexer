@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, desc
 
 from ...connection import ModelDatabaseManager
-from ..tables.detail.trade_detail import TradeDetail, PricingDenomination
+from ..tables.detail.trade_detail import TradeDetail, PricingDenomination, TradePricingMethod
 from ....core.logging_config import log_with_context
 from ....types.new import DomainEventId
 from ...repository import BaseRepository
@@ -26,7 +26,8 @@ class TradeDetailRepository(BaseRepository):
         content_id: DomainEventId,
         denom: PricingDenomination,
         value: float,
-        price: float
+        price: float,
+        pricing_method: TradePricingMethod
     ) -> TradeDetail:
         """Create a new trade detail record"""
         try:
@@ -34,7 +35,8 @@ class TradeDetailRepository(BaseRepository):
                 content_id=content_id,
                 denom=denom,
                 value=value,
-                price=price
+                price=price,
+                pricing_method=pricing_method
             )
             
             session.add(detail)
@@ -44,7 +46,8 @@ class TradeDetailRepository(BaseRepository):
                             content_id=content_id,
                             denom=denom.value,
                             value=value,
-                            price=price)
+                            price=price,
+                            pricing_method=pricing_method.value)
             
             return detail
             
@@ -52,6 +55,49 @@ class TradeDetailRepository(BaseRepository):
             log_with_context(self.logger, logging.ERROR, "Error creating trade detail",
                             content_id=content_id,
                             denom=denom.value if denom else None,
+                            pricing_method=pricing_method.value if pricing_method else None,
+                            error=str(e))
+    def get_direct_pricing_trades(self, session: Session, limit: int = 100) -> List[TradeDetail]:
+        """Get trades that were directly priced"""
+        try:
+            return session.query(TradeDetail).filter(
+                TradeDetail.pricing_method == TradePricingMethod.DIRECT
+            ).order_by(desc(TradeDetail.created_at)).limit(limit).all()
+        except Exception as e:
+            log_with_context(self.logger, logging.ERROR, "Error getting direct pricing trades",
+                            error=str(e))
+            raise
+    
+    def get_global_pricing_trades(self, session: Session, limit: int = 100) -> List[TradeDetail]:
+        """Get trades that use global pricing"""
+        try:
+            return session.query(TradeDetail).filter(
+                TradeDetail.pricing_method == TradePricingMethod.GLOBAL
+            ).order_by(desc(TradeDetail.created_at)).limit(limit).all()
+        except Exception as e:
+            log_with_context(self.logger, logging.ERROR, "Error getting global pricing trades",
+                            error=str(e))
+            raise
+    
+    def get_pricing_method_stats(self, session: Session) -> Dict[str, int]:
+        """Get statistics on trade pricing method usage"""
+        try:
+            from sqlalchemy import func
+            
+            results = session.query(
+                TradeDetail.pricing_method,
+                func.count(TradeDetail.id).label('count')
+            ).group_by(TradeDetail.pricing_method).all()
+            
+            stats = {method.value: count for method, count in results}
+            
+            log_with_context(self.logger, logging.DEBUG, "Trade pricing method stats retrieved",
+                            stats=stats)
+            
+            return stats
+            
+        except Exception as e:
+            log_with_context(self.logger, logging.ERROR, "Error getting trade pricing method stats",
                             error=str(e))
             raise
     

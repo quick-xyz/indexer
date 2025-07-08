@@ -42,7 +42,7 @@ class PoolPricingConfig(Base):
     # Direct pricing configuration (when pricing_strategy = 'DIRECT')
     quote_token_address = Column(EvmAddressType(), nullable=True)
     quote_token_type = Column(
-        Enum('AVAX', 'USD_EQUIVALENT', 'OTHER', name='quote_token_type'), 
+        Enum('AVAX', 'USD', 'OTHER', name='quote_token_type'), 
         nullable=True
     )
     

@@ -23,7 +23,7 @@ This task focuses on implementing USD valuation for pool swaps using direct pric
    - Lookup AVAX-USD price at block using BlockPrice
    - Calculate USD value directly
 
-2. **USD Equivalent Pools** (`quote_token_type = 'USD_EQUIVALENT'`):
+2. **USD Equivalent Pools** (`quote_token_type = 'USD'`):
    - Treat quote token as $1 USD (USDC, USDT, etc.)
    - Get quote token amount from swap  
    - USD value = quote token amount (1:1)
@@ -101,7 +101,7 @@ class PoolSwapPricingService:
     def calculate_swap_usd_values(self, session, swap, block_number): ...
     def get_pricing_config_for_swap(self, session, swap, block_number): ...
     def calculate_avax_quote_usd(self, swap, avax_price): ...
-    def calculate_usd_equivalent_usd(self, swap): ...
+    def calculate_USD_usd(self, swap): ...
 ```
 
 **Key Methods:**
@@ -116,7 +116,7 @@ class PoolSwapPricingService:
    - Get AVAX-USD price at block
    - Calculate USD values for both sides
 
-3. **`calculate_usd_equivalent_usd()`**:
+3. **`calculate_USD_usd()`**:
    - Extract quote token amount  
    - Treat as 1:1 USD equivalent
    - Calculate USD values for both sides
@@ -289,7 +289,7 @@ def validate_avax_pricing_accuracy(self, sample_size=1000):
     # Verify USD calculations match expected values
     # Check for outliers or suspicious values
 
-def validate_usd_equivalent_pricing(self, sample_size=1000):
+def validate_USD_pricing(self, sample_size=1000):
     """Validate USD equivalent pool calculations"""
     # Sample USDC/USDT swaps
     # Verify 1:1 USD conversion
@@ -343,7 +343,7 @@ pool-pricing add-config --pool 0x1234... --strategy DIRECT
 
 # Add USD equivalent pricing
 pool-pricing add-config --pool 0x5678... --strategy DIRECT
-  --quote-token 0xA7D7079b0FEaD91F3e65f86E8915Cb59c1a4C664 --quote-type USD_EQUIVALENT
+  --quote-token 0xA7D7079b0FEaD91F3e65f86E8915Cb59c1a4C664 --quote-type USD
   --start-block 12345678
 ```
 

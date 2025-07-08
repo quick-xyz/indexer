@@ -202,24 +202,73 @@ class PoolSwapDetailRepository(BaseRepository):
                             error=str(e))
             raise
     
-    def get_pricing_method_stats(self, session: Session) -> Dict[str, int]:
-        """Get statistics on pricing method usage"""
+    def get_usd_details_for_swaps(
+        self, 
+        session: Session, 
+        swap_content_ids: List[DomainEventId]
+    ) -> List[PoolSwapDetail]:
+        """Get USD valuation details for multiple swaps"""
         try:
-            from sqlalchemy import func
-            
-            results = session.query(
-                PoolSwapDetail.price_method,
-                func.count(PoolSwapDetail.id).label('count')
-            ).group_by(PoolSwapDetail.price_method).all()
-            
-            stats = {method.value: count for method, count in results}
-            
-            log_with_context(self.logger, logging.DEBUG, "Pricing method stats retrieved",
-                            stats=stats)
-            
-            return stats
-            
+            return session.query(PoolSwapDetail).filter(
+                and_(
+                    PoolSwapDetail.content_id.in_(swap_content_ids),
+                    PoolSwapDetail.denom == PricingDenomination.USD
+                )
+            ).order_by(PoolSwapDetail.content_id).all()
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error getting pricing method stats",
+            log_with_context(self.logger, logging.ERROR, "Error getting USD details for swaps",
+                            swap_count=len(swap_content_ids),
                             error=str(e))
             raise
+    
+    def get_avax_details_for_swaps(
+        self, 
+        session: Session, 
+        swap_content_ids: List[DomainEventId]
+    ) -> List[PoolSwapDetail]:
+        """Get AVAX valuation details for multiple swaps"""
+        try:
+            return session.query(PoolSwapDetail).filter(
+                and_(
+                    PoolSwapDetail.content_id.in_(swap_content_ids),
+                    PoolSwapDetail.denom == PricingDenomination.AVAX
+                )
+            ).order_by(PoolSwapDetail.content_id).all()
+        except Exception as e:
+            log_with_context(self.logger, logging.ERROR, "Error getting AVAX details for swaps",
+                            swap_count=len(swap_content_ids),
+                            error=str(e))
+            raise
+    
+    def check_all_swaps_have_direct_pricing(
+        self, 
+        session: Session, 
+        swap_content_ids: List[DomainEventId]
+    ) -> bool:
+        """Check if all swaps have direct pricing (no GLOBAL or missing details)"""
+        try:
+            # Get USD details for all swaps (we expect exactly one per swap)
+            usd_details = self.get_usd_details_for_swaps(session, swap_content_ids)
+            
+            # Check count matches
+            if len(usd_details) != len(swap_content_ids):
+                log_with_context(self.logger, logging.DEBUG, "Missing USD details for some swaps",
+                                expected_count=len(swap_content_ids),
+                                actual_count=len(usd_details))
+                return False
+            
+            # Check all are directly priced (not GLOBAL)
+            global_count = len([d for d in usd_details if d.price_method == PricingMethod.GLOBAL])
+            if global_count > 0:
+                log_with_context(self.logger, logging.DEBUG, "Some swaps use global pricing",
+                                global_count=global_count,
+                                total_count=len(usd_details))
+                return False
+            
+            return True
+            
+        except Exception as e:
+            log_with_context(self.logger, logging.ERROR, "Error checking swap pricing eligibility",
+                            swap_count=len(swap_content_ids),
+                            error=str(e))
+            return False

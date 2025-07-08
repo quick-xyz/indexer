@@ -32,7 +32,7 @@ def pool_pricing():
 @click.option('--quote-token', 
               help='Quote token address for DIRECT pricing')
 @click.option('--quote-type', 
-              type=click.Choice(['AVAX', 'USD_EQUIVALENT', 'OTHER']),
+              type=click.Choice(['AVAX', 'USD', 'OTHER']),
               help='Quote token type for DIRECT pricing')
 @click.option('--notes', 
               help='Configuration notes (optional)')
@@ -50,7 +50,7 @@ def add(ctx, model_name, pool_address, start_block, strategy, primary,
         # Add USD equivalent pool  
         pool-pricing add blub_test 0x5678... 12345678 \\
             --strategy DIRECT --quote-token 0xA7D7079b0FEaD91F3e65f86E8915Cb59c1a4C664 \\
-            --quote-type USD_EQUIVALENT
+            --quote-type USD
         
         # Add global pricing pool
         pool-pricing add blub_test 0x9abc... 12345678 --strategy GLOBAL

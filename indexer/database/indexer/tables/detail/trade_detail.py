@@ -1,6 +1,6 @@
-# indexer/database/indexer/tables/detail/trade_detail.py
+# indexer/database/indexer/tables/events/trade_detail.py
 
-from sqlalchemy import Column, UniqueConstraint, Index, Enum
+from sqlalchemy import Column, UniqueConstraint, Index, Enum, String
 from sqlalchemy.dialects.postgresql import NUMERIC
 import enum
 
@@ -11,6 +11,11 @@ from ....types import DomainEventIdType
 class PricingDenomination(enum.Enum):
     USD = "USD"
     AVAX = "AVAX"
+
+
+class TradePricingMethod(enum.Enum):
+    DIRECT = "DIRECT"
+    GLOBAL = "GLOBAL"
 
 
 class TradeDetail(BaseModel):
@@ -35,6 +40,9 @@ class TradeDetail(BaseModel):
     value = Column(NUMERIC(precision=20, scale=8), nullable=False)  # Base amount value in selected denom
     price = Column(NUMERIC(precision=20, scale=8), nullable=False)  # Per-unit base token price in selected denom
     
+    # NEW: Track pricing methodology for debugging and analysis
+    pricing_method = Column(Enum(TradePricingMethod), nullable=False, index=True)
+    
     # Indexes for efficient querying
     __table_args__ = (
         # Composite unique constraint for content_id + denom
@@ -43,6 +51,9 @@ class TradeDetail(BaseModel):
         # Efficient USD/AVAX value queries
         Index('idx_trade_detail_denom_value', 'denom', 'value'),
         
+        # Efficient pricing method queries
+        Index('idx_trade_detail_pricing_method', 'pricing_method'),
+        
         # Efficient content_id lookups (for joins)
         Index('idx_trade_detail_content_id', 'content_id'),
     )
@@ -50,7 +61,7 @@ class TradeDetail(BaseModel):
     def __repr__(self) -> str:
         return (f"<TradeDetail(content_id={self.content_id}, "
                 f"denom={self.denom.value}, value={self.value}, "
-                f"price={self.price})>")
+                f"price={self.price}, method={self.pricing_method.value})>")
     
     @property
     def is_usd_valuation(self) -> bool:
@@ -61,3 +72,8 @@ class TradeDetail(BaseModel):
     def is_avax_valuation(self) -> bool:
         """Check if this detail record contains AVAX valuation"""
         return self.denom == PricingDenomination.AVAX
+    
+    @property
+    def is_direct_pricing(self) -> bool:
+        """Check if this trade was directly priced (not global)"""
+        return self.pricing_method == TradePricingMethod.DIRECT
