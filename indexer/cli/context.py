@@ -3,14 +3,14 @@
 """
 Unified CLI Context
 
-This replaces AdminContext and provides a single point for managing:
+This provides a single point for managing:
 - Database connections (infrastructure + model-specific)
-- Service factories for all CLI commands
-- Dependency injection for CLI operations
+- Service factories for CLI operations
+- Dependency injection for CLI commands
 """
 
 import os
-from typing import Optional, Dict, Any
+from typing import Optional, Dict
 
 from ..database.connection import DatabaseManager
 from ..types import DatabaseConfig
@@ -145,27 +145,7 @@ class CLIContext:
         return db_manager
     
     # Service Factory Methods
-    # These create command instances with proper database connections
-    
-    def get_model_commands(self):
-        """Get ModelCommands with infrastructure database manager"""
-        from ..admin.commands import ModelCommands
-        return ModelCommands(self.infrastructure_db_manager)
-    
-    def get_contract_commands(self):
-        """Get ContractCommands with infrastructure database manager"""
-        from ..admin.commands import ContractCommands
-        return ContractCommands(self.infrastructure_db_manager)
-    
-    def get_token_commands(self):
-        """Get TokenCommands with infrastructure database manager"""
-        from ..admin.commands import TokenCommands
-        return TokenCommands(self.infrastructure_db_manager)
-    
-    def get_address_commands(self):
-        """Get AddressCommands with infrastructure database manager"""
-        from ..admin.commands import AddressCommands
-        return AddressCommands(self.infrastructure_db_manager)
+    # These create service instances for CLI operations
     
     def get_pricing_service_runner(self, model_name: Optional[str] = None):
         """Get PricingServiceRunner for pricing operations"""

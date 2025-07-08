@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_
 
 from ...connection import ModelDatabaseManager
-from ...indexer.tables.processing import TransactionProcessing
+from ..tables.processing import TransactionProcessing
 from ....core.logging_config import log_with_context
 from ....types.new import EvmHash
 from ...repository import BaseRepository
