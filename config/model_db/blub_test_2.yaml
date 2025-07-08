@@ -1,0 +1,287 @@
+# BLUB Ecosystem Indexer Configuration - Updated for New Architecture
+
+# Model definition
+model:
+  name: blub_test
+  version: v2
+  display_name: BLUB Ecosystem Indexer for Testing
+  description: Tracks BLUB tokens and related DEX pools
+  database_name: blub_test
+
+# Data sources
+sources:
+  - name: quicknode-blub-primary
+    path: "streams/quicknode/blub/"
+    format: "avalanche-mainnet_block_with_receipts_{:012d}-{:012d}.json"
+    description: "QuickNode stream for BLUB transfers"
+
+contracts:
+  # Token contracts
+  - address: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+    name: "BLUB"
+    project: "Blub"
+    type: "token"
+    description: "BLUB Token"
+    abi:
+      dir: "tokens"
+      file: "blub.json"
+    transformer:
+      name: "TokenTransformer"
+      config:
+        contract: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+
+  - address: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
+    name: "WAVAX"
+    project: "Avax"
+    type: "token"
+    description: "Wrapped AVAX"
+    abi:
+      dir: "tokens"
+      file: "wavax.json"
+    transformer:
+      name: "WavaxTransformer"
+      config:
+        contract: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
+
+  # Pool contracts - organized by project
+  - address: "0x39888258d60fed9228f89e13eb57a92f1fa832eb"
+    name: "JLP:BLUB-AVAX"
+    project: "LFJ"
+    type: "pool"
+    description: "Joe V1 AMM: BLUB-AVAX"
+    abi:
+      dir: "pools"
+      file: "joepair.json"
+    transformer:
+      name: "LfjPoolTransformer"
+      config:
+        contract: "0x39888258d60fed9228f89e13eb57a92f1fa832eb"
+        token0: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+        token1: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
+        base_token: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+        fee_collector: "0x60233142befce7d4ed73e7793ead2d6190fccaab"
+
+  - address: "0xcb4c6fdcfb7d868df5f1e3d0018438205b243fd6"
+    name: "LB:BLUB-AVAX"
+    project: "LFJ"
+    type: "pool"
+    description: "Joe v2 Liquidity Book: BLUB-AVAX"
+    abi:
+      dir: "pools"
+      file: "lbpair.json"
+    transformer:
+      name: "LbPairTransformer"
+      config:
+        contract: "0xcb4c6fdcfb7d868df5f1e3d0018438205b243fd6"
+        token_x: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+        token_y: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
+        base_token: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+
+  - address: "0xa87866ba0d82155d0ff36ad06e555aebc98595ca"
+    name: "PLP:BLUB-AVAX"
+    project: "Pharaoh"
+    type: "pool"
+    description: "Pharaoh V1 AMM: BLUB-AVAX"
+    abi:
+      dir: "pools"
+      file: "pair.json"
+    transformer:
+      name: "PharPairTransformer"
+      config:
+        contract: "0xa87866ba0d82155d0ff36ad06e555aebc98595ca"
+        token0: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+        token1: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
+        base_token: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+
+  - address: "0x819fe65a885d40493f4b91e8a10e242018758432"
+    name: "LP0:BLUB-AVAX"
+    project: "DWS"
+    type: "pool"
+    description: "DWS Launch AMM: BLUB-AVAX"
+    abi:
+      dir: "pools"
+      file: "joepair.json"
+    transformer:
+      name: "LfjPoolTransformer"
+      config:
+        contract: "0x819fe65a885d40493f4b91e8a10e242018758432"
+        token0: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+        token1: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
+        base_token: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+        fee_collector: "0x60233142befce7d4ed73e7793ead2d6190fccaab"
+
+  - address: "0x3fc41c1ae339322ab87b6ba48e30781d88a304d4"
+    name: "PCL:BLUB-AVAX"
+    project: "Pharaoh"
+    type: "pool"
+    description: "Pharaoh Concentrated Liquidity: BLUB-AVAX"
+    abi:
+      dir: "pools"
+      file: "clpool.json"
+    transformer:
+      name: "PharClPoolTransformer"
+      config:
+        contract: "0x3fc41c1ae339322ab87b6ba48e30781d88a304d4"
+        token0: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+        token1: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
+        base_token: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+
+  # Aggregator contracts
+  - address: "0x45a62b090df48243f12a21897e7ed91863e2c86b"
+    name: "AggregatorV2"
+    project: "LFJ"
+    type: "aggregator"
+    description: "LFJ Aggregator V2"
+    abi:
+      dir: "aggregators"
+      file: "lfj_agg.json"
+    transformer:
+      name: "LfjAggregatorTransformer"
+      config:
+        contract: "0x45a62b090df48243f12a21897e7ed91863e2c86b"
+
+  - address: "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc"
+    name: "RouterV2"
+    project: "Odos"
+    type: "aggregator"
+    description: "Odos Aggregator V2"
+    abi:
+      dir: "aggregators"
+      file: "odos_agg.json"
+    transformer:
+      name: "OdosAggregatorTransformer"
+      config:
+        contract: "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc"
+
+  - address: "0x6131b5fae19ea4f9d964eac0408e4408b66337b5"
+    name: "MetaAggRouter2"
+    project: "Kyber"
+    type: "aggregator"
+    description: "Kyber Meta Aggregator V2"
+    abi:
+      dir: "aggregators"
+      file: "kyber_agg.json"
+    transformer:
+      name: "KyberAggregatorTransformer"
+      config:
+        contract: "0x6131b5fae19ea4f9d964eac0408e4408b66337b5"
+
+# Token definitions with enhanced metadata
+tokens:
+  - address: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+    type: "token"
+    symbol: "BLUB"
+    name: "Blub Token"
+    decimals: 18
+    project: "Blub"
+    description: "Primary BLUB ecosystem token"
+
+  - address: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
+    type: "token"
+    symbol: "WAVAX"
+    name: "Wrapped AVAX"
+    decimals: 18
+    project: "Avax"
+    description: "Wrapped native AVAX token for DeFi"
+
+  - address: "0x39888258d60fed9228f89e13eb57a92f1fa832eb"
+    type: "lp_receipt"
+    symbol: "JLP"
+    name: "Joe LP Token"
+    decimals: 18
+    project: "LFJ"
+    description: "Joe V1 liquidity provider receipt token"
+
+  - address: "0xcb4c6fdcfb7d868df5f1e3d0018438205b243fd6"
+    type: "lp_receipt"
+    symbol: "LBT"
+    name: "LB Token"
+    decimals: 18
+    project: "LFJ"
+    description: "Joe V2 Liquidity Book receipt token"
+
+  - address: "0xa87866ba0d82155d0ff36ad06e555aebc98595ca"
+    type: "lp_receipt"
+    symbol: "PLP"
+    name: "Pharaoh LP Token"
+    decimals: 18
+    project: "Pharaoh"
+    description: "Pharaoh liquidity provider receipt token"
+
+  - address: "0x819fe65a885d40493f4b91e8a10e242018758432"
+    type: "lp_receipt"
+    symbol: "LP0"
+    name: "DWS LP Token"
+    decimals: 18
+    project: "DWS"
+    description: "Dead Whale Society liquidity provider token"
+
+  - address: "0x3fc41c1ae339322ab87b6ba48e30781d88a304d4"
+    type: "lp_receipt"
+    symbol: "PCL"
+    name: "Pharaoh CL Token"
+    decimals: 18
+    project: "Pharaoh"
+    description: "Pharaoh Concentrated Liquidity receipt token"
+
+# NEW: Pool Pricing Configurations for Direct Pricing
+# This replaces the need to manually configure each pool via CLI
+pool_pricing_configs:
+  # Primary AVAX-quoted pools (highest liquidity)
+  - pool_address: "0x39888258d60fed9228f89e13eb57a92f1fa832eb"  # JLP:BLUB-AVAX
+    start_block: 34900000  # Block when pool became active
+    pricing_strategy: "DIRECT"
+    primary_pool: true  # Use for canonical BLUB pricing
+    quote_token_address: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"  # WAVAX
+    quote_token_type: "AVAX"
+    notes: "Primary Joe V1 pool - highest historical liquidity"
+
+  - pool_address: "0xcb4c6fdcfb7d868df5f1e3d0018438205b243fd6"  # LB:BLUB-AVAX
+    start_block: 36500000  # Block when LB pool launched
+    pricing_strategy: "DIRECT"
+    primary_pool: false
+    quote_token_address: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"  # WAVAX
+    quote_token_type: "AVAX"
+    notes: "Joe V2 Liquidity Book pool - concentrated liquidity"
+
+  # Secondary AVAX-quoted pools
+  - pool_address: "0xa87866ba0d82155d0ff36ad06e555aebc98595ca"  # PLP:BLUB-AVAX
+    start_block: 35200000
+    pricing_strategy: "DIRECT"
+    primary_pool: false
+    quote_token_address: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"  # WAVAX
+    quote_token_type: "AVAX"
+    notes: "Pharaoh V2 pool - alternative AVAX pricing source"
+
+  - pool_address: "0x819fe65a885d40493f4b91e8a10e242018758432"  # LP0:BLUB-AVAX
+    start_block: 37100000
+    pricing_strategy: "DIRECT"
+    primary_pool: false
+    quote_token_address: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"  # WAVAX
+    quote_token_type: "AVAX"
+    notes: "Dead Whale Society pool - community driven liquidity"
+
+  - pool_address: "0x3fc41c1ae339322ab87b6ba48e30781d88a304d4"  # PCL:BLUB-AVAX
+    start_block: 38000000
+    pricing_strategy: "DIRECT"
+    primary_pool: false
+    quote_token_address: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"  # WAVAX
+    quote_token_type: "AVAX"
+    notes: "Pharaoh Concentrated Liquidity pool - efficient capital use"
+
+# Additional metadata
+addresses:
+  - address: "0x60233142befce7d4ed73e7793ead2d6190fccaab"
+    name: "LFJ Fee Collector"
+    description: "Liquidity for Joe protocol fee collector"
+
+# Configuration metadata
+config_version: "2.0"
+created_for: "dual_database_architecture"
+pricing_system: "direct_pricing_v1"
+notes: |
+  Updated configuration for new dual database architecture with:
+  - Separated sources from legacy source_paths
+  - Added pool pricing configurations for direct pricing
+  - Enhanced contract and token metadata
+  - Designed for optimal DI container loading

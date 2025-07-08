@@ -1,535 +1,467 @@
-# indexer/cli/commands/config.py
-
-"""
-Configuration Import/Export CLI Commands
-
-Fresh design for configuration file management.
-"""
+# indexer/cli/commands/config.py - Configuration import/export commands for separated configs
 
 import click 
 import yaml
 import json
 from pathlib import Path
-from typing import Dict, Any
-
+from typing import Dict, Any, List
 
 @click.group()
 def config():
-    """Import/export configuration files"""
+    """Configuration management with separated shared/model concerns"""
     pass
 
 
-@config.command('import')
+# === SHARED CONFIGURATION COMMANDS ===
+
+@config.command('import-shared')
 @click.argument('config_file')
 @click.option('--dry-run', is_flag=True, help='Show what would be imported without making changes')
 @click.pass_context
-def import_file(ctx, config_file, dry_run):
-    """Import configuration from YAML/JSON file
+def import_shared(ctx, config_file, dry_run):
+    """Import shared infrastructure configuration from YAML file
+    
+    This imports chain-level resources that can be shared across models:
+    - Global tokens
+    - Contract definitions with embedded pool pricing defaults
+    - Data sources
+    - Addresses
     
     Examples:
-        # Import configuration
-        config import config.yaml
+        # Import shared configuration
+        config import-shared shared_v1_0.yaml
         
         # Dry run to see what would be imported
-        config import config.yaml --dry-run
+        config import-shared shared_v1_0.yaml --dry-run
     """
     cli_context = ctx.obj['cli_context']
     
     config_path = Path(config_file)
-    
     if not config_path.exists():
         raise click.ClickException(f"Config file not found: {config_file}")
     
-    # Load file based on extension
     try:
         with open(config_path, 'r') as f:
-            if config_path.suffix.lower() in ['.yaml', '.yml']:
-                config_data = yaml.safe_load(f)
-            elif config_path.suffix.lower() == '.json':
-                config_data = json.load(f)
-            else:
-                raise click.ClickException(f"Unsupported file type: {config_path.suffix}")
+            config_data = yaml.safe_load(f)
     except Exception as e:
         raise click.ClickException(f"Failed to parse config file: {e}")
     
+    # Validate it's a shared config
+    if config_data.get('config_type') != 'shared':
+        raise click.ClickException("This is not a shared configuration file")
+    
     if dry_run:
-        click.echo(f"🔍 DRY RUN - Analyzing config file: {config_file}")
-        _validate_config(config_data)
+        click.echo(f"🔍 DRY RUN - Analyzing shared config: {config_file}")
+        _validate_shared_config(config_data)
     else:
-        click.echo(f"📥 Importing config from: {config_file}")
-        _import_config_data(ctx, config_data)
+        click.echo(f"📥 Importing shared configuration from: {config_file}")
+        _import_shared_config_data(ctx, config_data)
 
 
-@config.command('export')
-@click.argument('model_name')
-@click.argument('output_file')
+@config.command('import-model')
+@click.argument('model_config_file')
+@click.option('--dry-run', is_flag=True, help='Show what would be imported without making changes')
+@click.option('--update', is_flag=True, help='Update existing model instead of creating new')
 @click.pass_context
-def export(ctx, model_name, output_file):
-    """Export model configuration to YAML file
+def import_model(ctx, model_config_file, dry_run, update):
+    """Import or update model configuration from YAML file
+    
+    This imports model-specific configuration:
+    - Model definition and database name
+    - Contract associations (references shared contracts)
+    - Token associations (references global tokens)  
+    - Source associations (references shared sources)
+    - Model-specific pool pricing configurations
     
     Examples:
-        # Export model configuration
-        config export blub_test config.yaml
+        # Create new model from configuration
+        config import-model blub_test_v1_0.yaml
+        
+        # Update existing model configuration
+        config import-model blub_test_v1_0.yaml --update
+        
+        # Dry run to see what would be imported
+        config import-model blub_test_v1_0.yaml --dry-run
     """
     cli_context = ctx.obj['cli_context']
     
+    config_path = Path(model_config_file)
+    if not config_path.exists():
+        raise click.ClickException(f"Config file not found: {model_config_file}")
+    
     try:
-        with cli_context.infrastructure_db_manager.get_session() as session:
-            from ...database.shared.tables.config import Model, Contract, Token, Address, ModelContract, ModelToken, ModelSource, Source
-            
-            # Get model
-            model = session.query(Model).filter(Model.name == model_name).first()
-            if not model:
-                raise click.ClickException(f"Model '{model_name}' not found")
-            
-            # Build config structure
-            config_data = {
-                'model': {
-                    'name': model.name,
-                    'version': model.version,
-                    'display_name': model.display_name,
-                    'description': model.description,
-                    'database_name': model.database_name,
-                    'source_paths': []
-                },
-                'global_tokens': [],
-                'model_tokens': [],
-                'contracts': [],
-                'addresses': []
-            }
-            
-            # Get source paths
-            sources = session.query(Source).join(ModelSource).filter(
-                ModelSource.model_id == model.id
-            ).all()
-            
-            for source in sources:
-                source_data = {
-                    'path': source.path,
-                    'format': getattr(source, 'format', 'block_{:012d}.json')
-                }
-                config_data['model']['source_paths'].append(source_data)
-            
-            # Get contracts
-            contracts = session.query(Contract).join(ModelContract).filter(
-                ModelContract.model_id == model.id
-            ).all()
-            
-            for contract in contracts:
-                contract_data = {
-                    'address': contract.address,
-                    'name': contract.name,
-                    'project': contract.project,
-                    'type': contract.contract_type
-                }
-                
-                if contract.abi_dir and contract.abi_file:
-                    contract_data['abi'] = {
-                        'dir': contract.abi_dir,
-                        'file': contract.abi_file
-                    }
-                
-                if contract.transformer_name:
-                    contract_data['transformer'] = {
-                        'name': contract.transformer_name
-                    }
-                    if contract.transformer_config:
-                        contract_data['transformer']['config'] = contract.transformer_config
-                
-                config_data['contracts'].append(contract_data)
-            
-            # Get model tokens (tokens of interest)
-            model_tokens = session.query(Token).join(ModelToken).filter(
-                ModelToken.model_id == model.id
-            ).all()
-            
-            # Add token addresses to model_tokens list
-            config_data['model_tokens'] = [token.address for token in model_tokens]
-            
-            # Get all global token metadata for tokens in this model
-            for token in model_tokens:
-                token_data = {
-                    'address': token.address,
-                    'type': token.token_type
-                }
-                
-                if token.symbol:
-                    token_data['symbol'] = token.symbol
-                if token.name:
-                    token_data['name'] = token.name
-                if token.decimals:
-                    token_data['decimals'] = token.decimals
-                if token.project:
-                    token_data['project'] = token.project
-                if token.description:
-                    token_data['description'] = token.description
-                
-                config_data['global_tokens'].append(token_data)
-            
-            # Get all addresses (global)
-            addresses = session.query(Address).all()
-            
-            for address in addresses:
-                address_data = {
-                    'address': address.address,
-                    'name': address.name,
-                    'type': address.address_type
-                }
-                
-                if address.project:
-                    address_data['project'] = address.project
-                if address.description:
-                    address_data['description'] = address.description
-                if address.grouping:
-                    address_data['grouping'] = address.grouping
-                
-                config_data['addresses'].append(address_data)
-            
-            # Write to file
-            output_path = Path(output_file)
-            with open(output_path, 'w') as f:
-                if output_path.suffix.lower() in ['.yaml', '.yml']:
-                    yaml.dump(config_data, f, default_flow_style=False, indent=2)
-                else:
-                    json.dump(config_data, f, indent=2)
-            
-            click.echo(f"✅ Model '{model_name}' exported to {output_file}")
-            
+        with open(config_path, 'r') as f:
+            config_data = yaml.safe_load(f)
     except Exception as e:
-        raise click.ClickException(f"Export failed: {e}")
+        raise click.ClickException(f"Failed to parse config file: {e}")
+    
+    # Validate it's a model config
+    if config_data.get('config_type') != 'model':
+        raise click.ClickException("This is not a model configuration file")
+    
+    model_name = config_data['model']['name']
+    
+    if dry_run:
+        click.echo(f"🔍 DRY RUN - Analyzing model config for: {model_name}")
+        _validate_model_config(config_data)
+    else:
+        action = "Updating" if update else "Creating"
+        click.echo(f"📥 {action} model configuration for: {model_name}")
+        _import_model_config_data(ctx, config_data, update=update)
 
 
-def _validate_config(config_data: Dict[str, Any]) -> bool:
-    """Validate configuration data without importing"""
-    try:
-        # Validate model section
-        if 'model' not in config_data:
-            click.echo("❌ Missing 'model' section in config")
-            return False
+# === VALIDATION FUNCTIONS ===
+
+def _validate_shared_config(config_data: Dict[str, Any]) -> None:
+    """Validate shared configuration structure"""
+    click.echo("🔍 Validating shared configuration...")
+    
+    # Check required sections
+    required_sections = ['sources', 'contracts', 'global_tokens']
+    for section in required_sections:
+        if section not in config_data:
+            click.echo(f"❌ Missing required section: {section}")
+            return
+        click.echo(f"   ✓ {section}: {len(config_data[section])} items")
+    
+    # Validate contract types and pricing
+    contract_types = {}
+    pools_with_pricing = 0
+    
+    for contract in config_data['contracts']:
+        contract_type = contract.get('type', 'unknown')
+        contract_types[contract_type] = contract_types.get(contract_type, 0) + 1
         
-        model_config = config_data['model']
-        required_model_fields = ['name', 'database_name']
-        
-        for field in required_model_fields:
-            if field not in model_config:
-                click.echo(f"❌ Missing required model field: {field}")
-                return False
-        
-        click.echo(f"✅ Model: {model_config['name']}")
-        click.echo(f"   Database: {model_config['database_name']}")
-        
-        source_paths = model_config.get('source_paths', [])
-        click.echo(f"   Source Paths: {len(source_paths)} defined")
-        for source in source_paths:
-            if isinstance(source, dict):
-                click.echo(f"     - Path: {source.get('path')}, Format: {source.get('format')}")
-            else:
-                click.echo(f"     - {source}")
-        
-        # Validate global tokens
-        global_tokens = config_data.get('global_tokens', [])
-        click.echo(f"✅ Global Tokens: {len(global_tokens)} defined")
-        
-        for i, token in enumerate(global_tokens):
-            required_token_fields = ['address']
-            for field in required_token_fields:
-                if field not in token:
-                    click.echo(f"❌ Global Token {i}: Missing required field: {field}")
-                    return False
-            click.echo(f"   - {token.get('symbol', 'N/A')} ({token['address']})")
-        
-        # Validate model tokens
-        model_tokens = config_data.get('model_tokens', [])
-        click.echo(f"✅ Model Tokens: {len(model_tokens)} defined")
-        for token_addr in model_tokens:
-            click.echo(f"   - {token_addr}")
-        
-        # Validate contracts
-        contracts = config_data.get('contracts', [])
-        click.echo(f"✅ Contracts: {len(contracts)} defined")
-        
-        for i, contract in enumerate(contracts):
-            required_contract_fields = ['address', 'name', 'type']
-            for field in required_contract_fields:
-                if field not in contract:
-                    click.echo(f"❌ Contract {i}: Missing required field: {field}")
-                    return False
-            click.echo(f"   - {contract['name']} ({contract['address']})")
-        
-        # Validate addresses
-        addresses = config_data.get('addresses', [])
-        click.echo(f"✅ Addresses: {len(addresses)} defined")
-        
-        for i, address in enumerate(addresses):
-            required_address_fields = ['address', 'name', 'type']
-            for field in required_address_fields:
-                if field not in address:
-                    click.echo(f"❌ Address {i}: Missing required field: {field}")
-                    return False
-            click.echo(f"   - {address['name']} ({address['address']})")
-        
-        return True
-        
-    except Exception as e:
-        click.echo(f"❌ Validation error: {e}")
-        return False
+        if contract_type == 'pool' and contract.get('pricing_strategy_default'):
+            pools_with_pricing += 1
+    
+    click.echo("   Contract breakdown:")
+    for ctype, count in contract_types.items():
+        click.echo(f"     • {ctype}: {count}")
+    
+    click.echo(f"   Pools with pricing defaults: {pools_with_pricing}")
+    
+    # Check addresses if present
+    if 'addresses' in config_data:
+        click.echo(f"   ✓ addresses: {len(config_data['addresses'])} items")
+    
+    click.echo("✅ Shared configuration structure looks valid")
 
 
-def _import_config_data(ctx, config_data: Dict[str, Any]) -> bool:
-    """Import validated configuration data"""
+def _validate_model_config(config_data: Dict[str, Any]) -> None:
+    """Validate model configuration structure"""
+    click.echo("🔍 Validating model configuration...")
+    
+    # Check required sections
+    required_sections = ['model', 'contracts', 'sources', 'tokens']
+    for section in required_sections:
+        if section not in config_data:
+            click.echo(f"❌ Missing required section: {section}")
+            return
+        
+        if section == 'model':
+            model_data = config_data[section]
+            click.echo(f"   ✓ model: {model_data.get('name', 'unnamed')}")
+        else:
+            click.echo(f"   ✓ {section}: {len(config_data[section])} items")
+    
+    # Check pool pricing configs if present
+    if 'pool_pricing_configs' in config_data:
+        pool_configs = config_data['pool_pricing_configs']
+        pricing_pools = sum(1 for p in pool_configs if p.get('pricing_pool', False))
+        click.echo(f"   ✓ pool_pricing_configs: {len(pool_configs)} total, {pricing_pools} pricing pools")
+        
+        # Validate pricing configs
+        for i, config in enumerate(pool_configs):
+            if not config.get('pool_address'):
+                click.echo(f"   ❌ Pool config {i}: Missing pool_address")
+            if not config.get('start_block'):
+                click.echo(f"   ❌ Pool config {i}: Missing start_block")
+    
+    click.echo("✅ Model configuration structure looks valid")
+
+
+# === IMPORT IMPLEMENTATION FUNCTIONS ===
+
+def _import_shared_config_data(ctx, config_data: Dict[str, Any]) -> None:
+    """Import shared configuration data to database"""
     cli_context = ctx.obj['cli_context']
     
     try:
-        # Import model first
-        if not _import_model(cli_context, config_data['model']):
-            return False
-        
-        model_name = config_data['model']['name']
-        
-        # Import global tokens (metadata only)
-        for token in config_data.get('global_tokens', []):
-            if not _import_global_token(cli_context, token):
-                click.echo(f"⚠️  Failed to import global token: {token.get('symbol', 'unknown')}")
-        
-        # Import contracts
-        for contract in config_data.get('contracts', []):
-            if not _import_contract(cli_context, contract, model_name):
-                click.echo(f"⚠️  Failed to import contract: {contract.get('name', 'unknown')}")
-        
-        # Associate model tokens (tokens of interest)
-        for token_address in config_data.get('model_tokens', []):
-            if not _add_model_token(cli_context, model_name, token_address):
-                click.echo(f"⚠️  Failed to associate token {token_address} with model")
-        
-        # Import addresses
-        for address in config_data.get('addresses', []):
-            if not _import_address(cli_context, address):
-                click.echo(f"⚠️  Failed to import address: {address.get('name', 'unknown')}")
-        
-        click.echo(f"✅ Configuration imported successfully")
-        return True
-        
-    except Exception as e:
-        raise click.ClickException(f"Import error: {e}")
-
-
-def _import_model(cli_context, model_config: Dict[str, Any]) -> bool:
-    """Import model configuration"""
-    try:
         with cli_context.infrastructure_db_manager.get_session() as session:
-            from ...database.shared.tables.config import Model, Source, ModelSource
+            from ...core.config_service import ConfigService
             
-            model_name = model_config['name']
+            config_service = ConfigService(cli_context.infrastructure_db_manager)
             
-            # Check if model already exists
-            existing_model = session.query(Model).filter(Model.name == model_name).first()
-            if existing_model:
-                click.echo(f"⚠️  Model '{model_name}' already exists, skipping")
-                return True
+            # Import sources
+            if 'sources' in config_data:
+                click.echo("📋 Importing sources...")
+                for source_data in config_data['sources']:
+                    source = config_service.create_source(
+                        name=source_data['name'],
+                        path=source_data['path'],
+                        format_string=source_data['format']
+                    )
+                    if source:
+                        click.echo(f"   ✓ Created source: {source.name}")
             
-            # Create model
-            new_model = Model(
-                name=model_name,
-                display_name=model_config.get('display_name') or model_name,
-                description=model_config.get('description'),
-                database_name=model_config['database_name'],
-                version=model_config.get('version', 'v1'),
-                status='active'
-            )
-            
-            session.add(new_model)
-            session.flush()  # Get the ID
-            
-            # Handle source paths
-            source_paths = model_config.get('source_paths', [])
-            
-            for i, source_data in enumerate(source_paths):
-                if isinstance(source_data, str):
-                    # Convert string to object
-                    source_data = {
-                        'path': source_data,
-                        'format': 'avalanche-mainnet_block_with_receipts_{:012d}-{:012d}.json'
-                    }
+            # Import global tokens
+            if 'global_tokens' in config_data:
+                click.echo("📋 Importing global tokens...")
+                from ...database.shared.tables.config import Token
                 
-                # Create source
-                source = Source(
-                    path=source_data['path'],
-                    source_type='gcs',
-                    description=f"Source for {model_name}"
-                )
-                session.add(source)
-                session.flush()
+                for token_data in config_data['global_tokens']:
+                    # Check if token already exists
+                    existing = session.query(Token).filter(
+                        Token.address == token_data['address'].lower()
+                    ).first()
+                    
+                    if existing:
+                        click.echo(f"   ⚠️  Token already exists: {token_data['symbol']}")
+                        continue
+                    
+                    token = Token(
+                        address=token_data['address'].lower(),
+                        symbol=token_data['symbol'],
+                        name=token_data['name'],
+                        decimals=token_data['decimals'],
+                        project=token_data.get('project'),
+                        type=token_data.get('type', 'token'),
+                        description=token_data.get('description'),
+                        status='active'
+                    )
+                    
+                    session.add(token)
+                    click.echo(f"   ✓ Created token: {token.symbol}")
+            
+            # Import contracts with pricing defaults
+            if 'contracts' in config_data:
+                click.echo("📋 Importing contracts...")
+                from ...database.shared.tables.config import Contract
                 
-                # Link to model
-                model_source = ModelSource(
-                    model_id=new_model.id,
-                    source_id=source.id
-                )
-                session.add(model_source)
+                for contract_data in config_data['contracts']:
+                    # Check if contract already exists
+                    existing = session.query(Contract).filter(
+                        Contract.address == contract_data['address'].lower()
+                    ).first()
+                    
+                    if existing:
+                        click.echo(f"   ⚠️  Contract already exists: {contract_data['name']}")
+                        continue
+                    
+                    contract = Contract(
+                        address=contract_data['address'].lower(),
+                        name=contract_data['name'],
+                        project=contract_data.get('project'),
+                        type=contract_data['type'],
+                        description=contract_data.get('description'),
+                        abi_dir=contract_data.get('abi_dir'),
+                        abi_file=contract_data.get('abi_file'),
+                        transformer_name=contract_data.get('transformer_name'),
+                        transformer_config=contract_data.get('transformer_config', {}),
+                        
+                        # Pool pricing defaults
+                        pricing_strategy_default=contract_data.get('pricing_strategy_default'),
+                        quote_token_address=contract_data.get('quote_token_address', '').lower() if contract_data.get('quote_token_address') else None,
+                        pricing_start_block=contract_data.get('pricing_start_block'),
+                        pricing_end_block=contract_data.get('pricing_end_block'),
+                        
+                        status='active'
+                    )
+                    
+                    # Validate contract
+                    errors = contract.validate_pool_pricing_config()
+                    if errors:
+                        click.echo(f"   ❌ Contract validation errors for {contract.name}: {errors}")
+                        continue
+                    
+                    session.add(contract)
+                    pricing_info = f" (pricing: {contract.pricing_strategy_default})" if contract.pricing_strategy_default else ""
+                    click.echo(f"   ✓ Created contract: {contract.name}{pricing_info}")
+            
+            # Import addresses
+            if 'addresses' in config_data:
+                click.echo("📋 Importing addresses...")
+                from ...database.shared.tables.config import Address
                 
-                click.echo(f"   📝 Source: {source_data['path']}")
+                for address_data in config_data['addresses']:
+                    # Check if address already exists
+                    existing = session.query(Address).filter(
+                        Address.address == address_data['address'].lower()
+                    ).first()
+                    
+                    if existing:
+                        click.echo(f"   ⚠️  Address already exists: {address_data['name']}")
+                        continue
+                    
+                    address = Address(
+                        address=address_data['address'].lower(),
+                        name=address_data['name'],
+                        type=address_data['type'],
+                        project=address_data.get('project'),
+                        description=address_data.get('description'),
+                        grouping=address_data.get('grouping'),
+                        status='active'
+                    )
+                    
+                    session.add(address)
+                    click.echo(f"   ✓ Created address: {address.name}")
             
             session.commit()
-            click.echo(f"✅ Model '{model_name}' created")
-            return True
+            click.echo("✅ Shared configuration imported successfully")
             
     except Exception as e:
-        click.echo(f"❌ Failed to create model: {e}")
-        return False
+        click.echo(f"❌ Failed to import shared configuration: {e}")
+        raise
 
 
-def _import_global_token(cli_context, token_config: Dict[str, Any]) -> bool:
-    """Import global token metadata"""
+def _import_model_config_data(ctx, config_data: Dict[str, Any], update: bool = False) -> None:
+    """Import model configuration data to database"""
+    cli_context = ctx.obj['cli_context']
+    
     try:
         with cli_context.infrastructure_db_manager.get_session() as session:
-            from ...database.shared.tables.config import Token
+            from ...core.config_service import ConfigService
+            from ...database.shared.repositories.pool_pricing_config_repository import PoolPricingConfigRepository
+            from ...database.shared.tables.config import Model, Contract, Token, Source, ModelContract, ModelToken, ModelSource
             
-            address = token_config['address'].lower()
+            config_service = ConfigService(cli_context.infrastructure_db_manager)
+            pool_pricing_repo = PoolPricingConfigRepository(cli_context.infrastructure_db_manager)
             
-            # Check if token already exists
-            existing_token = session.query(Token).filter(Token.address == address).first()
-            if existing_token:
-                return True  # Skip if exists
+            model_data = config_data['model']
+            model_name = model_data['name']
             
-            # Create token
-            new_token = Token(
-                address=address,
-                symbol=token_config.get('symbol'),
-                name=token_config.get('name'),
-                decimals=token_config.get('decimals'),
-                project=token_config.get('project'),
-                token_type=token_config.get('type', 'token'),
-                description=token_config.get('description')
-            )
-            
-            session.add(new_token)
-            session.commit()
-            return True
-            
-    except Exception as e:
-        click.echo(f"❌ Failed to create token: {e}")
-        return False
-
-
-def _import_contract(cli_context, contract_config: Dict[str, Any], model_name: str) -> bool:
-    """Import contract configuration"""
-    try:
-        with cli_context.infrastructure_db_manager.get_session() as session:
-            from ...database.shared.tables.config import Contract, Model, ModelContract
-            
-            address = contract_config['address'].lower()
-            
-            # Check if contract already exists
-            existing_contract = session.query(Contract).filter(Contract.address == address).first()
-            if not existing_contract:
-                # Create contract
-                new_contract = Contract(
-                    address=address,
-                    name=contract_config['name'],
-                    project=contract_config.get('project'),
-                    contract_type=contract_config['type'],
-                    abi_dir=contract_config.get('abi', {}).get('dir'),
-                    abi_file=contract_config.get('abi', {}).get('file'),
-                    transformer_name=contract_config.get('transformer', {}).get('name'),
-                    transformer_config=contract_config.get('transformer', {}).get('config')
-                )
-                
-                session.add(new_contract)
-                session.flush()
-                contract_id = new_contract.id
+            # Create or get model
+            if update:
+                model = config_service.get_model_by_name(model_name)
+                if not model:
+                    raise click.ClickException(f"Model '{model_name}' not found for update")
+                click.echo(f"📋 Updating model: {model_name}")
             else:
-                contract_id = existing_contract.id
-            
-            # Get model
-            model = session.query(Model).filter(Model.name == model_name).first()
-            if not model:
-                click.echo(f"❌ Model '{model_name}' not found")
-                return False
-            
-            # Check if already associated
-            existing_assoc = session.query(ModelContract).filter(
-                ModelContract.model_id == model.id,
-                ModelContract.contract_id == contract_id
-            ).first()
-            
-            if not existing_assoc:
-                # Create association
-                model_contract = ModelContract(
-                    model_id=model.id,
-                    contract_id=contract_id
+                # Check if model already exists
+                existing_model = config_service.get_model_by_name(model_name)
+                if existing_model:
+                    raise click.ClickException(f"Model '{model_name}' already exists. Use --update to modify it.")
+                
+                # Create new model
+                model = Model(
+                    name=model_data['name'],
+                    version=model_data['version'],
+                    display_name=model_data.get('display_name'),
+                    description=model_data.get('description'),
+                    database_name=model_data['database_name'],
+                    source_paths=[],  # Legacy field, keep empty
+                    status='active'
                 )
-                session.add(model_contract)
+                session.add(model)
+                session.flush()
+                click.echo(f"📋 Created model: {model_name}")
+            
+            # Associate contracts with model
+            if 'contracts' in config_data:
+                click.echo("📋 Associating contracts with model...")
+                
+                for contract_address in config_data['contracts']:
+                    contract = session.query(Contract).filter(
+                        Contract.address == contract_address.lower()
+                    ).first()
+                    
+                    if not contract:
+                        click.echo(f"   ⚠️  Contract not found: {contract_address}")
+                        continue
+                    
+                    # Check if association already exists
+                    existing = session.query(ModelContract).filter(
+                        ModelContract.model_id == model.id,
+                        ModelContract.contract_id == contract.id
+                    ).first()
+                    
+                    if not existing:
+                        model_contract = ModelContract(
+                            model_id=model.id,
+                            contract_id=contract.id
+                        )
+                        session.add(model_contract)
+                        click.echo(f"   ✓ Associated contract: {contract.name}")
+                    else:
+                        click.echo(f"   ⚠️  Contract already associated: {contract.name}")
+            
+            # Associate tokens with model
+            if 'tokens' in config_data:
+                click.echo("📋 Associating tokens with model...")
+                
+                for token_address in config_data['tokens']:
+                    token = session.query(Token).filter(
+                        Token.address == token_address.lower()
+                    ).first()
+                    
+                    if not token:
+                        click.echo(f"   ⚠️  Token not found: {token_address}")
+                        continue
+                    
+                    # Check if association already exists
+                    existing = session.query(ModelToken).filter(
+                        ModelToken.model_id == model.id,
+                        ModelToken.token_id == token.id
+                    ).first()
+                    
+                    if not existing:
+                        model_token = ModelToken(
+                            model_id=model.id,
+                            token_id=token.id
+                        )
+                        session.add(model_token)
+                        click.echo(f"   ✓ Associated token: {token.symbol}")
+                    else:
+                        click.echo(f"   ⚠️  Token already associated: {token.symbol}")
+            
+            # Associate sources with model  
+            if 'sources' in config_data:
+                click.echo("📋 Associating sources with model...")
+                
+                for source_name in config_data['sources']:
+                    source = session.query(Source).filter(
+                        Source.name == source_name
+                    ).first()
+                    
+                    if not source:
+                        click.echo(f"   ⚠️  Source not found: {source_name}")
+                        continue
+                    
+                    # Check if association already exists
+                    existing = session.query(ModelSource).filter(
+                        ModelSource.model_id == model.id,
+                        ModelSource.source_id == source.id
+                    ).first()
+                    
+                    if not existing:
+                        model_source = ModelSource(
+                            model_id=model.id,
+                            source_id=source.id
+                        )
+                        session.add(model_source)
+                        click.echo(f"   ✓ Associated source: {source.name}")
+                    else:
+                        click.echo(f"   ⚠️  Source already associated: {source.name}")
+            
+            # Create pool pricing configurations
+            if 'pool_pricing_configs' in config_data:
+                click.echo("📋 Creating pool pricing configurations...")
+                
+                pool_configs = pool_pricing_repo.create_configs_from_data(
+                    session, model.id, config_data['pool_pricing_configs']
+                )
+                
+                click.echo(f"   ✓ Created {len(pool_configs)} pool configurations")
+                
+                for config in pool_configs:
+                    pricing_status = " PRICING" if config.pricing_pool else ""
+                    click.echo(f"     • {config.contract.name}: {config.pricing_strategy}{pricing_status}")
             
             session.commit()
-            return True
+            action = "updated" if update else "imported"
+            click.echo(f"✅ Model configuration {action} successfully")
             
     except Exception as e:
-        click.echo(f"❌ Failed to import contract: {e}")
-        return False
-
-
-def _import_address(cli_context, address_config: Dict[str, Any]) -> bool:
-    """Import address configuration"""
-    try:
-        with cli_context.infrastructure_db_manager.get_session() as session:
-            from ...database.shared.tables.config import Address
-            
-            address = address_config['address'].lower()
-            
-            # Check if address already exists
-            existing_address = session.query(Address).filter(Address.address == address).first()
-            if existing_address:
-                return True  # Skip if exists
-            
-            # Create address
-            new_address = Address(
-                address=address,
-                name=address_config['name'],
-                address_type=address_config['type'],
-                project=address_config.get('project'),
-                description=address_config.get('description'),
-                grouping=address_config.get('grouping')
-            )
-            
-            session.add(new_address)
-            session.commit()
-            return True
-            
-    except Exception as e:
-        click.echo(f"❌ Failed to import address: {e}")
-        return False
-
-
-def _add_model_token(cli_context, model_name: str, token_address: str) -> bool:
-    """Add token to model's tracking list"""
-    try:
-        with cli_context.infrastructure_db_manager.get_session() as session:
-            from ...database.shared.tables.config import Model, Token, ModelToken
-            
-            # Get model and token
-            model = session.query(Model).filter(Model.name == model_name).first()
-            token = session.query(Token).filter(Token.address == token_address.lower()).first()
-            
-            if not model or not token:
-                return False
-            
-            # Check if already linked
-            existing_link = session.query(ModelToken).filter(
-                ModelToken.model_id == model.id,
-                ModelToken.token_id == token.id
-            ).first()
-            
-            if not existing_link:
-                # Create link
-                model_token = ModelToken(
-                    model_id=model.id,
-                    token_id=token.id
-                )
-                session.add(model_token)
-                session.commit()
-            
-            return True
-            
-    except Exception as e:
-        click.echo(f"❌ Failed to add model token: {e}")
-        return False
+        click.echo(f"❌ Failed to import model configuration: {e}")
+        raise

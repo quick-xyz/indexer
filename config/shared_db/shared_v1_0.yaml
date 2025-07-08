@@ -1,0 +1,252 @@
+# shared_config.yaml - Chain-level infrastructure configuration
+# This file defines global resources that can be shared across multiple models
+
+config_type: "shared"
+config_version: "v1.0"
+chain: "avalanche"
+description: "Shared database for Avalanche indexers"
+
+# Data Sources
+sources:
+  - name: "quicknode-blub"
+    path: "streams/quicknode/blub/"
+    format: "avalanche-mainnet_block_with_receipts_{:012d}-{:012d}.json"
+    description: "QuickNode stream for BLUB transfers"
+
+# Global Token Configs
+global_tokens:
+  - address: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
+    symbol: "WAVAX"
+    name: "Wrapped AVAX"
+    decimals: 18
+    project: "Avax"
+    type: "token"
+    description: "Wrapped AVAX token"
+
+  - address: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+    symbol: "BLUB"
+    name: "Blub Token"
+    decimals: 18
+    project: "Blub"
+    type: "token"
+    description: "BLUB token"
+
+  - address: "0x39888258d60fed9228f89e13eb57a92f1fa832eb"
+    type: "lp_receipt"
+    symbol: "JLP"
+    name: "Joe LP Token"
+    decimals: 18
+    project: "LFJ"
+    description: "Joe V1 AMM LP Receipt Token"
+
+  - address: "0xcb4c6fdcfb7d868df5f1e3d0018438205b243fd6"
+    type: "lp_receipt"
+    symbol: "LBT"
+    name: "LB Token"
+    decimals: 18
+    project: "LFJ"
+    description: "Joe V2 Liquidity Book LP Receipt Token"
+
+  - address: "0xa87866ba0d82155d0ff36ad06e555aebc98595ca"
+    type: "lp_receipt"
+    symbol: "PLP"
+    name: "Pharaoh LP Token"
+    decimals: 18
+    project: "Pharaoh"
+    description: "Pharaoh V1 AMM LP Receipt Token"
+
+  - address: "0x819fe65a885d40493f4b91e8a10e242018758432"
+    type: "lp_receipt"
+    symbol: "LP0"
+    name: "DWS LP Token"
+    decimals: 18
+    project: "DWS"
+    description: "DWS Launch AMM LP Receipt Token"
+
+# Contract Configs
+contracts:
+  - address: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+    name: "BLUB"
+    project: "Blub"
+    type: "token"
+    description: "BLUB native token contract"
+    abi_dir: "tokens"
+    abi_file: "blub.json"
+    transformer_name: "TokenTransformer"
+    transformer_config:
+      contract: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+
+  - address: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
+    name: "WAVAX"
+    project: "Avax"
+    type: "token"
+    description: "Wrapped AVAX - native chain token"
+    abi_dir: "tokens"
+    abi_file: "wavax.json"
+    transformer_name: "WavaxTransformer"
+    transformer_config:
+      contract: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
+
+  - address: "0x39888258d60fed9228f89e13eb57a92f1fa832eb"
+    name: "JLP:BLUB-AVAX"
+    project: "LFJ"
+    type: "pool"
+    description: "Joe V1 AMM: BLUB-AVAX"
+    abi_dir: "pools"
+    abi_file: "joepair.json"
+    transformer_name: "LfjPoolTransformer"
+    transformer_config:
+      contract: "0x39888258d60fed9228f89e13eb57a92f1fa832eb"
+      token0: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+      token1: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
+      base_token: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+      fee_collector: "0x60233142befce7d4ed73e7793ead2d6190fccaab"
+    pricing_strategy_default: "direct_avax"
+    quote_token_address: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
+    pricing_start_block: 58220057
+
+
+  - address: "0xcb4c6fdcfb7d868df5f1e3d0018438205b243fd6"
+    name: "LB:BLUB-AVAX"
+    project: "LFJ"
+    type: "pool"
+    description: "Joe V2 Liquidity Book: BLUB-AVAX"
+    abi_dir: "pools"
+    abi_file: "lbpair.json"
+    transformer_name: "LbPairTransformer"
+    transformer_config:
+      contract: "0xcb4c6fdcfb7d868df5f1e3d0018438205b243fd6"
+      token_x: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+      token_y: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
+      base_token: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+    pricing_strategy_default: "direct_avax"
+    quote_token_address: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
+    pricing_start_block: 58220284
+
+  - address: "0xa87866ba0d82155d0ff36ad06e555aebc98595ca"
+    name: "PLP:BLUB-AVAX"
+    project: "Pharaoh"
+    type: "pool"
+    description: "Pharaoh V1 AMM: BLUB-AVAX"
+    abi_dir: "pools"
+    abi_file: "pair.json"
+    transformer_name: "PharPairTransformer"
+    transformer_config:
+      contract: "0xa87866ba0d82155d0ff36ad06e555aebc98595ca"
+      token0: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+      token1: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
+      base_token: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+    pricing_strategy_default: "direct_avax"
+    quote_token_address: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
+    pricing_start_block: 58220990
+
+  - address: "0x819fe65a885d40493f4b91e8a10e242018758432"
+    name: "LP0:BLUB-AVAX"
+    project: "DWS"
+    type: "pool"
+    description: "DWS Launch AMM: BLUB-AVAX"
+    abi_dir: "pools"
+    abi_file: "joepair.json"
+    transformer_name: "LfjPoolTransformer"
+    transformer_config:
+      contract: "0x819fe65a885d40493f4b91e8a10e242018758432"
+      token0: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+      token1: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
+      base_token: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+      fee_collector: "0x60233142befce7d4ed73e7793ead2d6190fccaab"
+    pricing_strategy_default: "direct_avax"
+    quote_token_address: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
+    pricing_start_block: 58299144
+
+  - address: "0x3fc41c1ae339322ab87b6ba48e30781d88a304d4"
+    name: "PCL:BLUB-AVAX"
+    project: "Pharaoh"
+    type: "pool"
+    description: "Pharaoh Concentrated Liquidity: BLUB-AVAX"
+    abi_dir: "pools"
+    abi_file: "clpool.json"
+    transformer_name: "PharClPoolTransformer"
+    transformer_config:
+      contract: "0x3fc41c1ae339322ab87b6ba48e30781d88a304d4"
+      token0: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+      token1: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
+      base_token: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+    pricing_strategy_default: "direct_avax"
+    quote_token_address: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
+    pricing_start_block: 58220991
+
+  - address: "0x45a62b090df48243f12a21897e7ed91863e2c86b"
+    name: "AggregatorV2"
+    project: "LFJ"
+    type: "aggregator"
+    description: "LFJ Aggregator V2"
+    abi_dir: "aggregators"
+    abi_file: "lfj_agg.json"
+    transformer_name: "LfjAggregatorTransformer"
+    transformer_config:
+      contract: "0x45a62b090df48243f12a21897e7ed91863e2c86b"
+
+  - address: "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc"
+    name: "RouterV2"
+    project: "Odos"
+    type: "aggregator"
+    description: "Odos Aggregator V2"
+    abi_dir: "aggregators"
+    abi_file: "odos_agg.json"
+    transformer_name: "OdosAggregatorTransformer"
+    transformer_config:
+      contract: "0x88de50b233052e4fb783d4f6db78cc34fea3e9fc"
+
+  - address: "0x6131b5fae19ea4f9d964eac0408e4408b66337b5"
+    name: "MetaAggRouter2"
+    project: "Kyber"
+    type: "aggregator"
+    description: "Kyber Meta Aggregator V2"
+    abi_dir: "aggregators"
+    abi_file: "kyber_agg.json"
+    transformer_name: "KyberAggregatorTransformer"
+    transformer_config:
+      contract: "0x6131b5fae19ea4f9d964eac0408e4408b66337b5"
+
+addresses:
+  - address: "0xe8afa8eb383ced1696c2d8ceb080f47df48f11af"
+    name: "Treasury"
+    type: "wallet"
+    project: "Blub"
+    description: "Blub treasury wallet"
+
+  - address: "0x60ae616a2155ee3d9a68541ba4544862310933d4"
+    name: "JoeRouter02"
+    type: "router"
+    project: "LFJ"
+    description: "TraderJoe V2 Router"
+
+  - address: "0x18556da13313f3532c54711497a8fedac273220e"
+    name: "LBRouterV2.2"
+    type: "router"
+    project: "LFJ"
+    description: "Liquidity Book Router"
+
+  - address: "0xaaa45c8f5ef92a000a121d102f4e89278a711faa"
+    name: "V1Router"
+    type: "router"
+    project: "Pharaoh"
+    description: "Pharaoh V1 Router"
+
+  - address: "0x38575264810371c15f0e5744fa2ab29cdef7245d"
+    name: "DexRouter"
+    type: "router"
+    project: "OKX"
+    description: "OKX DEX Router"
+
+  - address: "0xb35033d71cf5e13cab5eb8618260f94363dff9cf"
+    name: "RouterLogic"
+    type: "agg_logic"
+    project: "LFJ"
+    grouping: "aggregator_components"
+
+  - address: "0xb0787776ff90881cec3a0b8e3e91973e6183c146"
+    name: "ForwarderLogic"
+    type: "agg_logic"
+    project: "LFJ"
+    grouping: "aggregator_components"
