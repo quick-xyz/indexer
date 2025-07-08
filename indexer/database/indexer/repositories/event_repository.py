@@ -7,7 +7,7 @@ from sqlalchemy import desc, and_
 
 from ....core.logging_config import log_with_context
 from ....types.new import EvmHash, DomainEventId
-from ...repository import BaseRepository
+from ...base_repository import BaseRepository
 
 import logging
 

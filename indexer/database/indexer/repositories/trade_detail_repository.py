@@ -1,6 +1,6 @@
 # indexer/database/indexer/repositories/trade_detail_repository.py
 
-from typing import List, Optional
+from typing import List, Optional, Dict
 
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, desc
@@ -9,7 +9,7 @@ from ...connection import ModelDatabaseManager
 from ..tables.detail.trade_detail import TradeDetail, PricingDenomination, TradePricingMethod
 from ....core.logging_config import log_with_context
 from ....types.new import DomainEventId
-from ...repository import BaseRepository
+from ...base_repository import BaseRepository
 
 import logging
 

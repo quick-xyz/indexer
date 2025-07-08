@@ -7,6 +7,9 @@ from .event_repository import DomainEventRepository
 from .trade_repository import TradeRepository
 from .pool_swap_repository import PoolSwapRepository
 from .position_repository import PositionRepository
+from .transfer_repository import TransferRepository
+from .liquidity_repository import LiquidityRepository
+from .reward_repository import RewardRepository
 
 # Detail repositories (pricing/valuation)
 from .pool_swap_detail_repository import PoolSwapDetailRepository
@@ -24,6 +27,9 @@ __all__ = [
     'TradeRepository',
     'PoolSwapRepository', 
     'PositionRepository',
+    'TransferRepository',
+    'LiquidityRepository',
+    'RewardRepository',
     
     # Detail repositories
     'PoolSwapDetailRepository',

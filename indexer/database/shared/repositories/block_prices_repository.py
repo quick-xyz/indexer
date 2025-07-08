@@ -8,7 +8,7 @@ from sqlalchemy import and_, or_, desc, asc, func
 from sqlalchemy.exc import IntegrityError
 
 from ..tables.block_prices import BlockPrice
-from ...repository import BaseRepository
+from ...base_repository import BaseRepository
 from ....core.logging_config import IndexerLogger, log_with_context
 
 import logging

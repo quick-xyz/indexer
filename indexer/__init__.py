@@ -128,14 +128,19 @@ def _register_services(container: IndexerContainer, infrastructure_db_manager: I
     container.register_factory(ModelDatabaseManager, _create_model_database_manager)
     container.register_singleton(RepositoryManager, RepositoryManager)
 
-    # NEW: Database writers
+    # Database writers
     logger.debug("Registering database writers")
     container.register_singleton(DomainEventWriter, DomainEventWriter)
 
-    # NEW: Pipeline services  
+    # Pipeline services  
     logger.debug("Registering pipeline services")
     container.register_singleton(IndexingPipeline, IndexingPipeline)
     container.register_singleton(BatchPipeline, BatchPipeline)
+
+    # Migration services
+    logger.debug("Registering migration services")
+    from .database.migration_manager import MigrationManager
+    container.register_singleton(MigrationManager, MigrationManager)
 
     logger.info("Service registration completed")
 

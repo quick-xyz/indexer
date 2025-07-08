@@ -11,24 +11,24 @@ from ...types import EvmHashType
 
 
 class TransactionStatus(enum.Enum):
-    PENDING = "PENDING"        # Match database exactly
-    PROCESSING = "PROCESSING"  # Match database exactly
-    COMPLETED = "COMPLETED"    # Match database exactly (was COMPLETE)
-    FAILED = "FAILED"          # Match database exactly
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETED = "completed"
+    FAILED = "failed"
 
 
 class JobType(enum.Enum):
-    BLOCK = "BLOCK"                    # Process single block
-    BLOCK_RANGE = "BLOCK_RANGE"        # Process range of blocks
-    TRANSACTIONS = "TRANSACTIONS"       # Process specific transactions
-    REPROCESS_FAILED = "REPROCESS_FAILED"  # Reprocess failed items
+    BLOCK = "block"                    
+    BLOCK_RANGE = "block_range"
+    TRANSACTIONS = "transactions"
+    REPROCESS_FAILED = "reprocess_failed"
 
 
 class JobStatus(enum.Enum):
-    PENDING = "PENDING"
-    PROCESSING = "PROCESSING"
-    COMPLETE = "COMPLETE"
-    FAILED = "FAILED"
+    PENDING = "pending"
+    PROCESSING = "processing"
+    COMPLETE = "complete"
+    FAILED = "failed"
 
 
 class TransactionProcessing(BaseModel):

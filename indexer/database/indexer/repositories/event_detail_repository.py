@@ -9,7 +9,7 @@ from ...connection import ModelDatabaseManager
 from ..tables.detail.event_detail import EventDetail, PricingDenomination
 from ....core.logging_config import log_with_context
 from ....types.new import DomainEventId
-from ...repository import BaseRepository
+from ...base_repository import BaseRepository
 
 import logging
 

@@ -9,15 +9,15 @@ from ....types import DomainEventIdType
 
 
 class PricingDenomination(enum.Enum):
-    USD = "USD"
-    AVAX = "AVAX"
+    USD = "usd"
+    AVAX = "avax"
 
 
 class PricingMethod(enum.Enum):
-    DIRECT_AVAX = "DIRECT_AVAX"
-    DIRECT_USD = "DIRECT_USD"
-    GLOBAL = "GLOBAL"
-    ERROR = "ERROR"
+    DIRECT_AVAX = "direct_avax"
+    DIRECT_USD = "direct_usd"
+    GLOBAL = "global"
+    ERROR = "error"
 
 
 class PoolSwapDetail(BaseModel):

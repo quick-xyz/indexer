@@ -12,18 +12,18 @@ This is a comprehensive blockchain token indexer with a modular architecture des
 - Multi-worker coordination with database job queues
 
 **Service Architecture:**
-- **Pricing Service**: Canonical price calculation (1-minute schedule)
+- **Pricing Service**: Canonical price calculation (1-minute schedule) + Direct pricing for swaps/trades
 - **Calculation Service**: Materialized views for valuations (5-minute schedule) 
 - **Aggregation Service**: Summary metrics and time-series (15-minute schedule)
 
 **Dual Database Strategy:**
 - **Shared Database** (`indexer_shared`): Chain-level data and configuration shared across all indexers
   - Configuration: models, contracts, tokens, sources, addresses
-  - Chain-level pricing: block_prices, periods 
-  - Pool configuration: pool_pricing_configs
+  - Chain-level pricing: block_prices, periods, pool_pricing_configs
 - **Indexer Database** (per model, e.g., `blub_test`): Model-specific indexing data
   - Processing state: transaction_processing, block_processing, processing_jobs
   - Domain events: trades, pool_swaps, positions, transfers, liquidity, rewards
+  - Pricing details: pool_swap_details, trade_details, event_details
 - Database-driven configuration system with dependency injection
 - Read replicas for API layer
 
@@ -41,7 +41,7 @@ This is a comprehensive blockchain token indexer with a modular architecture des
 3. **Database Module**: Dual database with appropriate table placement
 4. **Configuration System**: Database-driven with dependency injection
 5. **Storage**: GCS for stateful JSON + PostgreSQL for queryable events
-6. **Pricing System**: Block-level AVAX prices + configurable pool pricing strategies
+6. **Pricing System**: Block-level AVAX prices + configurable pool pricing strategies + direct pricing
 
 ### Technology Stack
 - **Language**: Python with msgspec for data structures
@@ -49,6 +49,21 @@ This is a comprehensive blockchain token indexer with a modular architecture des
 - **Storage**: Google Cloud Storage
 - **RPC**: QuickNode for Avalanche mainnet
 - **Architecture**: Dependency injection container pattern
+
+## Recent Major Enhancements
+
+### **Complete Direct Pricing Implementation**
+- **Detail Tables**: Separate pricing tables (`pool_swap_details`, `trade_details`, `event_details`) 
+- **Dual Denominations**: Every event gets both USD and AVAX valuations
+- **Method Tracking**: DIRECT_AVAX, DIRECT_USD, GLOBAL, ERROR pricing methods
+- **Volume Weighting**: Trade pricing aggregates from constituent swaps
+- **Comprehensive CLI**: Full management interface for all pricing operations
+
+### **Enhanced Service Architecture**
+- **PricingService**: Now handles swap and trade direct pricing + existing period/block price functionality
+- **Repository Layer**: Enhanced with bulk operations, eligibility checks, method statistics
+- **CLI Interface**: Complete pricing management with monitoring and validation
+- **Error Handling**: Graceful fallback to global pricing for complex cases
 
 ## Chat Interaction Preferences
 
@@ -88,3 +103,17 @@ This is a comprehensive blockchain token indexer with a modular architecture des
 - **Incremental building**: Building features piece by piece
 - **Clear documentation**: Well-commented code and explanations
 - **Practical examples**: CLI usage examples and cron job setups
+
+## Critical Next Steps
+
+### **🚨 Priority Issues to Address**
+1. **Processing Pipeline Review**: End-to-end single block processing has been failing
+2. **Enum Consistency**: Capital vs lowercase issues causing processing errors
+3. **Database Migration**: Need fresh initial migration with all current tables
+4. **Migration Process Review**: Previous migrations have been problematic
+
+### **Pipeline Integration Notes**
+- **Pricing runs separately**: NOT part of indexing pipeline to avoid clogging
+- **Independent services**: Pricing service processes events after they're indexed
+- **Batch processing**: Pricing handles thousands of events efficiently in separate process
+- **Error isolation**: Pricing issues don't affect core indexing functionality

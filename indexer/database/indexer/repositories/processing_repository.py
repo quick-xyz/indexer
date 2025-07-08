@@ -9,7 +9,7 @@ from ...connection import ModelDatabaseManager
 from ..tables.processing import TransactionProcessing
 from ....core.logging_config import log_with_context
 from ....types.new import EvmHash
-from ...repository import BaseRepository
+from ...base_repository import BaseRepository
 
 import logging
 

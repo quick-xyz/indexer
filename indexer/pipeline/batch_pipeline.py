@@ -5,7 +5,7 @@ from datetime import datetime, timezone
 import time
 
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, or_, Integer
 
 from ..core.logging_config import IndexerLogger, log_with_context
 from ..database.repository import RepositoryManager
@@ -18,13 +18,14 @@ import logging
 
 class BatchPipeline:
     """
-    Batch processing pipeline for large-scale block processing.
+    Batch processing pipeline for large-scale block processing with dual database support.
     
     Handles:
     - Discovery of available blocks in storage
-    - Intelligent job queue population
+    - Intelligent job queue population with conflict avoidance
     - Batch processing with configurable batch sizes
-    - Progress tracking and resumption
+    - Progress tracking and resumption across both databases
+    - Integration with shared database for pricing and infrastructure
     """
     
     def __init__(
@@ -33,6 +34,14 @@ class BatchPipeline:
         storage_handler: GCSHandler,
         indexing_pipeline: IndexingPipeline
     ):
+        """
+        Initialize batch pipeline with dependency injection.
+        
+        Args:
+            repository_manager: Unified access to both indexer and shared databases
+            storage_handler: For discovering available blocks in storage
+            indexing_pipeline: For processing individual blocks
+        """
         self.repository_manager = repository_manager
         self.storage_handler = storage_handler
         self.indexing_pipeline = indexing_pipeline
@@ -40,259 +49,222 @@ class BatchPipeline:
         self.logger = IndexerLogger.get_logger('pipeline.batch_pipeline')
         
         log_with_context(
-            self.logger, logging.INFO, "BatchPipeline initialized"
+            self.logger, logging.INFO, "BatchPipeline initialized",
+            has_shared_db=repository_manager.has_shared_access()
         )
     
     def discover_available_blocks(self, source_id: Optional[int] = None) -> List[int]:
         """
         Discover all available blocks in storage bucket.
         
-        Returns sorted list of block numbers available for processing.
-        """
-        try:
-            log_with_context(
-                self.logger, logging.INFO, "Discovering available blocks",
-                source_id=source_id
-            )
-            
-            # Get primary source for block discovery
-            config = self.storage_handler.storage_config
-            if hasattr(config, 'get_primary_source'):
-                primary_source = config.get_primary_source()
-            else:
-                # Fallback for older configs
-                primary_source = None
-            
-            # List available RPC blocks
-            available_blocks = self.storage_handler.list_rpc_blocks(source=primary_source)
-            
-            log_with_context(
-                self.logger, logging.INFO, "Block discovery completed",
-                total_blocks=len(available_blocks),
-                earliest_block=min(available_blocks) if available_blocks else None,
-                latest_block=max(available_blocks) if available_blocks else None
-            )
-            
-            return sorted(available_blocks)
-            
-        except Exception as e:
-            log_with_context(
-                self.logger, logging.ERROR, "Block discovery failed",
-                error=str(e)
-            )
-            return []
-    
-    def get_unprocessed_blocks(self, available_blocks: List[int]) -> List[int]:
-        """
-        Filter available blocks to find those not yet processed.
-        
-        Checks against:
-        - Existing processing jobs (pending/processing/complete)
-        - Complete blocks in storage
-        """
-        try:
-            with self.repository_manager.get_session() as session:
-                # Get blocks that already have jobs
-                existing_jobs = session.query(ProcessingJob.job_data).filter(
-                    and_(
-                        ProcessingJob.job_type == JobType.BLOCK,
-                        ProcessingJob.status.in_([JobStatus.PENDING, JobStatus.PROCESSING, JobStatus.COMPLETE])
-                    )
-                ).all()
-                
-                processed_blocks = set()
-                for job in existing_jobs:
-                    block_num = job.job_data.get('block_number')
-                    if block_num:
-                        processed_blocks.add(block_num)
-                
-                # Get complete blocks from storage
-                complete_blocks = set(self.storage_handler.list_complete_blocks())
-                
-                # Combine all processed blocks
-                all_processed = processed_blocks.union(complete_blocks)
-                
-                # Filter to unprocessed blocks
-                unprocessed = [block for block in available_blocks if block not in all_processed]
-                
-                log_with_context(
-                    self.logger, logging.INFO, "Unprocessed blocks identified",
-                    available_blocks=len(available_blocks),
-                    already_processed=len(all_processed),
-                    unprocessed_blocks=len(unprocessed)
-                )
-                
-                return sorted(unprocessed)
-                
-        except Exception as e:
-            log_with_context(
-                self.logger, logging.ERROR, "Failed to identify unprocessed blocks",
-                error=str(e)
-            )
-            return available_blocks  # Fallback to all available
-    
-    def queue_block_range(
-        self, 
-        start_block: int, 
-        end_block: int, 
-        batch_size: int = 100,
-        priority: int = 0
-    ) -> Tuple[int, int]:
-        """
-        Queue a range of blocks for processing in batches.
-        
-        Returns:
-            Tuple of (jobs_created, blocks_skipped)
-        """
-        log_with_context(
-            self.logger, logging.INFO, "Queuing block range",
-            start_block=start_block,
-            end_block=end_block,
-            batch_size=batch_size,
-            priority=priority
-        )
-        
-        jobs_created = 0
-        blocks_skipped = 0
-        
-        try:
-            with self.repository_manager.get_transaction() as session:
-                current_block = start_block
-                
-                while current_block <= end_block:
-                    batch_end = min(current_block + batch_size - 1, end_block)
-                    
-                    try:
-                        # Create batch job
-                        if batch_size == 1:
-                            # Single block job
-                            job = ProcessingJob.create_block_job(current_block, priority)
-                        else:
-                            # Block range job
-                            job = ProcessingJob.create_block_range_job(
-                                current_block, batch_end, priority
-                            )
-                        
-                        session.add(job)
-                        session.flush()
-                        jobs_created += 1
-                        
-                        log_with_context(
-                            self.logger, logging.DEBUG, "Batch job created",
-                            start_block=current_block,
-                            end_block=batch_end,
-                            job_type=job.job_type.value
-                        )
-                        
-                    except IntegrityError:
-                        # Job already exists
-                        session.rollback()
-                        session.begin()
-                        blocks_skipped += (batch_end - current_block + 1)
-                        
-                        log_with_context(
-                            self.logger, logging.DEBUG, "Batch job already exists",
-                            start_block=current_block,
-                            end_block=batch_end
-                        )
-                    
-                    current_block = batch_end + 1
-                
-                log_with_context(
-                    self.logger, logging.INFO, "Block range queuing completed",
-                    jobs_created=jobs_created,
-                    blocks_skipped=blocks_skipped
-                )
-                
-                return jobs_created, blocks_skipped
-                
-        except Exception as e:
-            log_with_context(
-                self.logger, logging.ERROR, "Failed to queue block range",
-                start_block=start_block,
-                end_block=end_block,
-                error=str(e)
-            )
-            return 0, 0
-    
-    def queue_available_blocks(
-        self, 
-        max_blocks: int = 10000,
-        batch_size: int = 100,
-        priority: int = 0,
-        earliest_first: bool = True
-    ) -> Dict[str, int]:
-        """
-        Discover and queue available blocks for processing.
-        
         Args:
-            max_blocks: Maximum number of blocks to queue
-            batch_size: Size of processing batches  
-            priority: Job priority (higher = more priority)
-            earliest_first: Process earliest blocks first
+            source_id: Optional source ID to filter blocks (future enhancement)
             
         Returns:
-            Dictionary with queue statistics
+            List[int]: Sorted list of block numbers available for processing
         """
+        
         log_with_context(
-            self.logger, logging.INFO, "Starting block queue population",
-            max_blocks=max_blocks,
-            batch_size=batch_size,
-            earliest_first=earliest_first
+            self.logger, logging.INFO, "Discovering available blocks in storage",
+            source_id=source_id
         )
         
         try:
-            # Discover available blocks
-            available_blocks = self.discover_available_blocks()
+            # Use storage handler to discover available blocks
+            available_blocks = self.storage_handler.discover_blocks()
+            
             if not available_blocks:
                 log_with_context(
                     self.logger, logging.WARNING, "No blocks found in storage"
                 )
-                return {"available": 0, "queued": 0, "skipped": 0, "jobs_created": 0}
+                return []
             
-            # Filter to unprocessed blocks
-            unprocessed_blocks = self.get_unprocessed_blocks(available_blocks)
+            # Sort blocks for consistent processing order
+            sorted_blocks = sorted(available_blocks)
             
-            # Sort blocks (earliest or latest first)
-            if earliest_first:
-                target_blocks = sorted(unprocessed_blocks)[:max_blocks]
-            else:
-                target_blocks = sorted(unprocessed_blocks, reverse=True)[:max_blocks]
+            log_with_context(
+                self.logger, logging.INFO, "Block discovery completed",
+                total_blocks=len(sorted_blocks),
+                earliest_block=min(sorted_blocks),
+                latest_block=max(sorted_blocks)
+            )
             
-            if not target_blocks:
+            return sorted_blocks
+            
+        except Exception as e:
+            log_with_context(
+                self.logger, logging.ERROR, "Block discovery failed",
+                error=str(e),
+                exception_type=type(e).__name__
+            )
+            return []
+    
+    def get_processed_blocks(self) -> Set[int]:
+        """
+        Get set of blocks that have already been processed successfully.
+        
+        Returns:
+            Set[int]: Block numbers that have completed processing
+        """
+        
+        try:
+            with self.repository_manager.get_session() as session:
+                # Query for completed block jobs
+                completed_jobs = session.query(ProcessingJob).filter(
+                    and_(
+                        ProcessingJob.job_type == JobType.BLOCK,
+                        ProcessingJob.status == JobStatus.COMPLETE
+                    )
+                ).all()
+                
+                # Extract block numbers from job data
+                processed_blocks = set()
+                for job in completed_jobs:
+                    block_number = job.job_data.get('block_number')
+                    if block_number:
+                        processed_blocks.add(int(block_number))
+                
                 log_with_context(
-                    self.logger, logging.INFO, "All available blocks already processed"
+                    self.logger, logging.DEBUG, "Retrieved processed blocks",
+                    processed_count=len(processed_blocks)
+                )
+                
+                return processed_blocks
+                
+        except Exception as e:
+            log_with_context(
+                self.logger, logging.ERROR, "Failed to get processed blocks",
+                error=str(e)
+            )
+            return set()
+    
+    def get_pending_blocks(self) -> Set[int]:
+        """
+        Get set of blocks that are already queued for processing.
+        
+        Returns:
+            Set[int]: Block numbers that are pending or currently processing
+        """
+        
+        try:
+            with self.repository_manager.get_session() as session:
+                # Query for pending/processing block jobs
+                pending_jobs = session.query(ProcessingJob).filter(
+                    and_(
+                        ProcessingJob.job_type == JobType.BLOCK,
+                        ProcessingJob.status.in_([JobStatus.PENDING, JobStatus.PROCESSING])
+                    )
+                ).all()
+                
+                # Extract block numbers from job data
+                pending_blocks = set()
+                for job in pending_jobs:
+                    block_number = job.job_data.get('block_number')
+                    if block_number:
+                        pending_blocks.add(int(block_number))
+                
+                log_with_context(
+                    self.logger, logging.DEBUG, "Retrieved pending blocks",
+                    pending_count=len(pending_blocks)
+                )
+                
+                return pending_blocks
+                
+        except Exception as e:
+            log_with_context(
+                self.logger, logging.ERROR, "Failed to get pending blocks",
+                error=str(e)
+            )
+            return set()
+    
+    def queue_available_blocks(
+        self,
+        max_blocks: int,
+        batch_size: int = 100,
+        earliest_first: bool = True,
+        priority: int = 1000
+    ) -> Dict[str, int]:
+        """
+        Queue available blocks for processing, avoiding duplicates.
+        
+        Args:
+            max_blocks: Maximum number of blocks to queue
+            batch_size: Number of blocks to process in each batch job
+            earliest_first: Process earliest blocks first (True) or latest first (False)
+            priority: Priority level for created jobs
+            
+        Returns:
+            Dict with statistics: available, unprocessed, queued, skipped, jobs_created
+        """
+        
+        log_with_context(
+            self.logger, logging.INFO, "Queuing available blocks for processing",
+            max_blocks=max_blocks,
+            batch_size=batch_size,
+            earliest_first=earliest_first,
+            priority=priority
+        )
+        
+        try:
+            # Step 1: Discover available blocks
+            available_blocks = self.discover_available_blocks()
+            if not available_blocks:
+                return {"available": 0, "unprocessed": 0, "queued": 0, "skipped": 0, "jobs_created": 0}
+            
+            # Step 2: Filter out already processed blocks
+            processed_blocks = self.get_processed_blocks()
+            pending_blocks = self.get_pending_blocks()
+            
+            # Blocks that need processing (not processed and not already queued)
+            unprocessed_blocks = [
+                block for block in available_blocks 
+                if block not in processed_blocks and block not in pending_blocks
+            ]
+            
+            if not unprocessed_blocks:
+                log_with_context(
+                    self.logger, logging.INFO, "All available blocks already processed or queued"
                 )
                 return {
                     "available": len(available_blocks),
+                    "unprocessed": 0,
                     "queued": 0,
                     "skipped": len(available_blocks),
                     "jobs_created": 0
                 }
             
-            # Queue blocks in batches
+            # Step 3: Select target blocks based on preference and limit
+            if earliest_first:
+                target_blocks = sorted(unprocessed_blocks)[:max_blocks]
+            else:
+                target_blocks = sorted(unprocessed_blocks, reverse=True)[:max_blocks]
+            
+            # Step 4: Create jobs for target blocks
             total_jobs_created = 0
-            total_blocks_skipped = 0
+            total_blocks_queued = 0
             
-            start_block = min(target_blocks)
-            end_block = max(target_blocks)
-            
-            jobs_created, blocks_skipped = self.queue_block_range(
-                start_block, end_block, batch_size, priority
-            )
-            
-            total_jobs_created += jobs_created
-            total_blocks_skipped += blocks_skipped
+            if batch_size <= 1:
+                # Create individual block jobs
+                total_jobs_created, total_blocks_queued = self._queue_individual_blocks(
+                    target_blocks, priority
+                )
+            else:
+                # Create batch range jobs
+                total_jobs_created, total_blocks_queued = self._queue_block_ranges(
+                    target_blocks, batch_size, priority
+                )
             
             stats = {
                 "available": len(available_blocks),
                 "unprocessed": len(unprocessed_blocks),
-                "queued": len(target_blocks),
-                "skipped": total_blocks_skipped,
-                "jobs_created": total_jobs_created,
-                "earliest_block": min(target_blocks),
-                "latest_block": max(target_blocks)
+                "queued": total_blocks_queued,
+                "skipped": len(available_blocks) - total_blocks_queued,
+                "jobs_created": total_jobs_created
             }
+            
+            if target_blocks:
+                stats["earliest_block"] = min(target_blocks)
+                stats["latest_block"] = max(target_blocks)
             
             log_with_context(
                 self.logger, logging.INFO, "Block queue population completed",
@@ -304,9 +276,132 @@ class BatchPipeline:
         except Exception as e:
             log_with_context(
                 self.logger, logging.ERROR, "Block queue population failed",
+                error=str(e),
+                exception_type=type(e).__name__
+            )
+            return {"available": 0, "unprocessed": 0, "queued": 0, "skipped": 0, "jobs_created": 0}
+    
+    def _queue_individual_blocks(self, target_blocks: List[int], priority: int) -> Tuple[int, int]:
+        """
+        Create individual block jobs for each target block.
+        
+        Returns:
+            Tuple[int, int]: (jobs_created, blocks_queued)
+        """
+        
+        jobs_created = 0
+        blocks_queued = 0
+        
+        try:
+            with self.repository_manager.get_transaction() as session:
+                for block_number in target_blocks:
+                    try:
+                        # Double-check that block doesn't already have a job
+                        existing_job = session.query(ProcessingJob).filter(
+                            and_(
+                                ProcessingJob.job_type == JobType.BLOCK,
+                                ProcessingJob.job_data['block_number'].astext.cast(Integer) == block_number,
+                                ProcessingJob.status.in_([JobStatus.PENDING, JobStatus.PROCESSING, JobStatus.COMPLETE])
+                            )
+                        ).first()
+                        
+                        if existing_job:
+                            log_with_context(
+                                self.logger, logging.DEBUG, "Block already has job, skipping",
+                                block_number=block_number,
+                                existing_job_id=existing_job.id,
+                                existing_status=existing_job.status.value
+                            )
+                            continue
+                        
+                        # Create new block job
+                        job = ProcessingJob.create_block_job(block_number, priority=priority)
+                        session.add(job)
+                        
+                        jobs_created += 1
+                        blocks_queued += 1
+                        
+                    except IntegrityError:
+                        # Job was created by another worker, skip
+                        session.rollback()
+                        session.begin()
+                        continue
+                    except Exception as e:
+                        log_with_context(
+                            self.logger, logging.ERROR, "Failed to create job for block",
+                            block_number=block_number,
+                            error=str(e)
+                        )
+                        continue
+                
+                session.flush()
+                
+        except Exception as e:
+            log_with_context(
+                self.logger, logging.ERROR, "Failed to queue individual blocks",
                 error=str(e)
             )
-            return {"available": 0, "queued": 0, "skipped": 0, "jobs_created": 0}
+        
+        return jobs_created, blocks_queued
+    
+    def _queue_block_ranges(self, target_blocks: List[int], batch_size: int, priority: int) -> Tuple[int, int]:
+        """
+        Create block range jobs for efficient batch processing.
+        
+        Returns:
+            Tuple[int, int]: (jobs_created, blocks_queued)
+        """
+        
+        jobs_created = 0
+        blocks_queued = 0
+        
+        try:
+            with self.repository_manager.get_transaction() as session:
+                # Group blocks into ranges for batch processing
+                for i in range(0, len(target_blocks), batch_size):
+                    batch_blocks = target_blocks[i:i + batch_size]
+                    
+                    if not batch_blocks:
+                        continue
+                    
+                    start_block = min(batch_blocks)
+                    end_block = max(batch_blocks)
+                    
+                    try:
+                        # Create block range job
+                        job = ProcessingJob.create_block_range_job(
+                            start_block, end_block, priority=priority
+                        )
+                        session.add(job)
+                        
+                        jobs_created += 1
+                        blocks_queued += len(batch_blocks)
+                        
+                        log_with_context(
+                            self.logger, logging.DEBUG, "Created block range job",
+                            start_block=start_block,
+                            end_block=end_block,
+                            block_count=len(batch_blocks)
+                        )
+                        
+                    except Exception as e:
+                        log_with_context(
+                            self.logger, logging.ERROR, "Failed to create block range job",
+                            start_block=start_block,
+                            end_block=end_block,
+                            error=str(e)
+                        )
+                        continue
+                
+                session.flush()
+                
+        except Exception as e:
+            log_with_context(
+                self.logger, logging.ERROR, "Failed to queue block ranges",
+                error=str(e)
+            )
+        
+        return jobs_created, blocks_queued
     
     def process_batch(
         self, 
@@ -318,13 +413,14 @@ class BatchPipeline:
         Process queued jobs using the indexing pipeline.
         
         Args:
-            max_jobs: Maximum jobs to process (None = all available)
-            timeout_seconds: Maximum time to run (None = no timeout)
-            poll_interval: Seconds between job polls
+            max_jobs: Maximum number of jobs to process (None for unlimited)
+            timeout_seconds: Maximum time to run (None for unlimited)
+            poll_interval: Seconds to wait between job polls
             
         Returns:
-            Processing statistics
+            Dict with processing statistics
         """
+        
         log_with_context(
             self.logger, logging.INFO, "Starting batch processing",
             max_jobs=max_jobs,
@@ -333,64 +429,21 @@ class BatchPipeline:
         )
         
         start_time = time.time()
-        jobs_processed = 0
-        jobs_successful = 0
-        jobs_failed = 0
         
         try:
-            while True:
-                # Check timeout
-                if timeout_seconds and (time.time() - start_time) > timeout_seconds:
-                    log_with_context(
-                        self.logger, logging.INFO, "Batch processing timeout reached",
-                        elapsed_seconds=int(time.time() - start_time)
-                    )
-                    break
-                
-                # Check job limit
-                if max_jobs and jobs_processed >= max_jobs:
-                    log_with_context(
-                        self.logger, logging.INFO, "Max jobs limit reached",
-                        jobs_processed=jobs_processed
-                    )
-                    break
-                
-                # Get and process next job
-                job = self.indexing_pipeline._get_next_job()
-                
-                if job is None:
-                    log_with_context(
-                        self.logger, logging.DEBUG, "No jobs available",
-                        poll_interval=poll_interval
-                    )
-                    time.sleep(poll_interval)
-                    continue
-                
-                # Process job
-                success = self.indexing_pipeline._process_job(job)
-                jobs_processed += 1
-                
-                if success:
-                    jobs_successful += 1
-                else:
-                    jobs_failed += 1
-                
-                # Log progress every 10 jobs
-                if jobs_processed % 10 == 0:
-                    log_with_context(
-                        self.logger, logging.INFO, "Batch processing progress",
-                        jobs_processed=jobs_processed,
-                        successful=jobs_successful,
-                        failed=jobs_failed,
-                        elapsed_seconds=int(time.time() - start_time)
-                    )
+            # Start the indexing pipeline with specified limits
+            self.indexing_pipeline.start(
+                max_jobs=max_jobs,
+                poll_interval=poll_interval
+            )
             
-            stats = {
-                "jobs_processed": jobs_processed,
-                "successful": jobs_successful,
-                "failed": jobs_failed,
-                "elapsed_seconds": int(time.time() - start_time)
-            }
+            # Calculate actual runtime
+            end_time = time.time()
+            runtime_seconds = int(end_time - start_time)
+            
+            # Get final statistics
+            stats = self._get_processing_statistics()
+            stats["runtime_seconds"] = runtime_seconds
             
             log_with_context(
                 self.logger, logging.INFO, "Batch processing completed",
@@ -403,110 +456,177 @@ class BatchPipeline:
             log_with_context(
                 self.logger, logging.ERROR, "Batch processing failed",
                 error=str(e),
-                jobs_processed=jobs_processed
+                exception_type=type(e).__name__
             )
+            
             return {
-                "jobs_processed": jobs_processed,
-                "successful": jobs_successful,
-                "failed": jobs_failed,
-                "elapsed_seconds": int(time.time() - start_time)
+                "jobs_processed": 0,
+                "jobs_failed": 0,
+                "runtime_seconds": int(time.time() - start_time)
             }
     
-    def run_full_batch_cycle(
+    def run_full_pipeline(
         self,
-        max_blocks: int = 10000,
+        max_blocks: int,
         batch_size: int = 100,
         earliest_first: bool = True,
-        process_immediately: bool = True,
-        max_jobs: Optional[int] = None,
-        timeout_seconds: Optional[int] = None
-    ) -> Dict[str, any]:
+        max_jobs: Optional[int] = None
+    ) -> Dict[str, int]:
         """
-        Complete batch cycle: discover, queue, and process blocks.
+        Run complete pipeline: discover blocks, queue jobs, process batch.
         
-        This is the main entry point for batch processing operations.
+        Args:
+            max_blocks: Maximum blocks to discover and queue
+            batch_size: Batch size for job creation
+            earliest_first: Process earliest blocks first
+            max_jobs: Maximum jobs to process (None for all queued)
+            
+        Returns:
+            Dict with complete pipeline statistics
         """
+        
         log_with_context(
-            self.logger, logging.INFO, "Starting full batch cycle",
+            self.logger, logging.INFO, "Starting full pipeline run",
             max_blocks=max_blocks,
             batch_size=batch_size,
             earliest_first=earliest_first,
-            process_immediately=process_immediately
+            max_jobs=max_jobs
         )
         
-        cycle_start = time.time()
+        start_time = time.time()
         
         try:
-            # Phase 1: Queue blocks
+            # Step 1: Queue available blocks
             queue_stats = self.queue_available_blocks(
                 max_blocks=max_blocks,
                 batch_size=batch_size,
                 earliest_first=earliest_first
             )
             
-            # Phase 2: Process blocks (if requested)
-            if process_immediately and queue_stats.get("jobs_created", 0) > 0:
-                process_stats = self.process_batch(
-                    max_jobs=max_jobs,
-                    timeout_seconds=timeout_seconds
-                )
+            # Step 2: Process queued jobs
+            if queue_stats["jobs_created"] > 0:
+                process_stats = self.process_batch(max_jobs=max_jobs)
             else:
-                process_stats = {"jobs_processed": 0, "successful": 0, "failed": 0}
+                process_stats = {"jobs_processed": 0, "jobs_failed": 0, "runtime_seconds": 0}
             
             # Combine statistics
-            final_stats = {
-                "cycle_type": "full_batch",
-                "queue_phase": queue_stats,
-                "process_phase": process_stats,
-                "total_elapsed_seconds": int(time.time() - cycle_start)
+            combined_stats = {
+                **queue_stats,
+                **process_stats,
+                "total_runtime_seconds": int(time.time() - start_time)
             }
             
             log_with_context(
-                self.logger, logging.INFO, "Full batch cycle completed",
-                **final_stats
+                self.logger, logging.INFO, "Full pipeline run completed",
+                **combined_stats
             )
             
-            return final_stats
+            return combined_stats
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Full batch cycle failed",
-                error=str(e)
+                self.logger, logging.ERROR, "Full pipeline run failed",
+                error=str(e),
+                exception_type=type(e).__name__
             )
+            
             return {
-                "cycle_type": "full_batch",
-                "error": str(e),
-                "total_elapsed_seconds": int(time.time() - cycle_start)
+                "available": 0,
+                "queued": 0,
+                "jobs_created": 0,
+                "jobs_processed": 0,
+                "jobs_failed": 0,
+                "total_runtime_seconds": int(time.time() - start_time)
             }
     
-    def get_processing_status(self) -> Dict[str, any]:
-        """Get current processing status and statistics"""
+    def _get_processing_statistics(self) -> Dict[str, int]:
+        """Get current processing job statistics"""
+        
         try:
             with self.repository_manager.get_session() as session:
-                # Job queue statistics
-                from sqlalchemy import func
+                # Count jobs by status
+                pending_count = session.query(ProcessingJob).filter(
+                    ProcessingJob.status == JobStatus.PENDING
+                ).count()
                 
-                job_stats = session.query(
-                    ProcessingJob.status,
-                    func.count(ProcessingJob.id).label('count')
-                ).group_by(ProcessingJob.status).all()
+                processing_count = session.query(ProcessingJob).filter(
+                    ProcessingJob.status == JobStatus.PROCESSING
+                ).count()
                 
-                job_counts = {status.value: 0 for status in JobStatus}
-                for status, count in job_stats:
-                    job_counts[status.value] = count
+                complete_count = session.query(ProcessingJob).filter(
+                    ProcessingJob.status == JobStatus.COMPLETE
+                ).count()
                 
-                # Storage statistics
-                storage_stats = self.storage_handler.get_processing_summary()
+                failed_count = session.query(ProcessingJob).filter(
+                    ProcessingJob.status == JobStatus.FAILED
+                ).count()
                 
                 return {
-                    "job_queue": job_counts,
-                    "storage": storage_stats,
-                    "timestamp": datetime.now(timezone.utc).isoformat()
+                    "jobs_pending": pending_count,
+                    "jobs_processing": processing_count,
+                    "jobs_complete": complete_count,
+                    "jobs_failed": failed_count,
+                    "jobs_total": pending_count + processing_count + complete_count + failed_count
                 }
                 
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Failed to get processing status",
+                self.logger, logging.ERROR, "Failed to get processing statistics",
+                error=str(e)
+            )
+            return {
+                "jobs_pending": 0,
+                "jobs_processing": 0,
+                "jobs_complete": 0,
+                "jobs_failed": 0,
+                "jobs_total": 0
+            }
+    
+    def get_status(self) -> Dict:
+        """
+        Get comprehensive status of batch pipeline and processing queue.
+        
+        Returns:
+            Dict with current pipeline status and statistics
+        """
+        
+        try:
+            # Get processing statistics
+            processing_stats = self._get_processing_statistics()
+            
+            # Get block statistics
+            available_blocks = self.discover_available_blocks()
+            processed_blocks = self.get_processed_blocks()
+            pending_blocks = self.get_pending_blocks()
+            
+            block_stats = {
+                "blocks_available": len(available_blocks),
+                "blocks_processed": len(processed_blocks),
+                "blocks_pending": len(pending_blocks),
+                "blocks_unprocessed": len(available_blocks) - len(processed_blocks) - len(pending_blocks)
+            }
+            
+            if available_blocks:
+                block_stats["earliest_available"] = min(available_blocks)
+                block_stats["latest_available"] = max(available_blocks)
+            
+            if processed_blocks:
+                block_stats["earliest_processed"] = min(processed_blocks)
+                block_stats["latest_processed"] = max(processed_blocks)
+            
+            # Combine all statistics
+            status = {
+                **processing_stats,
+                **block_stats,
+                "pipeline_running": self.indexing_pipeline.running,
+                "has_shared_db": self.repository_manager.has_shared_access()
+            }
+            
+            return status
+            
+        except Exception as e:
+            log_with_context(
+                self.logger, logging.ERROR, "Failed to get pipeline status",
                 error=str(e)
             )
             return {"error": str(e)}

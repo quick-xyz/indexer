@@ -17,6 +17,7 @@ from ..types import DatabaseConfig
 from ..core.logging_config import IndexerLogger, log_with_context
 from ..core.secrets_service import SecretsService
 from ..services.pricing_service_runner import PricingServiceRunner
+from ..database.migration_manager import MigrationManager
 import logging
 
 
@@ -35,7 +36,8 @@ class CLIContext:
         self.logger = IndexerLogger.get_logger('cli.context')
         self._infrastructure_db_manager: Optional[DatabaseManager] = None
         self._model_db_managers: Dict[str, DatabaseManager] = {}  # Cache for model-specific DB managers
-        
+        self._migration_manager: Optional['MigrationManager'] = None  # Cache migration manager
+
         log_with_context(self.logger, logging.INFO, "CLIContext initialized")
     
     @property
@@ -143,6 +145,29 @@ class CLIContext:
                         model_name=model_name, db_name=model_db_name)
         
         return db_manager
+    
+
+    def get_migration_manager(self) -> 'MigrationManager':
+        """Get the migration manager with proper DI"""
+        if self._migration_manager is None:
+            from ..database.migration_manager import MigrationManager
+            from ..core.secrets_service import SecretsService
+            
+            # Get project ID
+            project_id = os.getenv("INDEXER_GCP_PROJECT_ID")
+            if not project_id:
+                raise RuntimeError("INDEXER_GCP_PROJECT_ID required for migration operations")
+            
+            # Create SecretsService
+            secrets_service = SecretsService(project_id)
+            
+            # Create MigrationManager with proper DI
+            self._migration_manager = MigrationManager(
+                infrastructure_db_manager=self.infrastructure_db_manager,
+                secrets_service=secrets_service
+            )
+        
+        return self._migration_manager
     
     # Service Factory Methods
     # These create service instances for CLI operations

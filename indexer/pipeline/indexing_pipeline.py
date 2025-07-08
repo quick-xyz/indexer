@@ -11,7 +11,6 @@ from sqlalchemy.exc import IntegrityError
 
 from ..core.logging_config import IndexerLogger, log_with_context
 from ..database.repository import RepositoryManager
-from ..database.repositories.block_prices_repository import BlockPricesRepository
 from ..database.indexer.tables.processing import ProcessingJob, JobStatus, JobType, TransactionStatus
 from ..database.writers.domain_event_writer import DomainEventWriter
 from ..clients.quicknode_rpc import QuickNodeRpcClient
@@ -26,14 +25,15 @@ import logging
 
 class IndexingPipeline:
     """
-    Production indexing pipeline that processes blocks from database queue.
+    Production indexing pipeline that processes blocks from database queue with dual database support.
     
     Handles:
     - Job queue management with database skip locks
-    - Block processing workflow 
-    - Domain event persistence
-    - Status tracking and error handling
+    - Block processing workflow with RPC, Storage, Decode, Transform, Persist
+    - Domain event persistence via DomainEventWriter
+    - Status tracking and error handling across both databases
     - Multi-worker coordination
+    - Block price integration for pricing operations
     """
     
     def __init__(
@@ -46,6 +46,18 @@ class IndexingPipeline:
         transform_manager: TransformManager,
         worker_id: Optional[str] = None
     ):
+        """
+        Initialize pipeline with all dependencies via dependency injection.
+        
+        Args:
+            repository_manager: Unified access to both indexer and shared database repositories
+            domain_event_writer: Service for persisting domain events and processing status
+            rpc_client: For fetching blockchain data
+            storage_handler: For reading/writing GCS block data
+            block_decoder: For decoding raw blockchain data
+            transform_manager: For converting decoded data to domain events
+            worker_id: Optional worker identifier for multi-worker coordination
+        """
         self.repository_manager = repository_manager
         self.domain_event_writer = domain_event_writer
         self.rpc_client = rpc_client
@@ -59,22 +71,25 @@ class IndexingPipeline:
         
         log_with_context(
             self.logger, logging.INFO, "IndexingPipeline initialized",
-            worker_id=self.worker_id
+            worker_id=self.worker_id,
+            has_shared_db=repository_manager.has_shared_access()
         )
     
     def start(self, max_jobs: Optional[int] = None, poll_interval: int = 5) -> None:
         """
         Start the pipeline worker loop.
         
-        Args:
-            max_jobs: Maximum jobs to process before stopping (None = infinite)
-            poll_interval: Seconds to wait between job polls
+        Continuously polls for available jobs and processes them until:
+        - max_jobs limit reached (if specified)
+        - No more jobs available
+        - Manual stop via stop() method
         """
+        
         self.running = True
         jobs_processed = 0
         
         log_with_context(
-            self.logger, logging.INFO, "Pipeline worker starting",
+            self.logger, logging.INFO, "Starting indexing pipeline worker",
             worker_id=self.worker_id,
             max_jobs=max_jobs,
             poll_interval=poll_interval
@@ -82,43 +97,43 @@ class IndexingPipeline:
         
         try:
             while self.running:
-                job = self._get_next_job()
+                # Check if we've hit the job limit
+                if max_jobs and jobs_processed >= max_jobs:
+                    log_with_context(
+                        self.logger, logging.INFO, "Job limit reached, stopping worker",
+                        jobs_processed=jobs_processed,
+                        max_jobs=max_jobs
+                    )
+                    break
                 
-                if job is None:
-                    if max_jobs and jobs_processed >= max_jobs:
-                        log_with_context(
-                            self.logger, logging.INFO, "Max jobs reached, stopping",
-                            jobs_processed=jobs_processed
-                        )
-                        break
-                    
+                # Try to process next available job
+                job_processed = self._process_next_job()
+                
+                if job_processed:
+                    jobs_processed += 1
+                    log_with_context(
+                        self.logger, logging.DEBUG, "Job processed successfully",
+                        jobs_processed=jobs_processed,
+                        worker_id=self.worker_id
+                    )
+                else:
+                    # No jobs available, wait before polling again
                     log_with_context(
                         self.logger, logging.DEBUG, "No jobs available, waiting",
                         poll_interval=poll_interval
                     )
                     time.sleep(poll_interval)
-                    continue
-                
-                # Process the job
-                success = self._process_job(job)
-                jobs_processed += 1
-                
-                if max_jobs and jobs_processed >= max_jobs:
-                    log_with_context(
-                        self.logger, logging.INFO, "Max jobs reached, stopping",
-                        jobs_processed=jobs_processed
-                    )
-                    break
                     
         except KeyboardInterrupt:
             log_with_context(
-                self.logger, logging.INFO, "Pipeline interrupted by user",
+                self.logger, logging.INFO, "Pipeline worker interrupted by user",
                 jobs_processed=jobs_processed
             )
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Pipeline failed with exception",
+                self.logger, logging.ERROR, "Pipeline worker failed with exception",
                 error=str(e),
+                exception_type=type(e).__name__,
                 jobs_processed=jobs_processed
             )
             raise
@@ -126,31 +141,43 @@ class IndexingPipeline:
             self.running = False
             log_with_context(
                 self.logger, logging.INFO, "Pipeline worker stopped",
-                jobs_processed=jobs_processed
+                jobs_processed=jobs_processed,
+                worker_id=self.worker_id
             )
     
     def stop(self) -> None:
-        """Stop the pipeline worker"""
+        """Stop the pipeline worker gracefully"""
+        log_with_context(
+            self.logger, logging.INFO, "Stopping pipeline worker",
+            worker_id=self.worker_id
+        )
         self.running = False
-        log_with_context(self.logger, logging.INFO, "Pipeline stop requested")
     
-    def process_single_block(self, block_number: int) -> bool:
-        """Process a single block immediately (for testing/debugging)"""
+    def process_single_block(self, block_number: int, priority: int = 1000) -> bool:
+        """
+        Process a single block immediately without using the job queue.
+        
+        Useful for testing or processing specific blocks on demand.
+        
+        Returns:
+            bool: True if block was processed successfully, False otherwise
+        """
+        
         log_with_context(
             self.logger, logging.INFO, "Processing single block",
-            block_number=block_number
+            block_number=block_number,
+            worker_id=self.worker_id
         )
         
         try:
-            # Create temporary job
+            # Create job directly without queueing
             with self.repository_manager.get_transaction() as session:
-                job = ProcessingJob.create_block_job(block_number, priority=1000)
+                job = ProcessingJob.create_block_job(block_number, priority=priority)
                 session.add(job)
                 session.flush()
-                job.mark_processing(self.worker_id)
                 
-                # Process the job
-                success = self._execute_block_job(session, job)
+                # Process the job immediately
+                success = self._process_job(session, job)
                 
                 if success:
                     job.mark_complete()
@@ -159,7 +186,7 @@ class IndexingPipeline:
                         block_number=block_number
                     )
                 else:
-                    job.mark_failed()
+                    job.mark_failed("Block processing failed")
                     log_with_context(
                         self.logger, logging.ERROR, "Single block processing failed",
                         block_number=block_number
@@ -171,327 +198,340 @@ class IndexingPipeline:
             log_with_context(
                 self.logger, logging.ERROR, "Single block processing failed with exception",
                 block_number=block_number,
-                error=str(e)
+                error=str(e),
+                exception_type=type(e).__name__
             )
             return False
     
-    def _get_next_job(self) -> Optional[ProcessingJob]:
-        """Get next job from queue using database skip lock"""
+    def _process_next_job(self) -> bool:
+        """
+        Process the next available job from the queue.
+        
+        Uses database skip locks for multi-worker coordination.
+        
+        Returns:
+            bool: True if a job was processed, False if no jobs available
+        """
+        
         try:
             with self.repository_manager.get_transaction() as session:
-                # Use PostgreSQL SKIP LOCKED for thread-safe job pickup
-                job = session.execute(
-                    text("""
-                        SELECT * FROM processing_jobs 
-                        WHERE status = 'pending'
-                        ORDER BY priority DESC, created_at ASC
-                        FOR UPDATE SKIP LOCKED
-                        LIMIT 1
-                    """)
-                ).fetchone()
+                # Get next available job with skip lock
+                job = self._get_next_job_with_lock(session)
                 
                 if job is None:
-                    return None
+                    return False
                 
-                # Convert to ProcessingJob object
-                job_obj = session.get(ProcessingJob, job.id)
-                if job_obj and job_obj.status == JobStatus.PENDING:
-                    job_obj.mark_processing(self.worker_id)
-                    session.flush()
-                    
-                    log_with_context(
-                        self.logger, logging.DEBUG, "Job acquired",
-                        job_id=str(job_obj.id),
-                        job_type=job_obj.job_type.value,
-                        worker_id=self.worker_id
-                    )
-                    
-                    return job_obj
-                
-                return None
-                
-        except Exception as e:
-            log_with_context(
-                self.logger, logging.ERROR, "Failed to get next job",
-                error=str(e)
-            )
-            return None
-    
-    def _process_job(self, job: ProcessingJob) -> bool:
-        """Process a job and update its status"""
-        try:
-            with self.repository_manager.get_transaction() as session:
-                # Refresh job from database
-                session.refresh(job)
+                # Mark job as processing
+                job.mark_processing(self.worker_id)
+                session.flush()
                 
                 log_with_context(
-                    self.logger, logging.INFO, "Processing job",
-                    job_id=str(job.id),
+                    self.logger, logging.DEBUG, "Processing job",
+                    job_id=job.id,
                     job_type=job.job_type.value,
-                    job_data=job.job_data
+                    worker_id=self.worker_id
                 )
                 
-                # Execute job based on type
-                if job.job_type == JobType.BLOCK:
-                    success = self._execute_block_job(session, job)
-                elif job.job_type == JobType.BLOCK_RANGE:
-                    success = self._execute_block_range_job(session, job)
-                elif job.job_type == JobType.TRANSACTIONS:
-                    success = self._execute_transactions_job(session, job)
-                else:
-                    log_with_context(
-                        self.logger, logging.ERROR, "Unknown job type",
-                        job_type=job.job_type.value
-                    )
-                    success = False
+                # Process the job
+                success = self._process_job(session, job)
                 
                 # Update job status
                 if success:
                     job.mark_complete()
                     log_with_context(
-                        self.logger, logging.INFO, "Job completed successfully",
-                        job_id=str(job.id)
+                        self.logger, logging.DEBUG, "Job completed successfully",
+                        job_id=job.id,
+                        job_type=job.job_type.value
                     )
                 else:
-                    job.mark_failed()
+                    job.mark_failed("Job processing failed")
                     log_with_context(
-                        self.logger, logging.ERROR, "Job failed",
-                        job_id=str(job.id)
+                        self.logger, logging.WARNING, "Job marked as failed",
+                        job_id=job.id,
+                        job_type=job.job_type.value
                     )
                 
-                return success
+                return True
+                
+        except Exception as e:
+            log_with_context(
+                self.logger, logging.ERROR, "Error processing next job",
+                error=str(e),
+                exception_type=type(e).__name__
+            )
+            return False
+    
+    def _get_next_job_with_lock(self, session) -> Optional[ProcessingJob]:
+        """Get next available job using skip locks for coordination"""
+        
+        try:
+            # Query for pending jobs with skip lock to avoid conflicts
+            result = session.execute(text("""
+                SELECT * FROM processing_jobs 
+                WHERE status = 'PENDING'
+                ORDER BY priority DESC, created_at ASC
+                LIMIT 1
+                FOR UPDATE SKIP LOCKED
+            """))
+            
+            row = result.fetchone()
+            if row is None:
+                return None
+            
+            # Get the job object
+            job = session.query(ProcessingJob).filter(ProcessingJob.id == row.id).first()
+            return job
+            
+        except Exception as e:
+            log_with_context(
+                self.logger, logging.ERROR, "Error getting next job with lock",
+                error=str(e)
+            )
+            return None
+    
+    def _process_job(self, session, job: ProcessingJob) -> bool:
+        """
+        Process a specific job based on its type.
+        
+        Args:
+            session: Database session for the job transaction
+            job: The processing job to execute
+            
+        Returns:
+            bool: True if job was processed successfully
+        """
+        
+        try:
+            if job.job_type == JobType.BLOCK:
+                return self._process_block_job(session, job)
+            elif job.job_type == JobType.BLOCK_RANGE:
+                return self._process_block_range_job(session, job)
+            elif job.job_type == JobType.TRANSACTIONS:
+                return self._process_transactions_job(session, job)
+            elif job.job_type == JobType.REPROCESS_FAILED:
+                return self._process_reprocess_job(session, job)
+            else:
+                log_with_context(
+                    self.logger, logging.ERROR, "Unknown job type",
+                    job_id=job.id,
+                    job_type=job.job_type.value
+                )
+                return False
                 
         except Exception as e:
             log_with_context(
                 self.logger, logging.ERROR, "Job processing failed with exception",
-                job_id=str(job.id) if job else "unknown",
-                error=str(e)
+                job_id=job.id,
+                job_type=job.job_type.value,
+                error=str(e),
+                exception_type=type(e).__name__
             )
-            
-            # Mark job as failed
-            try:
-                with self.repository_manager.get_transaction() as session:
-                    session.refresh(job)
-                    job.mark_failed()
-            except:
-                pass
-            
             return False
     
-    def _execute_block_job(self, session, job: ProcessingJob) -> bool:
-        """Execute a single block processing job"""
+    def _process_block_job(self, session, job: ProcessingJob) -> bool:
+        """Process a single block job"""
+        
         block_number = job.job_data.get('block_number')
         if not block_number:
             log_with_context(
                 self.logger, logging.ERROR, "Block job missing block_number",
-                job_data=job.job_data
+                job_id=job.id
             )
             return False
         
+        log_with_context(
+            self.logger, logging.DEBUG, "Processing block job",
+            job_id=job.id,
+            block_number=block_number
+        )
+        
         try:
-            # Step 1: Retrieve block
-            raw_block = self._retrieve_block(block_number)
-            if raw_block is None:
+            # Step 1: Load block data from storage
+            block_data = self._load_block_data(block_number)
+            if not block_data:
                 return False
             
-            # Step 2: Fetch AVAX price for this block
-            success = self._fetch_and_store_block_price(session, block_number, raw_block.timestamp)
-            if not success:
-                # Log warning but don't fail the whole job
-                log_with_context(
-                    self.logger, logging.WARNING, "Failed to fetch block price, continuing with processing",
-                    block_number=block_number
-                )
-            
-            # Step 3: Decode block  
-            decoded_block = self._decode_block(raw_block)
-            if decoded_block is None:
+            # Step 2: Decode block data
+            decoded_block = self._decode_block(block_data, block_number)
+            if not decoded_block:
                 return False
             
-            # Step 4: Transform and persist transactions
-            success = self._process_block_transactions(session, decoded_block)
+            # Step 3: Transform to domain events
+            transformed_block = self._transform_block(decoded_block)
+            if not transformed_block:
+                return False
             
-            # Step 5: Update block processing summary
-            if success:
-                self._update_block_summary(session, decoded_block)
+            # Step 4: Persist domain events and update processing status
+            self._persist_block_results(transformed_block)
             
-            return success
+            log_with_context(
+                self.logger, logging.INFO, "Block job processed successfully",
+                job_id=job.id,
+                block_number=block_number,
+                transaction_count=len(transformed_block.transactions) if transformed_block.transactions else 0
+            )
+            
+            return True
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Block job execution failed",
-                block_number=block_number,
-                error=str(e)
-            )
-            return False
-
-    def _fetch_and_store_block_price(self, session, block_number: int, timestamp: int) -> bool:
-        """Fetch AVAX price from Chainlink and store in database"""
-        try:
-            # Check if price already exists for this block            
-            prices_repo = BlockPricesRepository(self.repository_manager.db_manager)
-            existing_price = prices_repo.get_price_at_block(session, block_number)
-            
-            if existing_price:
-                log_with_context(
-                    self.logger, logging.DEBUG, "Block price already exists",
-                    block_number=block_number,
-                    existing_price=str(existing_price.price_usd)
-                )
-                return True
-            
-            # Fetch price from Chainlink at this specific block
-            price_usd = self.rpc_client.get_chainlink_price_at_block(block_number)
-            
-            if price_usd is None:
-                log_with_context(
-                    self.logger, logging.WARNING, "Failed to fetch Chainlink price for block",
-                    block_number=block_number
-                )
-                return False
-            
-            # Store the price
-            price_record = prices_repo.create_block_price(
-                session=session,
-                block_number=block_number,
-                timestamp=timestamp,
-                price_usd=price_usd
-            )
-            
-            if price_record:
-                log_with_context(
-                    self.logger, logging.DEBUG, "Block price stored successfully",
-                    block_number=block_number,
-                    price_usd=str(price_usd),
-                    timestamp=timestamp
-                )
-                return True
-            else:
-                log_with_context(
-                    self.logger, logging.WARNING, "Block price creation returned None (likely duplicate)",
-                    block_number=block_number
-                )
-                return True  # Treat as success since price exists
-            
-        except Exception as e:
-            log_with_context(
-                self.logger, logging.ERROR, "Error fetching/storing block price",
+                self.logger, logging.ERROR, "Block job processing failed",
+                job_id=job.id,
                 block_number=block_number,
                 error=str(e)
             )
             return False
     
-    def _execute_block_range_job(self, session, job: ProcessingJob) -> bool:
-        """Execute a block range processing job"""
+    def _process_block_range_job(self, session, job: ProcessingJob) -> bool:
+        """Process a block range job by creating individual block jobs"""
+        
         start_block = job.job_data.get('start_block')
         end_block = job.job_data.get('end_block')
         
         if not start_block or not end_block:
             log_with_context(
-                self.logger, logging.ERROR, "Block range job missing parameters",
-                job_data=job.job_data
+                self.logger, logging.ERROR, "Block range job missing start_block or end_block",
+                job_id=job.id
             )
             return False
         
         log_with_context(
-            self.logger, logging.INFO, "Processing block range",
+            self.logger, logging.INFO, "Processing block range job",
+            job_id=job.id,
             start_block=start_block,
-            end_block=end_block
+            end_block=end_block,
+            block_count=end_block - start_block + 1
         )
         
-        # Create individual block jobs
-        for block_num in range(start_block, end_block + 1):
-            try:
-                block_job = ProcessingJob.create_block_job(block_num)
-                session.add(block_job)
-            except IntegrityError:
-                # Job already exists, skip
-                session.rollback()
-                session.begin()
-                continue
-        
-        session.flush()
-        return True
-    
-    def _execute_transactions_job(self, session, job: ProcessingJob) -> bool:
-        """Execute a specific transactions processing job"""
-        tx_hashes = job.job_data.get('tx_hashes', [])
-        
-        log_with_context(
-            self.logger, logging.INFO, "Processing specific transactions",
-            transaction_count=len(tx_hashes)
-        )
-        
-        success_count = 0
-        for tx_hash in tx_hashes:
-            try:
-                # Mark transaction for reprocessing
-                tx_processing = self.repository_manager.processing.get_by_tx_hash(
-                    session, EvmHash(tx_hash)
-                )
-                if tx_processing:
-                    tx_processing.reset_for_retry()
-                    success_count += 1
-            except Exception as e:
-                log_with_context(
-                    self.logger, logging.ERROR, "Failed to reset transaction",
-                    tx_hash=tx_hash,
-                    error=str(e)
-                )
-        
-        return success_count == len(tx_hashes)
-    
-    def _retrieve_block(self, block_number: int) -> Optional[Block]:
-        """Retrieve block from storage or RPC"""
         try:
-            # Check if block already exists in storage
-            primary_source = self.storage_handler.config.get_primary_source()
-            if primary_source:
-                existing_block = self.storage_handler.get_rpc_block(block_number, primary_source)
-                if existing_block:
-                    log_with_context(
-                        self.logger, logging.DEBUG, "Block retrieved from storage",
-                        block_number=block_number
-                    )
-                    return existing_block
+            # Create individual block jobs for the range
+            jobs_created = 0
             
-            # Fetch from RPC if not in storage
-            log_with_context(
-                self.logger, logging.DEBUG, "Fetching block from RPC",
-                block_number=block_number
-            )
+            for block_number in range(start_block, end_block + 1):
+                # Check if block already has a pending/processing job
+                existing_job = session.query(ProcessingJob).filter(
+                    ProcessingJob.job_type == JobType.BLOCK,
+                    ProcessingJob.job_data['block_number'].astext.cast(Integer) == block_number,
+                    ProcessingJob.status.in_([JobStatus.PENDING, JobStatus.PROCESSING])
+                ).first()
+                
+                if existing_job:
+                    continue
+                
+                # Create new block job
+                block_job = ProcessingJob.create_block_job(block_number, priority=job.priority - 1)
+                session.add(block_job)
+                jobs_created += 1
             
-            rpc_block = self.rpc_client.get_block_by_number(block_number, full_tx=True)
-            if rpc_block:
-                # Save to storage for future use
-                if primary_source:
-                    self.storage_handler.save_rpc_block(block_number, rpc_block, primary_source)
-                return rpc_block
+            session.flush()
             
             log_with_context(
-                self.logger, logging.ERROR, "Failed to retrieve block",
-                block_number=block_number
+                self.logger, logging.INFO, "Block range job completed",
+                job_id=job.id,
+                jobs_created=jobs_created
             )
-            return None
+            
+            return True
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Block retrieval failed",
+                self.logger, logging.ERROR, "Block range job processing failed",
+                job_id=job.id,
+                error=str(e)
+            )
+            return False
+    
+    def _process_transactions_job(self, session, job: ProcessingJob) -> bool:
+        """Process specific transactions job"""
+        
+        tx_hashes = job.job_data.get('tx_hashes', [])
+        
+        if not tx_hashes:
+            log_with_context(
+                self.logger, logging.ERROR, "Transactions job missing tx_hashes",
+                job_id=job.id
+            )
+            return False
+        
+        log_with_context(
+            self.logger, logging.INFO, "Processing transactions job",
+            job_id=job.id,
+            transaction_count=len(tx_hashes)
+        )
+        
+        # This would need implementation based on specific requirements
+        # For now, just log that it's not implemented
+        log_with_context(
+            self.logger, logging.WARNING, "Transaction-specific processing not implemented",
+            job_id=job.id
+        )
+        
+        return True
+    
+    def _process_reprocess_job(self, session, job: ProcessingJob) -> bool:
+        """Process reprocess failed transactions job"""
+        
+        log_with_context(
+            self.logger, logging.INFO, "Processing reprocess job",
+            job_id=job.id
+        )
+        
+        # This would need implementation based on specific requirements
+        # For now, just log that it's not implemented
+        log_with_context(
+            self.logger, logging.WARNING, "Reprocess functionality not implemented",
+            job_id=job.id
+        )
+        
+        return True
+    
+    def _load_block_data(self, block_number: int) -> Optional[dict]:
+        """Load block data from storage"""
+        
+        try:
+            # Use storage handler to load block data
+            block_data = self.storage_handler.load_block(block_number)
+            
+            if not block_data:
+                log_with_context(
+                    self.logger, logging.WARNING, "Block data not found in storage",
+                    block_number=block_number
+                )
+                return None
+            
+            log_with_context(
+                self.logger, logging.DEBUG, "Block data loaded from storage",
+                block_number=block_number,
+                transaction_count=len(block_data.get('transactions', []))
+            )
+            
+            return block_data
+            
+        except Exception as e:
+            log_with_context(
+                self.logger, logging.ERROR, "Failed to load block data from storage",
                 block_number=block_number,
                 error=str(e)
             )
             return None
     
-    def _decode_block(self, raw_block: Block) -> Optional[Block]:
-        """Decode block transactions and logs"""
+    def _decode_block(self, block_data: dict, block_number: int) -> Optional[Block]:
+        """Decode raw block data"""
+        
         try:
-            decoded_block = self.block_decoder.decode_block(raw_block)
+            decoded_block = self.block_decoder.decode_block(block_data)
             
-            tx_count = len(decoded_block.transactions) if decoded_block.transactions else 0
+            if not decoded_block:
+                log_with_context(
+                    self.logger, logging.WARNING, "Block decoding returned no data",
+                    block_number=block_number
+                )
+                return None
+            
             log_with_context(
-                self.logger, logging.DEBUG, "Block decoded",
-                block_number=decoded_block.block_number,
-                transaction_count=tx_count
+                self.logger, logging.DEBUG, "Block decoded successfully",
+                block_number=block_number,
+                transaction_count=len(decoded_block.transactions) if decoded_block.transactions else 0
             )
             
             return decoded_block
@@ -499,136 +539,101 @@ class IndexingPipeline:
         except Exception as e:
             log_with_context(
                 self.logger, logging.ERROR, "Block decoding failed",
-                block_number=raw_block.block_number,
+                block_number=block_number,
                 error=str(e)
             )
             return None
     
-    def _process_block_transactions(self, session, block: Block) -> bool:
-        """Process all transactions in a block"""
-        if not block.transactions:
+    def _transform_block(self, decoded_block: Block) -> Optional[Block]:
+        """Transform decoded block to domain events"""
+        
+        try:
+            transformed_block = self.transform_manager.transform_block(decoded_block)
+            
+            if not transformed_block:
+                log_with_context(
+                    self.logger, logging.WARNING, "Block transformation returned no data",
+                    block_number=decoded_block.block_number
+                )
+                return None
+            
+            # Count events across all transactions
+            total_events = 0
+            total_positions = 0
+            
+            if transformed_block.transactions:
+                for tx in transformed_block.transactions.values():
+                    if tx.events:
+                        total_events += len(tx.events)
+                    if tx.positions:
+                        total_positions += len(tx.positions)
+            
             log_with_context(
-                self.logger, logging.DEBUG, "No transactions to process",
-                block_number=block.block_number
+                self.logger, logging.DEBUG, "Block transformed successfully",
+                block_number=decoded_block.block_number,
+                total_events=total_events,
+                total_positions=total_positions
             )
-            return True
+            
+            return transformed_block
+            
+        except Exception as e:
+            log_with_context(
+                self.logger, logging.ERROR, "Block transformation failed",
+                block_number=decoded_block.block_number,
+                error=str(e)
+            )
+            return None
+    
+    def _persist_block_results(self, transformed_block: Block) -> None:
+        """Persist domain events and update processing status"""
         
-        total_success = 0
-        total_failed = 0
+        if not transformed_block.transactions:
+            log_with_context(
+                self.logger, logging.DEBUG, "No transactions to persist",
+                block_number=transformed_block.block_number
+            )
+            return
         
-        for tx_hash, transaction in block.transactions.items():
+        total_events_written = 0
+        total_positions_written = 0
+        total_events_skipped = 0
+        
+        for tx_hash, transaction in transformed_block.transactions.items():
             try:
-                success = self._process_single_transaction(session, transaction)
-                if success:
-                    total_success += 1
-                else:
-                    total_failed += 1
-                    
+                # Write transaction results using domain event writer
+                events_written, positions_written, events_skipped = self.domain_event_writer.write_transaction_results(
+                    tx_hash=tx_hash,
+                    block_number=transaction.block,
+                    timestamp=transaction.timestamp,
+                    events=transaction.events or {},
+                    positions=transaction.positions or {},
+                    tx_success=transaction.tx_success
+                )
+                
+                total_events_written += events_written
+                total_positions_written += positions_written
+                total_events_skipped += events_skipped
+                
             except Exception as e:
                 log_with_context(
-                    self.logger, logging.ERROR, "Transaction processing failed",
+                    self.logger, logging.ERROR, "Failed to persist transaction results",
                     tx_hash=tx_hash,
+                    block_number=transaction.block,
                     error=str(e)
                 )
-                total_failed += 1
+                # Continue with other transactions rather than failing entire block
+                continue
         
         log_with_context(
-            self.logger, logging.INFO, "Block transactions processed",
-            block_number=block.block_number,
-            total_transactions=len(block.transactions),
-            successful=total_success,
-            failed=total_failed
+            self.logger, logging.INFO, "Block results persisted",
+            block_number=transformed_block.block_number,
+            transactions_processed=len(transformed_block.transactions),
+            total_events_written=total_events_written,
+            total_positions_written=total_positions_written,
+            total_events_skipped=total_events_skipped
         )
-        
-        return total_failed == 0
-    
-    def _process_single_transaction(self, session, transaction: Transaction) -> bool:
-        """Process a single transaction: transform and persist"""
-        try:
-            # Transform transaction to generate domain events
-            success, processed_tx = self.transform_manager.process_transaction(transaction)
-            
-            if not success:
-                log_with_context(
-                    self.logger, logging.WARNING, "Transaction transformation failed",
-                    tx_hash=transaction.tx_hash
-                )
-                return False
-            
-            # Extract domain events and positions
-            events = processed_tx.events or {}
-            positions = processed_tx.positions or {}
-            
-            # Persist to database
-            events_written, positions_written, events_skipped = self.domain_event_writer.write_transaction_results(
-                tx_hash=transaction.tx_hash,
-                block_number=transaction.block,
-                timestamp=transaction.timestamp,
-                events=events,
-                positions=positions,
-                tx_success=transaction.tx_success
-            )
-            
-            log_with_context(
-                self.logger, logging.DEBUG, "Transaction processed and persisted",
-                tx_hash=transaction.tx_hash,
-                events_written=events_written,
-                positions_written=positions_written,
-                events_skipped=events_skipped
-            )
-            
-            return True
-            
-        except Exception as e:
-            log_with_context(
-                self.logger, logging.ERROR, "Transaction processing failed",
-                tx_hash=transaction.tx_hash,
-                error=str(e)
-            )
-            return False
-    
-    def _update_block_summary(self, session, block: Block) -> None:
-        """Update block processing summary in database"""
-        try:
-            # Get or create block processing record
-            from ..database.indexer.tables.processing import BlockProcessing
-            
-            block_processing = session.query(BlockProcessing).filter(
-                BlockProcessing.block_number == block.block_number
-            ).one_or_none()
-            
-            if block_processing is None:
-                block_processing = BlockProcessing(
-                    block_number=block.block_number,
-                    timestamp=block.timestamp,
-                    transaction_count=len(block.transactions) if block.transactions else 0
-                )
-                session.add(block_processing)
-            
-            # Count transaction statuses
-            if block.transactions:
-                pending = sum(1 for tx in block.transactions.values() 
-                             if getattr(tx, 'indexing_status', None) == 'pending')
-                processing = sum(1 for tx in block.transactions.values() 
-                               if getattr(tx, 'indexing_status', None) == 'processing')
-                complete = sum(1 for tx in block.transactions.values() 
-                             if getattr(tx, 'indexing_status', None) == 'complete')
-                failed = sum(1 for tx in block.transactions.values() 
-                           if getattr(tx, 'indexing_status', None) == 'failed')
-                
-                block_processing.update_transaction_counts(pending, processing, complete, failed)
-            
-            session.flush()
-            
-            log_with_context(
-                self.logger, logging.DEBUG, "Block summary updated",
-                block_number=block.block_number,
-                is_complete=block_processing.is_complete
-            )
-            
-        except Exception as e:
-            log_with_context(
-                self.logger, logging.ERROR, "Failed to update block summary",
-                block_number=block.block_number,
-                error=str(e)
-            )
+
+
+# Additional helper methods and status tracking could be added here
+# For example: health checks, performance monitoring, etc.

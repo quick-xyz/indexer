@@ -6,7 +6,7 @@ from sqlalchemy import and_, or_, desc, asc
 from sqlalchemy.exc import IntegrityError
 
 from ..tables.pool_pricing_config import PoolPricingConfig
-from ...repository import BaseRepository
+from ...base_repository import BaseRepository
 from ....core.logging_config import IndexerLogger, log_with_context
 from ....types import EvmAddress
 

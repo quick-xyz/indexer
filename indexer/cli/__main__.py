@@ -65,6 +65,7 @@ from indexer.cli.commands.token import token
 from indexer.cli.commands.address import address
 from indexer.cli.commands.pool_pricing import pool_pricing
 from indexer.cli.commands.pricing import pricing
+from indexer.cli.commands.migrate import migrate
 
 # Register command groups
 cli.add_command(config)
@@ -74,6 +75,7 @@ cli.add_command(token)
 cli.add_command(address)
 cli.add_command(pool_pricing)
 cli.add_command(pricing)
+cli.add_command(migrate)
 
 
 def cleanup():
