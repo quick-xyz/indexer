@@ -1,254 +1,187 @@
-# Task 3: Processing Pipeline Review & Database Migration
+# Task 3: Database Migration & Configuration Import - UPDATED STATUS
 
 ## Overview
-This task focuses on reviewing the processing pipeline functionality, resolving end-to-end processing issues, and executing a clean database migration with all current tables and enhancements.
+This task focused on database reset, migration system, and configuration import for the new dual database architecture. **PARTIALLY COMPLETED** - significant progress made but blocked by migration system issues.
 
-**Scope**: Full pipeline review, database migration, and end-to-end testing
-**Goal**: Get a working single-block test with the new pricing architecture
+**Scope**: Clean database migration, configuration import, and system validation
+**Status**: **BLOCKED** - Migration system needs complete rewrite
+**Goal**: Working database schema + imported configuration ready for block testing
 
-## Prerequisites
-- ✅ Direct pricing implementation complete (Task 2)
-- ✅ Database architecture finalized with all tables designed
-- ✅ CLI interface complete for pricing management
-- ✅ Repository layer enhanced with bulk operations
+## ✅ COMPLETED: Configuration Architecture
 
-## Critical Issues to Address
+### **Configuration Files Redesigned**
+- **✅ Separated configuration**: Split into `shared_v1_0.yaml` and `blub_test_v1_0.yaml`
+- **✅ Enhanced structure**: Real block numbers, better organization, comprehensive documentation
+- **✅ Global defaults system**: Pool pricing defaults embedded in contracts table
+- **✅ Model overrides**: Pool pricing configs can override global defaults per model
 
-### **🚨 HIGH PRIORITY: Processing Pipeline Failures**
+### **Database Architecture Enhanced**
+- **✅ Removed enum constraints**: Contract type now flexible string field
+- **✅ Enhanced PoolPricingConfig**: Added global defaults fallback logic
+- **✅ Token/Contract separation**: Maintained clear separation of concerns
+- **✅ Complete relationships**: All table relationships and helper methods implemented
 
-**Known Issues from Previous Work:**
-- **End-to-end single test block failures** - processing not completing successfully
-- **Enum case sensitivity problems** - capital vs lowercase inconsistencies causing errors
-- **Processing logic bugs** - preventing successful block-to-database flow
-- **Integration gaps** - potential issues with new database architecture
+### **Repository Layer Complete**
+- **✅ Enhanced Contract Repository**: Global pricing defaults support
+- **✅ Pool Pricing Config Repository**: Comprehensive fallback logic and validation  
+- **✅ Configuration import logic**: Complete CLI commands with validation
+- **✅ Bulk operations**: Import from YAML configuration files
 
-**Specific Problem Areas:**
-1. **Domain Event Processing**: Signal generation, transformation, content ID creation
-2. **Enum Consistency**: TradeDirection, PricingMethod, TransactionStatus across codebase
-3. **Database Writers**: Integration with new detail tables and dual database pattern
-4. **Error Handling**: Processing failures, retry logic, graceful degradation
+### **CLI Commands Implemented**
+- **✅ `config import-shared`**: Import global infrastructure configuration
+- **✅ `config import-model`**: Import model-specific configuration
+- **✅ Validation**: Dry-run capabilities and comprehensive error checking
+- **✅ Association creation**: Automatically creates junction table entries
 
-## Phase 1: Pre-Migration Review
+## 🚨 CRITICAL ISSUES: Migration System Broken
 
-### **Task 1: Processing Pipeline Functionality Review**
+### **Database Migration Failures**
+- **❌ MigrationManager inconsistent**: Not using established IndexerConfig system
+- **❌ Manual URL construction**: Bypassing credential resolution patterns
+- **❌ Missing 'port' handling**: Alembic expects port field not in secrets
+- **❌ Template generation broken**: `env.py` file not created properly
+- **❌ Path construction errors**: Double `indexer/indexer` in generated paths
 
-**Components to Audit:**
-- **IndexingPipeline**: Block processing flow and coordination
-- **Transform System**: Signal-based transformers and event generation
-- **Domain Event Writers**: Database insertion logic
-- **Processing State Management**: Transaction and block processing tracking
+### **Specific Technical Problems**
 
-**Focus Areas:**
-```python
-# Check these specific areas for issues:
-1. Signal → Domain Event conversion
-2. Content ID generation consistency
-3. Database session management
-4. Error handling and retry logic
-5. Enum value consistency (case sensitivity)
+**Database Reset:**
+- **✅ Manual reset successful**: Used Cloud SQL console to drop/recreate databases
+- **✅ Permissions fixed**: Restored service account permissions for new databases
+- **✅ Database inspector working**: Confirmed empty databases ready for schema
+
+**Migration System Issues:**
+- **❌ Configuration inconsistency**: MigrationManager not using SecretsService → DatabaseConfig → DatabaseManager pattern
+- **❌ Credential resolution**: Manual URL construction instead of established patterns
+- **❌ Template problems**: Alembic `env.py` template expects 'port' key not present in secrets
+- **❌ Initialization issues**: Migrations directory created but required files missing
+
+**Error Sequence:**
+1. `'port'` key error → Fixed in template but cached files still problematic
+2. Path errors → Double `indexer/indexer` in generated paths  
+3. Missing files → Empty migrations directory, `env.py` not generated
+4. Method errors → Incremental artifact updates causing reference problems
+
+## Required Next Steps (For Fresh Chat)
+
+### **IMMEDIATE: Fix Migration System**
+
+**Phase 1: Complete MigrationManager Rewrite**
+- **Rewrite MigrationManager**: Use IndexerConfig system consistently throughout
+- **Fix credential resolution**: Use established SecretsService → DatabaseConfig → DatabaseManager pattern
+- **Fix alembic templates**: Ensure `env.py` template uses proper credential fallbacks
+- **Fix initialization**: Ensure migrations directory and all required files are created properly
+- **Test thoroughly**: Verify both shared and model database creation works
+
+**Phase 2: Database Schema Creation**
+- **Clean migrations**: Remove any existing migration directories
+- **Run migration setup**: `python -m indexer.cli migrate dev setup blub_test`
+- **Verify schema**: Use `db_inspector.py` to confirm all tables created with proper structure
+- **Validate relationships**: Ensure all foreign keys and constraints are properly created
+
+### **READY FOR IMPORT: Configuration Files**
+
+**Configuration files are complete and ready:**
+- **`shared_v1_0.yaml`**: 
+  - Complete shared infrastructure configuration
+  - Global tokens, contracts with pricing defaults, sources, addresses
+  - Real block numbers and comprehensive documentation
+- **`blub_test_v1_0.yaml`**: 
+  - Complete model-specific configuration  
+  - Contract/token associations, pool pricing configs, source references
+  - Proper pricing pool designations and real block ranges
+
+**Import sequence ready:**
+```bash
+# After database schema is working:
+python -m indexer.cli config import-shared shared_v1_0.yaml
+python -m indexer.cli config import-model blub_test_v1_0.yaml
 ```
 
-**Validation Steps:**
-1. **Static Analysis**: Review enum definitions and usage patterns
-2. **Flow Tracing**: Follow a single transaction through the entire pipeline
-3. **Error Point Identification**: Find where processing typically fails
-4. **Integration Testing**: Verify new pricing tables don't break existing flow
+### **POST-IMPORT: System Validation**
 
-### **Task 2: Enum Consistency Audit**
+**Phase 3: Configuration Validation**
+- **Verify imports**: Check that all tables are populated correctly
+- **Validate associations**: Confirm ModelContract, ModelToken, ModelSource entries
+- **Test pool pricing**: Verify PoolPricingConfig entries with proper fallback logic
+- **CLI validation**: Test pricing commands with real configuration data
 
-**Known Problem Enums:**
-- `TradeDirection`: "buy"/"sell" vs "BUY"/"SELL"
-- `TradeType`: "trade"/"arbitrage" vs "TRADE"/"ARBITRAGE"  
-- `LiquidityAction`: "add"/"remove" vs "ADD"/"REMOVE"
-- `TransactionStatus`: Processing state consistency
-- `PricingMethod`: New enum, ensure consistency
+**Phase 4: End-to-End Testing**
+- **Single block test**: Process one block through the complete pipeline
+- **Pricing integration**: Test pricing service with new configuration structure
+- **Database operations**: Verify dual database operations work correctly
+- **Error handling**: Confirm graceful failure handling throughout system
 
-**Audit Process:**
-1. **Catalog all enum definitions** across database tables and Python code
-2. **Check enum usage** in transformers, repositories, and services
-3. **Identify inconsistencies** between database constraints and Python values
-4. **Create fix plan** for standardizing case sensitivity
+## Architecture Decisions Finalized
 
-### **Task 3: Database Schema Validation**
+### **Configuration System Design**
+- **Dual database architecture**: Shared infrastructure + model-specific data
+- **Configuration separation**: Clear boundary between global and model-specific configs  
+- **Global defaults + overrides**: Contracts have defaults, models can override via PoolPricingConfig
+- **Token/contract separation**: Maintained for clear separation of processing vs metadata concerns
 
-**Complete Schema Review:**
-- **Shared Database Tables**: All configuration and pricing infrastructure
-- **Indexer Database Tables**: All events, processing, and detail tables
-- **Relationships**: Foreign keys, constraints, indexes
-- **Enum Definitions**: Database-level enum consistency
+### **Pricing System Design**
+- **Three-tier fallback**: Model config → Global default → 'global' pricing
+- **Method tracking**: DIRECT_AVAX, DIRECT_USD, GLOBAL, ERROR for debugging
+- **Block range support**: Time-based configuration changes supported
+- **Pricing pool designation**: Model-specific canonical pricing pool selection
 
-**Validation Checklist:**
-- [ ] All table definitions have proper constraints
-- [ ] Enum values match between Python and PostgreSQL
-- [ ] Foreign key relationships are correctly defined
-- [ ] Indexes support expected query patterns
-- [ ] Composite unique keys prevent data corruption
+### **Repository Patterns**
+- **Consistent patterns**: All repositories follow same CRUD and validation patterns
+- **Bulk operations**: Configuration import operations for YAML files
+- **Error handling**: Comprehensive validation with detailed error messages
+- **Relationship management**: Helper methods for common association queries
 
-### **Task 4: Migration Approach Review**
+## Files Ready for Fresh Chat
 
-**Current Migration Issues:**
-- Previous migrations have been problematic
-- Complex dual database setup
-- New table additions since last working migration
+### **Configuration Files (Complete)**
+- **`shared_v1_0.yaml`**: Ready for import
+- **`blub_test_v1_0.yaml`**: Ready for import
+- **Import CLI commands**: Implemented and tested (dry-run mode)
 
-**Migration Strategy Options:**
-1. **Full Database Recreation**: Delete everything, create fresh
-2. **Dual Database Coordination**: Ensure shared + indexer databases sync properly
-3. **Table Creation Order**: Handle dependencies correctly
-4. **Data Seeding**: Initial configuration data loading
+### **Database Schema (Needs Migration Fix)**
+- **Enhanced Contract table**: Complete with pricing defaults
+- **Enhanced PoolPricingConfig**: Complete with global defaults support
+- **Repository classes**: Complete implementations ready
+- **Migration system**: **BROKEN** - needs complete rewrite
 
-## Phase 2: Migration Execution
+### **Development Tools (Working)**
+- **`db_inspector.py`**: Working database inspection tool
+- **Configuration validation**: Dry-run modes for testing imports
+- **Error handling**: Comprehensive logging and error reporting
 
-### **Task 5: Clean Database Migration**
+## Success Metrics for Next Chat
 
-**Migration Steps:**
-1. **Delete existing databases** (both shared and indexer)
-2. **Create initial migration** with ALL current tables
-3. **Execute migration** and validate schema
-4. **Seed configuration data** (models, contracts, tokens)
-5. **Verify database state** before proceeding
+### **Migration System Fixed:**
+- ✅ MigrationManager uses IndexerConfig system consistently
+- ✅ Database schema creation works: `migrate dev setup blub_test`
+- ✅ All tables created with proper relationships and constraints
+- ✅ Database inspector shows complete schema
 
-**Migration Validation:**
-- [ ] All tables created successfully
-- [ ] All constraints and indexes in place
-- [ ] Enum values properly defined
-- [ ] Sample data can be inserted without errors
-- [ ] Repository queries work correctly
+### **Configuration Import Working:**
+- ✅ Shared config import: `config import-shared shared_v1_0.yaml`
+- ✅ Model config import: `config import-model blub_test_v1_0.yaml`
+- ✅ All associations created: ModelContract, ModelToken, ModelSource, PoolPricingConfig
+- ✅ Pool pricing fallback logic working correctly
 
-### **Task 6: Configuration File Review**
+### **System Integration Validated:**
+- ✅ Single block processing test passes
+- ✅ Pricing service integration working with new configuration
+- ✅ CLI commands functional with real data
+- ✅ End-to-end system ready for continued development
 
-**Post-Migration Configuration:**
-- **Database connections**: Verify dual database setup
-- **Model configuration**: Ensure model definitions are correct
-- **Contract mappings**: Pool addresses and transformer assignments
-- **Service dependencies**: DI container setup for new repositories
+## Key Lessons Learned
 
-**Configuration Areas to Review:**
-1. **Database URLs**: Both shared and indexer database connections
-2. **Model Definition**: Contract addresses, transformers, source paths
-3. **Repository Registration**: New detail repositories in DI container
-4. **Service Configuration**: Pricing service with dual database access
+### **Configuration System Integration Critical**
+- **Consistency required**: All components must use same configuration patterns
+- **Bypass consequences**: MigrationManager bypassed IndexerConfig, caused credential issues
+- **Established patterns**: SecretsService → DatabaseConfig → DatabaseManager must be universal
 
-## Phase 3: End-to-End Testing
+### **Incremental Development Challenges**
+- **Artifact limitations**: Complex classes need complete implementations, not partial updates
+- **Method references**: Incremental updates can break method references
+- **Fresh context valuable**: Clean slate helps when partial updates become problematic
 
-### **Task 7: Single Block Processing Test**
-
-**Test Objectives:**
-1. **Complete pipeline flow**: RPC → Decode → Transform → Storage
-2. **Domain event generation**: Trades, swaps, transfers, positions
-3. **Database persistence**: Events stored correctly in indexer database
-4. **Processing state tracking**: Transaction and block status updates
-
-**Test Process:**
-```python
-# Target test flow:
-1. Select test block with known transactions
-2. Process through full pipeline
-3. Verify domain events created
-4. Check database state consistency
-5. Validate processing completion
-```
-
-**Success Criteria:**
-- [ ] Block processes without errors
-- [ ] All expected domain events are created
-- [ ] Database contains correct event data
-- [ ] Processing state shows completion
-- [ ] No enum or consistency errors
-
-### **Task 8: Pricing Integration Test**
-
-**After Successful Block Processing:**
-1. **Run pricing service** on processed events
-2. **Verify detail table population** for configured pools
-3. **Check dual database operation** (shared configs + indexer details)
-4. **Validate pricing accuracy** for test swaps/trades
-
-**Integration Validation:**
-- [ ] Pricing service can access both databases
-- [ ] Pool configurations are read correctly
-- [ ] Block prices are available for calculations
-- [ ] Detail records are created with correct values
-- [ ] CLI commands work with real data
-
-## Implementation Phases
-
-### **Phase 1: Diagnostic & Planning (Day 1)**
-1. **Complete pipeline review** - identify specific failure points
-2. **Enum consistency audit** - catalog and fix case sensitivity issues
-3. **Migration planning** - finalize approach and dependencies
-4. **Schema validation** - ensure all table definitions are correct
-
-### **Phase 2: Clean Migration (Day 2)**
-1. **Database deletion** - clean slate approach
-2. **Migration execution** - create all tables with proper constraints
-3. **Configuration setup** - verify dual database connections
-4. **Initial data seeding** - basic model and contract data
-
-### **Phase 3: Testing & Validation (Day 3)**
-1. **Single block test** - end-to-end processing validation
-2. **Pricing integration** - verify new pricing system works
-3. **Error resolution** - fix any remaining processing issues
-4. **System validation** - confirm complete functionality
-
-## Success Criteria
-
-### **Processing Pipeline Working:**
-- ✅ Single test block processes completely without errors
-- ✅ All domain events are generated and stored correctly
-- ✅ Processing state tracking works properly
-- ✅ Enum consistency issues are resolved
-
-### **Database Migration Complete:**
-- ✅ Both shared and indexer databases created successfully
-- ✅ All tables have proper constraints and relationships
-- ✅ Repository queries work without errors
-- ✅ Configuration data is properly seeded
-
-### **Pricing Integration Functional:**
-- ✅ Pricing service can process events from test block
-- ✅ Detail tables are populated with correct valuations
-- ✅ CLI commands provide accurate status and validation
-- ✅ Dual database operations work seamlessly
-
-### **End-to-End System Validated:**
-- ✅ Complete flow from RPC to pricing works correctly
-- ✅ No case sensitivity or enum issues remain
-- ✅ Error handling prevents system crashes
-- ✅ Foundation ready for multi-block testing
-
-## Risk Mitigation
-
-### **High-Risk Areas:**
-1. **Enum Inconsistencies**: Could break event processing at multiple points
-2. **Migration Dependencies**: Table creation order and foreign key constraints
-3. **Database Connection Issues**: Dual database setup complexity
-4. **Processing Logic Bugs**: Hidden issues in transform or storage logic
-
-### **Mitigation Strategies:**
-- **Incremental Testing**: Validate each component before moving to next
-- **Comprehensive Logging**: Track every step of processing for debugging
-- **Rollback Plan**: Keep working configuration files as backup
-- **Isolated Testing**: Test individual components before end-to-end integration
-
-## Expected Deliverables
-
-### **Documentation:**
-- **Processing pipeline audit report** with identified issues and fixes
-- **Enum consistency fixes** with before/after comparison
-- **Migration execution log** with validation results
-- **Test results** showing successful end-to-end processing
-
-### **Code Changes:**
-- **Enum standardization** across all affected files
-- **Processing bug fixes** for identified pipeline issues
-- **Migration scripts** for clean database setup
-- **Configuration updates** for new database structure
-
-### **Validation Artifacts:**
-- **Successful single block processing** with complete event data
-- **Working pricing service** with populated detail tables
-- **Functional CLI interface** showing real system status
-- **End-to-end test documentation** proving system functionality
-
-This task establishes a solid foundation for continued development with a fully functional processing pipeline and clean database architecture.
+### **Database Architecture Validation**
+- **Dual database benefits**: Clear separation of shared vs model-specific data
+- **Configuration separation**: Separate files for separate concerns improves maintainability
+- **Global defaults pattern**: Flexible system for handling pool pricing across models

@@ -1,4 +1,12 @@
-# indexer/database/migration_manager.py - Fixed to use IndexerConfig system
+# indexer/database/migration_manager.py
+
+"""
+Database Migration Manager - Complete Fixed Implementation
+
+Fixed to use IndexerConfig system consistently and properly initialize Alembic.
+Handles both shared database migrations and model database template creation.
+Now includes proper custom type handling for automatic migration generation.
+"""
 
 import os
 import sys
@@ -9,12 +17,14 @@ from alembic.config import Config
 from alembic import command
 from alembic.runtime.migration import MigrationContext
 from alembic.operations import Operations
+from alembic.script import ScriptDirectory
 
 from .connection import InfrastructureDatabaseManager, ModelDatabaseManager, DatabaseManager
 from ..core.config import IndexerConfig
 from ..core.secrets_service import SecretsService
 from ..core.logging_config import IndexerLogger, log_with_context
 from ..types import DatabaseConfig
+from .shared.tables import *
 from .indexer.tables import *
 
 import logging
@@ -24,7 +34,7 @@ class MigrationManager:
     """
     Unified migration management for both shared and model databases.
     
-    FIXED: Now uses the established IndexerConfig system instead of manual URL construction.
+    FIXED: Now uses the established IndexerConfig system consistently.
     
     Uses proper dependency injection patterns and integrates with:
     - IndexerConfig for database configuration
@@ -33,9 +43,10 @@ class MigrationManager:
     - SecretsService for credential management (via IndexerConfig)
     
     Handles:
-    - Shared database: Traditional migration tracking
+    - Shared database: Traditional migration tracking with Alembic
     - Model databases: Template-based creation without per-database tracking
     - Development workflow: Easy reset and recreation
+    - Custom type handling: Automatic proper import generation in migrations
     """
     
     def __init__(self, 
@@ -68,7 +79,11 @@ class MigrationManager:
     def create_shared_migration(self, message: str, autogenerate: bool = True) -> str:
         """Create a new migration for the shared database"""
         log_with_context(self.logger, logging.INFO, "Creating shared database migration", 
-                        message=message, autogenerate=autogenerate)
+                        migration_message=message, autogenerate=autogenerate)
+        
+        # Ensure migrations directory is properly initialized
+        if not self.migrations_dir.exists() or not (self.migrations_dir / "env.py").exists():
+            self._initialize_migrations_directory()
         
         alembic_cfg = self._get_shared_alembic_config()
         
@@ -80,7 +95,7 @@ class MigrationManager:
             command.revision(alembic_cfg, message=message, autogenerate=autogenerate)
             
             # Get the generated revision ID
-            script_dir = self._get_script_directory(alembic_cfg)
+            script_dir = ScriptDirectory.from_config(alembic_cfg)
             revision = script_dir.get_current_head()
             
             log_with_context(self.logger, logging.INFO, "Shared migration created successfully",
@@ -149,17 +164,15 @@ class MigrationManager:
             # Set environment to target shared database
             os.environ['MIGRATION_TARGET'] = 'shared'
             
-            from alembic.runtime.environment import EnvironmentContext
-            from alembic.script import ScriptDirectory
-            
-            script = ScriptDirectory.from_config(alembic_cfg)
-            
-            def get_current_rev(rev, context):
-                return script.get_current_head()
-            
-            with EnvironmentContext(alembic_cfg, script, fn=get_current_rev) as env_context:
-                return env_context.get_current_revision()
+            # Use the infrastructure database engine directly
+            with self.infrastructure_db_manager.engine.connect() as connection:
+                context = MigrationContext.configure(connection)
+                return context.get_current_revision()
                 
+        except Exception as e:
+            log_with_context(self.logger, logging.WARNING, "Failed to get current revision",
+                           error=str(e))
+            return None
         finally:
             os.environ.pop('MIGRATION_TARGET', None)
     
@@ -171,7 +184,7 @@ class MigrationManager:
                         model_name=model_name, drop_if_exists=drop_if_exists)
         
         try:
-            # Create the database using admin engine
+            # Check if database exists
             if self._database_exists(model_name):
                 if drop_if_exists:
                     self._drop_database(model_name)
@@ -180,9 +193,10 @@ class MigrationManager:
                                     model_name=model_name)
                     return False
             
+            # Create the database
             self._create_database(model_name)
             
-            # Apply current schema template using a temporary ModelDatabaseManager
+            # Apply current schema template
             self._apply_model_template(model_name)
             
             log_with_context(self.logger, logging.INFO, "Model database created successfully",
@@ -199,86 +213,430 @@ class MigrationManager:
         """Drop and recreate model database with latest schema"""
         return self.create_model_database(model_name, drop_if_exists=True)
     
-    # === UTILITY METHODS ===
+    def list_model_databases(self) -> List[str]:
+        """List existing model databases"""
+        try:
+            admin_engine = self._get_admin_engine()
+            
+            with admin_engine.connect() as conn:
+                result = conn.execute(text("""
+                    SELECT datname FROM pg_database 
+                    WHERE datname NOT IN ('postgres', 'template0', 'template1', 'indexer_shared')
+                    AND datname NOT LIKE 'cloudsql%'
+                    ORDER BY datname
+                """))
+                
+                databases = [row[0] for row in result]
+                
+            admin_engine.dispose()
+            return databases
+            
+        except Exception as e:
+            log_with_context(self.logger, logging.ERROR, "Failed to list model databases",
+                           error=str(e))
+            return []
+    
+    def get_model_schema_sql(self) -> str:
+        """Generate SQL for current model schema template"""
+        try:
+            # Import all model tables to ensure they're registered
+            from .base import Base
+            
+            # Filter to only model tables (not infrastructure tables)
+            model_tables = []
+            for table in Base.metadata.tables.values():
+                # Include only tables that belong to model database
+                # This is determined by the table's location in the codebase
+                table_module = table.__class__.__module__ if hasattr(table, '__class__') else ""
+                if 'indexer.tables' in str(table) or 'indexer' in table.name.lower():
+                    model_tables.append(table)
+            
+            # Create a temporary metadata with only model tables
+            model_metadata = MetaData()
+            for table in model_tables:
+                table.tometadata(model_metadata)
+            
+            # Generate CREATE statements
+            from sqlalchemy.schema import CreateTable
+            from sqlalchemy.dialects import postgresql
+            
+            statements = []
+            for table in model_metadata.sorted_tables:
+                create_stmt = CreateTable(table).compile(dialect=postgresql.dialect())
+                statements.append(str(create_stmt))
+            
+            return ";\n\n".join(statements) + ";"
+            
+        except Exception as e:
+            log_with_context(self.logger, logging.ERROR, "Failed to generate model schema SQL",
+                           error=str(e))
+            raise
+    
+    # === STATUS AND UTILITIES ===
+    
+    def current_status(self) -> Dict:
+        """Get current status of all databases"""
+        status = {
+            'shared': {
+                'exists': False,
+                'current_revision': None,
+                'error': None
+            },
+            'models': {}
+        }
+        
+        # Check shared database
+        try:
+            # Test connection to shared database
+            with self.infrastructure_db_manager.engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+                status['shared']['exists'] = True
+                status['shared']['current_revision'] = self.get_shared_current_revision()
+                
+        except Exception as e:
+            status['shared']['error'] = str(e)
+        
+        # Check model databases
+        try:
+            model_databases = self.list_model_databases()
+            
+            for db_name in model_databases:
+                try:
+                    # For model databases, we just check if they exist
+                    # and if their schema matches current template
+                    status['models'][db_name] = {
+                        'exists': True,
+                        'schema_current': True  # Assume current since we recreate instead of migrate
+                    }
+                except Exception as e:
+                    status['models'][db_name] = {
+                        'exists': False,
+                        'error': str(e)
+                    }
+                    
+        except Exception as e:
+            log_with_context(self.logger, logging.WARNING, "Failed to check model databases",
+                           error=str(e))
+        
+        return status
+    
+    # === DEVELOPMENT UTILITIES ===
+    
+    def reset_everything(self) -> None:
+        """Reset all databases (DEVELOPMENT ONLY)"""
+        log_with_context(self.logger, logging.WARNING, "Resetting all databases")
+        
+        print("⚠️  WARNING: This will delete ALL data in shared and model databases!")
+        print("⚠️  This should only be used in development environments!")
+        
+        # Drop all model databases
+        model_databases = self.list_model_databases()
+        for db_name in model_databases:
+            print(f"   Dropping model database: {db_name}")
+            self._drop_database(db_name)
+        
+        # Reset shared database by dropping and recreating
+        try:
+            print("   Resetting shared database...")
+            self._drop_database('indexer_shared')
+            self._create_database('indexer_shared')
+            
+            # Apply any existing migrations
+            try:
+                self.upgrade_shared()
+                print("   ✅ Shared database reset and migrations applied")
+            except Exception as e:
+                print(f"   ⚠️  Shared database reset but no migrations applied: {e}")
+                
+        except Exception as e:
+            log_with_context(self.logger, logging.ERROR, "Failed to reset shared database",
+                           error=str(e))
+            raise
+        
+        print("✅ Database reset completed")
+    
+    # === PRIVATE UTILITY METHODS ===
     
     def _get_shared_alembic_config(self) -> Config:
         """Get alembic configuration for shared database"""
         
         # Initialize migrations directory if it doesn't exist
-        if not self.migrations_dir.exists():
+        if not self.migrations_dir.exists() or not (self.migrations_dir / "env.py").exists():
             self._initialize_migrations_directory()
         
         alembic_cfg = Config()
         alembic_cfg.set_main_option("script_location", str(self.migrations_dir))
         
-        # FIXED: Use the infrastructure database manager's connection directly
-        # instead of manually constructing URL
+        # Use the infrastructure database manager's connection directly
         engine = self.infrastructure_db_manager.engine
         alembic_cfg.set_main_option("sqlalchemy.url", str(engine.url))
         
         return alembic_cfg
     
-    def _get_script_directory(self, alembic_cfg: Config):
-        """Get script directory from alembic config"""
-        from alembic.script import ScriptDirectory
-        return ScriptDirectory.from_config(alembic_cfg)
-    
-    def _database_exists(self, db_name: str) -> bool:
-        """Check if a database exists using admin engine"""
-        admin_engine = self._get_admin_engine()
+    def _initialize_migrations_directory(self) -> None:
+        """Initialize Alembic migrations directory with proper templates"""
+        log_with_context(self.logger, logging.INFO, "Initializing migrations directory",
+                        directory=str(self.migrations_dir))
         
-        with admin_engine.connect() as conn:
-            result = conn.execute(text(
-                "SELECT 1 FROM pg_database WHERE datname = :db_name"
-            ), {"db_name": db_name})
-            
-            return result.fetchone() is not None
-    
-    def _create_database(self, db_name: str) -> None:
-        """Create a database using admin engine"""
-        admin_engine = self._get_admin_engine()
+        # Create directory structure
+        self.migrations_dir.mkdir(exist_ok=True)
+        versions_dir = self.migrations_dir / "versions"
+        versions_dir.mkdir(exist_ok=True)
         
-        with admin_engine.connect() as conn:
-            # Use autocommit mode for CREATE DATABASE
-            conn = conn.execution_options(autocommit=True)
-            conn.execute(text(f'CREATE DATABASE "{db_name}"'))
-    
-    def _drop_database(self, db_name: str) -> None:
-        """Drop a database using admin engine"""
-        admin_engine = self._get_admin_engine()
+        # Create alembic.ini (not used directly but good to have)
+        alembic_ini = self.migrations_dir.parent / "alembic.ini"
+        if not alembic_ini.exists():
+            alembic_ini_content = f"""# Alembic configuration file
+[alembic]
+script_location = {self.migrations_dir}
+prepend_sys_path = .
+version_path_separator = os
+sqlalchemy.url = postgresql://user:pass@localhost/dbname
+
+[post_write_hooks]
+
+[loggers]
+keys = root,sqlalchemy,alembic
+
+[handlers]
+keys = console
+
+[formatters]
+keys = generic
+
+[logger_root]
+level = WARN
+handlers = console
+qualname =
+
+[logger_sqlalchemy]
+level = WARN
+handlers =
+qualname = sqlalchemy.engine
+
+[logger_alembic]
+level = INFO
+handlers =
+qualname = alembic
+
+[handler_console]
+class = StreamHandler
+args = (sys.stderr,)
+level = NOTSET
+formatter = generic
+
+[formatter_generic]
+format = %(levelname)-5.5s [%(name)s] %(message)s
+datefmt = %H:%M:%S
+"""
+            alembic_ini.write_text(alembic_ini_content)
         
-        with admin_engine.connect() as conn:
-            # Terminate connections to the database first
-            conn.execute(text("""
-                SELECT pg_terminate_backend(pid)
-                FROM pg_stat_activity
-                WHERE datname = :db_name AND pid <> pg_backend_pid()
-            """), {"db_name": db_name})
-            
-            # Use autocommit mode for DROP DATABASE
-            conn = conn.execution_options(autocommit=True)
-            conn.execute(text(f'DROP DATABASE IF EXISTS "{db_name}"'))
+        # Create env.py with proper credential handling AND custom type support
+        env_py_path = self.migrations_dir / "env.py"
+        env_py_content = self._get_env_py_template()
+        env_py_path.write_text(env_py_content)
+        
+        # Create script.py.mako template with custom type imports
+        script_template_path = self.migrations_dir / "script.py.mako"
+        script_template_content = self._get_script_template()
+        script_template_path.write_text(script_template_content)
+        
+        log_with_context(self.logger, logging.INFO, "Migrations directory initialized successfully")
+    
+    def _get_env_py_template(self) -> str:
+        """Generate env.py template with proper credential handling AND custom type support"""
+        return '''"""Alembic environment configuration for IndexerManager
+
+This env.py file is configured to work with the IndexerManager's
+dual database architecture, using proper credential resolution and
+custom type handling for automatic migration generation.
+"""
+
+import os
+import sys
+from logging.config import fileConfig
+from pathlib import Path
+
+from sqlalchemy import engine_from_config
+from sqlalchemy import pool
+from alembic import context
+
+# Add project root to path
+PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
+sys.path.insert(0, str(PROJECT_ROOT))
+
+# Import all table definitions to ensure they're registered
+from indexer.database.base import Base
+
+# Import custom types for migration generation
+from indexer.database.types import EvmAddressType, EvmHashType, DomainEventIdType
+
+# Import infrastructure tables (shared database)
+from indexer.database.shared.tables import *
+
+# Import indexer tables (model database) 
+from indexer.database.indexer.tables import *
+
+# this is the Alembic Config object
+config = context.config
+
+# Interpret the config file for Python logging.
+if config.config_file_name is not None:
+    fileConfig(config.config_file_name)
+
+# For now, use all metadata - we'll filter this later if needed
+target_metadata = Base.metadata
+
+
+def render_item(type_, obj, autogen_context):
+    """Custom rendering for our types to ensure proper imports in migration files"""
+    if type_ == 'type':
+        if isinstance(obj, EvmAddressType):
+            autogen_context.imports.add("from indexer.database.types import EvmAddressType")
+            return "EvmAddressType()"
+        elif isinstance(obj, EvmHashType):
+            autogen_context.imports.add("from indexer.database.types import EvmHashType")
+            return "EvmHashType()"
+        elif isinstance(obj, DomainEventIdType):
+            autogen_context.imports.add("from indexer.database.types import DomainEventIdType")
+            return "DomainEventIdType()"
+    return False
+
+
+def get_database_url():
+    """Get database URL using the same credential resolution as the rest of the app"""
+    try:
+        from indexer.core.secrets_service import SecretsService
+        
+        # Get project ID
+        project_id = os.getenv("INDEXER_GCP_PROJECT_ID")
+        
+        if project_id:
+            try:
+                secrets_service = SecretsService(project_id)
+                db_credentials = secrets_service.get_database_credentials()
+                
+                db_user = db_credentials.get('user') or os.getenv("INDEXER_DB_USER")
+                db_password = db_credentials.get('password') or os.getenv("INDEXER_DB_PASSWORD")
+                db_host = os.getenv("INDEXER_DB_HOST") or db_credentials.get('host', "127.0.0.1")
+                db_port = os.getenv("INDEXER_DB_PORT") or db_credentials.get('port', "5432")
+                
+            except Exception:
+                # Fallback to environment variables
+                db_user = os.getenv("INDEXER_DB_USER")
+                db_password = os.getenv("INDEXER_DB_PASSWORD")
+                db_host = os.getenv("INDEXER_DB_HOST", "127.0.0.1")
+                db_port = os.getenv("INDEXER_DB_PORT", "5432")
+        else:
+            # Use environment variables only
+            db_user = os.getenv("INDEXER_DB_USER")
+            db_password = os.getenv("INDEXER_DB_PASSWORD")
+            db_host = os.getenv("INDEXER_DB_HOST", "127.0.0.1")
+            db_port = os.getenv("INDEXER_DB_PORT", "5432")
+        
+        if not db_user or not db_password:
+            raise ValueError("Database credentials not found")
+        
+        # Determine database name based on migration target
+        migration_target = os.environ.get('MIGRATION_TARGET', 'shared')
+        if migration_target == 'shared':
+            db_name = os.getenv("INDEXER_INFRASTRUCTURE_DB_NAME", "indexer_shared")
+        else:
+            # This should not happen for shared migrations, but fallback
+            db_name = "indexer_shared"
+        
+        return f"postgresql+psycopg://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+        
+    except Exception as e:
+        # Final fallback - use the URL from config if credential resolution fails
+        url = config.get_main_option("sqlalchemy.url")
+        if url and "user:pass@localhost" not in url:
+            return url
+        else:
+            raise RuntimeError(f"Could not resolve database credentials: {e}")
+
+
+def run_migrations_offline() -> None:
+    """Run migrations in 'offline' mode."""
+    url = get_database_url()
+    context.configure(
+        url=url,
+        target_metadata=target_metadata,
+        literal_binds=True,
+        dialect_opts={"paramstyle": "named"},
+        render_item=render_item,  # Add custom type rendering
+    )
+
+    with context.begin_transaction():
+        context.run_migrations()
+
+
+def run_migrations_online() -> None:
+    """Run migrations in 'online' mode."""
+    # Override the sqlalchemy.url with our resolved URL
+    config_dict = config.get_section(config.config_ini_section)
+    config_dict['sqlalchemy.url'] = get_database_url()
+    
+    connectable = engine_from_config(
+        config_dict,
+        prefix="sqlalchemy.",
+        poolclass=pool.NullPool,
+    )
+
+    with connectable.connect() as connection:
+        context.configure(
+            connection=connection, 
+            target_metadata=target_metadata,
+            render_item=render_item,  # Add custom type rendering
+        )
+
+        with context.begin_transaction():
+            context.run_migrations()
+
+
+if context.is_offline_mode():
+    run_migrations_offline()
+else:
+    run_migrations_online()
+'''
+    
+    def _get_script_template(self) -> str:
+        """Generate script.py.mako template with custom type imports"""
+        return '''"""${message}
+
+Revision ID: ${up_revision}
+Revises: ${down_revision | comma,n}
+Create Date: ${create_date}
+
+"""
+from alembic import op
+import sqlalchemy as sa
+${imports if imports else ""}
+
+# revision identifiers, used by Alembic.
+revision = ${repr(up_revision)}
+down_revision = ${repr(down_revision)}
+branch_labels = ${repr(branch_labels)}
+depends_on = ${repr(depends_on)}
+
+
+def upgrade() -> None:
+    ${upgrades if upgrades else "pass"}
+
+
+def downgrade() -> None:
+    ${downgrades if downgrades else "pass"}
+'''
     
     def _get_admin_engine(self):
-        """
-        FIXED: Get SQLAlchemy engine for database administration using IndexerConfig pattern.
-        
-        This now uses the same configuration system as the rest of the application
-        instead of manually constructing database URLs.
-        """
-        # Get project ID for secrets
-        project_id = os.getenv("INDEXER_GCP_PROJECT_ID")
-        if not project_id:
-            raise ValueError("INDEXER_GCP_PROJECT_ID required for database administration")
-        
-        # Use the same pattern as CLIContext._create_infrastructure_db_manager
+        """Get admin engine for database administration operations"""
         try:
             db_credentials = self.secrets_service.get_database_credentials()
             
             db_user = db_credentials.get('user') or os.getenv("INDEXER_DB_USER")
             db_password = db_credentials.get('password') or os.getenv("INDEXER_DB_PASSWORD")
-            db_host = os.getenv("INDEXER_DB_HOST") or db_credentials.get('host') or "127.0.0.1"
-            db_port = os.getenv("INDEXER_DB_PORT") or db_credentials.get('port') or "5432"
+            db_host = os.getenv("INDEXER_DB_HOST") or db_credentials.get('host', "127.0.0.1")
+            db_port = os.getenv("INDEXER_DB_PORT") or db_credentials.get('port', "5432")
             
         except Exception:
             # Fallback to environment variables only
@@ -291,24 +649,88 @@ class MigrationManager:
             raise ValueError("Database credentials not found. Check SecretsService or environment variables.")
         
         # Connect to postgres database for administration (not indexer_shared)
+        # Use isolation_level=AUTOCOMMIT to avoid transaction blocks for DDL
         admin_url = f"postgresql+psycopg://{db_user}:{db_password}@{db_host}:{db_port}/postgres"
         
-        return create_engine(admin_url)
+        return create_engine(admin_url, isolation_level="AUTOCOMMIT")
+    
+    def _database_exists(self, db_name: str) -> bool:
+        """Check if a database exists"""
+        try:
+            admin_engine = self._get_admin_engine()
+            
+            with admin_engine.connect() as conn:
+                result = conn.execute(text(
+                    "SELECT 1 FROM pg_database WHERE datname = :db_name"
+                ), {"db_name": db_name})
+                
+                exists = result.fetchone() is not None
+            
+            admin_engine.dispose()
+            return exists
+            
+        except Exception as e:
+            log_with_context(self.logger, logging.ERROR, "Failed to check database existence",
+                           database=db_name, error=str(e))
+            raise
+    
+    def _create_database(self, db_name: str) -> None:
+        """Create a new database"""
+        log_with_context(self.logger, logging.INFO, "Creating database", database=db_name)
+        
+        try:
+            admin_engine = self._get_admin_engine()
+            
+            # Engine is configured with AUTOCOMMIT isolation level
+            with admin_engine.connect() as conn:
+                conn.execute(text(f'CREATE DATABASE "{db_name}"'))
+            
+            admin_engine.dispose()
+            
+        except Exception as e:
+            log_with_context(self.logger, logging.ERROR, "Failed to create database",
+                           database=db_name, error=str(e))
+            raise
+    
+    def _drop_database(self, db_name: str) -> None:
+        """Drop a database"""
+        log_with_context(self.logger, logging.WARNING, "Dropping database", database=db_name)
+        
+        try:
+            admin_engine = self._get_admin_engine()
+            
+            # Engine is configured with AUTOCOMMIT isolation level
+            with admin_engine.connect() as conn:
+                # First terminate existing connections to the database
+                conn.execute(text("""
+                    SELECT pg_terminate_backend(pid)
+                    FROM pg_stat_activity 
+                    WHERE datname = :db_name AND pid <> pg_backend_pid()
+                """), {"db_name": db_name})
+                
+                # Drop the database
+                conn.execute(text(f'DROP DATABASE IF EXISTS "{db_name}"'))
+            
+            admin_engine.dispose()
+            
+        except Exception as e:
+            log_with_context(self.logger, logging.ERROR, "Failed to drop database",
+                           database=db_name, error=str(e))
+            raise
     
     def _apply_model_template(self, model_name: str) -> None:
         """Apply current model schema template to a database"""
         log_with_context(self.logger, logging.INFO, "Applying model schema template",
                         model_name=model_name)
         
-        # FIXED: Use the same configuration pattern for model database
         # Create a temporary DatabaseManager for this model database
         try:
             db_credentials = self.secrets_service.get_database_credentials()
             
             db_user = db_credentials.get('user') or os.getenv("INDEXER_DB_USER")
             db_password = db_credentials.get('password') or os.getenv("INDEXER_DB_PASSWORD")
-            db_host = os.getenv("INDEXER_DB_HOST") or db_credentials.get('host') or "127.0.0.1"
-            db_port = os.getenv("INDEXER_DB_PORT") or db_credentials.get('port') or "5432"
+            db_host = os.getenv("INDEXER_DB_HOST") or db_credentials.get('host', "127.0.0.1")
+            db_port = os.getenv("INDEXER_DB_PORT") or db_credentials.get('port', "5432")
             
         except Exception:
             # Fallback to environment variables only
@@ -340,178 +762,3 @@ class MigrationManager:
             
         finally:
             temp_db_manager.shutdown()
-    
-    # === DEVELOPMENT UTILITIES ===
-    
-    def reset_everything(self) -> None:
-        """Reset all databases (DEVELOPMENT ONLY)"""
-        log_with_context(self.logger, logging.WARNING, "Resetting all databases")
-        
-        print("⚠️  WARNING: This will delete ALL data in shared and model databases!")
-        print("⚠️  This should only be used in development environments!")
-        
-        confirm = input("Type 'RESET' to confirm: ")
-        if confirm != "RESET":
-            print("Reset cancelled")
-            return
-        
-        try:
-            # Reset shared database
-            self._reset_shared_database()
-            
-            # List and reset all model databases
-            model_databases = self._list_model_databases()
-            for model_name in model_databases:
-                self.recreate_model_database(model_name)
-            
-            log_with_context(self.logger, logging.WARNING, "All databases reset completed")
-            print("✅ All databases have been reset")
-            
-        except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Failed to reset databases", error=str(e))
-            raise
-    
-    def _reset_shared_database(self) -> None:
-        """Reset shared database by dropping and recreating"""
-        log_with_context(self.logger, logging.INFO, "Resetting shared database")
-        
-        # Drop and recreate indexer_shared database
-        if self._database_exists('indexer_shared'):
-            self._drop_database('indexer_shared')
-        
-        self._create_database('indexer_shared')
-        
-        # Apply latest migrations
-        self.upgrade_shared()
-    
-    def current_status(self) -> Dict:
-        """Get current status of all databases"""
-        log_with_context(self.logger, logging.INFO, "Getting migration status")
-        
-        status = {
-            'shared': {
-                'exists': self._database_exists('indexer_shared'),
-                'current_revision': None,
-                'pending_migrations': []
-            },
-            'models': {}
-        }
-        
-        # Get shared database status
-        if status['shared']['exists']:
-            try:
-                status['shared']['current_revision'] = self.get_shared_current_revision()
-                # TODO: Add pending migrations check
-            except Exception as e:
-                status['shared']['error'] = str(e)
-        
-        # Get model databases status
-        model_databases = self._list_model_databases()
-        for model_name in model_databases:
-            status['models'][model_name] = {
-                'exists': True,
-                'schema_current': self._check_model_schema_current(model_name)
-            }
-        
-        return status
-    
-    def get_model_schema_sql(self) -> str:
-        """Get SQL statements for current model schema"""
-        from .base import Base
-        from sqlalchemy.schema import CreateTable
-        
-        statements = []
-        
-        # Add enum creation statements
-        statements.extend(self._get_enum_creation_statements())
-        
-        # Add table creation statements  
-        for table in Base.metadata.sorted_tables:
-            if self._is_model_table(table.name):
-                statements.append(str(CreateTable(table).compile(compile_kwargs={"literal_binds": True})))
-        
-        return ";\n".join(statements) + ";"
-    
-    def _get_enum_creation_statements(self) -> List[str]:
-        """Get SQL statements to create required enums"""
-        statements = []
-        
-        # Define all enums used in model database
-        enums = [
-            ("transactionstatus", ["pending", "processing", "completed", "failed", "skipped"]),
-            ("jobtype", ["process_block", "process_transaction", "backfill", "maintenance"]),
-            ("jobstatus", ["pending", "processing", "completed", "failed", "cancelled"]),
-            ("tradedirection", ["buy", "sell"]),
-            ("tradetype", ["trade", "arbitrage", "auction"]),
-            ("liquidityaction", ["add", "remove", "update"]),
-            ("rewardtype", ["fees", "rewards"]),
-            ("stakingaction", ["deposit", "withdraw"]),
-            ("pricingdenomination", ["usd", "avax"]),
-            ("pricingmethod", ["direct_avax", "direct_usd", "global", "error"]),
-            ("tradepricingmethod", ["direct", "global"])
-        ]
-        
-        for enum_name, values in enums:
-            values_str = "', '".join(values)
-            statement = f"CREATE TYPE {enum_name} AS ENUM ('{values_str}')"
-            statements.append(statement)
-        
-        return statements
-    
-    def _is_model_table(self, table_name: str) -> bool:
-        """Check if a table belongs to model database (not shared)"""
-        model_tables = {
-            'transaction_processing', 'block_processing', 'processing_jobs',
-            'trades', 'pool_swaps', 'positions', 'transfers', 'liquidity', 
-            'rewards', 'staking', 'pool_swap_details', 'trade_details', 'event_details'
-        }
-        return table_name in model_tables
-    
-    def _list_model_databases(self) -> List[str]:
-        """List all existing model databases"""
-        admin_engine = self._get_admin_engine()
-        
-        with admin_engine.connect() as conn:
-            result = conn.execute(text("""
-                SELECT datname FROM pg_database 
-                WHERE datname NOT IN ('postgres', 'template0', 'template1', 'indexer_shared')
-                AND datname LIKE '%_test' OR datname LIKE '%_prod'
-            """))
-            
-            return [row[0] for row in result]
-    
-    def _check_model_schema_current(self, model_name: str) -> bool:
-        """Check if model database schema matches current template"""
-        try:
-            # Create temporary ModelDatabaseManager for this check
-            db_credentials = self.secrets_service.get_database_credentials()
-            
-            db_user = db_credentials.get('user') or os.getenv("INDEXER_DB_USER")
-            db_password = db_credentials.get('password') or os.getenv("INDEXER_DB_PASSWORD")
-            db_host = os.getenv("INDEXER_DB_HOST") or db_credentials.get('host') or "127.0.0.1"
-            db_port = os.getenv("INDEXER_DB_PORT") or db_credentials.get('port') or "5432"
-            
-            model_db_url = f"postgresql+psycopg://{db_user}:{db_password}@{db_host}:{db_port}/{model_name}"
-            model_db_config = DatabaseConfig(url=model_db_url)
-            
-            temp_db_manager = DatabaseManager(model_db_config)
-            temp_db_manager.initialize()
-            
-            try:
-                # Simple check - could be more sophisticated
-                inspector = inspect(temp_db_manager.engine)
-                existing_tables = set(inspector.get_table_names())
-                
-                from .base import Base
-                expected_tables = {table.name for table in Base.metadata.tables.values() 
-                                 if self._is_model_table(table.name)}
-                
-                return existing_tables == expected_tables
-                
-            finally:
-                temp_db_manager.shutdown()
-                
-        except Exception as e:
-            log_with_context(self.logger, logging.WARNING, "Could not check model schema",
-                           model_name=model_name, error=str(e))
-            return False

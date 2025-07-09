@@ -75,6 +75,7 @@ This is a comprehensive blockchain token indexer with a modular architecture des
 
 ### Development Approach
 - **Step-by-step methodology**: Break complex tasks into manageable items
+- **One step per message**: Working incrementally means only one step per message
 - **Item-by-item walkthroughs**: Go through tasks systematically (very helpful)
 - **Hands-on collaboration**: I prefer to be involved in design decisions
 - **Practical focus**: Avoid sweeping changes, prefer targeted improvements
@@ -85,6 +86,8 @@ This is a comprehensive blockchain token indexer with a modular architecture des
 - **Repository patterns**: I like the repository pattern for database access
 - **Error handling**: Graceful failure handling, log warnings but continue processing
 - **No migrations**: Don't generate migration files unless explicitly requested - I prefer to delete and recreate databases during development
+- **Dependency injection**: All new development must use DI patterns implemented in the indexer init
+- **Configuration pattern**: All environment variables must use IndexerConfig, following existing patterns
 
 ### Database Architecture Preferences
 - **Clear separation**: Shared vs indexer database tables must be clearly distinguished
@@ -97,6 +100,8 @@ This is a comprehensive blockchain token indexer with a modular architecture des
 - **Code context**: Explain where changes fit in the overall architecture
 - **Examples**: Provide usage examples for new functionality
 - **Options**: Present alternatives when there are multiple approaches
+- **Complete replacement files**: When providing artifacts, provide complete replacement files
+- **Partial replacement clarity**: If a file is too long or only a single part is being updated, make it clear that it is a partial replacement and provide either a complete class replacement or complete method replacement
 
 ### What Works Well
 - **Conversational tone**: Natural back-and-forth discussion

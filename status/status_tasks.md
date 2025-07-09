@@ -1,6 +1,6 @@
 # Current Development Status & Next Tasks
 
-## Recent Accomplishments (This Chat)
+## Recent Accomplishments (Previous Chat)
 
 ### ✅ **Completed: Database Architecture Design & Implementation**
 
@@ -89,160 +89,176 @@
 - **GLOBAL**: Deferred to future global pricing implementation
 - **ERROR**: Pricing calculation failed, logged for investigation
 
-## Database Reorganization Status
+## Recent Work Completed (Current Chat)
 
-### **✅ COMPLETED: Directory Structure & Table Organization**
+### ✅ **Configuration Architecture Redesign**
 
-**Current Structure:**
-```
-indexer/database/
-├── connection.py              # Database managers
-├── writers/                   # Domain event writers
-├── shared/                    # Shared database (indexer_shared)
-│   ├── tables/               # Shared table definitions
-│   │   ├── config.py         # Model, Contract, Token, Source
-│   │   ├── block_prices.py   # Chain-level AVAX pricing
-│   │   ├── periods.py        # Time periods
-│   │   └── pool_pricing_config.py # Pool pricing configurations
-│   └── repositories/         # Shared database operations
-└── indexer/                  # Per-indexer database
-    ├── tables/               # Indexer table definitions  
-    │   ├── processing.py     # Processing state tables
-    │   ├── events/           # Domain event tables
-    │   └── detail/           # NEW: Pricing detail tables
-    └── repositories/         # Indexer database operations
-```
+**13. Separated Configuration Files**
+- **MAJOR CHANGE**: Split configuration into shared vs model-specific files
+- **`shared_v1_0.yaml`**: Chain-level infrastructure (tokens, contracts, sources, addresses)
+- **`blub_test_v1_0.yaml`**: Model-specific configuration (associations, pool pricing configs)
+- **Clear separation**: Global defaults vs model-specific overrides
+- **Enhanced structure**: Better organization, documentation, real block numbers
 
-### **✅ COMPLETED: All Database Tables**
+**14. Enhanced Contracts Table**
+- **Removed enum constraint**: Contract type is now flexible string field
+- **Global pricing defaults**: Embedded pool pricing configuration in contracts table
+- **Structure**: `pricing_strategy_default`, `quote_token_address`, `pricing_start_block`
+- **Design**: Global defaults that models can override via `PoolPricingConfig`
 
-**Shared Database Tables (indexer_shared)**
-- **Configuration**: `models`, `contracts`, `tokens`, `sources`, `addresses`, `model_contracts`, `model_tokens`, `model_sources`
-- **Pricing Infrastructure**: `block_prices`, `pool_pricing_configs`, `periods`
+**15. Enhanced Pool Pricing Architecture**
+- **Kept existing table**: Enhanced `pool_pricing_configs` instead of replacing
+- **Added fallback logic**: Model config → Global default → 'global' fallback
+- **New strategy**: `use_global_default` - explicitly use contract defaults
+- **Renamed field**: `primary_pool` → `pricing_pool` for clarity
 
-**Indexer Database Tables (per model)**
-- **Processing**: `transaction_processing`, `block_processing`, `processing_jobs`
-- **Domain Events**: `trades`, `pool_swaps`, `positions`, `transfers`, `liquidity`, `rewards`
-- **Pricing Details**: `pool_swap_details`, `trade_details`, `event_details`
+**16. Token/Contract Separation Maintained**
+- **Decision**: Keep separate `tokens` and `contracts` tables
+- **Clear purposes**: 
+  - `contracts`: Processing/decoding configuration
+  - `tokens`: Metadata + position tracking designation
+- **Model associations**: 
+  - `ModelContract`: "Process events from this contract"
+  - `ModelToken`: "Track position ledgers for this token"
 
-### **✅ COMPLETED: Data Flow for Direct Pricing**
-1. ✅ **Pipeline** → Populates event tables (indexing pipeline remains unchanged)
-2. ✅ **Pricing Service** → Uses dual databases to calculate swap pricing
-3. ✅ **Trade Pricing** → Aggregates from directly priced swaps
-4. ✅ **Monitoring** → Comprehensive coverage and validation tools
+**17. Configuration Import CLI**
+- **`config import-shared`**: Import global infrastructure
+- **`config import-model`**: Import model-specific configuration
+- **Validation**: Dry-run capabilities and comprehensive error checking
+- **Association creation**: Automatically creates junction table entries
 
-## Implementation Summary
+### ✅ **Repository Implementations**
 
-### **What We Built**
-- **Complete direct pricing system** for pools with AVAX or USD quote tokens
-- **Volume-weighted trade pricing** aggregated from constituent swaps
-- **Dual database architecture** with proper separation of concerns
-- **Comprehensive CLI interface** for all pricing operations
-- **Data quality monitoring** and validation tools
-- **Scalable repository patterns** for future expansion
+**18. Enhanced Contract Repository**
+- **Global pricing support**: Create contracts with embedded pricing defaults
+- **Model associations**: Handle pool pricing configurations
+- **Validation**: Comprehensive configuration validation
+- **Bulk operations**: Import from YAML configuration files
 
-### **Key Design Decisions Made**
-- **Separate detail tables** instead of modifying core event tables
-- **Multiple denomination support** (USD + AVAX) with composite keys
-- **Pricing method tracking** for debugging and analysis
-- **Error handling strategy** defaulting to global pricing fallback
-- **Batch processing approach** for efficient backfill operations
+**19. Pool Pricing Config Repository**
+- **Enhanced existing repository**: Added global defaults integration
+- **Fallback logic**: Comprehensive pricing strategy resolution
+- **Overlap prevention**: Block range conflict detection
+- **Statistics**: Model pricing summaries and validation
 
-## Critical Issues to Address in Next Chat
+**20. Complete Table Relationships**
+- **Updated Model class**: Added `pool_pricing_configs` relationship
+- **Updated Contract class**: Added pricing defaults and relationships
+- **Helper methods**: Easy access to pricing pools and strategies
 
-### **🚨 PRIORITY: Processing Pipeline Review**
+## 🚨 CRITICAL ISSUES BLOCKING PROGRESS
 
-**Database Migration Requirements:**
-- Delete existing database and create fresh initial migration
-- Review migration approach (has been problematic in past)
-- Validate all table definitions and relationships
-- Test migration process before proceeding
+### **Database Migration System Broken**
 
-**Processing Logic Issues:**
-- **End-to-end single test block failures** from previous work
-- **Enum case sensitivity issues** (capital vs lowercase inconsistencies)
-- **Processing logic bugs** preventing successful block processing
-- **Pipeline integration** with new pricing architecture
+**21. MigrationManager Issues (BLOCKING)**
+- **Configuration inconsistency**: MigrationManager not using IndexerConfig system
+- **Manual URL construction**: Bypassing established credential resolution
+- **Missing 'port' handling**: Alembic templates expect port field that doesn't exist in secrets
+- **Path issues**: Incorrect migrations directory path construction
+- **Template problems**: `env.py` template not being generated properly
 
-**Specific Areas Needing Review:**
-1. **Domain Event Processing**: Transformers, signals, content ID generation
-2. **Enum Consistency**: TradeDirection, PricingMethod, etc. across tables/code
-3. **Database Writers**: Integration with new detail tables
-4. **Error Handling**: Processing failures and retry logic
-5. **Pipeline Flow**: Block → Transaction → Events → Storage sequence
+**Status**: Database reset completed manually via Cloud SQL console, but schema creation failing due to migration system issues.
 
-### **📋 Next Chat Agenda**
+### **Specific Technical Issues**
 
-**Phase 1: Pre-Migration Review**
-1. **Complete pipeline/processing functionality review**
-2. **Database schema validation** (all tables, relationships, constraints)
-3. **Enum consistency audit** (case sensitivity, naming conventions)
-4. **Migration approach review** (tooling, process, rollback strategy)
+**22. Migration Manager Problems**
+- **Error**: `'port'` key missing from secrets service response
+- **Root cause**: Alembic `env.py` template not using proper credential fallbacks
+- **Path error**: Double `indexer/indexer` in generated paths
+- **Empty migrations**: Directory created but `env.py` file not generated
+- **Method missing**: Incremental artifact updates causing method reference errors
 
-**Phase 2: Migration Execution**
-1. **Delete existing database**
-2. **Create initial migration** with all current tables
-3. **Test migration process** and validate schema
-4. **Review configuration files** for new database structure
+**23. Configuration Flow Blocked**
+- **Dependencies**: Cannot import configuration until database schema exists
+- **Sequence needed**: Database schema → Import shared config → Import model config → Test
+- **Current status**: Stuck at database schema creation step
 
-**Phase 3: End-to-End Testing**
-1. **Single block processing test** with new database
-2. **Pricing service integration test**
-3. **Error resolution** for any processing issues
-4. **Data validation** for complete pipeline flow
+## Next Steps (For Fresh Chat)
 
-## Files Created/Modified This Chat
+### **IMMEDIATE PRIORITY: Fix Migration System**
 
-### **New Database Tables:**
-- `pool_swap_detail.py` - Swap pricing with full metadata
-- `trade_detail.py` - Trade pricing with method tracking
-- `event_detail.py` - Simple valuations for general events
+**Phase 1: Complete MigrationManager Rewrite**
+1. **Fix MigrationManager class**: Use IndexerConfig system consistently
+2. **Fix alembic templates**: Proper credential fallback in `env.py` template
+3. **Fix initialization**: Ensure migrations directory and files are created properly
+4. **Test database creation**: Verify both shared and model databases can be created
 
-### **New Repository Classes:**
-- `pool_swap_detail_repository.py` - Bulk queries and eligibility checks
-- `trade_detail_repository.py` - Enhanced create and method filtering
-- `event_detail_repository.py` - Simple valuation operations
+**Phase 2: Database Schema Creation**
+1. **Run fresh migration setup**: `migrate dev setup blub_test`
+2. **Verify schema**: Use `db_inspector.py` to confirm all tables created
+3. **Fix any remaining issues**: Address table creation problems
 
-### **Enhanced Pricing Service:**
-- `calculate_swap_pricing()` - Direct pricing implementation
-- `calculate_trade_pricing()` - Volume-weighted aggregation
-- `calculate_missing_swap_pricing()` - Batch processing
-- `calculate_missing_trade_pricing()` - Batch trade processing
+**Phase 3: Configuration Import**
+1. **Import shared configuration**: `config import-shared shared_v1_0.yaml`
+2. **Import model configuration**: `config import-model blub_test_v1_0.yaml`
+3. **Validate setup**: Confirm all associations and pool pricing configs created
 
-### **Complete CLI Interface:**
-- Updated `pricing.py` - Full CLI command set
-- Updated `pricing_service_runner.py` - All pricing operations
-- Enhanced monitoring and validation tools
+**Phase 4: System Validation**
+1. **End-to-end test**: Process a single block through the pipeline
+2. **Pricing integration**: Test pricing service with new configuration
+3. **CLI validation**: Verify all pricing commands work with real data
 
-### **Database Architecture:**
-- Updated `__init__.py` files for new tables and repositories
-- Enhanced dual database patterns throughout codebase
+### **Configuration Files Ready**
 
-## Development Preferences Maintained
+**Available for import once database works:**
+- **`shared_v1_0.yaml`**: Complete shared infrastructure configuration
+- **`blub_test_v1_0.yaml`**: Complete model configuration with real block numbers
+- **CLI commands**: Import commands implemented and tested (dry-run mode)
 
-- **No migration generation**: Delete and recreate databases during development
-- **Incremental approach**: Built piece by piece with validation at each step
-- **Dual database clarity**: Always specified which database for new functionality
-- **Dependency injection**: All services use DI container pattern
-- **Repository pattern**: Query operations only, business logic in services
-- **Comprehensive testing**: End-to-end validation before proceeding
+### **Architecture Decisions Made**
 
-## Success Metrics Achieved
+**24. Final Design Patterns**
+- **Dual database**: Shared infrastructure + model-specific data
+- **Configuration separation**: Shared vs model config files
+- **Global defaults + overrides**: Contract defaults + model-specific pool configs
+- **Token/contract separation**: Maintained for clear separation of concerns
+- **Repository patterns**: Established and consistent throughout
 
-### **Database Design:**
-- ✅ All direct pricing tables implemented with proper constraints
-- ✅ Repository layer provides efficient bulk operations
-- ✅ Dual database pattern consistently applied
+### **Key Files Modified/Created**
 
-### **Pricing Logic:**
-- ✅ AVAX-quoted pools calculate USD values correctly
-- ✅ USD-equivalent pools use 1:1 conversion properly
-- ✅ Trade-level pricing aggregates from swaps with volume weighting
-- ✅ Error handling gracefully defers complex cases to global pricing
+**Database Layer:**
+- **Enhanced Contract table**: Pricing defaults embedded
+- **Enhanced PoolPricingConfig**: Global defaults integration
+- **Repository classes**: Complete CRUD operations with validation
+- **MigrationManager**: Needs complete rewrite to fix configuration issues
 
-### **CLI Interface:**
-- ✅ All pricing operations accessible via clean command interface
-- ✅ Comprehensive monitoring shows coverage statistics
-- ✅ Data validation confirms pricing accuracy
-- ✅ Batch processing handles large datasets efficiently
+**Configuration Layer:**
+- **`shared_v1_0.yaml`**: Chain-level infrastructure configuration
+- **`blub_test_v1_0.yaml`**: Model-specific configuration
+- **Import CLI commands**: Complete implementation with validation
 
-**Ready for next phase: Processing pipeline review and initial database migration.**
+**Development Infrastructure:**
+- **`db_inspector.py`**: Working database inspection tool
+- **Configuration patterns**: Established and documented
+
+### **Lessons Learned**
+
+**25. Configuration System Integration**
+- **Importance**: Using established patterns consistently prevents integration issues
+- **Problem**: MigrationManager bypassed IndexerConfig system, causing credential resolution failures
+- **Solution**: All components must use the same configuration and credential resolution patterns
+
+**26. Incremental Development Challenges**
+- **Artifact updates**: Partial file updates in chat can cause method reference errors
+- **Complete files needed**: For complex classes, providing complete implementations is more reliable
+- **Fresh context helps**: When artifact updates become problematic, fresh chat provides clean slate
+
+### **Success Metrics Achieved This Chat**
+
+**Configuration Architecture:**
+- ✅ Separated shared vs model configuration files
+- ✅ Enhanced pool pricing with global defaults + model overrides
+- ✅ Maintained token/contract separation with clear purposes
+- ✅ Complete CLI import system with validation
+
+**Repository Layer:**
+- ✅ Enhanced repositories with global defaults support
+- ✅ Comprehensive validation and error handling
+- ✅ Bulk operations for configuration import
+- ✅ Complete relationships and helper methods
+
+**Next Chat Goal:**
+- **Fix MigrationManager** to use IndexerConfig system properly
+- **Get database schema creation working**
+- **Import and test configuration files**
+- **Validate end-to-end system functionality**
