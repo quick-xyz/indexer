@@ -19,7 +19,8 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 # Import all table definitions to ensure they're registered
-from indexer.database.base import Base
+from indexer.database.base import SharedBase
+from indexer.database.base import ModelBase
 
 # Import custom types for migration generation
 from indexer.database.types import EvmAddressType, EvmHashType, DomainEventIdType
@@ -37,8 +38,12 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# For now, use all metadata - we'll filter this later if needed
-target_metadata = Base.metadata
+# For shared database migrations
+if os.getenv("MIGRATION_TARGET") == "shared":
+    target_metadata = SharedBase.metadata
+else:
+    # For any future model database migrations (if implemented)
+    target_metadata = ModelBase.metadata
 
 
 def render_item(type_, obj, autogen_context):

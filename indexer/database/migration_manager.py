@@ -240,11 +240,11 @@ class MigrationManager:
         """Generate SQL for current model schema template"""
         try:
             # Import all model tables to ensure they're registered
-            from .base import Base
+            from .base import ModelBase
             
             # Filter to only model tables (not infrastructure tables)
             model_tables = []
-            for table in Base.metadata.tables.values():
+            for table in ModelBase.metadata.tables.values():
                 # Include only tables that belong to model database
                 # This is determined by the table's location in the codebase
                 table_module = table.__class__.__module__ if hasattr(table, '__class__') else ""
@@ -466,7 +466,8 @@ PROJECT_ROOT = Path(__file__).parent.parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
 # Import all table definitions to ensure they're registered
-from indexer.database.base import Base
+from indexer.database.base import SharedBase
+from indexer.database.base import ModelBase
 
 # Import custom types for migration generation
 from indexer.database.types import EvmAddressType, EvmHashType, DomainEventIdType
@@ -484,8 +485,12 @@ config = context.config
 if config.config_file_name is not None:
     fileConfig(config.config_file_name)
 
-# For now, use all metadata - we'll filter this later if needed
-target_metadata = Base.metadata
+# For shared database migrations
+if os.getenv("MIGRATION_TARGET") == "shared":
+    target_metadata = SharedBase.metadata
+else:
+    # For any future model database migrations (if implemented)
+    target_metadata = ModelBase.metadata
 
 
 def render_item(type_, obj, autogen_context):
@@ -752,13 +757,13 @@ def downgrade() -> None:
         
         try:
             # Import all model tables to ensure they're registered
-            from .base import Base
+            from .base import ModelBase
             
             # Create all tables
-            Base.metadata.create_all(temp_db_manager.engine)
+            ModelBase.metadata.create_all(temp_db_manager.engine)
             
             log_with_context(self.logger, logging.INFO, "Model schema template applied successfully",
-                           model_name=model_name, table_count=len(Base.metadata.tables))
+                           model_name=model_name, table_count=len(ModelBase.metadata.tables))
             
         finally:
             temp_db_manager.shutdown()

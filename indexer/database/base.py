@@ -14,8 +14,8 @@ from ..types.new import EvmAddress, EvmHash, DomainEventId
 from .types import EvmHashType, DomainEventIdType
 
 
-Base = declarative_base()
-
+SharedBase = declarative_base()
+ModelBase = declarative_base()
 
 @declarative_mixin
 class TimestampMixin:
@@ -44,7 +44,7 @@ class BlockchainTimestampMixin:
         return datetime.fromtimestamp(self.timestamp, tz=timezone.utc)
 
 
-class BaseModel(Base, TimestampMixin):
+class BaseModel(ModelBase, TimestampMixin):
     __abstract__ = True
     
     # UUID primary key for most tables

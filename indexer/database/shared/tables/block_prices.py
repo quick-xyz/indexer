@@ -4,10 +4,10 @@ from sqlalchemy import Column, Integer, TIMESTAMP, Index
 from sqlalchemy.dialects.postgresql import NUMERIC
 from sqlalchemy.sql import func
 
-from ...base import Base
+from ...base import SharedBase
 
 
-class BlockPrice(Base):
+class BlockPrice(SharedBase):
     """
     Chain-level AVAX-USD prices from Chainlink price feed.
     

@@ -5,11 +5,11 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import enum
 
-from ...base import Base
+from ...base import SharedBase
 from ...types import EvmAddressType
 
 
-class PoolPricingConfig(Base):
+class PoolPricingConfig(SharedBase):
     """
     Model-specific pool pricing configurations with time ranges.
     

@@ -6,11 +6,11 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 
 
-from ...base import Base
+from ...base import SharedBase
 from ...types import EvmAddressType
 
 
-class Model(Base):
+class Model(SharedBase):
     __tablename__ = 'models'
     
     id = Column(Integer, primary_key=True)
@@ -74,7 +74,7 @@ class Model(Base):
         )
 
 
-class Contract(Base):
+class Contract(SharedBase):
     __tablename__ = 'contracts'
     
     id = Column(Integer, primary_key=True)
@@ -189,7 +189,7 @@ class Contract(Base):
         ).order_by(PoolPricingConfig.start_block).all()
 
 
-class Token(Base):
+class Token(SharedBase):
     __tablename__ = 'tokens'
     
     id = Column(Integer, primary_key=True)
@@ -219,7 +219,7 @@ class Token(Base):
         return f"<Token(symbol='{self.symbol}', address='{self.address}', project='{self.project}')>"
 
 
-class Address(Base):
+class Address(SharedBase):
     __tablename__ = 'addresses'
     
     id = Column(Integer, primary_key=True)
@@ -246,7 +246,7 @@ class Address(Base):
     def __repr__(self) -> str:
         return f"<Address(name='{self.name}', address='{self.address}', type='{self.type}')>"
 
-class Source(Base):
+class Source(SharedBase):
     """Sources define where block data is stored (path + format)"""
     __tablename__ = 'sources'
     
@@ -270,7 +270,7 @@ class Source(Base):
         return f"<Source(name='{self.name}', path='{self.path}')>"
 
 
-class ModelSource(Base):
+class ModelSource(SharedBase):
     """Junction table linking Models to their Sources"""
     __tablename__ = 'model_sources'
     
@@ -293,7 +293,7 @@ class ModelSource(Base):
     def __repr__(self) -> str:
         return f"<ModelSource(model_id={self.model_id}, source_id={self.source_id})>"
     
-class ModelToken(Base):
+class ModelToken(SharedBase):
     __tablename__ = 'model_tokens'
     
     id = Column(Integer, primary_key=True)
@@ -316,7 +316,7 @@ class ModelToken(Base):
         return f"<ModelToken(model_id={self.model_id}, token_id={self.token_id})>"
    
 
-class ModelContract(Base):
+class ModelContract(SharedBase):
     __tablename__ = 'model_contracts'
     
     id = Column(Integer, primary_key=True)

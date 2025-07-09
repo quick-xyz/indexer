@@ -5,7 +5,7 @@ from sqlalchemy.sql import func
 from datetime import datetime, timezone
 import enum
 
-from ...base import Base
+from ...base import SharedBase
 
 
 class PeriodType(enum.Enum):
@@ -39,7 +39,7 @@ class PeriodType(enum.Enum):
         return mapping[self]
 
 
-class Period(Base):
+class Period(SharedBase):
     """
     Time periods with corresponding block ranges.
     
