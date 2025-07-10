@@ -1,0 +1,94 @@
+{
+  "transaction_processing": [
+    {
+      "tx_hash": "0xf047f0529b433121f6876ac862b4c4c4010182d3b9c6a6a1f88f8881dd1bf1a9",
+      "status": "completed",
+      "block_number": 58277747,
+      "timestamp": 1741207547,
+      "tx_success": true,
+      "events_generated": 8,
+      "logs_processed": 0,
+      "created_at": "2025-07-10T05:21:25.445207+00:00"
+    }
+  ],
+  "liquidity_events": [
+    {
+      "content_id": "a32d595f0454",
+      "tx_hash": "0xf047f0529b433121f6876ac862b4c4c4010182d3b9c6a6a1f88f8881dd1bf1a9",
+      "pool": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+      "provider": "0x34ece273a96db92e942a22fd28133fa34cd44fc9",
+      "action": "remove",
+      "base_token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+      "base_amount": "-8620492009136536790302888",
+      "quote_token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+      "quote_amount": "-30311595008229678148731",
+      "block_number": 58277747,
+      "timestamp": 1741207547,
+      "created_at": "2025-07-10T05:21:25.602420+00:00"
+    }
+  ],
+  "trade_events": [],
+  "pool_swap_events": [],
+  "positions": [
+    {
+      "content_id": "918aba401240",
+      "tx_hash": "0xf047f0529b433121f6876ac862b4c4c4010182d3b9c6a6a1f88f8881dd1bf1a9",
+      "user": "0x34ece273a96db92e942a22fd28133fa34cd44fc9",
+      "token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+      "amount": "8620492009136536790302888",
+      "block_number": 58277747,
+      "timestamp": 1741207547,
+      "created_at": "2025-07-10T05:21:25.929545+00:00"
+    },
+    {
+      "content_id": "7f7626d6729a",
+      "tx_hash": "0xf047f0529b433121f6876ac862b4c4c4010182d3b9c6a6a1f88f8881dd1bf1a9",
+      "user": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+      "token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+      "amount": "-8620492009136536790302888",
+      "block_number": 58277747,
+      "timestamp": 1741207547,
+      "created_at": "2025-07-10T05:21:26.083928+00:00"
+    },
+    {
+      "content_id": "c2dd96b98c18",
+      "tx_hash": "0xf047f0529b433121f6876ac862b4c4c4010182d3b9c6a6a1f88f8881dd1bf1a9",
+      "user": "0x34ece273a96db92e942a22fd28133fa34cd44fc9",
+      "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+      "amount": "30311595008229678148731",
+      "block_number": 58277747,
+      "timestamp": 1741207547,
+      "created_at": "2025-07-10T05:21:26.234822+00:00"
+    },
+    {
+      "content_id": "3f5fa459d327",
+      "tx_hash": "0xf047f0529b433121f6876ac862b4c4c4010182d3b9c6a6a1f88f8881dd1bf1a9",
+      "user": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+      "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+      "amount": "-30311595008229678148731",
+      "block_number": 58277747,
+      "timestamp": 1741207547,
+      "created_at": "2025-07-10T05:21:26.385541+00:00"
+    },
+    {
+      "content_id": "d4cf6a61251e",
+      "tx_hash": "0xf047f0529b433121f6876ac862b4c4c4010182d3b9c6a6a1f88f8881dd1bf1a9",
+      "user": "0x34ece273a96db92e942a22fd28133fa34cd44fc9",
+      "token": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+      "amount": "-500000000000000000000000",
+      "block_number": 58277747,
+      "timestamp": 1741207547,
+      "created_at": "2025-07-10T05:21:26.541466+00:00"
+    },
+    {
+      "content_id": "bc445429949f",
+      "tx_hash": "0xf047f0529b433121f6876ac862b4c4c4010182d3b9c6a6a1f88f8881dd1bf1a9",
+      "user": "0x60233142befce7d4ed73e7793ead2d6190fccaab",
+      "token": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+      "amount": "152894868786059542844",
+      "block_number": 58277747,
+      "timestamp": 1741207547,
+      "created_at": "2025-07-10T05:21:26.771859+00:00"
+    }
+  ]
+}

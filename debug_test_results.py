@@ -113,10 +113,11 @@ class TestResultsDebugger:
             # Liquidity Events - Handle enum case issue
             try:
                 from indexer.database.indexer.tables.events.liquidity import Liquidity
+                from sqlalchemy import text
                 
                 # Try to fetch with raw SQL to avoid enum validation errors
                 raw_liquidity = session.execute(
-                    "SELECT content_id, tx_hash, pool, provider, action, base_token, base_amount, quote_token, quote_amount, block_number, timestamp, created_at FROM liquidity WHERE block_number = :block_number",
+                    text("SELECT content_id, tx_hash, pool, provider, action, base_token, base_amount, quote_token, quote_amount, block_number, timestamp, created_at FROM liquidity WHERE block_number = :block_number"),
                     {"block_number": block_number}
                 ).fetchall()
                 
@@ -204,10 +205,11 @@ class TestResultsDebugger:
             # Positions - Handle schema differences
             try:
                 from indexer.database.indexer.tables.events.position import Position
+                from sqlalchemy import text
                 
                 # Try raw SQL first to see what columns exist
                 raw_positions = session.execute(
-                    "SELECT content_id, tx_hash, \"user\", token, amount, block_number, timestamp, created_at FROM positions WHERE block_number = :block_number",
+                    text("SELECT content_id, tx_hash, \"user\", token, amount, block_number, timestamp, created_at FROM positions WHERE block_number = :block_number"),
                     {"block_number": block_number}
                 ).fetchall()
                 
@@ -310,9 +312,11 @@ class TestResultsDebugger:
         
         with self.repository_manager.get_session() as session:
             try:
+                from sqlalchemy import text
+                
                 # Check enum values in database
                 enum_check = session.execute(
-                    "SELECT enumlabel FROM pg_enum WHERE enumtypid = (SELECT oid FROM pg_type WHERE typname = 'liquidityaction') ORDER BY enumsortorder"
+                    text("SELECT enumlabel FROM pg_enum WHERE enumtypid = (SELECT oid FROM pg_type WHERE typname = 'liquidityaction') ORDER BY enumsortorder")
                 ).fetchall()
                 
                 enum_values = [row[0] for row in enum_check]
@@ -329,9 +333,11 @@ class TestResultsDebugger:
                 print(f"   ❌ Failed to check enum schema: {e}")
             
             try:
+                from sqlalchemy import text
+                
                 # Check positions table schema
                 columns_check = session.execute(
-                    "SELECT column_name FROM information_schema.columns WHERE table_name = 'positions' ORDER BY ordinal_position"
+                    text("SELECT column_name FROM information_schema.columns WHERE table_name = 'positions' ORDER BY ordinal_position")
                 ).fetchall()
                 
                 column_names = [row[0] for row in columns_check]
@@ -339,6 +345,20 @@ class TestResultsDebugger:
                 
             except Exception as e:
                 print(f"   ❌ Failed to check positions schema: {e}")
+                
+            try:
+                from sqlalchemy import text
+                
+                # Check if liquidity table has data
+                liquidity_count = session.execute(
+                    text("SELECT COUNT(*) FROM liquidity WHERE block_number = :block_number"),
+                    {"block_number": 58277747}
+                ).scalar()
+                
+                print(f"   📊 Liquidity records for block 58277747: {liquidity_count}")
+                
+            except Exception as e:
+                print(f"   ❌ Failed to check liquidity data: {e}")
 
 
 def main():
