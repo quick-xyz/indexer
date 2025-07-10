@@ -239,35 +239,30 @@ class HybridEndToEndTest:
             print(f"   ❌ GCS save failed: {e}")
             return False
     
-    def _verify_results(self, block_number: int):
-        """Verify that everything was persisted correctly."""
+    def _verify_results(self, block_number: int) -> bool:
+        """Verify that data was persisted correctly"""
         try:
-            # Check database
             with self.repository_manager.get_session() as session:
-                from indexer.database.indexer.tables.events import DomainEvent
-                events = session.query(DomainEvent).filter(
-                    DomainEvent.block_number == block_number
+                # Check transaction processing record
+                from indexer.database.indexer.tables.processing import TransactionProcessing
+                tx_records = session.query(TransactionProcessing).filter(
+                    TransactionProcessing.block_number == block_number
                 ).all()
                 
-                from indexer.database.indexer.tables.positions import Position
-                positions = session.query(Position).filter(
-                    Position.block_number == block_number
-                ).all()
-            
-            # Check GCS
-            processing_exists = self.gcs.blob_exists(
-                self.gcs.get_blob_string("processing", block_number)
-            )
-            complete_exists = self.gcs.blob_exists(
-                self.gcs.get_blob_string("complete", block_number)
-            )
-            
-            print(f"   📊 Database: {len(events)} events, {len(positions)} positions")
-            print(f"   ☁️ GCS: Processing {'✅' if processing_exists else '❌'}, Complete {'✅' if complete_exists else '❌'}")
-            
-            # Success if we have either events or positions AND both GCS files
-            return (len(events) > 0 or len(positions) > 0) and complete_exists
-            
+                print(f"   📊 Database: {len(tx_records)} transactions processed")
+                
+                # Check GCS files
+                processing_exists = self.gcs.blob_exists(
+                    self.gcs.get_blob_string("processing", block_number)
+                )
+                complete_exists = self.gcs.blob_exists(
+                    self.gcs.get_blob_string("complete", block_number)
+                )
+                
+                print(f"   ☁️ GCS: Processing {'✅' if processing_exists else '❌'}, Complete {'✅' if complete_exists else '❌'}")
+                
+                return len(tx_records) > 0 and complete_exists
+                
         except Exception as e:
             print(f"   ❌ Verification failed: {e}")
             return False

@@ -34,7 +34,7 @@ class EventDetail(BaseModel):
     content_id = Column(DomainEventIdType(), nullable=False, index=True)
     
     # Pricing denomination and value
-    denom = Column(Enum(PricingDenomination), nullable=False, index=True)
+    denom = Column(Enum(PricingDenomination, native_enum=False), nullable=False, index=True)
     value = Column(NUMERIC(precision=20, scale=8), nullable=False)  # Event value in selected denom
     
     # Indexes for efficient querying

@@ -1,0 +1,415 @@
+{
+  "complete": {
+    "block_number": 58277747,
+    "timestamp": 1741207547,
+    "transactions": {
+      "0xf047f0529b433121f6876ac862b4c4c4010182d3b9c6a6a1f88f8881dd1bf1a9": {
+        "block": 58277747,
+        "timestamp": 1741207547,
+        "tx_hash": "0xf047f0529b433121f6876ac862b4c4c4010182d3b9c6a6a1f88f8881dd1bf1a9",
+        "index": 4,
+        "origin_from": "0x34ece273a96db92e942a22fd28133fa34cd44fc9",
+        "function": {
+          "type": "EncodedMethod",
+          "data": "0xbaa2abde0000000000000000000000000f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd000000000000000000000000b31f66aa3c1e785363f0875a1b74e27b85fd66c70000000000000000000000000000000000000000000069e10de76676d08000000000000000000000000000000000000000000000000709f2196d9658bb9e000000000000000000000000000000000000000000000000065fbc6e178367e351c000000000000000000000000034ece273a96db92e942a22fd28133fa34cd44fc90000000000000000000000000000000000000000000000000000000067c8bf5e"
+        },
+        "value": "0",
+        "tx_success": true,
+        "logs": {
+          "8": {
+            "type": "DecodedLog",
+            "index": 8,
+            "removed": false,
+            "contract": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+            "signature": "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "name": "Transfer",
+            "attributes": {
+              "from": "0x34ecE273A96DB92e942a22fd28133FA34CD44fc9",
+              "to": "0x39888258d60FED9228F89e13eb57a92F1Fa832eb",
+              "value": 500000000000000000000000
+            }
+          },
+          "9": {
+            "type": "DecodedLog",
+            "index": 9,
+            "removed": false,
+            "contract": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+            "signature": "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "name": "Transfer",
+            "attributes": {
+              "from": "0x0000000000000000000000000000000000000000",
+              "to": "0x60233142BefcE7D4ed73e7793eaD2d6190fccAAB",
+              "value": 152894868786059542844
+            }
+          },
+          "10": {
+            "type": "DecodedLog",
+            "index": 10,
+            "removed": false,
+            "contract": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+            "signature": "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "name": "Transfer",
+            "attributes": {
+              "from": "0x39888258d60FED9228F89e13eb57a92F1Fa832eb",
+              "to": "0x0000000000000000000000000000000000000000",
+              "value": 500000000000000000000000
+            }
+          },
+          "11": {
+            "type": "DecodedLog",
+            "index": 11,
+            "removed": false,
+            "contract": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+            "signature": "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "name": "Transfer",
+            "attributes": {
+              "from": "0x39888258d60FED9228F89e13eb57a92F1Fa832eb",
+              "to": "0x34ecE273A96DB92e942a22fd28133FA34CD44fc9",
+              "value": 8620492009136536790302888
+            }
+          },
+          "12": {
+            "type": "DecodedLog",
+            "index": 12,
+            "removed": false,
+            "contract": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+            "signature": "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef",
+            "name": "Transfer",
+            "attributes": {
+              "src": "0x39888258d60FED9228F89e13eb57a92F1Fa832eb",
+              "dst": "0x34ecE273A96DB92e942a22fd28133FA34CD44fc9",
+              "wad": 30311595008229678148731
+            }
+          },
+          "13": {
+            "type": "DecodedLog",
+            "index": 13,
+            "removed": false,
+            "contract": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+            "signature": "0x1c411e9a96e071241c2f21f7726b17ae89e3cab4c78be50e062b03a9fffbbad1",
+            "name": "Sync",
+            "attributes": {
+              "reserve0": 27098056320378760650540590,
+              "reserve1": 95282880353344563115386
+            }
+          },
+          "14": {
+            "type": "DecodedLog",
+            "index": 14,
+            "removed": false,
+            "contract": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+            "signature": "0xdccd412f0b1252819cb1fd330b93224ca42612892bb3f4f789976e6d81936496",
+            "name": "Burn",
+            "attributes": {
+              "sender": "0x60aE616a2155Ee3d9A68541Ba4544862310933d4",
+              "to": "0x34ecE273A96DB92e942a22fd28133FA34CD44fc9",
+              "amount0": 8620492009136536790302888,
+              "amount1": 30311595008229678148731
+            }
+          }
+        },
+        "origin_to": "0x60ae616a2155ee3d9a68541ba4544862310933d4",
+        "signals": {
+          "8": {
+            "type": "TransferSignal",
+            "log_index": 8,
+            "pattern": "Transfer",
+            "token": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+            "from_address": "0x34ece273a96db92e942a22fd28133fa34cd44fc9",
+            "to_address": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+            "amount": "500000000000000000000000",
+            "token_id": null,
+            "batch": null,
+            "sender": null
+          },
+          "9": {
+            "type": "TransferSignal",
+            "log_index": 9,
+            "pattern": "Transfer",
+            "token": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+            "from_address": "0x0000000000000000000000000000000000000000",
+            "to_address": "0x60233142befce7d4ed73e7793ead2d6190fccaab",
+            "amount": "152894868786059542844",
+            "token_id": null,
+            "batch": null,
+            "sender": null
+          },
+          "10": {
+            "type": "TransferSignal",
+            "log_index": 10,
+            "pattern": "Transfer",
+            "token": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+            "from_address": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+            "to_address": "0x0000000000000000000000000000000000000000",
+            "amount": "500000000000000000000000",
+            "token_id": null,
+            "batch": null,
+            "sender": null
+          },
+          "14": {
+            "type": "LiquiditySignal",
+            "log_index": 14,
+            "pattern": "Burn_A",
+            "pool": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+            "base_amount": "-8620492009136536790302888",
+            "base_token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+            "quote_amount": "-30311595008229678148731",
+            "quote_token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+            "action": "remove",
+            "receipt_amount": null,
+            "batch": null,
+            "sender": "0x60ae616a2155ee3d9a68541ba4544862310933d4",
+            "owner": "0x34ece273a96db92e942a22fd28133fa34cd44fc9"
+          },
+          "11": {
+            "type": "TransferSignal",
+            "log_index": 11,
+            "pattern": "Transfer",
+            "token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+            "from_address": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+            "to_address": "0x34ece273a96db92e942a22fd28133fa34cd44fc9",
+            "amount": "8620492009136536790302888",
+            "token_id": null,
+            "batch": null,
+            "sender": null
+          },
+          "12": {
+            "type": "TransferSignal",
+            "log_index": 12,
+            "pattern": "Transfer",
+            "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+            "from_address": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+            "to_address": "0x34ece273a96db92e942a22fd28133fa34cd44fc9",
+            "amount": "30311595008229678148731",
+            "token_id": null,
+            "batch": null,
+            "sender": null
+          }
+        },
+        "events": {
+          "a32d595f0454": {
+            "type": "Liquidity",
+            "timestamp": 1741207547,
+            "tx_hash": "0xf047f0529b433121f6876ac862b4c4c4010182d3b9c6a6a1f88f8881dd1bf1a9",
+            "pool": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+            "provider": "0x34ece273a96db92e942a22fd28133fa34cd44fc9",
+            "base_token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+            "base_amount": "-8620492009136536790302888",
+            "quote_token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+            "quote_amount": "-30311595008229678148731",
+            "action": "remove",
+            "positions": {
+              "918aba401240": {
+                "type": "Position",
+                "timestamp": 1741207547,
+                "tx_hash": "0xf047f0529b433121f6876ac862b4c4c4010182d3b9c6a6a1f88f8881dd1bf1a9",
+                "user": "0x34ece273a96db92e942a22fd28133fa34cd44fc9",
+                "token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                "amount": "8620492009136536790302888",
+                "custodian": "0x34ece273a96db92e942a22fd28133fa34cd44fc9",
+                "token_id": null
+              },
+              "7f7626d6729a": {
+                "type": "Position",
+                "timestamp": 1741207547,
+                "tx_hash": "0xf047f0529b433121f6876ac862b4c4c4010182d3b9c6a6a1f88f8881dd1bf1a9",
+                "user": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+                "token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                "amount": "-8620492009136536790302888",
+                "custodian": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+                "token_id": null
+              },
+              "c2dd96b98c18": {
+                "type": "Position",
+                "timestamp": 1741207547,
+                "tx_hash": "0xf047f0529b433121f6876ac862b4c4c4010182d3b9c6a6a1f88f8881dd1bf1a9",
+                "user": "0x34ece273a96db92e942a22fd28133fa34cd44fc9",
+                "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+                "amount": "30311595008229678148731",
+                "custodian": "0x34ece273a96db92e942a22fd28133fa34cd44fc9",
+                "token_id": null
+              },
+              "3f5fa459d327": {
+                "type": "Position",
+                "timestamp": 1741207547,
+                "tx_hash": "0xf047f0529b433121f6876ac862b4c4c4010182d3b9c6a6a1f88f8881dd1bf1a9",
+                "user": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+                "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+                "amount": "-30311595008229678148731",
+                "custodian": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+                "token_id": null
+              },
+              "d4cf6a61251e": {
+                "type": "Position",
+                "timestamp": 1741207547,
+                "tx_hash": "0xf047f0529b433121f6876ac862b4c4c4010182d3b9c6a6a1f88f8881dd1bf1a9",
+                "user": "0x34ece273a96db92e942a22fd28133fa34cd44fc9",
+                "token": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+                "amount": "-500000000000000000000000",
+                "custodian": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+                "token_id": null
+              }
+            },
+            "signals": {
+              "11": {
+                "type": "TransferSignal",
+                "log_index": 11,
+                "pattern": "Transfer",
+                "token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                "from_address": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+                "to_address": "0x34ece273a96db92e942a22fd28133fa34cd44fc9",
+                "amount": "8620492009136536790302888",
+                "token_id": null,
+                "batch": null,
+                "sender": null
+              },
+              "12": {
+                "type": "TransferSignal",
+                "log_index": 12,
+                "pattern": "Transfer",
+                "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+                "from_address": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+                "to_address": "0x34ece273a96db92e942a22fd28133fa34cd44fc9",
+                "amount": "30311595008229678148731",
+                "token_id": null,
+                "batch": null,
+                "sender": null
+              },
+              "8": {
+                "type": "TransferSignal",
+                "log_index": 8,
+                "pattern": "Transfer",
+                "token": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+                "from_address": "0x34ece273a96db92e942a22fd28133fa34cd44fc9",
+                "to_address": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+                "amount": "500000000000000000000000",
+                "token_id": null,
+                "batch": null,
+                "sender": null
+              },
+              "10": {
+                "type": "TransferSignal",
+                "log_index": 10,
+                "pattern": "Transfer",
+                "token": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+                "from_address": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+                "to_address": "0x0000000000000000000000000000000000000000",
+                "amount": "500000000000000000000000",
+                "token_id": null,
+                "batch": null,
+                "sender": null
+              },
+              "14": {
+                "type": "LiquiditySignal",
+                "log_index": 14,
+                "pattern": "Burn_A",
+                "pool": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+                "base_amount": "-8620492009136536790302888",
+                "base_token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+                "quote_amount": "-30311595008229678148731",
+                "quote_token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+                "action": "remove",
+                "receipt_amount": null,
+                "batch": null,
+                "sender": "0x60ae616a2155ee3d9a68541ba4544862310933d4",
+                "owner": "0x34ece273a96db92e942a22fd28133fa34cd44fc9"
+              }
+            },
+            "batch": null
+          },
+          "b0465e6ea8c3": {
+            "type": "Reward",
+            "timestamp": 1741207547,
+            "tx_hash": "0xf047f0529b433121f6876ac862b4c4c4010182d3b9c6a6a1f88f8881dd1bf1a9",
+            "contract": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+            "recipient": "0x60233142befce7d4ed73e7793ead2d6190fccaab",
+            "token": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+            "amount": "152894868786059542844",
+            "reward_type": "fee",
+            "positions": {
+              "bc445429949f": {
+                "type": "Position",
+                "timestamp": 1741207547,
+                "tx_hash": "0xf047f0529b433121f6876ac862b4c4c4010182d3b9c6a6a1f88f8881dd1bf1a9",
+                "user": "0x60233142befce7d4ed73e7793ead2d6190fccaab",
+                "token": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+                "amount": "152894868786059542844",
+                "custodian": "0x60233142befce7d4ed73e7793ead2d6190fccaab",
+                "token_id": null
+              }
+            },
+            "signals": {}
+          }
+        },
+        "positions": {
+          "918aba401240": {
+            "type": "Position",
+            "timestamp": 1741207547,
+            "tx_hash": "0xf047f0529b433121f6876ac862b4c4c4010182d3b9c6a6a1f88f8881dd1bf1a9",
+            "user": "0x34ece273a96db92e942a22fd28133fa34cd44fc9",
+            "token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+            "amount": "8620492009136536790302888",
+            "custodian": "0x34ece273a96db92e942a22fd28133fa34cd44fc9",
+            "token_id": null
+          },
+          "7f7626d6729a": {
+            "type": "Position",
+            "timestamp": 1741207547,
+            "tx_hash": "0xf047f0529b433121f6876ac862b4c4c4010182d3b9c6a6a1f88f8881dd1bf1a9",
+            "user": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+            "token": "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd",
+            "amount": "-8620492009136536790302888",
+            "custodian": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+            "token_id": null
+          },
+          "c2dd96b98c18": {
+            "type": "Position",
+            "timestamp": 1741207547,
+            "tx_hash": "0xf047f0529b433121f6876ac862b4c4c4010182d3b9c6a6a1f88f8881dd1bf1a9",
+            "user": "0x34ece273a96db92e942a22fd28133fa34cd44fc9",
+            "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+            "amount": "30311595008229678148731",
+            "custodian": "0x34ece273a96db92e942a22fd28133fa34cd44fc9",
+            "token_id": null
+          },
+          "3f5fa459d327": {
+            "type": "Position",
+            "timestamp": 1741207547,
+            "tx_hash": "0xf047f0529b433121f6876ac862b4c4c4010182d3b9c6a6a1f88f8881dd1bf1a9",
+            "user": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+            "token": "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7",
+            "amount": "-30311595008229678148731",
+            "custodian": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+            "token_id": null
+          },
+          "d4cf6a61251e": {
+            "type": "Position",
+            "timestamp": 1741207547,
+            "tx_hash": "0xf047f0529b433121f6876ac862b4c4c4010182d3b9c6a6a1f88f8881dd1bf1a9",
+            "user": "0x34ece273a96db92e942a22fd28133fa34cd44fc9",
+            "token": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+            "amount": "-500000000000000000000000",
+            "custodian": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+            "token_id": null
+          },
+          "bc445429949f": {
+            "type": "Position",
+            "timestamp": 1741207547,
+            "tx_hash": "0xf047f0529b433121f6876ac862b4c4c4010182d3b9c6a6a1f88f8881dd1bf1a9",
+            "user": "0x60233142befce7d4ed73e7793ead2d6190fccaab",
+            "token": "0x39888258d60fed9228f89e13eb57a92f1fa832eb",
+            "amount": "152894868786059542844",
+            "custodian": "0x60233142befce7d4ed73e7793ead2d6190fccaab",
+            "token_id": null
+          }
+        },
+        "errors": null,
+        "indexing_status": null,
+        "processing_metadata": null
+      }
+    },
+    "indexing_status": "complete",
+    "processing_metadata": null
+  },
+  "processing": null
+}

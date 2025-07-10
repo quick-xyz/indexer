@@ -38,12 +38,12 @@ class PoolSwapDetail(BaseModel):
     content_id = Column(DomainEventIdType(), nullable=False, index=True)
     
     # Pricing denomination and value
-    denom = Column(Enum(PricingDenomination), nullable=False, index=True)
+    denom = Column(Enum(PricingDenomination, native_enum=False), nullable=False, index=True)
     value = Column(NUMERIC(precision=20, scale=8), nullable=False)  # Base amount value in selected denom
     price = Column(NUMERIC(precision=20, scale=8), nullable=False)  # Per-unit base token price in selected denom
     
     # Pricing methodology and source
-    price_method = Column(Enum(PricingMethod), nullable=False, index=True)
+    price_method = Column(Enum(PricingMethod, native_enum=False), nullable=False, index=True)
     price_config_id = Column(Integer, nullable=True)  # Reference to pricing config used
     
     # Additional metadata

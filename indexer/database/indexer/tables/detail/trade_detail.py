@@ -36,12 +36,12 @@ class TradeDetail(BaseModel):
     content_id = Column(DomainEventIdType(), nullable=False, index=True)
     
     # Pricing denomination and value
-    denom = Column(Enum(PricingDenomination), nullable=False, index=True)
+    denom = Column(Enum(PricingDenomination, native_enum=False), nullable=False, index=True)
     value = Column(NUMERIC(precision=20, scale=8), nullable=False)  # Base amount value in selected denom
     price = Column(NUMERIC(precision=20, scale=8), nullable=False)  # Per-unit base token price in selected denom
     
     # NEW: Track pricing methodology for debugging and analysis
-    pricing_method = Column(Enum(TradePricingMethod), nullable=False, index=True)
+    pricing_method = Column(Enum(TradePricingMethod, native_enum=False), nullable=False, index=True)
     
     # Indexes for efficient querying
     __table_args__ = (

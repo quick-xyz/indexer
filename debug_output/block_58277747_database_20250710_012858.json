@@ -1,0 +1,18 @@
+{
+  "transaction_processing": [
+    {
+      "tx_hash": "0xf047f0529b433121f6876ac862b4c4c4010182d3b9c6a6a1f88f8881dd1bf1a9",
+      "status": "completed",
+      "block_number": 58277747,
+      "timestamp": 1741207547,
+      "tx_success": true,
+      "events_generated": 8,
+      "logs_processed": 0,
+      "created_at": "2025-07-10T05:21:25.445207+00:00"
+    }
+  ],
+  "liquidity_events": [],
+  "trade_events": [],
+  "pool_swap_events": [],
+  "positions": []
+}

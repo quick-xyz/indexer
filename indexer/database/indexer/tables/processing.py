@@ -41,7 +41,7 @@ class TransactionProcessing(BaseModel):
     timestamp = Column(Integer, nullable=False, index=True)
     
     # Processing status
-    status = Column(Enum(TransactionStatus), nullable=False, default=TransactionStatus.PENDING, index=True)
+    status = Column(Enum(TransactionStatus, native_enum=False), nullable=False, default=TransactionStatus.PENDING, index=True)
     retry_count = Column(Integer, nullable=False, default=0)
     last_processed_at = Column(DateTime(timezone=True), nullable=True)
     
@@ -135,8 +135,8 @@ class ProcessingJob(BaseModel):
     """
     __tablename__ = 'processing_jobs'
     
-    job_type = Column(Enum(JobType), nullable=False, index=True)
-    status = Column(Enum(JobStatus), nullable=False, default=JobStatus.PENDING, index=True)
+    job_type = Column(Enum(JobType, native_enum=False), nullable=False, index=True)
+    status = Column(Enum(JobStatus, native_enum=False), nullable=False, default=JobStatus.PENDING, index=True)
     job_data = Column(JSONB, nullable=False)
     worker_id = Column(String(100), nullable=True, index=True)
     priority = Column(Integer, nullable=False, default=0, index=True)

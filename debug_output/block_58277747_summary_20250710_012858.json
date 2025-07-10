@@ -1,0 +1,17 @@
+{
+  "block_number": 58277747,
+  "timestamp": "20250710_012858",
+  "summary": {
+    "gcs": {
+      "complete_data_exists": true,
+      "processing_data_exists": false
+    },
+    "database": {
+      "transaction_processing_count": 1,
+      "liquidity_events_count": 0,
+      "trade_events_count": 0,
+      "pool_swap_events_count": 0,
+      "positions_count": 0
+    }
+  }
+}

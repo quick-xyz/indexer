@@ -23,10 +23,10 @@ class Trade(DomainEventModel):
     __tablename__ = 'trades'
     
     taker = Column(EvmAddressType(), nullable=False, index=True)
-    direction = Column(Enum(TradeDirection), nullable=False, index=True)
+    direction = Column(Enum(TradeDirection, native_enum=False), nullable=False, index=True)
     base_token = Column(EvmAddressType(), nullable=False, index=True)
     base_amount = Column(NUMERIC(precision=78, scale=0), nullable=False)
-    trade_type = Column(Enum(TradeType), nullable=False, default=TradeType.TRADE, index=True)
+    trade_type = Column(Enum(TradeType, native_enum=False), nullable=False, default=TradeType.TRADE, index=True)
     router = Column(EvmAddressType(), nullable=True, index=True)
     swap_count = Column(Integer, nullable=True)
     
@@ -39,7 +39,7 @@ class PoolSwap(DomainEventModel):
     
     pool = Column(EvmAddressType(), nullable=False, index=True)
     taker = Column(EvmAddressType(), nullable=False, index=True)
-    direction = Column(Enum(TradeDirection), nullable=False, index=True)
+    direction = Column(Enum(TradeDirection, native_enum=False), nullable=False, index=True)
     base_token = Column(EvmAddressType(), nullable=False, index=True)
     base_amount = Column(NUMERIC(precision=78, scale=0), nullable=False)
     quote_token = Column(EvmAddressType(), nullable=False, index=True)

@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from typing import Optional, List, Dict, Tuple
 from contextlib import contextmanager
 
-from sqlalchemy import text
+from sqlalchemy import text, Integer
 from sqlalchemy.exc import IntegrityError
 
 from ..core.logging_config import IndexerLogger, log_with_context
