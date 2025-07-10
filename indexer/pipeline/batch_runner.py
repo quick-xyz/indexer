@@ -65,7 +65,8 @@ class BatchRunner:
         self.batch_pipeline = BatchPipeline(
             repository_manager=self.repository_manager,
             storage_handler=self.storage_handler,
-            indexing_pipeline=self.indexing_pipeline
+            indexing_pipeline=self.indexing_pipeline,
+            config=self.config
         )
         
         self.logger = IndexerLogger.get_logger('pipeline.batch_runner')
@@ -197,6 +198,30 @@ class BatchRunner:
         else:
             print(f"❌ Block {block_number:,} processing failed!")
 
+    def queue_all_blocks(self, batch_size: int = 1000, earliest_first: bool = True, max_blocks: Optional[int] = None) -> None:
+        """Queue ALL available blocks from storage (or up to max_blocks)"""
+        if max_blocks:
+            print(f"🚀 Queueing up to {max_blocks:,} available blocks")
+        else:
+            print(f"🚀 Queueing ALL available blocks")
+        print(f"📊 Model: {self.config.model_name}")
+        print(f"📦 Batch size: {batch_size}")
+        print(f"🔢 Strategy: {'Earliest first' if earliest_first else 'Latest first'}")
+        print("=" * 60)
+        
+        stats = self.batch_pipeline.queue_all_available_blocks(
+            batch_size=batch_size,
+            earliest_first=earliest_first,
+            max_blocks=max_blocks,
+            progress_interval=10000
+        )
+        
+        print(f"\n🎉 Queue-All Results:")
+        print(f"   📦 Total RPC blocks: {stats.get('total_rpc_blocks', 0):,}")
+        print(f"   ⏭️  Already processed: {stats.get('already_processed', 0):,}")
+        print(f"   ➕ Newly queued: {stats.get('newly_queued', 0):,}")
+        print(f"   🎯 Jobs created: {stats.get('jobs_created', 0):,}")
+        print(f"   ⏱️  Time: {stats.get('elapsed_seconds', 0):,} seconds")
 
 def main():
     """Main CLI entry point"""
@@ -231,6 +256,12 @@ def main():
     test_parser = subparsers.add_parser('test', help='Test single block processing')
     test_parser.add_argument('block_number', type=int, help='Block number to test')
     
+    # Queue-all command
+    queue_all_parser = subparsers.add_parser('queue-all', help='Queue ALL available blocks from storage')
+    queue_all_parser.add_argument('--batch-size', type=int, default=1000, help='Batch size (default: 1000)')
+    queue_all_parser.add_argument('--latest-first', action='store_true', help='Process latest blocks first')
+    queue_all_parser.add_argument('--max-blocks', type=int, help='Maximum blocks to queue (default: all)') 
+
     args = parser.parse_args()
     
     if not args.command:
@@ -271,6 +302,13 @@ def main():
         elif args.command == 'test':
             runner.test_single_block(args.block_number)
         
+        elif args.command == 'queue-all':
+            runner.queue_all_blocks(
+                batch_size=args.batch_size,
+                earliest_first=not args.latest_first,
+                max_blocks=args.max_blocks
+            )
+
         print(f"\n🎉 Command completed successfully!")
         
     except KeyboardInterrupt:
