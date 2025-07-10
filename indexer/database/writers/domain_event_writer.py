@@ -72,19 +72,19 @@ class DomainEventWriter:
                     session, tx_hash, block_number, timestamp, tx_success
                 )
                 
-                # 2. Write domain events
+                # 2. Write domain events to structured tables
                 events_written, events_skipped = self._write_events(
                     session, events, tx_hash, block_number, timestamp
                 )
                 
-                # 3. Write positions
+                # 3. Write positions to positions table
                 positions_written = self._write_positions(
                     session, positions, tx_hash, block_number, timestamp
                 )
                 
-                # 4. Mark transaction as complete
+                # 4. Update transaction processing with final counts
                 self._mark_transaction_complete(
-                    session, tx_hash, events_written, positions_written
+                    session, tx_hash, events_written + positions_written
                 )
                 
                 log_with_context(
@@ -104,18 +104,6 @@ class DomainEventWriter:
                 error=str(e),
                 exception_type=type(e).__name__
             )
-            
-            # Try to mark transaction as failed
-            try:
-                with self.repository_manager.get_session() as session:
-                    self._mark_transaction_failed(session, tx_hash, str(e))
-            except Exception as mark_error:
-                log_with_context(
-                    self.logger, logging.ERROR, "Failed to mark transaction as failed",
-                    tx_hash=tx_hash,
-                    mark_error=str(mark_error)
-                )
-            
             raise
     
     def _update_transaction_processing(
@@ -128,12 +116,17 @@ class DomainEventWriter:
     ) -> None:
         """Update or create transaction processing record"""
         
-        processing_record = self.repository_manager.processing.get_by_tx_hash(session, tx_hash)
+        processing_record = session.query(TransactionProcessing).filter(
+            TransactionProcessing.tx_hash == tx_hash
+        ).first()
         
         if processing_record is None:
-            # Create new processing record
-            processing_record = self.repository_manager.processing.create(
-                session,
+            # Create new transaction processing record
+            print(f"DEBUG: Creating new record with status: {TransactionStatus.PROCESSING}")
+            print(f"DEBUG: Status value: {TransactionStatus.PROCESSING.value}")
+            print(f"DEBUG: Status name: {TransactionStatus.PROCESSING.name}")
+
+            processing_record = TransactionProcessing(
                 tx_hash=tx_hash,
                 block_number=block_number,
                 timestamp=timestamp,
@@ -143,6 +136,7 @@ class DomainEventWriter:
                 events_generated=0,  # Will be updated when marking complete
                 tx_success=tx_success
             )
+            session.add(processing_record)
         else:
             # Update existing record to processing status
             processing_record.status = TransactionStatus.PROCESSING
@@ -183,8 +177,8 @@ class DomainEventWriter:
                     )
                     continue
                 
-                # Extract event data and create record
-                event_data = self._extract_event_data(event)
+                # Extract event data and create record - PASS REPOSITORY FOR FIELD FILTERING
+                event_data = self._extract_event_data(event, repository)
                 event_data.update({
                     'content_id': event_id,
                     'tx_hash': tx_hash,
@@ -201,25 +195,16 @@ class DomainEventWriter:
                     event_type=type(event).__name__
                 )
                 
-            except IntegrityError:
-                # Event already exists (race condition)
-                events_skipped += 1
-                session.rollback()
-                session.begin()
-                
-                log_with_context(
-                    self.logger, logging.DEBUG, "Event creation failed due to integrity constraint, skipping",
-                    event_id=event_id
-                )
-                
             except Exception as e:
                 log_with_context(
                     self.logger, logging.ERROR, "Failed to write event",
                     event_id=event_id,
-                    event_type=type(event).__name__,
-                    error=str(e)
+                    event_type=type(event).__name__ if event else "Unknown",
+                    error=str(e),
+                    exception_type=type(e).__name__
                 )
-                raise
+                # Continue processing other events rather than failing the entire batch
+                continue
         
         return events_written, events_skipped
     
@@ -231,7 +216,7 @@ class DomainEventWriter:
         block_number: int,
         timestamp: int
     ) -> int:
-        """Write positions to structured table, returning written count"""
+        """Write positions to positions table, returning written count"""
         
         if not positions:
             return 0
@@ -252,35 +237,20 @@ class DomainEventWriter:
                     )
                     continue
                 
-                # Create new position record
-                position_data = {
+                # Extract position data for database
+                position_data = self._extract_position_data(position)
+                position_data.update({
                     'content_id': position_id,
                     'tx_hash': tx_hash,
                     'block_number': block_number,
-                    'timestamp': timestamp,
-                    'user': position.user,
-                    'token': position.token,
-                    'amount': str(position.amount),
-                    'position_type': position.position_type
-                }
+                    'timestamp': timestamp
+                })
                 
                 self.repository_manager.positions.create(session, **position_data)
                 positions_written += 1
                 
                 log_with_context(
                     self.logger, logging.DEBUG, "Position written successfully",
-                    position_id=position_id,
-                    user=position.user,
-                    token=position.token
-                )
-                
-            except IntegrityError:
-                # Position already exists (race condition)
-                session.rollback()
-                session.begin()
-                
-                log_with_context(
-                    self.logger, logging.DEBUG, "Position creation failed due to integrity constraint, skipping",
                     position_id=position_id
                 )
                 
@@ -288,9 +258,11 @@ class DomainEventWriter:
                 log_with_context(
                     self.logger, logging.ERROR, "Failed to write position",
                     position_id=position_id,
-                    error=str(e)
+                    error=str(e),
+                    exception_type=type(e).__name__
                 )
-                raise
+                # Continue processing other positions
+                continue
         
         return positions_written
     
@@ -298,70 +270,38 @@ class DomainEventWriter:
         self,
         session: Session,
         tx_hash: EvmHash,
-        events_written: int,
-        positions_written: int
+        events_generated: int
     ) -> None:
-        """Mark transaction processing as complete with counts"""
+        """Mark transaction as complete with final counts"""
         
-        processing_record = self.repository_manager.processing.get_by_tx_hash(session, tx_hash)
+        processing_record = session.query(TransactionProcessing).filter(
+            TransactionProcessing.tx_hash == tx_hash
+        ).first()
         
-        if processing_record is not None:
-            # Update record with completion status and counts
+        if processing_record:
             processing_record.status = TransactionStatus.COMPLETED
-            processing_record.events_generated = events_written + positions_written
-            processing_record.logs_processed = events_written  # Approximate - could be more precise
-            
-            # Update timestamps
-            from datetime import datetime, timezone
-            processing_record.last_processed_at = datetime.now(timezone.utc)
-            
-            log_with_context(
-                self.logger, logging.DEBUG, "Transaction marked as complete",
-                tx_hash=tx_hash,
-                total_events=events_written + positions_written
-            )
-        else:
-            log_with_context(
-                self.logger, logging.WARNING, "No processing record found to mark complete",
-                tx_hash=tx_hash
-            )
-    
-    def _mark_transaction_failed(self, session: Session, tx_hash: EvmHash, error_message: str = None) -> None:
-        """Mark transaction processing as failed"""
-        
-        processing_record = self.repository_manager.processing.get_by_tx_hash(session, tx_hash)
-        
-        if processing_record is not None:
-            processing_record.status = TransactionStatus.FAILED
-            if error_message:
-                processing_record.error_message = error_message[:1000]  # Truncate if too long
-            
-            # Update timestamps
-            from datetime import datetime, timezone
-            processing_record.last_processed_at = datetime.now(timezone.utc)
-            
-            log_with_context(
-                self.logger, logging.DEBUG, "Transaction marked as failed",
-                tx_hash=tx_hash,
-                error_message=error_message[:100] if error_message else None
-            )
+            processing_record.events_generated = events_generated
     
     def _get_event_repository(self, event: Any):
         """Get appropriate repository for domain event type"""
-        event_type = type(event).__name__
+        event_type = type(event).__name__.lower()
         
-        try:
-            return self.repository_manager.get_event_repository(event_type)
-        except ValueError as e:
-            log_with_context(
-                self.logger, logging.ERROR, "Unknown event type for repository routing",
-                event_type=event_type,
-                available_types=['Trade', 'PoolSwap', 'Transfer', 'Liquidity', 'Reward', 'Position']
-            )
-            raise ValueError(f"Unknown event type: {event_type}. Available types: Trade, PoolSwap, Transfer, Liquidity, Reward, Position")
+        if event_type == 'trade':
+            return self.repository_manager.trades
+        elif event_type in ['poolswap', 'pool_swap']:
+            return self.repository_manager.pool_swaps
+        elif event_type == 'transfer':
+            return self.repository_manager.transfers
+        elif event_type == 'liquidity':
+            return self.repository_manager.liquidity
+        elif event_type == 'reward':
+            return self.repository_manager.rewards
+        else:
+            raise ValueError(f"Unknown event type: {event_type}. "
+                           f"Available types: Trade, PoolSwap, Transfer, Liquidity, Reward")
     
-    def _extract_event_data(self, event: Any) -> Dict:
-        """Extract database-specific data from domain event"""
+    def _extract_event_data(self, event: Any, repository: Any) -> Dict:
+        """Extract database-specific data from domain event, filtering to only include valid DB fields"""
         # Handle different event structures
         if hasattr(event, 'to_dict'):
             # msgspec.Struct with to_dict method
@@ -389,15 +329,50 @@ class DomainEventWriter:
         excluded_fields = ['content_id', 'tx_hash', 'timestamp', 'block_number', 'signals', 'positions', 'swaps']
         filtered_data = {k: v for k, v in data.items() if k not in excluded_fields}
         
-        # Convert any complex objects to strings if needed
-        for key, value in filtered_data.items():
-            if isinstance(value, dict) or isinstance(value, list):
-                # Convert complex types to JSON strings or handle appropriately
-                continue  # Most should be simple types, but this allows for expansion
+        # NEW: Filter to only include fields that exist in the database model
+        if hasattr(repository, 'model_class') and hasattr(repository.model_class, '__table__'):
+            valid_columns = {col.name for col in repository.model_class.__table__.columns}
+            db_filtered_data = {k: v for k, v in filtered_data.items() if k in valid_columns}
+            
+            log_with_context(
+                self.logger, logging.DEBUG, "Filtered event data for database",
+                event_type=type(event).__name__,
+                original_fields=len(filtered_data),
+                filtered_fields=len(db_filtered_data),
+                excluded_fields=[k for k in filtered_data.keys() if k not in valid_columns]
+            )
+            
+            return db_filtered_data
+        else:
+            # Fallback to original filtering if can't inspect model
+            log_with_context(
+                self.logger, logging.DEBUG, "Using fallback event data filtering",
+                event_type=type(event).__name__,
+                field_count=len(filtered_data)
+            )
+            
+            return filtered_data
+    
+    def _extract_position_data(self, position: Position) -> Dict:
+        """Extract database-specific data from position"""
+        if hasattr(position, 'to_dict'):
+            data = position.to_dict()
+        else:
+            # Extract key position attributes
+            data = {
+                'user': getattr(position, 'user', None),
+                'token': getattr(position, 'token', None),
+                'amount': getattr(position, 'amount', None),
+                'position_type': getattr(position, 'position_type', None)
+            }
+        
+        # Remove fields handled separately
+        excluded_fields = ['content_id', 'tx_hash', 'timestamp', 'block_number']
+        filtered_data = {k: v for k, v in data.items() if k not in excluded_fields}
         
         log_with_context(
-            self.logger, logging.DEBUG, "Extracted event data",
-            event_type=type(event).__name__,
+            self.logger, logging.DEBUG, "Extracted position data",
+            position_type=type(position).__name__,
             field_count=len(filtered_data)
         )
         

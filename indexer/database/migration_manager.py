@@ -724,7 +724,7 @@ def downgrade() -> None:
             raise
     
     def _apply_model_template(self, model_name: str) -> None:
-        """Apply current model schema template to a database"""
+        """Apply current model schema template to a database with proper enum handling"""
         log_with_context(self.logger, logging.INFO, "Applying model schema template",
                         model_name=model_name)
         
@@ -759,11 +759,79 @@ def downgrade() -> None:
             # Import all model tables to ensure they're registered
             from .base import ModelBase
             
-            # Create all tables
-            ModelBase.metadata.create_all(temp_db_manager.engine)
+            # ENHANCED: Create enums first with proper case handling
+            self._create_enums_with_proper_case(temp_db_manager.engine)
+            
+            # Create all tables (enums already exist, so no case conversion)
+            ModelBase.metadata.create_all(temp_db_manager.engine, checkfirst=True)
             
             log_with_context(self.logger, logging.INFO, "Model schema template applied successfully",
-                           model_name=model_name, table_count=len(ModelBase.metadata.tables))
+                        model_name=model_name, table_count=len(ModelBase.metadata.tables))
             
         finally:
             temp_db_manager.shutdown()
+
+    def _create_enums_with_proper_case(self, engine) -> None:
+        """Create all enum types with proper case preservation before table creation"""
+        from sqlalchemy import text
+        from sqlalchemy.dialects.postgresql import ENUM
+        import enum
+        
+        log_with_context(self.logger, logging.INFO, "Creating enum types with proper case handling")
+        
+        # Collect all enum types from model tables
+        enum_types_to_create = {}
+        
+        from .base import ModelBase
+        
+        for table in ModelBase.metadata.tables.values():
+            for column in table.columns:
+                # Check if column uses an enum type
+                if hasattr(column.type, 'enum_class') and column.type.enum_class:
+                    enum_class = column.type.enum_class
+                    if issubclass(enum_class, enum.Enum):
+                        # Get the enum type name (lowercase)
+                        enum_name = enum_class.__name__.lower()
+                        
+                        # Collect enum values (preserve original case)
+                        enum_values = [member.value for member in enum_class]
+                        
+                        if enum_name not in enum_types_to_create:
+                            enum_types_to_create[enum_name] = enum_values
+                            log_with_context(self.logger, logging.DEBUG, "Found enum type",
+                                        enum_name=enum_name, values=enum_values)
+        
+        # Create enum types with explicit quoted values to preserve case
+        with engine.connect() as conn:
+            trans = conn.begin()
+            try:
+                for enum_name, enum_values in enum_types_to_create.items():
+                    # Check if enum already exists
+                    check_result = conn.execute(text(
+                        "SELECT 1 FROM pg_type WHERE typname = :enum_name"
+                    ), {"enum_name": enum_name})
+                    
+                    if not check_result.fetchone():
+                        # Create enum with explicitly quoted values to preserve case
+                        quoted_values = [f"'{value}'" for value in enum_values]
+                        values_str = ', '.join(quoted_values)
+                        
+                        create_enum_sql = f"CREATE TYPE {enum_name} AS ENUM ({values_str})"
+                        
+                        log_with_context(self.logger, logging.INFO, "Creating enum type",
+                                    enum_name=enum_name, sql=create_enum_sql)
+                        
+                        conn.execute(text(create_enum_sql))
+                    else:
+                        log_with_context(self.logger, logging.DEBUG, "Enum type already exists",
+                                    enum_name=enum_name)
+                
+                trans.commit()
+                log_with_context(self.logger, logging.INFO, "All enum types created successfully",
+                            enum_count=len(enum_types_to_create))
+                
+            except Exception as e:
+                trans.rollback()
+                log_with_context(self.logger, logging.ERROR, "Failed to create enum types",
+                            error=str(e))
+                raise

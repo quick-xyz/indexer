@@ -61,30 +61,38 @@ class PipelineDiagnostic:
         print("\n☁️ Testing GCS Storage...")
         
         try:
-            gcs = self.env.get_service(GCSHandler)
+            gcs_handler = self.env.get_service(GCSHandler)
             
-            # Check bucket access
-            try:
-                bucket = gcs.bucket
+            # Test bucket access - the bucket is already connected in constructor
+            bucket_name = self.config.gcs.bucket_name
+            if gcs_handler.bucket:
                 self.results.append((
-                    f"GCS Bucket ({bucket.name})", 
+                    f"GCS Bucket ({bucket_name})", 
                     True, 
                     "Accessible"
                 ))
-            except Exception as e:
-                self.results.append(("GCS Bucket", False, str(e)))
-                return
+            else:
+                self.results.append((
+                    f"GCS Bucket ({bucket_name})", 
+                    False, 
+                    "Not accessible"
+                ))
             
-            # Check if we can list blobs
+            # Test basic operations
             try:
-                # Try to list a few blobs
-                blobs = list(bucket.list_blobs(max_results=1))
-                if blobs:
-                    self.results.append(("GCS List Objects", True, "Can list objects"))
-                else:
-                    self.results.append(("GCS List Objects", True, "Bucket empty"))
+                # List some objects (this also tests authentication)
+                blobs = gcs_handler.list_blobs(prefix="", max_results=1)
+                self.results.append((
+                    "GCS List Objects", 
+                    True, 
+                    "Can list objects"
+                ))
             except Exception as e:
-                self.results.append(("GCS List Objects", False, str(e)))
+                self.results.append((
+                    "GCS List Objects", 
+                    False, 
+                    f"Error: {str(e)[:50]}..."
+                ))
                 
         except Exception as e:
             self.results.append(("GCS Storage", False, str(e)))
@@ -94,33 +102,50 @@ class PipelineDiagnostic:
         print("\n🌐 Testing RPC Client...")
         
         try:
-            rpc = self.env.get_service(QuickNodeRpcClient)
+            rpc_client = self.env.get_service(QuickNodeRpcClient)
             
             # Test basic connectivity
-            try:
-                # Get latest block number
-                latest_block = rpc.get_latest_block_number()
+            latest_block = rpc_client.get_latest_block_number()
+            if latest_block:
                 self.results.append((
                     "RPC Connection", 
                     True, 
                     f"Latest block: {latest_block:,}"
                 ))
                 
-                # Test we can fetch a block
-                block = rpc.get_block(latest_block, False)
-                if block:
-                    self.results.append(("RPC Block Fetch", True, "Can fetch blocks"))
-                else:
-                    self.results.append(("RPC Block Fetch", False, "No block returned"))
-                    
-            except Exception as e:
-                self.results.append(("RPC Connection", False, str(e)))
+                # Test block fetching
+                try:
+                    block_data = rpc_client.get_block(latest_block)
+                    if block_data:
+                        self.results.append((
+                            "RPC Block Fetch", 
+                            True, 
+                            "Can fetch blocks"
+                        ))
+                    else:
+                        self.results.append((
+                            "RPC Block Fetch", 
+                            False, 
+                            "Block data is empty"
+                        ))
+                except Exception as e:
+                    self.results.append((
+                        "RPC Block Fetch", 
+                        False, 
+                        f"Error: {str(e)[:50]}..."
+                    ))
+            else:
+                self.results.append((
+                    "RPC Connection", 
+                    False, 
+                    "Cannot get latest block"
+                ))
                 
         except Exception as e:
             self.results.append(("RPC Client", False, str(e)))
     
     def _test_block_decoder(self):
-        """Test block decoder setup."""
+        """Test block decoder and contract registry."""
         print("\n🔍 Testing Block Decoder...")
         
         try:
@@ -142,11 +167,12 @@ class PipelineDiagnostic:
                     "No contracts loaded"
                 ))
             
-            # Check ABI availability
-            contracts_with_abi = sum(
-                1 for c in contract_registry.contracts.values() 
-                if c.abi is not None
-            )
+            # FIXED: Check ABI availability using the proper method
+            contracts_with_abi = 0
+            for address in contract_registry.contracts.keys():
+                abi = contract_registry.get_abi(address)
+                if abi is not None:
+                    contracts_with_abi += 1
             
             if contracts_with_abi > 0:
                 self.results.append((

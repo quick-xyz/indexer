@@ -548,31 +548,32 @@ class IndexingPipeline:
         """Transform decoded block to domain events"""
         
         try:
-            transformed_block = self.transform_manager.transform_block(decoded_block)
+            # Process each transaction individually
+            transformed_transactions = {}
             
-            if not transformed_block:
-                log_with_context(
-                    self.logger, logging.WARNING, "Block transformation returned no data",
-                    block_number=decoded_block.block_number
-                )
-                return None
+            for tx_hash, transaction in decoded_block.transactions.items():
+                success, transformed_tx = self.transform_manager.process_transaction(transaction)
+                transformed_transactions[tx_hash] = transformed_tx
             
-            # Count events across all transactions
-            total_events = 0
-            total_positions = 0
+            # Create new block with transformed transactions
+            transformed_block = Block(
+                block_number=decoded_block.block_number,
+                timestamp=decoded_block.timestamp,
+                transactions=transformed_transactions,
+                indexing_status=decoded_block.indexing_status,
+                processing_metadata=decoded_block.processing_metadata
+            )
             
-            if transformed_block.transactions:
-                for tx in transformed_block.transactions.values():
-                    if tx.events:
-                        total_events += len(tx.events)
-                    if tx.positions:
-                        total_positions += len(tx.positions)
+            # Count events for logging
+            total_events = sum(
+                len(tx.events) if tx.events else 0
+                for tx in transformed_transactions.values()
+            )
             
             log_with_context(
                 self.logger, logging.DEBUG, "Block transformed successfully",
                 block_number=decoded_block.block_number,
-                total_events=total_events,
-                total_positions=total_positions
+                total_events=total_events
             )
             
             return transformed_block

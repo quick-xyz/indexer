@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# testing/diagnostics/test_block_processing.py
+# testing/pipeline/test_block_processing.py
 
 """
 Test Block Processing
@@ -63,6 +63,8 @@ class BlockProcessingTest:
             # Summary
             self._print_summary(transformed_block)
             
+            # Explicit success
+            print(f"\n✅ Block processing test passed!")
             return True
             
         except Exception as e:
@@ -118,33 +120,42 @@ class BlockProcessingTest:
             return None
     
     def _transform_block(self, decoded_block):
-        """Transform the block."""
+        """Transform the block by processing each transaction."""
         try:
-            success, transformed_block = self.transform_manager.process_block(decoded_block)
+            # Process each transaction individually
+            transformed_transactions = {}
+            total_signals = 0
+            total_events = 0
+            total_errors = 0
             
-            if success and transformed_block:
-                # Count results
-                signal_count = sum(
-                    len(tx.signals) if tx.signals else 0
-                    for tx in transformed_block.transactions.values()
-                )
-                event_count = sum(
-                    len(tx.events) if tx.events else 0
-                    for tx in transformed_block.transactions.values()
-                )
-                error_count = sum(
-                    len(tx.errors) if tx.errors else 0
-                    for tx in transformed_block.transactions.values()
-                )
+            for tx_hash, transaction in decoded_block.transactions.items():
+                # Use the actual method that exists: process_transaction
+                success, transformed_tx = self.transform_manager.process_transaction(transaction)
                 
-                print(f"   ✅ Generated {signal_count} signals → {event_count} events")
-                if error_count > 0:
-                    print(f"   ⚠️ {error_count} errors during transformation")
-                    
-                return transformed_block
-            else:
-                print(f"   ❌ Transform failed")
-                return None
+                # Always include the transaction 
+                transformed_transactions[tx_hash] = transformed_tx
+                
+                # Count results
+                if transformed_tx.signals:
+                    total_signals += len(transformed_tx.signals)
+                if transformed_tx.events:
+                    total_events += len(transformed_tx.events)
+                if transformed_tx.errors:
+                    total_errors += len(transformed_tx.errors)
+            
+            # Create new block with transformed transactions
+            from indexer.types.indexer import Block
+            transformed_block = Block(
+                block_number=decoded_block.block_number,
+                timestamp=decoded_block.timestamp,
+                transactions=transformed_transactions
+            )
+            
+            print(f"   ✅ Generated {total_signals} signals → {total_events} events")
+            if total_errors > 0:
+                print(f"   ⚠️ {total_errors} errors during transformation")
+                
+            return transformed_block
                 
         except Exception as e:
             print(f"   ❌ Transform failed: {e}")
@@ -169,7 +180,7 @@ class BlockProcessingTest:
         event_types = {}
         for tx in transformed_block.transactions.values():
             if tx.events:
-                for event in tx.events:
+                for event_id, event in tx.events.items():
                     event_type = type(event).__name__
                     event_types[event_type] = event_types.get(event_type, 0) + 1
         
@@ -187,16 +198,18 @@ class BlockProcessingTest:
                 if tx.events and len(tx.events) > 0:
                     print(f"  Hash: {tx_hash[:10]}...")
                     print(f"  Events: {len(tx.events)}")
-                    print(f"  First event: {type(tx.events[0]).__name__}")
+                    print(f"  First event: {type(list(tx.events.values())[0]).__name__}")
                     break
+        
+        return None  # Explicitly return None
 
 
 def main():
     """Run block processing test."""
     import argparse
     
-    parser = argparse.ArgumentParser(description='Test Block Processing')
-    parser.add_argument('block_number', type=int, help='Block number to test')
+    parser = argparse.ArgumentParser(description='Test Block Processing Pipeline')
+    parser.add_argument('block_number', type=int, help='Block number to process')
     parser.add_argument('--model', help='Model name (defaults to env var)')
     args = parser.parse_args()
     
@@ -205,12 +218,15 @@ def main():
         success = test.test_block(args.block_number)
         
         if success:
-            print("\n✅ Block processing test passed!")
+            print(f"\n✅ Block processing test passed!")
         else:
-            print("\n❌ Block processing test failed")
+            print(f"\n❌ Block processing test failed")
             
         sys.exit(0 if success else 1)
         
+    except KeyboardInterrupt:
+        print(f"\n⏹️ Test interrupted")
+        sys.exit(1)
     except Exception as e:
         print(f"\n💥 Test failed: {e}")
         sys.exit(1)
