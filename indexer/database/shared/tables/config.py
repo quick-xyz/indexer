@@ -1,5 +1,5 @@
 # indexer/database/shared/tables/config.py
-
+from typing import List, Optional
 from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, ForeignKey, UniqueConstraint, Index, Boolean
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
@@ -85,10 +85,8 @@ class Contract(SharedBase):
     description = Column(Text)  # Optional description
     
     # ABI and transformer configuration
-    abi_dir = Column(String(255))  # "tokens", "pools", "aggregators"
-    abi_file = Column(String(255))  # "blub.json", "joepair.json"
-    transformer_name = Column(String(255))  # "TokenTransformer", "LfjPoolTransformer"
-    transformer_config = Column(JSONB)  # instantiate parameters as JSON
+    decode_config = Column(JSONB)  # {"abi_dir": "tokens", "abi_file": "blub.json"}
+    transform_config = Column(JSONB)  # {"name": "TokenTransformer", "instantiate": {"contract": "0x..."}}
     
     # NEW: Pool pricing defaults (only for type='pool' contracts)
     # These are the global defaults that models can override via PoolPricingConfig
@@ -103,8 +101,6 @@ class Contract(SharedBase):
     
     # Relationships
     model_contracts = relationship("ModelContract", back_populates="contract", cascade="all, delete-orphan")
-    
-    # NEW: Relationship to pool pricing configurations
     pool_pricing_configs = relationship("PoolPricingConfig", back_populates="contract", cascade="all, delete-orphan")
     
     # Indexes
@@ -158,27 +154,26 @@ class Contract(SharedBase):
         # Return configured default or fallback to global
         return self.pricing_strategy_default or 'global'
     
-    def validate_pool_pricing_config(self) -> list:
-        """Validate pool pricing configuration"""
+    def validate_pool_pricing_config(self) -> List[str]:
+        """Validate pool pricing configuration if contract is a pool"""
         errors = []
         
-        if self.is_pool and self.pricing_strategy_default:
-            # Validate pricing strategy values
-            valid_strategies = ['direct_avax', 'direct_usd', 'global']
-            if self.pricing_strategy_default not in valid_strategies:
-                errors.append(f"Invalid pricing_strategy_default: {self.pricing_strategy_default}")
-            
-            # For direct pricing, quote token is required
+        if self.type == 'pool' and self.pricing_strategy_default:
             if self.pricing_strategy_default in ['direct_avax', 'direct_usd']:
                 if not self.quote_token_address:
-                    errors.append("Direct pricing strategies require quote_token_address")
+                    errors.append("quote_token_address required for direct pricing strategies")
             
-            # Validate block ranges
-            if self.pricing_start_block and self.pricing_end_block:
-                if self.pricing_start_block >= self.pricing_end_block:
-                    errors.append("pricing_start_block must be less than pricing_end_block")
+            if not self.pricing_start_block:
+                errors.append("pricing_start_block required for pool pricing configuration")
         
         return errors
+
+    def get_effective_pricing_strategy(self, model_name: str, block_number: int) -> Optional[str]:
+        """Get effective pricing strategy for a model at a specific block"""
+        from .pool_pricing_config import PoolPricingConfig
+        return PoolPricingConfig.get_effective_pricing_strategy(
+            self.id, model_name, block_number
+        )
     
     def get_model_pricing_configs(self, session, model_id: int):
         """Get all pricing configurations for this contract within a specific model"""

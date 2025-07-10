@@ -42,9 +42,14 @@ class ContractRegistry:
             self._abi_cache[address] = None
             return None
         
-        # Load ABI from filesystem using database paths
-        abi_dir = getattr(contract, 'abi_dir', None)
-        abi_file = getattr(contract, 'abi_file', None)
+        # Handle ContractConfig object
+        decode = getattr(contract, 'decode', None)
+        if not decode:
+            self._abi_cache[address] = None
+            return None
+            
+        abi_dir = getattr(decode, 'abi_dir', None)
+        abi_file = getattr(decode, 'abi', None)  
         
         if not abi_dir or not abi_file:
             self._abi_cache[address] = None

@@ -42,6 +42,7 @@ This is a comprehensive blockchain token indexer with a modular architecture des
 4. **Configuration System**: Database-driven with dependency injection
 5. **Storage**: GCS for stateful JSON + PostgreSQL for queryable events
 6. **Pricing System**: Block-level AVAX prices + configurable pool pricing strategies + direct pricing
+7. **Migration System**: Alembic for shared database + templates for model databases
 
 ### Technology Stack
 - **Language**: Python with msgspec for data structures
@@ -49,8 +50,16 @@ This is a comprehensive blockchain token indexer with a modular architecture des
 - **Storage**: Google Cloud Storage
 - **RPC**: QuickNode for Avalanche mainnet
 - **Architecture**: Dependency injection container pattern
+- **Migrations**: Alembic with custom type support
 
 ## Recent Major Enhancements
+
+### **Complete Migration System Implementation**
+- **Dual Database Migrations**: Separate strategies for shared (Alembic) vs model (templates) databases
+- **Custom Type Support**: Automatic handling of `EvmAddressType`, `EvmHashType`, `DomainEventIdType`
+- **Development Workflow**: Easy reset, recreation, and status checking
+- **CLI Integration**: Complete management interface for all migration operations
+- **Troubleshooting**: Comprehensive documentation and fallback procedures
 
 ### **Complete Direct Pricing Implementation**
 - **Detail Tables**: Separate pricing tables (`pool_swap_details`, `trade_details`, `event_details`) 
@@ -59,11 +68,41 @@ This is a comprehensive blockchain token indexer with a modular architecture des
 - **Volume Weighting**: Trade pricing aggregates from constituent swaps
 - **Comprehensive CLI**: Full management interface for all pricing operations
 
+### **Enhanced Configuration System**
+- **Separated Configuration**: Split into shared (`shared_v1_0.yaml`) vs model (`blub_test_v1_0.yaml`) files
+- **Global Defaults + Overrides**: Contract pricing defaults with model-specific pool configurations
+- **Import/Export CLI**: Complete configuration management with validation
+- **Database Integration**: Configuration successfully imported and validated
+
 ### **Enhanced Service Architecture**
 - **PricingService**: Now handles swap and trade direct pricing + existing period/block price functionality
 - **Repository Layer**: Enhanced with bulk operations, eligibility checks, method statistics
 - **CLI Interface**: Complete pricing management with monitoring and validation
 - **Error Handling**: Graceful fallback to global pricing for complex cases
+
+## Current System Status
+
+### **✅ FULLY OPERATIONAL SYSTEMS**
+
+1. **Migration System**: 
+   - Dual database migrations with custom type support
+   - Development utilities (reset, status, schema generation)
+   - Comprehensive documentation and troubleshooting guides
+
+2. **Configuration Management**:
+   - Separated shared/model configuration files
+   - Import/export with validation
+   - Successfully loaded into databases
+
+3. **Database Architecture**:
+   - Shared database with infrastructure tables
+   - Model database with event/processing tables
+   - Proper table separation and relationships
+
+4. **Pricing System**:
+   - Direct pricing implementation complete
+   - Pool pricing configuration system
+   - CLI management and monitoring
 
 ## Chat Interaction Preferences
 
@@ -95,6 +134,12 @@ This is a comprehensive blockchain token indexer with a modular architecture des
 - **Repository pattern**: Clean query interfaces, business logic in services
 - **Infrastructure vs Model clarity**: Chain-level data in shared DB, indexer-specific data in model DB
 
+### Migration System Preferences
+- **Alembic for shared database**: Traditional migrations for infrastructure schema evolution
+- **Templates for model databases**: Recreation rather than migration for rapid development
+- **Custom type handling**: Automatic import generation for `EvmAddressType`, etc.
+- **Development workflow**: Easy reset and recreation during development iterations
+
 ### Response Format
 - **Structured responses**: Use headings and bullet points for clarity
 - **Code context**: Explain where changes fit in the overall architecture
@@ -109,16 +154,80 @@ This is a comprehensive blockchain token indexer with a modular architecture des
 - **Clear documentation**: Well-commented code and explanations
 - **Practical examples**: CLI usage examples and cron job setups
 
-## Critical Next Steps
+## Development Workflow
 
-### **🚨 Priority Issues to Address**
-1. **Processing Pipeline Review**: End-to-end single block processing has been failing
-2. **Enum Consistency**: Capital vs lowercase issues causing processing errors
-3. **Database Migration**: Need fresh initial migration with all current tables
-4. **Migration Process Review**: Previous migrations have been problematic
+### **Migration Workflow**
+```bash
+# Development setup
+python -m indexer.cli migrate dev setup blub_test
 
-### **Pipeline Integration Notes**
-- **Pricing runs separately**: NOT part of indexing pipeline to avoid clogging
-- **Independent services**: Pricing service processes events after they're indexed
-- **Batch processing**: Pricing handles thousands of events efficiently in separate process
-- **Error isolation**: Pricing issues don't affect core indexing functionality
+# Configuration import
+python -m indexer.cli config import-shared config/shared_db/shared_v1_0.yaml
+python -m indexer.cli config import-model config/model_db/blub_test_v1_0.yaml
+
+# Status checking
+python -m indexer.cli migrate status
+python db_inspector.py
+```
+
+### **Development Iteration**
+```bash
+# When making model schema changes
+python -m indexer.cli migrate model recreate blub_test
+
+# When making shared schema changes
+python -m indexer.cli migrate shared create "Description of changes"
+python -m indexer.cli migrate shared upgrade
+```
+
+### **Pricing Management**
+```bash
+# Pricing operations
+python -m indexer.cli pricing status blub_test
+python -m indexer.cli pricing update-all blub_test
+```
+
+## Current Development Phase
+
+### **✅ COMPLETED: Core Infrastructure**
+- Migration system with custom type support
+- Dual database architecture
+- Configuration management system
+- Direct pricing implementation
+- CLI interface and documentation
+
+### **🎯 NEXT: Testing Module Overhaul**
+
+The testing module needs to be rebuilt from scratch to focus on:
+
+1. **Clean up legacy files**: Remove outdated diagnostic and test files created for specific issues
+2. **End-to-end tests**: 1-2 comprehensive tests for core functionality
+3. **Infrastructure diagnostics**: Health checks for indexer containers, cloud services, database
+4. **Development-focused**: Testing suitable for ongoing development rather than comprehensive test suite
+
+The system is now ready for comprehensive testing and validation before moving to production indexing operations.
+
+## Key Design Principles
+
+### **Modularity**
+- Clear separation between infrastructure and domain logic
+- Dependency injection for testability and flexibility
+- Repository pattern for data access abstraction
+
+### **Configuration-Driven**
+- Database-driven configuration with YAML import/export
+- Environment-specific overrides
+- Global defaults with model-specific customization
+
+### **Development Efficiency** 
+- Template-based model database recreation for rapid iteration
+- Comprehensive CLI interface for all operations
+- Clear documentation and troubleshooting guides
+
+### **Production Readiness**
+- Proper error handling and logging
+- Health monitoring and diagnostics
+- Scalable architecture with read replicas
+- Pricing accuracy and method tracking
+
+The indexer is now architecturally complete and ready for the final testing phase before production deployment.

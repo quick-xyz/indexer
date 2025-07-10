@@ -129,117 +129,67 @@ class TransformRegistry(LoggingMixin):
             raise
     
     def _setup_transformers(self):
-        """Setup transformers for all configured contracts"""
-        if not self.config.contracts:
-            self.log_warning("No contracts configured for transformation")
-            return
+        """Setup transformers from configuration"""
+        self.log_info("Setting up transformers from configuration")
         
-        self.log_debug("Setting up transformers", contract_count=len(self.config.contracts))
-        
-        setup_stats = {'successful': 0, 'failed': 0, 'skipped': 0}
-        
-        for address, contract in self.config.contracts.items():
-            contract_context = {
-                'contract_address': address, 
-                'contract_name': contract.name,
-                'contract_type': getattr(contract, 'type', 'unknown')
-            }
-            
+        for contract_address, contract in self.config.contracts.items():
             try:
-                self.log_debug("Processing contract for transformation", **contract_context)
+                # Get transformer config from ContractConfig object
+                transform = getattr(contract, 'transform', None)
+                if not transform:
+                    self.log_debug("No transformer configured for contract",
+                                 contract_address=contract_address,
+                                 contract_name=contract.name)
+                    continue
                 
-                # UPDATED: Check for database-style transformer configuration
-                transformer_name = getattr(contract, 'transformer_name', None)
-                transformer_config = getattr(contract, 'transformer_config', None)
-                
-                # Also check for legacy format for backward compatibility
-                if not transformer_name and hasattr(contract, 'transform') and contract.transform:
-                    transformer_name = getattr(contract.transform, 'name', None)
-                    transformer_config = getattr(contract.transform, 'instantiate', {})
+                transformer_name = getattr(transform, 'name', None)
+                instantiate_config = getattr(transform, 'instantiate', {})
                 
                 if not transformer_name:
-                    self.log_debug("No transformer configured - skipping", **contract_context)
-                    setup_stats['skipped'] += 1
+                    self.log_warning("Transformer name not specified",
+                                   contract_address=contract_address,
+                                   contract_name=contract.name)
                     continue
-                
-                transformer_context = {**contract_context, 'transformer_name': transformer_name}
-                
-                self.log_debug("Creating transformer", **transformer_context)
                 
                 transformer_class = self._transformer_classes.get(transformer_name)
-                
                 if not transformer_class:
-                    self.log_error("Transformer class not found", 
-                                available_classes=list(self._transformer_classes.keys()),
-                                **transformer_context)
-                    setup_stats['failed'] += 1
+                    self.log_warning("Transformer class not found",
+                                   transformer_name=transformer_name,
+                                   contract_address=contract_address,
+                                   available_transformers=list(self._transformer_classes.keys()))
                     continue
                 
-                # UPDATED: Handle transformer config - it's already a dict from database
-                if isinstance(transformer_config, str):
-                    try:
-                        instantiate_params = json.loads(transformer_config)
-                    except json.JSONDecodeError as e:
-                        self.log_error("Failed to parse transformer config JSON", error=str(e), **transformer_context)
-                        setup_stats['failed'] += 1
-                        continue
-                else:
-                    instantiate_params = transformer_config or {}
-
-                if not isinstance(instantiate_params, dict):
-                    self.log_error("Invalid instantiate parameters - must be dict",
-                                params_type=type(instantiate_params).__name__,
-                                **transformer_context)
-                    setup_stats['failed'] += 1
+                # Validate transformer class
+                if not hasattr(transformer_class, 'process_logs'):
+                    self.log_error("Transformer missing process_logs method",
+                                 transformer_name=transformer_name,
+                                 contract_address=contract_address)
                     continue
                 
-                self.log_debug("Instantiating transformer", 
-                            params=instantiate_params,
-                            **transformer_context)
+                # Create transformer instance
+                self.log_debug("Creating transformer instance",
+                             transformer_name=transformer_name,
+                             contract_address=contract_address,
+                             instantiate_config=instantiate_config)
                 
-                transformer_instance = transformer_class(**instantiate_params)
-
-                # Validate required methods exist
-                required_methods = ['process_logs']
-                missing_methods = []
-                for method in required_methods:
-                    if not hasattr(transformer_instance, method):
-                        missing_methods.append(method)
+                instance = transformer_class(**instantiate_config)
                 
-                if missing_methods:
-                    self.log_error("Transformer missing required methods",
-                                missing_methods=missing_methods,
-                                **transformer_context)
-                    setup_stats['failed'] += 1
-                    continue
-                    
-                self.log_debug("Transformer validated successfully", **transformer_context)
+                self._transformers[contract_address.lower()] = ContractTransformer(instance=instance)
                 
-                self.register_contract(address, transformer_instance)
+                self.log_debug("Transformer registered",
+                             contract_address=contract_address,
+                             transformer_name=transformer_name)
                 
-                self.log_info("Transformer registered successfully", **transformer_context)
-                setup_stats['successful'] += 1
-                
-            except (TypeError, AttributeError) as e:
-                self.log_error("Transformer instantiation failed", 
-                            error=str(e),
-                            exception_type=type(e).__name__,
-                            **contract_context)
-                setup_stats['failed'] += 1
             except Exception as e:
-                self.log_error("Unexpected error creating transformer", 
-                            error=str(e),
-                            exception_type=type(e).__name__,
-                            **contract_context)
-                setup_stats['failed'] += 1
-
-        total_processed = sum(setup_stats.values())
-        if setup_stats['failed'] > 0:
-            self.log_error("Transformer setup completed with failures", 
-                        **setup_stats,
-                        success_rate=f"{(setup_stats['successful']/total_processed)*100:.1f}%" if total_processed > 0 else "0%")
-        else:
-            self.log_info("Transformer setup completed successfully", **setup_stats)
+                self.log_error("Failed to setup transformer for contract",
+                             contract_address=contract_address,
+                             contract_name=getattr(contract, 'name', 'unknown'),
+                             error=str(e),
+                             exception_type=type(e).__name__)
+        
+        self.log_info("Transformer setup complete",
+                     total_contracts=len(self.config.contracts),
+                     transformers_registered=len(self._transformers))
 
     def _setup_patterns(self):
         """Setup pattern processors"""

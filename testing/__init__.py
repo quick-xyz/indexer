@@ -1,160 +1,147 @@
 # testing/__init__.py
 """
-Testing package for the blockchain indexer.
+Testing module for the blockchain indexer.
 
-This package integrates with the indexer's configuration system,
-dependency injection container, and logging infrastructure using
-the proper create_indexer() entry point.
+Provides a clean testing environment using the indexer's DI container
+and configuration system.
 """
 
+import os
 import sys
 import logging
-import os
 from pathlib import Path
+from typing import Optional, Any, TypeVar
 
-# Add project root to Python path for imports
+# Add project root to Python path
 PROJECT_ROOT = Path(__file__).parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-# Import indexer components using proper entry point
 from indexer import create_indexer
 from indexer.core.config import IndexerConfig
 from indexer.core.container import IndexerContainer
 from indexer.core.logging_config import IndexerLogger, log_with_context
 
+T = TypeVar('T')
+
 
 class TestingEnvironment:
     """
-    Testing environment that uses the indexer's create_indexer() entry point
-    and database-driven configuration system with proper DI
+    Minimal testing environment that wraps the indexer's DI container.
+    
+    This provides a clean interface for tests while using the actual
+    indexer infrastructure.
     """
     
-    def __init__(self, model_name: str = None, log_level: str = "DEBUG"):
+    def __init__(self, model_name: Optional[str] = None, log_level: str = "WARNING"):
+        """
+        Initialize testing environment.
+        
+        Args:
+            model_name: Model to use (defaults to INDEXER_MODEL_NAME env var)
+            log_level: Logging level for tests
+        """
         self.model_name = model_name or os.getenv("INDEXER_MODEL_NAME", "blub_test")
         self.log_level = log_level
-        self.container: IndexerContainer = None
-        self.config: IndexerConfig = None
-        self.logger = None
         
+        # Configure minimal logging
         self._setup_logging()
-        self._initialize_indexer()
+        
+        # Initialize the indexer container
+        self._initialize_container()
     
     def _setup_logging(self):
-        """Configure logging using indexer's logging system"""
+        """Configure logging for testing."""
         IndexerLogger.configure(
-            log_dir=PROJECT_ROOT / "logs",
+            log_dir=PROJECT_ROOT / "logs" / "tests",
             log_level=self.log_level,
             console_enabled=True,
-            file_enabled=True,
-            structured_format=True
+            file_enabled=False,
+            structured_format=False  # Simple format for tests
         )
         
-        self.logger = IndexerLogger.get_logger('testing.environment')
+        self.logger = IndexerLogger.get_logger('testing')
         
-        log_with_context(
-            self.logger, 
-            logging.INFO,
-            "Testing environment logging initialized",
-            log_level=self.log_level,
-            model_name=self.model_name
-        )
-    
-    def _initialize_indexer(self):
-        """Initialize indexer using create_indexer() entry point with DI"""
+    def _initialize_container(self):
+        """Initialize the DI container using create_indexer()."""
         try:
-            log_with_context(
-                self.logger,
-                logging.INFO,
-                "Initializing indexer for testing using create_indexer()",
-                model_name=self.model_name
-            )
+            self.logger.info(f"Initializing testing environment for model: {self.model_name}")
             
-            # Use the proper create_indexer() entry point
+            # Use the indexer's entry point
             self.container = create_indexer(model_name=self.model_name)
             self.config = self.container._config
             
-            log_with_context(
-                self.logger, 
-                logging.INFO,
-                "Indexer container initialized successfully for testing",
-                model_name=self.model_name,
-                indexer_name=self.config.model_name,
-                indexer_version=self.config.model_version,
-                contract_count=len(self.config.contracts) if self.config.contracts else 0,
-                sources_count=len(self.config.sources) if self.config.sources else 0
-            )
+            self.logger.info(f"Testing environment ready: {self.config.model_name} v{self.config.model_version}")
             
         except Exception as e:
-            log_with_context(
-                self.logger,
-                logging.ERROR, 
-                "Failed to initialize indexer for testing",
-                error=str(e),
-                exception_type=type(e).__name__,
-                model_name=self.model_name
-            )
-            raise RuntimeError(f"TestingEnvironment initialization failed: {e}") from e
+            self.logger.error(f"Failed to initialize testing environment: {e}")
+            raise RuntimeError(f"Testing initialization failed: {e}") from e
     
-    def get_service(self, service_type):
-        """Get service from the dependency injection container"""
-        if not self.container:
-            raise RuntimeError("Indexer container not initialized")
+    def get_service(self, service_type: type[T]) -> T:
+        """
+        Get a service from the DI container.
         
+        Args:
+            service_type: The service class to retrieve
+            
+        Returns:
+            The service instance
+        """
         try:
-            service = self.container.get(service_type)
-            
-            log_with_context(
-                self.logger,
-                logging.DEBUG,
-                "Service retrieved from DI container",
-                service_type=service_type.__name__,
-                service_instance=type(service).__name__
-            )
-            
-            return service
-            
+            return self.container.get(service_type)
         except Exception as e:
-            log_with_context(
-                self.logger,
-                logging.ERROR,
-                "Failed to get service from DI container",
-                service_type=service_type.__name__,
-                error=str(e)
-            )
+            self.logger.error(f"Failed to get service {service_type.__name__}: {e}")
             raise
     
     def get_config(self) -> IndexerConfig:
-        """Get the indexer configuration"""
-        if not self.config:
-            raise RuntimeError("IndexerConfig not initialized")
+        """Get the indexer configuration."""
         return self.config
     
-    def get_logger(self, name: str = None):
-        """Get a logger using indexer's logging system"""
-        logger_name = f"testing.{name}" if name else "testing"
-        return IndexerLogger.get_logger(logger_name)
+    def get_container(self) -> IndexerContainer:
+        """Get the DI container directly."""
+        return self.container
+    
+    def cleanup(self):
+        """Clean up resources."""
+        # The container handles its own cleanup
+        pass
 
 
-# Global testing environment instance
-_testing_env = None
+# Singleton instance
+_test_env: Optional[TestingEnvironment] = None
 
-def get_testing_environment(model_name: str = None, log_level: str = "DEBUG") -> TestingEnvironment:
-    """Get or create the global testing environment"""
-    global _testing_env
-    if _testing_env is None:
-        _testing_env = TestingEnvironment(model_name, log_level)
-    return _testing_env
+
+def get_testing_environment(
+    model_name: Optional[str] = None, 
+    log_level: str = "WARNING"
+) -> TestingEnvironment:
+    """
+    Get or create the testing environment.
+    
+    Args:
+        model_name: Model to use (defaults to env var)
+        log_level: Logging level
+        
+    Returns:
+        TestingEnvironment instance
+    """
+    global _test_env
+    
+    # Create new environment if needed
+    if _test_env is None or (model_name and model_name != _test_env.model_name):
+        if _test_env:
+            _test_env.cleanup()
+        _test_env = TestingEnvironment(model_name, log_level)
+    
+    return _test_env
+
 
 def reset_testing_environment():
-    """Reset the global testing environment"""
-    global _testing_env
-    if _testing_env is not None:
-        # Log the reset
-        logger = IndexerLogger.get_logger('testing.reset')
-        log_with_context(
-            logger,
-            logging.INFO,
-            "Resetting testing environment"
-        )
-    _testing_env = None
+    """Reset the testing environment."""
+    global _test_env
+    if _test_env:
+        _test_env.cleanup()
+        _test_env = None
+
+
+__all__ = ['TestingEnvironment', 'get_testing_environment', 'reset_testing_environment']

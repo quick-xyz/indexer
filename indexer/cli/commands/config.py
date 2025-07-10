@@ -248,6 +248,21 @@ def _import_shared_config_data(ctx, config_data: Dict[str, Any]) -> None:
                     if existing:
                         click.echo(f"   ⚠️  Contract already exists: {contract_data['name']}")
                         continue
+
+                    # Build nested config structures
+                    decode_config = None
+                    if 'abi' in contract_data and contract_data['abi']:
+                        decode_config = {
+                            'abi_dir': contract_data['abi'].get('dir'),
+                            'abi_file': contract_data['abi'].get('file')
+                        }
+                    
+                    transform_config = None
+                    if 'transformer' in contract_data and contract_data['transformer']:
+                        transform_config = {
+                            'name': contract_data['transformer'].get('name'),
+                            'instantiate': contract_data['transformer'].get('config', {})
+                        }
                     
                     contract = Contract(
                         address=contract_data['address'].lower(),
@@ -255,12 +270,10 @@ def _import_shared_config_data(ctx, config_data: Dict[str, Any]) -> None:
                         project=contract_data.get('project'),
                         type=contract_data['type'],
                         description=contract_data.get('description'),
-                        abi_dir=contract_data.get('abi_dir'),
-                        abi_file=contract_data.get('abi_file'),
-                        transformer_name=contract_data.get('transformer_name'),
-                        transformer_config=contract_data.get('transformer_config', {}),
+                        decode_config=decode_config,
+                        transform_config=transform_config,
                         
-                        # Pool pricing defaults
+                        # Pool pricing defaults (unchanged)
                         pricing_strategy_default=contract_data.get('pricing_strategy_default'),
                         quote_token_address=contract_data.get('quote_token_address', '').lower() if contract_data.get('quote_token_address') else None,
                         pricing_start_block=contract_data.get('pricing_start_block'),

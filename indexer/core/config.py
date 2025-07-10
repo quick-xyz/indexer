@@ -18,6 +18,7 @@ from ..database.shared.tables.config import Contract, Token, Address, Source
 from .config_service import ConfigService
 from .secrets_service import SecretsService
 from .logging_config import IndexerLogger, log_with_context
+from ..types import ContractConfig, DecoderConfig, TransformerConfig
 
 class IndexerConfig(Struct):
     model_name: str
@@ -31,7 +32,7 @@ class IndexerConfig(Struct):
     storage: StorageConfig
     paths: PathsConfig
 
-    contracts: Dict[EvmAddress, Contract]
+    contracts: Dict[EvmAddress, ContractConfig]
     model_tokens: Dict[EvmAddress, Token]
     addresses: Dict[EvmAddress, Address]
     sources: Dict[int, Source]  # source_id -> Source object
@@ -51,9 +52,15 @@ class IndexerConfig(Struct):
             raise ValueError(f"Invalid model configuration for: {model_name}")
         
         model = config_service.get_model_by_name(model_name)
-        contracts = config_service.get_contracts_for_model(model_name)
+        db_contracts = config_service.get_contracts_for_model(model_name)
         model_tokens = config_service.get_model_tokens(model_name)
         addresses = config_service.get_all_addresses()
+        
+        # Convert database Contract objects to ContractConfig objects
+        contracts = {
+            address: cls._convert_db_contract_to_config(contract)
+            for address, contract in db_contracts.items()
+        }
         
         # NEW: Get sources from database
         sources_list = config_service.get_sources_for_model(model_name)
@@ -81,7 +88,7 @@ class IndexerConfig(Struct):
             model_version=model.version,
             model_db_name=model.database_name,
             source_paths=source_paths,  # Backward compatibility
-            contracts=contracts,
+            contracts=contracts,  # Now contains ContractConfig objects
             model_tokens=model_tokens,
             addresses=addresses,
             sources=sources,  # NEW
@@ -98,6 +105,35 @@ class IndexerConfig(Struct):
                        model_database=model.database_name)
         
         return config
+
+    @staticmethod
+    def _convert_db_contract_to_config(db_contract: Contract) -> ContractConfig:
+        """Convert database Contract object to ContractConfig type"""
+        # Build DecoderConfig if decode_config exists
+        decode = None
+        if db_contract.decode_config:
+            decode = DecoderConfig(
+                abi_dir=db_contract.decode_config.get('abi_dir', ''),
+                abi=db_contract.decode_config.get('abi_file', '')  # Note: DecoderConfig expects 'abi' not 'abi_file'
+            )
+        
+        # Build TransformerConfig if transform_config exists
+        transform = None
+        if db_contract.transform_config:
+            transform = TransformerConfig(
+                name=db_contract.transform_config.get('name', ''),
+                instantiate=db_contract.transform_config.get('instantiate', {})
+            )
+        
+        return ContractConfig(
+            name=db_contract.name,
+            project=db_contract.project or '',
+            type=db_contract.type,
+            decode=decode,
+            transform=transform,
+            token=None,  # Not used in current implementation
+            abi=None  # This will be loaded by ABILoader
+        )
 
     @staticmethod
     def _create_database_config(env: dict) -> DatabaseConfig:

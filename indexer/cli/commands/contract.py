@@ -68,59 +68,67 @@ def add(ctx, address, name, project, contract_type, abi_dir, abi_file,
             ).first()
             
             if existing_contract:
-                raise click.ClickException(f"Contract '{address}' already exists")
+                raise click.ClickException(f"Contract already exists with address: {address}")
+            
+            # Build nested config structures
+            decode_config = None
+            if abi_dir and abi_file:
+                decode_config = {
+                    'abi_dir': abi_dir,
+                    'abi_file': abi_file
+                }
+            
+            transform_config = None
+            if transformer:
+                transform_config = {
+                    'name': transformer,
+                    'instantiate': parsed_transformer_config or {}
+                }
             
             # Create contract
             new_contract = Contract(
                 address=address.lower(),
                 name=name,
                 project=project,
-                contract_type=contract_type,
-                abi_dir=abi_dir,
-                abi_file=abi_file,
-                transformer_name=transformer,
-                transformer_config=parsed_transformer_config
+                type=contract_type,
+                decode_config=decode_config,
+                transform_config=transform_config,
+                status='active'
             )
             
             session.add(new_contract)
             session.flush()  # Get the ID
             
             # Associate with models if provided
-            associated_models = []
             for model_name in models:
                 model = session.query(Model).filter(
-                    and_(Model.name == model_name, Model.status == 'active')
+                    Model.name == model_name
                 ).first()
                 
                 if not model:
-                    raise click.ClickException(f"Model '{model_name}' not found")
+                    click.echo(f"⚠️  Model '{model_name}' not found, skipping association")
+                    continue
                 
-                # Check if already associated
-                existing_assoc = session.query(ModelContract).filter(
-                    and_(ModelContract.model_id == model.id, ModelContract.contract_id == new_contract.id)
-                ).first()
-                
-                if not existing_assoc:
-                    model_contract = ModelContract(
-                        model_id=model.id,
-                        contract_id=new_contract.id
-                    )
-                    session.add(model_contract)
-                    associated_models.append(model_name)
+                model_contract = ModelContract(
+                    model_id=model.id,
+                    contract_id=new_contract.id
+                )
+                session.add(model_contract)
+                click.echo(f"   ✓ Associated with model: {model_name}")
             
             session.commit()
             
-            click.echo("✅ Contract added successfully")
-            click.echo(f"   Name: {name}")
-            click.echo(f"   Address: {address}")
-            click.echo(f"   Type: {contract_type}")
-            if project:
-                click.echo(f"   Project: {project}")
-            if transformer:
-                click.echo(f"   Transformer: {transformer}")
-            if associated_models:
-                click.echo(f"   Associated Models: {', '.join(associated_models)}")
+            click.echo(f"✅ Contract added successfully!")
+            click.echo(f"   Name: {new_contract.name}")
+            click.echo(f"   Address: {new_contract.address}")
+            click.echo(f"   Type: {new_contract.type}")
+            if decode_config:
+                click.echo(f"   ABI: {decode_config['abi_dir']}/{decode_config['abi_file']}")
+            if transform_config:
+                click.echo(f"   Transformer: {transform_config['name']}")
             
+    except click.ClickException:
+        raise
     except Exception as e:
         raise click.ClickException(f"Failed to add contract: {e}")
 
@@ -227,56 +235,69 @@ def show(ctx, address):
     """Show detailed contract information
     
     Examples:
-        contract show 0x1234567890123456789012345678901234567890
+        contract show 0x1234...
     """
     cli_context = ctx.obj['cli_context']
     
     try:
         with cli_context.infrastructure_db_manager.get_session() as session:
-            from ...database.shared.tables.config import Contract, Model, ModelContract
+            from ...database.shared.tables.config import Contract, Model
             
             contract = session.query(Contract).filter(
                 Contract.address == address.lower()
             ).first()
             
             if not contract:
-                raise click.ClickException(f"Contract '{address}' not found")
+                raise click.ClickException(f"Contract not found: {address}")
             
             # Get associated models
-            models = session.query(Model).join(ModelContract).filter(
-                ModelContract.contract_id == contract.id
-            ).order_by(Model.name).all()
+            models = session.query(Model).join(
+                Model.model_contracts
+            ).filter(
+                Contract.address == address.lower()
+            ).all()
             
+            # Display contract details
             type_icons = {
                 'token': '🪙',
-                'pool': '🏊', 
+                'pool': '🌊',
+                'aggregator': '🔄',
                 'router': '🔀',
                 'factory': '🏭',
-                'aggregator': '📊',
                 'other': '📄'
             }
             
-            icon = type_icons.get(contract.contract_type, '📄')
+            icon = type_icons.get(contract.type, '📄')
             
             click.echo(f"📋 Contract Details: {contract.name}")
             click.echo("=" * 80)
-            click.echo(f"Type: {icon} {contract.contract_type}")
+            click.echo(f"Type: {icon} {contract.type}")
             click.echo(f"Address: {contract.address}")
             if contract.project:
                 click.echo(f"Project: {contract.project}")
             
-            if contract.abi_dir or contract.abi_file:
+            if contract.decode_config:
                 click.echo(f"\n📄 ABI Configuration:")
-                if contract.abi_dir:
-                    click.echo(f"   Directory: {contract.abi_dir}")
-                if contract.abi_file:
-                    click.echo(f"   File: {contract.abi_file}")
+                click.echo(f"   Directory: {contract.decode_config.get('abi_dir', 'N/A')}")
+                click.echo(f"   File: {contract.decode_config.get('abi_file', 'N/A')}")
             
-            if contract.transformer_name:
+            if contract.transform_config:
                 click.echo(f"\n🔧 Transformer Configuration:")
-                click.echo(f"   Class: {contract.transformer_name}")
-                if contract.transformer_config:
-                    click.echo(f"   Config: {json.dumps(contract.transformer_config, indent=6)}")
+                click.echo(f"   Class: {contract.transform_config.get('name', 'N/A')}")
+                instantiate = contract.transform_config.get('instantiate', {})
+                if instantiate:
+                    click.echo(f"   Config: {json.dumps(instantiate, indent=6)}")
+            
+            # Pool pricing configuration
+            if contract.pricing_strategy_default:
+                click.echo(f"\n💰 Pricing Configuration:")
+                click.echo(f"   Strategy: {contract.pricing_strategy_default}")
+                if contract.quote_token_address:
+                    click.echo(f"   Quote Token: {contract.quote_token_address}")
+                if contract.pricing_start_block:
+                    click.echo(f"   Start Block: {contract.pricing_start_block}")
+                if contract.pricing_end_block:
+                    click.echo(f"   End Block: {contract.pricing_end_block}")
             
             if models:
                 click.echo(f"\n🔗 Associated Models ({len(models)}):")
