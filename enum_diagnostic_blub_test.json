@@ -1,0 +1,111 @@
+{
+  "model_name": "blub_test",
+  "postgresql_enums": {
+    "jobstatus": [
+      "pending",
+      "processing",
+      "complete",
+      "failed"
+    ],
+    "jobtype": [
+      "block",
+      "block_range",
+      "transactions",
+      "reprocess_failed"
+    ],
+    "liquidityaction": [
+      "add",
+      "remove",
+      "update"
+    ],
+    "pricingdenomination": [
+      "usd",
+      "avax"
+    ],
+    "pricingmethod": [
+      "direct_avax",
+      "direct_usd",
+      "global",
+      "error"
+    ],
+    "rewardtype": [
+      "fees",
+      "rewards"
+    ],
+    "tradedirection": [
+      "buy",
+      "sell"
+    ],
+    "tradepricingmethod": [
+      "direct",
+      "global"
+    ],
+    "tradetype": [
+      "trade",
+      "arbitrage",
+      "auction"
+    ],
+    "transactionstatus": [
+      "pending",
+      "processing",
+      "completed",
+      "failed"
+    ]
+  },
+  "code_enums": {
+    "tradedirection": [
+      "buy",
+      "sell"
+    ],
+    "tradetype": [
+      "trade",
+      "arbitrage",
+      "auction"
+    ],
+    "liquidityaction": [
+      "add",
+      "remove",
+      "update"
+    ],
+    "rewardtype": [
+      "fees",
+      "rewards"
+    ],
+    "stakingaction": [
+      "deposit",
+      "withdraw"
+    ]
+  },
+  "enum_test_results": {
+    "tradedirection": {
+      "enum_name": "tradedirection",
+      "test_value": "buy",
+      "test_passed": true,
+      "error": null,
+      "db_returned": "buy"
+    },
+    "liquidityaction": {
+      "enum_name": "liquidityaction",
+      "test_value": "add",
+      "test_passed": true,
+      "error": null,
+      "db_returned": "add"
+    },
+    "rewardtype": {
+      "enum_name": "rewardtype",
+      "test_value": "fees",
+      "test_passed": true,
+      "error": null,
+      "db_returned": "fees"
+    }
+  },
+  "issues_found": [
+    "Enum 'stakingaction' exists in code but not in PostgreSQL",
+    "Enum 'jobstatus' exists in PostgreSQL but not tracked in code",
+    "Enum 'jobtype' exists in PostgreSQL but not tracked in code",
+    "Enum 'pricingdenomination' exists in PostgreSQL but not tracked in code",
+    "Enum 'pricingmethod' exists in PostgreSQL but not tracked in code",
+    "Enum 'tradepricingmethod' exists in PostgreSQL but not tracked in code",
+    "Enum 'transactionstatus' exists in PostgreSQL but not tracked in code"
+  ]
+}

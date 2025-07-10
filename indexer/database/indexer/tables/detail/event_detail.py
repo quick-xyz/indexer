@@ -9,8 +9,8 @@ from ....types import DomainEventIdType
 
 
 class PricingDenomination(enum.Enum):
-    USD = "USD"
-    AVAX = "AVAX"
+    USD = "usd"
+    AVAX = "avax"
 
 
 class EventDetail(BaseModel):

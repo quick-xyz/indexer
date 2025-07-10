@@ -1,6 +1,7 @@
 # indexer/database/writers/domain_event_writer.py
 
 from typing import Dict, Tuple, Any
+import traceback
 
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
@@ -102,7 +103,8 @@ class DomainEventWriter:
                 self.logger, logging.ERROR, "Failed to write transaction results",
                 tx_hash=tx_hash,
                 error=str(e),
-                exception_type=type(e).__name__
+                exception_type=type(e).__name__,
+                traceback=traceback.format_exc()
             )
             raise
     
@@ -122,10 +124,6 @@ class DomainEventWriter:
         
         if processing_record is None:
             # Create new transaction processing record
-            print(f"DEBUG: Creating new record with status: {TransactionStatus.PROCESSING}")
-            print(f"DEBUG: Status value: {TransactionStatus.PROCESSING.value}")
-            print(f"DEBUG: Status name: {TransactionStatus.PROCESSING.name}")
-
             processing_record = TransactionProcessing(
                 tx_hash=tx_hash,
                 block_number=block_number,
@@ -153,7 +151,6 @@ class DomainEventWriter:
         timestamp: int
     ) -> Tuple[int, int]:
         """Write domain events to structured tables, returning (written_count, skipped_count)"""
-        
         if not events:
             return 0, 0
         
@@ -164,10 +161,10 @@ class DomainEventWriter:
             try:
                 # Get appropriate repository for this event type
                 repository = self._get_event_repository(event)
-                
+
                 # Check if event already exists
                 existing_event = repository.get_by_content_id(session, event_id)
-                
+
                 if existing_event is not None:
                     events_skipped += 1
                     log_with_context(
@@ -177,8 +174,9 @@ class DomainEventWriter:
                     )
                     continue
                 
-                # Extract event data and create record - PASS REPOSITORY FOR FIELD FILTERING
+                # Extract event data and create record
                 event_data = self._extract_event_data(event, repository)
+
                 event_data.update({
                     'content_id': event_id,
                     'tx_hash': tx_hash,
@@ -186,7 +184,16 @@ class DomainEventWriter:
                     'timestamp': timestamp
                 })
                 
+                log_with_context(
+                    self.logger, logging.DEBUG, "About to write event",
+                    event_id=event_id,
+                    event_type=type(event).__name__,
+                    event_data_keys=list(event_data.keys()),
+                    event_data=event_data
+                )
+                
                 repository.create(session, **event_data)
+
                 events_written += 1
                 
                 log_with_context(
@@ -196,12 +203,17 @@ class DomainEventWriter:
                 )
                 
             except Exception as e:
+                import traceback
+
                 log_with_context(
                     self.logger, logging.ERROR, "Failed to write event",
                     event_id=event_id,
                     event_type=type(event).__name__ if event else "Unknown",
                     error=str(e),
-                    exception_type=type(e).__name__
+                    exception_type=type(e).__name__,
+                    traceback=traceback.format_exc(),
+                    event_data_keys=list(event_data.keys()) if 'event_data' in locals() else "not_extracted",
+                    event_data=event_data if 'event_data' in locals() else "not_extracted"
                 )
                 # Continue processing other events rather than failing the entire batch
                 continue
@@ -259,7 +271,8 @@ class DomainEventWriter:
                     self.logger, logging.ERROR, "Failed to write position",
                     position_id=position_id,
                     error=str(e),
-                    exception_type=type(e).__name__
+                    exception_type=type(e).__name__,
+                    traceback=traceback.format_exc()
                 )
                 # Continue processing other positions
                 continue
@@ -290,7 +303,7 @@ class DomainEventWriter:
             return self.repository_manager.trades
         elif event_type in ['poolswap', 'pool_swap']:
             return self.repository_manager.pool_swaps
-        elif event_type == 'transfer':
+        elif event_type in ['transfer', 'unknowntransfer']:
             return self.repository_manager.transfers
         elif event_type == 'liquidity':
             return self.repository_manager.liquidity
@@ -301,21 +314,22 @@ class DomainEventWriter:
                            f"Available types: Trade, PoolSwap, Transfer, Liquidity, Reward")
     
     def _extract_event_data(self, event: Any, repository: Any) -> Dict:
-        """Extract database-specific data from domain event, filtering to only include valid DB fields"""
-        # Handle different event structures
+        """Extract database-specific data from domain event, with enhanced error handling and conversion"""
+        
+        # Step 1: Extract raw data from event
         if hasattr(event, 'to_dict'):
             # msgspec.Struct with to_dict method
-            data = event.to_dict()
+            raw_data = event.to_dict()
         elif hasattr(event, '__dict__'):
             # Regular object with attributes
-            data = {
+            raw_data = {
                 attr: getattr(event, attr) 
                 for attr in dir(event) 
                 if not attr.startswith('_') and not callable(getattr(event, attr))
             }
         else:
             # Try to extract key attributes manually
-            data = {}
+            raw_data = {}
             common_attrs = ['taker', 'pool', 'direction', 'base_token', 'base_amount', 
                           'quote_token', 'quote_amount', 'trade_type', 'user', 'token', 
                           'amount', 'position_type', 'from_address', 'to_address', 
@@ -323,35 +337,122 @@ class DomainEventWriter:
             
             for attr in common_attrs:
                 if hasattr(event, attr):
-                    data[attr] = getattr(event, attr)
+                    raw_data[attr] = getattr(event, attr)
         
-        # Remove fields that are handled separately or don't belong in database
-        excluded_fields = ['content_id', 'tx_hash', 'timestamp', 'block_number', 'signals', 'positions', 'swaps']
-        filtered_data = {k: v for k, v in data.items() if k not in excluded_fields}
+        log_with_context(
+            self.logger, logging.DEBUG, "Extracted raw event data",
+            event_type=type(event).__name__,
+            raw_fields=list(raw_data.keys()),
+            raw_data=raw_data
+        )
         
-        # NEW: Filter to only include fields that exist in the database model
+        # Step 2: Remove fields that are handled separately or don't belong in database
+        excluded_fields = ['content_id', 'tx_hash', 'timestamp', 'block_number', 'signals', 'positions', 'swaps', 'transfers']
+        filtered_data = {k: v for k, v in raw_data.items() if k not in excluded_fields}
+        
+        # Step 3: Get valid database columns
         if hasattr(repository, 'model_class') and hasattr(repository.model_class, '__table__'):
             valid_columns = {col.name for col in repository.model_class.__table__.columns}
-            db_filtered_data = {k: v for k, v in filtered_data.items() if k in valid_columns}
+            
+            # Step 4: Filter to only valid columns
+            db_filtered_data = {}
+            for key, value in filtered_data.items():
+                if key in valid_columns:
+                    db_filtered_data[key] = value
+            
+            # Step 5: Apply event-type specific conversions
+            converted_data = self._convert_event_data(event, db_filtered_data)
             
             log_with_context(
-                self.logger, logging.DEBUG, "Filtered event data for database",
+                self.logger, logging.DEBUG, "Filtered and converted event data",
                 event_type=type(event).__name__,
-                original_fields=len(filtered_data),
+                original_fields=len(raw_data),
                 filtered_fields=len(db_filtered_data),
-                excluded_fields=[k for k in filtered_data.keys() if k not in valid_columns]
+                final_fields=len(converted_data),
+                excluded_fields=[k for k in filtered_data.keys() if k not in valid_columns],
+                final_data=converted_data
             )
             
-            return db_filtered_data
+            return converted_data
         else:
             # Fallback to original filtering if can't inspect model
             log_with_context(
-                self.logger, logging.DEBUG, "Using fallback event data filtering",
+                self.logger, logging.WARNING, "Using fallback event data filtering - no model introspection",
                 event_type=type(event).__name__,
                 field_count=len(filtered_data)
             )
             
             return filtered_data
+    
+    def _convert_event_data(self, event: Any, data: Dict) -> Dict:
+        """Apply generic data conversions for database compatibility"""
+        converted_data = data.copy()
+        
+        try:
+            # Get the database model class to understand expected types
+            repository = self._get_event_repository(event)
+            if not hasattr(repository, 'model_class') or not hasattr(repository.model_class, '__table__'):
+                return converted_data
+            
+            model_class = repository.model_class
+            
+            # Generic enum conversion: string -> enum instance
+            for column in model_class.__table__.columns:
+                field_name = column.name
+                if field_name in converted_data:
+                    field_value = converted_data[field_name]
+                    
+                    # Check if this column expects an enum
+                    if hasattr(column.type, 'enum_class') and column.type.enum_class:
+                        enum_class = column.type.enum_class
+                        
+                        # Convert string to enum instance if needed
+                        if isinstance(field_value, str) and hasattr(enum_class, '__members__'):
+                            # Find enum member by value (your enums use lowercase values)
+                            for enum_member in enum_class:
+                                if enum_member.value == field_value:
+                                    converted_data[field_name] = enum_member
+                                    log_with_context(
+                                        self.logger, logging.DEBUG, "Converted enum field",
+                                        field_name=field_name,
+                                        string_value=field_value,
+                                        enum_value=enum_member
+                                    )
+                                    break
+                        elif not isinstance(field_value, enum_class):
+                            log_with_context(
+                                self.logger, logging.WARNING, "Unexpected enum field type",
+                                field_name=field_name,
+                                expected_enum=enum_class.__name__,
+                                actual_type=type(field_value).__name__,
+                                actual_value=field_value
+                            )
+            
+            # Calculate derived fields based on rich domain event data
+            self._add_derived_fields(event, converted_data)
+            
+        except Exception as e:
+            log_with_context(
+                self.logger, logging.WARNING, "Error during event data conversion",
+                event_type=type(event).__name__,
+                error=str(e),
+                data=data
+            )
+            # Return original data if conversion fails
+            return data
+        
+        return converted_data
+    
+    def _add_derived_fields(self, event: Any, data: Dict) -> None:
+        """Add derived fields that are calculated from rich domain event data"""
+        event_type = type(event).__name__.lower()
+        
+        # Calculate swap_count for Trade events
+        if event_type == 'trade' and hasattr(event, 'swaps') and event.swaps:
+            if 'swap_count' not in data:
+                data['swap_count'] = len(event.swaps)
+        
+        # Add more derived field calculations as needed...
     
     def _extract_position_data(self, position: Position) -> Dict:
         """Extract database-specific data from position"""
