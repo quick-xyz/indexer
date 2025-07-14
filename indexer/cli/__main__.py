@@ -66,6 +66,7 @@ from indexer.cli.commands.address import address
 from indexer.cli.commands.pool_pricing import pool_pricing
 from indexer.cli.commands.pricing import pricing
 from indexer.cli.commands.migrate import migrate
+from indexer.cli.commands.batch import batch
 
 # Register command groups
 cli.add_command(config)
@@ -76,6 +77,7 @@ cli.add_command(address)
 cli.add_command(pool_pricing)
 cli.add_command(pricing)
 cli.add_command(migrate)
+cli.add_command(batch)
 
 
 def cleanup():

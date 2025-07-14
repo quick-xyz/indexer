@@ -55,3 +55,6 @@ data/
 .coverage
 coverage.xml
 *.cover
+
+# Domain events exports
+testing/exports/
