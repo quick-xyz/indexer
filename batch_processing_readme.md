@@ -1,7 +1,7 @@
 # Batch Processing Guide
 
 ## Overview
-The indexer provides powerful batch processing capabilities through an integrated CLI system with automatic logging, multi-worker coordination, and real-time monitoring. All commands are part of the unified indexer CLI.
+The indexer provides powerful batch processing capabilities through an integrated CLI system with automatic logging, multi-worker coordination, and real-time database-based monitoring. All commands are part of the unified indexer CLI.
 
 ## Quick Start
 
@@ -83,9 +83,9 @@ python -m indexer.cli --model blub_test batch run-full --blocks 5000 --batch-siz
 
 ### Monitoring Commands
 
-#### Real-Time Multi-Worker Monitoring
+#### Real-Time Database Monitoring (Recommended)
 ```bash
-# Live dashboard with 10-second refresh
+# Live database-based dashboard with 10-second refresh
 python -m indexer.cli --model blub_test batch monitor
 
 # Fast refresh every 5 seconds
@@ -95,9 +95,12 @@ python -m indexer.cli --model blub_test batch monitor --refresh 5
 python -m indexer.cli --model blub_test batch monitor --compact
 ```
 
-#### Basic Status Check
+#### Database Status Check
 ```bash
-# Check queue status
+# Detailed database status with job counts and timing
+python -m indexer.cli --model blub_test batch db-status
+
+# Basic queue status
 python -m indexer.cli --model blub_test batch status
 
 # Test single block processing
@@ -192,10 +195,10 @@ python -m indexer.cli --model blub_test batch monitor
 tail -f logs/batch_processing/blub_test/worker_1.log
 ```
 
-## Real-Time Monitoring
+## Real-Time Database Monitoring
 
 ### Live Dashboard
-The monitor command provides a real-time dashboard showing:
+The monitor command provides a real-time database-driven dashboard showing:
 
 ```
 🔄 Batch Processing Monitor - blub_test
@@ -203,29 +206,39 @@ The monitor command provides a real-time dashboard showing:
 ================================================================================
 👥 Active Workers: 4
 
+📊 Job Queue Status:
+   ⏳ Pending: 1,543
+   🔄 Processing: 4
+   ✅ Completed: 8,453
+   ❌ Failed: 12
+
+📈 Progress: 84.5% (8,453/10,012 jobs)
+🚀 Processing Rate: 1,247.3 jobs/hour
+⏰ Est. completion: 1.2 hours
+
 Worker Status:
 --------------------------------------------------------------------------------
-Worker          Status     Blocks     Rate/hr    Last Activity      
+Worker          Status     Last Activity      
 --------------------------------------------------------------------------------
-worker_1        🟢 ACTIVE    2,340      450.2      14:30:12          
-worker_2        🟢 ACTIVE    2,180      428.1      14:30:14          
-worker_3        🟢 ACTIVE    2,520      481.7      14:30:10          
-worker_4        🟡 IDLE      1,890      389.4      14:29:45          
-
-📊 Collective Stats:
-   Total blocks processed: 8,930
-   Combined processing rate: 1,749.4 blocks/hour
-   Average per active worker: 437.4 blocks/hour
-   Queue: 156 pending, 4 processing
+worker_1        🟢 ACTIVE    14:30:12          
+worker_2        🟢 ACTIVE    14:30:14          
+worker_3        🟢 ACTIVE    14:30:10          
+worker_4        🟢 ACTIVE    14:29:58          
 
 Press Ctrl+C to stop monitoring
 ```
 
+### Database-Based Monitoring Benefits
+- **Accurate statistics**: Direct from processing job database
+- **Real-time rates**: Calculated from actual job completion
+- **Reliable worker detection**: Combined database + log file analysis
+- **Progress estimation**: Time to completion based on current rate
+- **No log parsing issues**: Eliminates log format dependencies
+
 ### Status Indicators
-- **🟢 ACTIVE**: Worker is currently processing
-- **🟡 IDLE**: Worker paused or between jobs
-- **🔴 STOPPED**: Worker has stopped
-- **❌ ERROR**: Worker encountered an error
+- **🟢 ACTIVE**: Worker log file recently modified
+- **🔴 STOPPED**: Worker log file inactive
+- **❌ ERROR**: Worker file access error
 
 ### Compact Mode
 For minimal screen real estate:
@@ -233,10 +246,38 @@ For minimal screen real estate:
 python -m indexer.cli --model blub_test batch monitor --compact
 
 # Output:
-🟢 worker_1: 2,340 blocks, 450.2/hr
-🟢 worker_2: 2,180 blocks, 428.1/hr  
-🟢 worker_3: 2,520 blocks, 481.7/hr
-🟡 worker_4: 1,890 blocks, 389.4/hr
+📊 Progress: 84.5% (8,453/10,012) | Rate: 1,247/hr | ETA: 1.2h
+Workers: 4 active, 0 stopped
+```
+
+### Database Status Command
+For detailed analysis:
+```bash
+python -m indexer.cli --model blub_test batch db-status
+
+# Output:
+📊 Database Status - blub_test
+============================================================
+⏳ PENDING: 1,543 jobs
+   Oldest: 2025-07-14 13:15:22
+   Newest: 2025-07-14 13:45:18
+
+🔄 PROCESSING: 4 jobs
+   Oldest: 2025-07-14 14:28:45
+   Newest: 2025-07-14 14:30:12
+
+✅ COMPLETE: 8,453 jobs
+   Oldest: 2025-07-14 13:15:25
+   Newest: 2025-07-14 14:30:14
+
+❌ FAILED: 12 jobs
+   Oldest: 2025-07-14 13:22:18
+   Newest: 2025-07-14 14:15:33
+
+📈 Total Jobs: 10,012
+💾 Block Storage:
+   Complete: 845,300
+   Processing: 400
 ```
 
 ## Performance Optimization
@@ -266,7 +307,7 @@ python -m indexer.cli --model blub_test batch monitor --compact
 #### Workers Not Starting
 ```bash
 # Check if jobs are queued
-python -m indexer.cli --model blub_test batch status
+python -m indexer.cli --model blub_test batch db-status
 
 # Check worker logs
 ls -la logs/batch_processing/blub_test/
@@ -275,7 +316,7 @@ tail logs/batch_processing/blub_test/worker_1.log
 
 #### Slow Processing
 ```bash
-# Monitor worker performance
+# Monitor worker performance and processing rates
 python -m indexer.cli --model blub_test batch monitor
 
 # Check for stuck workers
@@ -288,29 +329,43 @@ python -m indexer.cli --model blub_test batch process --worker-name worker_1 --q
 
 #### Queue Issues
 ```bash
-# Check queue status
-python -m indexer.cli --model blub_test batch status
+# Check detailed queue status
+python -m indexer.cli --model blub_test batch db-status
 
-# Clear failed jobs (if needed)
+# Reset failed jobs to pending (if appropriate)
 python -c "
 from testing import get_testing_environment
 from indexer.database.repository import RepositoryManager
 env = get_testing_environment()
 repo_manager = env.get_service(RepositoryManager)
 with repo_manager.get_session() as session:
-    from sqlalchemy import text
-    result = session.execute(text('UPDATE processing_jobs SET status = \"PENDING\" WHERE status = \"FAILED\"'))
+    from indexer.database.indexer.tables.processing import ProcessingJob, JobStatus
+    failed_jobs = session.query(ProcessingJob).filter(ProcessingJob.status == JobStatus.FAILED).all()
+    for job in failed_jobs:
+        job.status = JobStatus.PENDING
     session.commit()
-    print(f'Reset {result.rowcount} failed jobs to pending')
+    print(f'Reset {len(failed_jobs)} failed jobs to pending')
 "
 ```
 
-### Log Analysis
+### Database Analysis
+```bash
+# Detailed job statistics
+python -m indexer.cli --model blub_test batch db-status
+
+# Real-time processing monitoring
+python -m indexer.cli --model blub_test batch monitor --refresh 5
+
+# Check processing rates over time
+python -m indexer.cli --model blub_test batch monitor --compact
+```
+
+### Log Analysis (Secondary)
 ```bash
 # Check all worker logs for errors
 grep -i error logs/batch_processing/blub_test/*.log
 
-# Monitor processing rates
+# Monitor processing completion messages
 grep "Processing completed" logs/batch_processing/blub_test/*.log
 
 # Watch real-time activity
@@ -328,7 +383,7 @@ python testing/exporters/domain_events_exporter.py blub_test 5000
 ### Data Verification
 ```bash
 # Check data integrity after processing
-python -m indexer.cli --model blub_test batch status
+python -m indexer.cli --model blub_test batch db-status
 python testing/exporters/domain_events_exporter.py blub_test 1000
 ```
 
@@ -359,7 +414,7 @@ python -m indexer.cli --model blub_test batch monitor
 wait
 
 # 5. Verify results
-python -m indexer.cli --model blub_test batch status
+python -m indexer.cli --model blub_test batch db-status
 python testing/exporters/domain_events_exporter.py blub_test 5000
 ```
 
@@ -371,7 +426,7 @@ python -m indexer.cli --model blub_test batch queue-all --max-blocks 50000 --bat
 # 2. Scale workers based on system capacity
 python -m indexer.cli --model blub_test batch multi-worker 6
 
-# 3. Monitor with fast refresh
+# 3. Monitor with fast refresh for large-scale visibility
 python -m indexer.cli --model blub_test batch monitor --refresh 5
 
 # 4. Optional: Process in phases with limits
@@ -381,13 +436,14 @@ python -m indexer.cli --model blub_test batch process --worker-name worker_1 --m
 ## Tips and Best Practices
 
 1. **Start small**: Test with 100-1000 blocks before scaling up
-2. **Monitor first hour**: Watch for performance issues early
+2. **Monitor first hour**: Watch database metrics for performance issues early
 3. **Use tmux/screen**: For long-running processing sessions
-4. **Save logs**: Keep logs for post-processing analysis
-5. **Check disk space**: Logs and database can grow quickly
+4. **Database monitoring**: Use `batch monitor` for real-time tracking instead of log parsing
+5. **Check disk space**: Database and logs can grow quickly
 6. **Database maintenance**: Consider running maintenance after large batches
 7. **Incremental processing**: Process in phases rather than one massive batch
 8. **Resource monitoring**: Watch system resources during processing
+9. **Use db-status**: For detailed analysis of job distribution and timing
 
 ## Architecture Notes
 
@@ -396,4 +452,6 @@ python -m indexer.cli --model blub_test batch process --worker-name worker_1 --m
 - **Automatic discovery**: Finds blocks from configured RPC stream sources
 - **Graceful shutdown**: Workers complete current jobs before stopping
 - **Fault tolerance**: Individual failures don't affect other workers
+- **Database monitoring**: Real-time statistics from processing job tables
 - **Logging integration**: Unified with existing indexer logging system
+- **Hybrid monitoring**: Combines database statistics with log file activity detection
