@@ -7,13 +7,21 @@ from sqlalchemy import desc, and_
 
 from ....core.logging_config import log_with_context
 from ....types.new import EvmHash, DomainEventId
-from ...base_repository import BaseRepository
+from ...base_repository import DomainEventBaseRepository
 
 import logging
 
 
-class DomainEventRepository(BaseRepository):
-    """Base repository for domain events with common query patterns."""
+class DomainEventRepository(DomainEventBaseRepository):
+    """
+    Base repository for domain events with common query patterns.
+    
+    Now extends DomainEventBaseRepository to inherit bulk operations like
+    bulk_create() and bulk_create_skip_existing() that are required by the DomainEventWriter.
+    
+    Maintains the dual database architecture by extending the proper base class
+    while ensuring all event repositories have the required bulk methods.
+    """
     
     def get_by_content_id(self, session: Session, content_id: DomainEventId):
         """Get domain event by content_id"""

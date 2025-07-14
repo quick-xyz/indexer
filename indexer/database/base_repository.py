@@ -189,12 +189,11 @@ class DomainEventBaseRepository(BaseRepository[T]):
             # Extract content_ids from items
             content_ids = [item['content_id'] for item in items]
             
-            # Query existing content_ids
-            existing_content_ids = set(
-                session.query(self.model_class.content_id)
-                .filter(self.model_class.content_id.in_(content_ids))
-                .scalar_all()
-            )
+            # Query existing content_ids (compatible with older SQLAlchemy)
+            existing_records = session.query(self.model_class.content_id).filter(
+                self.model_class.content_id.in_(content_ids)
+            ).all()
+            existing_content_ids = set(record[0] for record in existing_records)
             
             # Filter out existing items
             new_items = [
@@ -206,8 +205,20 @@ class DomainEventBaseRepository(BaseRepository[T]):
                 self.logger.debug(f"All {len(items)} {self.model_class.__name__} records already exist, skipping")
                 return 0
             
-            # Bulk insert new items
-            session.bulk_insert_mappings(self.model_class, new_items)
+            # Clean up data before bulk insert (handle None values properly)
+            cleaned_items = []
+            for item in new_items:
+                cleaned_item = {}
+                for key, value in item.items():
+                    # Convert string "None" back to actual None for nullable fields
+                    if value == 'None' and key in ['token_id', 'custodian']:
+                        cleaned_item[key] = None
+                    else:
+                        cleaned_item[key] = value
+                cleaned_items.append(cleaned_item)
+            
+            # Bulk insert cleaned items
+            session.bulk_insert_mappings(self.model_class, cleaned_items)
             session.flush()
             
             created_count = len(new_items)
@@ -257,14 +268,4 @@ class ProcessingBaseRepository(BaseRepository[T]):
             ).order_by(self.model_class.created_at).all()
         except Exception as e:
             self.logger.error(f"Error getting {self.model_class.__name__} by block_number {block_number}: {e}")
-            raise
-    
-    def get_by_tx_hash(self, session: Session, tx_hash: EvmHash) -> Optional[T]:
-        """Get processing record by transaction hash"""
-        try:
-            return session.query(self.model_class).filter(
-                self.model_class.tx_hash == tx_hash
-            ).first()
-        except Exception as e:
-            self.logger.error(f"Error getting {self.model_class.__name__} by tx_hash {tx_hash}: {e}")
             raise

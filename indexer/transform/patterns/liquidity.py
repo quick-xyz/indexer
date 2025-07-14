@@ -300,7 +300,7 @@ class Mint_A(TransferPattern):
                 recipient=fee_collector,
                 token=signal.pool,
                 amount=str(fee_amount),
-                reward_type="fee",
+                reward_type="fees",
                 positions=fee_positions,
                 signals=collector_receipts
             )
@@ -546,7 +546,7 @@ class Burn_A(TransferPattern):
                 recipient=fee_collector,
                 token=signal.pool,
                 amount=str(fee_amount),
-                reward_type="fee",
+                reward_type="fees",
                 positions=fee_positions,
                 signals=fee_trf
             )

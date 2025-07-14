@@ -35,5 +35,27 @@ export INDEXER_DB_PORT=5432
 
 
 # PROCESSING
-## Process a single block: python -m indexer.pipeline.batch_runner test <block_number>
-## Review processing: python scripts/domain_event_hunter.py block <block_number>
+## Test process a single block: 
+python -m indexer.pipeline.batch_runner test <block_number>
+
+## Review single block processing: 
+python testing/analyze_test_results.py <block_number>
+
+## Clear processing blocks in GCS: 
+gsutil -m rm -r gs://indexer-blocks/models/blub_test/complete/
+gsutil -m rm -r gs://indexer-blocks/models/blub_test/processing/
+
+## Clear indexer database:
+sql-- Connect to your blub_test database and run:
+TRUNCATE TABLE transaction_processing CASCADE;
+TRUNCATE TABLE processing_jobs CASCADE;
+TRUNCATE TABLE block_processing CASCADE;
+TRUNCATE TABLE trades CASCADE;
+TRUNCATE TABLE pool_swaps CASCADE;
+TRUNCATE TABLE transfers CASCADE;
+TRUNCATE TABLE liquidity CASCADE;
+TRUNCATE TABLE rewards CASCADE;
+TRUNCATE TABLE positions CASCADE;
+TRUNCATE TABLE pool_swap_details CASCADE;
+TRUNCATE TABLE trade_details CASCADE;
+TRUNCATE TABLE event_details CASCADE;

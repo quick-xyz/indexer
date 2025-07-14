@@ -9,12 +9,12 @@ from ...connection import ModelDatabaseManager
 from ..tables.events.position import Position
 from ....core.logging_config import log_with_context
 from ....types.new import EvmAddress, DomainEventId
-from .event_repository import DomainEventRepository
+from ...base_repository import DomainEventBaseRepository
 
 import logging
 
 
-class PositionRepository(DomainEventRepository):
+class PositionRepository(DomainEventBaseRepository[Position]):
     """Repository for position events"""
     
     def __init__(self, db_manager: ModelDatabaseManager):

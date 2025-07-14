@@ -2,7 +2,7 @@
 
 **Model:** blub_test vv2
 **Database:** blub_test
-**Generated:** 2025-07-11 11:42:20
+**Generated:** 2025-07-14 11:16:06
 **Export Directory:** db_exporter/blub_test
 
 ## Domain Event Tables
@@ -10,12 +10,12 @@
 ### Trades
 **Description:** Trade events - user trading activity
 
-- **Rows exported:** 2
+- **Rows exported:** 3
 - **Columns:** 13
 - **File:** `trades.csv`
 - **Key columns:** taker, direction, base_token, base_amount, trade_type
 - **Relationships:** Links to pool_swaps via content_id references
-- **Time range:** 1745844478 to 1749010993
+- **Time range:** 1745844478 to 1752259407
 
 ### Pool_Swaps
 **Description:** Individual pool swap events within trades
@@ -29,12 +29,12 @@
 ### Transfers
 **Description:** Token transfer events
 
-- **Rows exported:** 6,325
+- **Rows exported:** 10
 - **Columns:** 13
 - **File:** `transfers.csv`
 - **Key columns:** token, from_address, to_address, amount
 - **Relationships:** Can link to parent events via parent_id/parent_type
-- **Time range:** 1741111943 to 1749010993
+- **Time range:** 1741708903 to 1752259407
 
 ### Liquidity
 **Description:** Liquidity provision/removal events
@@ -59,12 +59,12 @@
 ### Positions
 **Description:** Position changes - deposits, withdrawals, balance updates
 
-- **Rows exported:** 11,475
+- **Rows exported:** 48
 - **Columns:** 13
 - **File:** `positions.csv`
 - **Key columns:** user, token, amount, custodian
 - **Relationships:** Can link to parent events via parent_id/parent_type
-- **Time range:** 1741111943 to 1749010993
+- **Time range:** 1741207547 to 1752259407
 
 ## Files Generated
 
