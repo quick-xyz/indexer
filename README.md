@@ -41,6 +41,39 @@ python -m indexer.pipeline.batch_runner test <block_number>
 ## Review single block processing: 
 python testing/analyze_test_results.py <block_number>
 
+## Queue blocks for processing:
+python -m indexer.pipeline.batch_runner queue-all --batch-size 50 --max-blocks 1000
+
+## Clear queue
+python scripts/clear_processing_queue.py --model blub_test --live
+
+## Run batch-runner in background:
+python -m indexer.pipeline.batch_runner process > batch_1000_process.log 2>&1 &
+
+## Find background process
+ps aux | grep batch_runner
+-or more specifically-
+ps aux | grep "batch_runner process"
+
+## Kill background process
+- Kill by process ID (from ps aux output)
+kill <process_id>
+
+- Or kill all batch_runner processes
+pkill -f batch_runner
+
+## Check batch runner status:
+python -m indexer.pipeline.batch_runner status
+
+# Queue up to 1000 blocks from configured sources (recommended)
+python -m indexer.pipeline.batch_runner queue-all --batch-size 50 --max-blocks 1000
+
+# Queue all available blocks (no limit)
+python -m indexer.pipeline.batch_runner queue-all --batch-size 100
+
+
+# REMOVE/REVIEW BELOW?
+
 1. Queue Blocks for Processing
 bash
 # Queue specific number of blocks (default batch size: 100)
