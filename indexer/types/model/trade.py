@@ -79,6 +79,7 @@ class Trade(DomainEvent, tag=True):
     quote_amount: Optional[str] = None
     router: Optional[EvmAddress] = None
     transfers: Optional[Dict[DomainEventId,Transfer]] = None
+    swap_count: Optional[int] = None
 
     def _get_identifying_content(self):
         return {
@@ -90,3 +91,7 @@ class Trade(DomainEvent, tag=True):
             "base_amount": self.base_amount,
             "trade_type": self.trade_type,
         }
+    
+    def __post_init__(self):
+        if self.swap_count is None and self.swaps:
+            self.swap_count = len(self.swaps)

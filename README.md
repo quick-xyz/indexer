@@ -33,14 +33,52 @@ export INDEXER_DB_PORT=5432
 - Using gcloud CLI: ```gcloud sql connect $INDEXER_SQL_INSTANCE_NAME```
 
 
-
 # PROCESSING
+
 ## Test process a single block: 
 python -m indexer.pipeline.batch_runner test <block_number>
 
 ## Review single block processing: 
 python testing/analyze_test_results.py <block_number>
 
+1. Queue Blocks for Processing
+bash
+# Queue specific number of blocks (default batch size: 100)
+python -m indexer.pipeline.batch_runner queue 1000
+
+# Queue with custom batch size 
+python -m indexer.pipeline.batch_runner queue 1000 --batch-size 50
+
+# Queue latest blocks first (instead of earliest first)
+python -m indexer.pipeline.batch_runner queue 1000 --latest-first
+
+2. Process Queued Jobs
+bash# Process all queued jobs (runs until queue is empty)
+python -m indexer.pipeline.batch_runner process
+
+# Process with limits
+python -m indexer.pipeline.batch_runner process --max-jobs 100
+python -m indexer.pipeline.batch_runner process --timeout 3600  # 1 hour timeout
+3. Full Cycle (Queue + Process)
+bash# Queue and process in one command (recommended for large batches)
+python -m indexer.pipeline.batch_runner run-full --blocks 1000 --batch-size 100
+
+# Full cycle with processing limits
+python -m indexer.pipeline.batch_runner run-full --blocks 1000 --max-jobs 50 --timeout 7200
+4. Status Monitoring
+bash# Check processing status (shows jobs, blocks, progress)
+python -m indexer.pipeline.batch_runner status
+5. Queue All Available Blocks
+bash# Queue ALL blocks discovered from storage and RPC
+python -m indexer.pipeline.batch_runner queue-all --batch-size 1000
+
+# Queue all with limit
+python -m indexer.pipeline.batch_runner queue-all --batch-size 1000 --max-blocks 10000
+6. Test Single Block
+bash# Test processing individual block
+python -m indexer.pipeline.batch_runner test 61090576
+
+# REPROCESSING
 ## Clear processing blocks in GCS: 
 gsutil -m rm -r gs://indexer-blocks/models/blub_test/complete/
 gsutil -m rm -r gs://indexer-blocks/models/blub_test/processing/

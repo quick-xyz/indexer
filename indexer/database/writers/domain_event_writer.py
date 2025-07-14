@@ -330,6 +330,59 @@ class DomainEventWriter:
 
                 events_by_type[event_type].append(event_data)
                 
+                # FIXED: Extract and add nested pool swaps from Trade events
+                if event_type == 'trade' and hasattr(event, 'swaps') and event.swaps:
+                    log_with_context(
+                        self.logger, logging.INFO, "🔍 DEBUG: Extracting nested pool swaps from trade",
+                        trade_id=event_id,
+                        swap_count=len(event.swaps)
+                    )
+                    
+                    try:
+                        for swap_id, pool_swap in event.swaps.items():
+                            try:
+                                # Extract pool swap data for database (don't modify the original object)
+                                swap_repository = self._get_event_repository_by_type('poolswap')
+                                swap_data = self._extract_event_data(pool_swap, swap_repository)
+                                swap_data.update({
+                                    'content_id': swap_id,
+                                    'tx_hash': tx_hash,
+                                    'block_number': block_number,
+                                    'timestamp': timestamp,
+                                    'trade_id': event_id  # Link back to parent trade
+                                })
+                                
+                                events_by_type['poolswap'].append(swap_data)
+                                
+                                log_with_context(
+                                    self.logger, logging.INFO, "🔍 DEBUG: Added nested pool swap to database events",
+                                    trade_id=event_id,
+                                    swap_id=swap_id,
+                                    swap_pool=swap_data.get('pool', 'unknown')
+                                )
+                                
+                            except Exception as swap_error:
+                                log_with_context(
+                                    self.logger, logging.ERROR, "🔍 DEBUG: Failed to extract individual pool swap",
+                                    trade_id=event_id,
+                                    swap_id=swap_id,
+                                    error=str(swap_error),
+                                    exception_type=type(swap_error).__name__,
+                                    traceback=traceback.format_exc()
+                                )
+                                # Continue with other swaps instead of failing entirely
+                                continue
+                                
+                    except Exception as e:
+                        log_with_context(
+                            self.logger, logging.ERROR, "🔍 DEBUG: Failed to extract nested pool swaps from trade",
+                            trade_id=event_id,
+                            error=str(e),
+                            exception_type=type(e).__name__,
+                            traceback=traceback.format_exc()
+                        )
+                        # Continue processing the trade without swaps
+                    
             except Exception as e:
                 log_with_context(
                     self.logger, logging.ERROR, "Failed to prepare event for bulk insert",
