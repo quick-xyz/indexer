@@ -31,3 +31,9 @@ export INDEXER_DB_PORT=5432
 ## Interactive SQL Session
 - Interactive psql session - not for applications/indexer
 - Using gcloud CLI: ```gcloud sql connect $INDEXER_SQL_INSTANCE_NAME```
+
+
+
+# PROCESSING
+## Process a single block: python -m indexer.pipeline.batch_runner test <block_number>
+## Review processing: python scripts/domain_event_hunter.py block <block_number>

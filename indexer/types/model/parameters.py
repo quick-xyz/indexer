@@ -6,7 +6,7 @@ from ..new import EvmAddress, EvmHash
 from .base import DomainEvent, DomainEventId, Signal
 
 
-class ParameterSignal(Signal):
+class ParameterSignal(Signal, tag=True):
     contract: EvmAddress
     parameter: str
     value_type: Literal["address", "string", "int", "bool"]

@@ -1,6 +1,6 @@
 # indexer/database/base_repository.py
 
-from typing import TypeVar, Generic, Type, List, Optional, Any
+from typing import TypeVar, Generic, Type, List, Optional, Any, Dict
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
@@ -13,10 +13,11 @@ T = TypeVar('T')
 
 class BaseRepository(Generic[T]):
     """
-    Base repository class with common CRUD operations.
+    Base repository class with common CRUD operations and bulk operations.
     
     Provides standardized interface for all repository implementations
-    across both shared and indexer databases.
+    across both shared and indexer databases with optimized bulk operations
+    for high-performance processing.
     """
     
     def __init__(self, db_manager, model_class: Type[T]):
@@ -54,6 +55,33 @@ class BaseRepository(Generic[T]):
             self.logger.error(f"Error creating {self.model_class.__name__}: {e}")
             raise
     
+    def bulk_create(self, session: Session, items: List[Dict]) -> int:
+        """
+        Bulk insert multiple items using SQLAlchemy bulk operations.
+        
+        Args:
+            session: Database session
+            items: List of dictionaries containing item data
+            
+        Returns:
+            Number of items created
+        """
+        if not items:
+            return 0
+            
+        try:
+            # Use SQLAlchemy's bulk_insert_mappings for maximum performance
+            session.bulk_insert_mappings(self.model_class, items)
+            session.flush()
+            
+            count = len(items)
+            self.logger.debug(f"Bulk created {count} {self.model_class.__name__} records")
+            return count
+            
+        except Exception as e:
+            self.logger.error(f"Error bulk creating {self.model_class.__name__}: {e}")
+            raise
+    
     def delete(self, session: Session, id: int) -> bool:
         """Delete record by ID"""
         try:
@@ -80,7 +108,8 @@ class DomainEventBaseRepository(BaseRepository[T]):
     Base repository for domain events with common query patterns.
     
     Extends BaseRepository with domain event specific operations
-    like content_id and tx_hash queries.
+    like content_id and tx_hash queries, plus bulk operations optimized
+    for event processing.
     """
     
     def get_by_content_id(self, session: Session, content_id: DomainEventId) -> Optional[T]:
@@ -138,6 +167,58 @@ class DomainEventBaseRepository(BaseRepository[T]):
         except Exception as e:
             self.logger.error(f"Error checking existence of {self.model_class.__name__} by content_id {content_id}: {e}")
             raise
+    
+    def bulk_create_skip_existing(self, session: Session, items: List[Dict]) -> int:
+        """
+        Bulk insert domain events, skipping those that already exist.
+        
+        This method checks for existing content_ids and only inserts new events.
+        Useful for domain events where content_id is the unique identifier.
+        
+        Args:
+            session: Database session
+            items: List of dictionaries containing event data (must include content_id)
+            
+        Returns:
+            Number of new items created
+        """
+        if not items:
+            return 0
+            
+        try:
+            # Extract content_ids from items
+            content_ids = [item['content_id'] for item in items]
+            
+            # Query existing content_ids
+            existing_content_ids = set(
+                session.query(self.model_class.content_id)
+                .filter(self.model_class.content_id.in_(content_ids))
+                .scalar_all()
+            )
+            
+            # Filter out existing items
+            new_items = [
+                item for item in items 
+                if item['content_id'] not in existing_content_ids
+            ]
+            
+            if not new_items:
+                self.logger.debug(f"All {len(items)} {self.model_class.__name__} records already exist, skipping")
+                return 0
+            
+            # Bulk insert new items
+            session.bulk_insert_mappings(self.model_class, new_items)
+            session.flush()
+            
+            created_count = len(new_items)
+            skipped_count = len(items) - created_count
+            
+            self.logger.debug(f"Bulk created {created_count} {self.model_class.__name__} records, skipped {skipped_count} existing")
+            return created_count
+            
+        except Exception as e:
+            self.logger.error(f"Error bulk creating {self.model_class.__name__} with skip existing: {e}")
+            raise
 
 
 class ProcessingBaseRepository(BaseRepository[T]):
@@ -176,4 +257,14 @@ class ProcessingBaseRepository(BaseRepository[T]):
             ).order_by(self.model_class.created_at).all()
         except Exception as e:
             self.logger.error(f"Error getting {self.model_class.__name__} by block_number {block_number}: {e}")
+            raise
+    
+    def get_by_tx_hash(self, session: Session, tx_hash: EvmHash) -> Optional[T]:
+        """Get processing record by transaction hash"""
+        try:
+            return session.query(self.model_class).filter(
+                self.model_class.tx_hash == tx_hash
+            ).first()
+        except Exception as e:
+            self.logger.error(f"Error getting {self.model_class.__name__} by tx_hash {tx_hash}: {e}")
             raise

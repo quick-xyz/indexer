@@ -1,0 +1,898 @@
+{
+  "model_name": "blub_test",
+  "sample_blocks": [
+    58219691,
+    58219696,
+    58223641,
+    58233548,
+    58240286,
+    58253171,
+    58584385,
+    61090576,
+    63269916
+  ],
+  "timestamp": "1752254273.0864105",
+  "analyses": [
+    {
+      "analysis": {
+        "block_number": 58219691,
+        "timestamp": 1741111943,
+        "indexing_status": "complete",
+        "transaction_count": 2,
+        "transactions_with_events": 2,
+        "transactions_with_positions": 2,
+        "transactions_with_errors": 0,
+        "total_events": 2,
+        "total_positions": 3,
+        "total_errors": 0,
+        "event_types": {
+          "DomainEvent": 2
+        },
+        "position_types": {},
+        "sample_transactions": [
+          {
+            "tx_hash": "0x4a2b6236425ab2b10fd3a53fb60321a72a91cc2e43d14a09b6959cd6ea3742e5",
+            "tx_success": true,
+            "events_count": 1,
+            "positions_count": 1,
+            "errors_count": 0,
+            "event_types": [
+              "DomainEvent"
+            ],
+            "signals_count": 1
+          },
+          {
+            "tx_hash": "0x88cf688c41baebd752dbb6e77f242c7e4b8028e737ffc99621c41324cbb3304a",
+            "tx_success": true,
+            "events_count": 1,
+            "positions_count": 2,
+            "errors_count": 0,
+            "event_types": [
+              "DomainEvent"
+            ],
+            "signals_count": 1
+          }
+        ]
+      },
+      "comparison": {
+        "block_number": 58219691,
+        "gcs_data": {
+          "block_number": 58219691,
+          "timestamp": 1741111943,
+          "indexing_status": "complete",
+          "transaction_count": 2,
+          "transactions_with_events": 2,
+          "transactions_with_positions": 2,
+          "transactions_with_errors": 0,
+          "total_events": 2,
+          "total_positions": 3,
+          "total_errors": 0,
+          "event_types": {
+            "DomainEvent": 2
+          },
+          "position_types": {},
+          "sample_transactions": [
+            {
+              "tx_hash": "0x4a2b6236425ab2b10fd3a53fb60321a72a91cc2e43d14a09b6959cd6ea3742e5",
+              "tx_success": true,
+              "events_count": 1,
+              "positions_count": 1,
+              "errors_count": 0,
+              "event_types": [
+                "DomainEvent"
+              ],
+              "signals_count": 1
+            },
+            {
+              "tx_hash": "0x88cf688c41baebd752dbb6e77f242c7e4b8028e737ffc99621c41324cbb3304a",
+              "tx_success": true,
+              "events_count": 1,
+              "positions_count": 2,
+              "errors_count": 0,
+              "event_types": [
+                "DomainEvent"
+              ],
+              "signals_count": 1
+            }
+          ]
+        },
+        "database_data": {
+          "transaction_processing": [
+            {
+              "tx_hash": "0x4a2b6236425ab2b10fd3a53fb60321a72a91cc2e43d14a09b6959cd6ea3742e5",
+              "status": "COMPLETED",
+              "events_generated": 2,
+              "tx_success": true
+            },
+            {
+              "tx_hash": "0x88cf688c41baebd752dbb6e77f242c7e4b8028e737ffc99621c41324cbb3304a",
+              "status": "COMPLETED",
+              "events_generated": 3,
+              "tx_success": true
+            }
+          ],
+          "domain_events": {
+            "trades": 0,
+            "pool_swaps": 0,
+            "transfers": 2,
+            "liquidity": 0,
+            "rewards": 0,
+            "positions": 3
+          }
+        },
+        "discrepancies": [
+          "Event count mismatch: GCS=2, DB=5"
+        ]
+      }
+    },
+    {
+      "analysis": {
+        "block_number": 58219696,
+        "timestamp": 1741111954,
+        "indexing_status": "complete",
+        "transaction_count": 5,
+        "transactions_with_events": 3,
+        "transactions_with_positions": 3,
+        "transactions_with_errors": 0,
+        "total_events": 6,
+        "total_positions": 12,
+        "total_errors": 0,
+        "event_types": {
+          "DomainEvent": 6
+        },
+        "position_types": {},
+        "sample_transactions": [
+          {
+            "tx_hash": "0xc14eff0c6659c22d2f5f689b17bbab6c11884e46ae79e2a0885513fa9b87ba02",
+            "tx_success": true,
+            "events_count": 2,
+            "positions_count": 4,
+            "errors_count": 0,
+            "event_types": [
+              "DomainEvent",
+              "DomainEvent"
+            ],
+            "signals_count": 2
+          },
+          {
+            "tx_hash": "0xb737ebcef6f9ef36f5d0316935be3da054cc92f501226028adde553472d9e8a0",
+            "tx_success": true,
+            "events_count": 2,
+            "positions_count": 4,
+            "errors_count": 0,
+            "event_types": [
+              "DomainEvent",
+              "DomainEvent"
+            ],
+            "signals_count": 2
+          },
+          {
+            "tx_hash": "0xe03e5545d6e91e8438f530277a0acd55f785debbf6d416e50aa7ed7ffbeeccda",
+            "tx_success": true,
+            "events_count": 2,
+            "positions_count": 4,
+            "errors_count": 0,
+            "event_types": [
+              "DomainEvent",
+              "DomainEvent"
+            ],
+            "signals_count": 2
+          }
+        ]
+      },
+      "comparison": {
+        "block_number": 58219696,
+        "gcs_data": {
+          "block_number": 58219696,
+          "timestamp": 1741111954,
+          "indexing_status": "complete",
+          "transaction_count": 5,
+          "transactions_with_events": 3,
+          "transactions_with_positions": 3,
+          "transactions_with_errors": 0,
+          "total_events": 6,
+          "total_positions": 12,
+          "total_errors": 0,
+          "event_types": {
+            "DomainEvent": 6
+          },
+          "position_types": {},
+          "sample_transactions": [
+            {
+              "tx_hash": "0xc14eff0c6659c22d2f5f689b17bbab6c11884e46ae79e2a0885513fa9b87ba02",
+              "tx_success": true,
+              "events_count": 2,
+              "positions_count": 4,
+              "errors_count": 0,
+              "event_types": [
+                "DomainEvent",
+                "DomainEvent"
+              ],
+              "signals_count": 2
+            },
+            {
+              "tx_hash": "0xb737ebcef6f9ef36f5d0316935be3da054cc92f501226028adde553472d9e8a0",
+              "tx_success": true,
+              "events_count": 2,
+              "positions_count": 4,
+              "errors_count": 0,
+              "event_types": [
+                "DomainEvent",
+                "DomainEvent"
+              ],
+              "signals_count": 2
+            },
+            {
+              "tx_hash": "0xe03e5545d6e91e8438f530277a0acd55f785debbf6d416e50aa7ed7ffbeeccda",
+              "tx_success": true,
+              "events_count": 2,
+              "positions_count": 4,
+              "errors_count": 0,
+              "event_types": [
+                "DomainEvent",
+                "DomainEvent"
+              ],
+              "signals_count": 2
+            }
+          ]
+        },
+        "database_data": {
+          "transaction_processing": [
+            {
+              "tx_hash": "0x5606d0a9f761281abb1fb3833948960bc99ad3e920be40f85f1ea59bb0efade8",
+              "status": "COMPLETED",
+              "events_generated": 0,
+              "tx_success": true
+            },
+            {
+              "tx_hash": "0xc14eff0c6659c22d2f5f689b17bbab6c11884e46ae79e2a0885513fa9b87ba02",
+              "status": "COMPLETED",
+              "events_generated": 6,
+              "tx_success": true
+            },
+            {
+              "tx_hash": "0xb737ebcef6f9ef36f5d0316935be3da054cc92f501226028adde553472d9e8a0",
+              "status": "COMPLETED",
+              "events_generated": 6,
+              "tx_success": true
+            },
+            {
+              "tx_hash": "0xe03e5545d6e91e8438f530277a0acd55f785debbf6d416e50aa7ed7ffbeeccda",
+              "status": "COMPLETED",
+              "events_generated": 6,
+              "tx_success": true
+            },
+            {
+              "tx_hash": "0x3f0a83736ec699f23bf812bda462e1d84dfcd8277e90efcf2372199a7e08ab70",
+              "status": "COMPLETED",
+              "events_generated": 0,
+              "tx_success": true
+            }
+          ],
+          "domain_events": {
+            "trades": 0,
+            "pool_swaps": 0,
+            "transfers": 6,
+            "liquidity": 0,
+            "rewards": 0,
+            "positions": 12
+          }
+        },
+        "discrepancies": [
+          "Event count mismatch: GCS=6, DB=18"
+        ]
+      }
+    },
+    {
+      "analysis": {
+        "block_number": 58223641,
+        "timestamp": 1741119118,
+        "indexing_status": "complete",
+        "transaction_count": 3,
+        "transactions_with_events": 3,
+        "transactions_with_positions": 3,
+        "transactions_with_errors": 0,
+        "total_events": 7,
+        "total_positions": 20,
+        "total_errors": 0,
+        "event_types": {
+          "DomainEvent": 7
+        },
+        "position_types": {},
+        "sample_transactions": [
+          {
+            "tx_hash": "0xdef4a90a7f10ebd3ad7623f33e427035e419171f6e3bbf8babd648c6d3ed54c2",
+            "tx_success": true,
+            "events_count": 3,
+            "positions_count": 8,
+            "errors_count": 0,
+            "event_types": [
+              "DomainEvent",
+              "DomainEvent",
+              "DomainEvent"
+            ],
+            "signals_count": 6
+          },
+          {
+            "tx_hash": "0x60430a015170b7b121ccbe8f7ff5ce442a4631ac03796132518ae3b3392e9e28",
+            "tx_success": true,
+            "events_count": 1,
+            "positions_count": 4,
+            "errors_count": 0,
+            "event_types": [
+              "DomainEvent"
+            ],
+            "signals_count": 4
+          },
+          {
+            "tx_hash": "0xb636dc6dc6af4f3a25f51665d976209b9e98bd59d3252357ad47ea614e1bfbeb",
+            "tx_success": true,
+            "events_count": 3,
+            "positions_count": 8,
+            "errors_count": 0,
+            "event_types": [
+              "DomainEvent",
+              "DomainEvent",
+              "DomainEvent"
+            ],
+            "signals_count": 5
+          }
+        ]
+      },
+      "comparison": {
+        "block_number": 58223641,
+        "gcs_data": {
+          "block_number": 58223641,
+          "timestamp": 1741119118,
+          "indexing_status": "complete",
+          "transaction_count": 3,
+          "transactions_with_events": 3,
+          "transactions_with_positions": 3,
+          "transactions_with_errors": 0,
+          "total_events": 7,
+          "total_positions": 20,
+          "total_errors": 0,
+          "event_types": {
+            "DomainEvent": 7
+          },
+          "position_types": {},
+          "sample_transactions": [
+            {
+              "tx_hash": "0xdef4a90a7f10ebd3ad7623f33e427035e419171f6e3bbf8babd648c6d3ed54c2",
+              "tx_success": true,
+              "events_count": 3,
+              "positions_count": 8,
+              "errors_count": 0,
+              "event_types": [
+                "DomainEvent",
+                "DomainEvent",
+                "DomainEvent"
+              ],
+              "signals_count": 6
+            },
+            {
+              "tx_hash": "0x60430a015170b7b121ccbe8f7ff5ce442a4631ac03796132518ae3b3392e9e28",
+              "tx_success": true,
+              "events_count": 1,
+              "positions_count": 4,
+              "errors_count": 0,
+              "event_types": [
+                "DomainEvent"
+              ],
+              "signals_count": 4
+            },
+            {
+              "tx_hash": "0xb636dc6dc6af4f3a25f51665d976209b9e98bd59d3252357ad47ea614e1bfbeb",
+              "tx_success": true,
+              "events_count": 3,
+              "positions_count": 8,
+              "errors_count": 0,
+              "event_types": [
+                "DomainEvent",
+                "DomainEvent",
+                "DomainEvent"
+              ],
+              "signals_count": 5
+            }
+          ]
+        },
+        "database_data": {
+          "transaction_processing": [],
+          "domain_events": {
+            "trades": 0,
+            "pool_swaps": 0,
+            "transfers": 0,
+            "liquidity": 0,
+            "rewards": 0,
+            "positions": 0
+          }
+        },
+        "discrepancies": [
+          "Transaction count mismatch: GCS=3, DB=0",
+          "Event count mismatch: GCS=7, DB=0"
+        ]
+      }
+    },
+    {
+      "analysis": {
+        "block_number": 58233548,
+        "timestamp": 1741135470,
+        "indexing_status": "complete",
+        "transaction_count": 1,
+        "transactions_with_events": 0,
+        "transactions_with_positions": 0,
+        "transactions_with_errors": 0,
+        "total_events": 0,
+        "total_positions": 0,
+        "total_errors": 0,
+        "event_types": {},
+        "position_types": {},
+        "sample_transactions": []
+      },
+      "comparison": {
+        "block_number": 58233548,
+        "gcs_data": {
+          "block_number": 58233548,
+          "timestamp": 1741135470,
+          "indexing_status": "complete",
+          "transaction_count": 1,
+          "transactions_with_events": 0,
+          "transactions_with_positions": 0,
+          "transactions_with_errors": 0,
+          "total_events": 0,
+          "total_positions": 0,
+          "total_errors": 0,
+          "event_types": {},
+          "position_types": {},
+          "sample_transactions": []
+        },
+        "database_data": {
+          "transaction_processing": [
+            {
+              "tx_hash": "0x55637193db0a59a3f1b7e61e13f9449b5c01fae34bccce3df70e99818e82dff0",
+              "status": "COMPLETED",
+              "events_generated": 0,
+              "tx_success": true
+            }
+          ],
+          "domain_events": {
+            "trades": 0,
+            "pool_swaps": 0,
+            "transfers": 0,
+            "liquidity": 0,
+            "rewards": 0,
+            "positions": 0
+          }
+        },
+        "discrepancies": []
+      }
+    },
+    {
+      "analysis": {
+        "block_number": 58240286,
+        "timestamp": 1741146623,
+        "indexing_status": "complete",
+        "transaction_count": 3,
+        "transactions_with_events": 2,
+        "transactions_with_positions": 2,
+        "transactions_with_errors": 0,
+        "total_events": 3,
+        "total_positions": 8,
+        "total_errors": 0,
+        "event_types": {
+          "DomainEvent": 3
+        },
+        "position_types": {},
+        "sample_transactions": [
+          {
+            "tx_hash": "0x2e263c3b0c28a11b986474be8fd71f7b675c8856e50c77730e76df7f81a66c4d",
+            "tx_success": true,
+            "events_count": 1,
+            "positions_count": 4,
+            "errors_count": 0,
+            "event_types": [
+              "DomainEvent"
+            ],
+            "signals_count": 4
+          },
+          {
+            "tx_hash": "0x990c3f9bab3727227e45c30c70dd6d4cdd800b6b69a04181e5367f6a3fd4dbe0",
+            "tx_success": true,
+            "events_count": 2,
+            "positions_count": 4,
+            "errors_count": 0,
+            "event_types": [
+              "DomainEvent",
+              "DomainEvent"
+            ],
+            "signals_count": 3
+          }
+        ]
+      },
+      "comparison": {
+        "block_number": 58240286,
+        "gcs_data": {
+          "block_number": 58240286,
+          "timestamp": 1741146623,
+          "indexing_status": "complete",
+          "transaction_count": 3,
+          "transactions_with_events": 2,
+          "transactions_with_positions": 2,
+          "transactions_with_errors": 0,
+          "total_events": 3,
+          "total_positions": 8,
+          "total_errors": 0,
+          "event_types": {
+            "DomainEvent": 3
+          },
+          "position_types": {},
+          "sample_transactions": [
+            {
+              "tx_hash": "0x2e263c3b0c28a11b986474be8fd71f7b675c8856e50c77730e76df7f81a66c4d",
+              "tx_success": true,
+              "events_count": 1,
+              "positions_count": 4,
+              "errors_count": 0,
+              "event_types": [
+                "DomainEvent"
+              ],
+              "signals_count": 4
+            },
+            {
+              "tx_hash": "0x990c3f9bab3727227e45c30c70dd6d4cdd800b6b69a04181e5367f6a3fd4dbe0",
+              "tx_success": true,
+              "events_count": 2,
+              "positions_count": 4,
+              "errors_count": 0,
+              "event_types": [
+                "DomainEvent",
+                "DomainEvent"
+              ],
+              "signals_count": 3
+            }
+          ]
+        },
+        "database_data": {
+          "transaction_processing": [
+            {
+              "tx_hash": "0xc8181ea35872b943f8fa839900a9d80a2953b3c0548e448e5c4cff95aac908d9",
+              "status": "COMPLETED",
+              "events_generated": 0,
+              "tx_success": true
+            }
+          ],
+          "domain_events": {
+            "trades": 0,
+            "pool_swaps": 0,
+            "transfers": 0,
+            "liquidity": 0,
+            "rewards": 0,
+            "positions": 0
+          }
+        },
+        "discrepancies": [
+          "Transaction count mismatch: GCS=3, DB=1",
+          "Event count mismatch: GCS=3, DB=0"
+        ]
+      }
+    },
+    {
+      "analysis": {
+        "block_number": 58253171,
+        "timestamp": 1741169694,
+        "indexing_status": "complete",
+        "transaction_count": 1,
+        "transactions_with_events": 0,
+        "transactions_with_positions": 0,
+        "transactions_with_errors": 0,
+        "total_events": 0,
+        "total_positions": 0,
+        "total_errors": 0,
+        "event_types": {},
+        "position_types": {},
+        "sample_transactions": []
+      },
+      "comparison": {
+        "block_number": 58253171,
+        "gcs_data": {
+          "block_number": 58253171,
+          "timestamp": 1741169694,
+          "indexing_status": "complete",
+          "transaction_count": 1,
+          "transactions_with_events": 0,
+          "transactions_with_positions": 0,
+          "transactions_with_errors": 0,
+          "total_events": 0,
+          "total_positions": 0,
+          "total_errors": 0,
+          "event_types": {},
+          "position_types": {},
+          "sample_transactions": []
+        },
+        "database_data": {
+          "transaction_processing": [
+            {
+              "tx_hash": "0x5afa432d6432ef43f87c61b19440637eab5955b549b0ea8783ba32dea8a080c2",
+              "status": "COMPLETED",
+              "events_generated": 0,
+              "tx_success": true
+            }
+          ],
+          "domain_events": {
+            "trades": 0,
+            "pool_swaps": 0,
+            "transfers": 0,
+            "liquidity": 0,
+            "rewards": 0,
+            "positions": 0
+          }
+        },
+        "discrepancies": []
+      }
+    },
+    {
+      "analysis": {
+        "block_number": 58584385,
+        "timestamp": 1741733435,
+        "indexing_status": "complete",
+        "transaction_count": 1,
+        "transactions_with_events": 1,
+        "transactions_with_positions": 1,
+        "transactions_with_errors": 0,
+        "total_events": 2,
+        "total_positions": 6,
+        "total_errors": 0,
+        "event_types": {
+          "DomainEvent": 2
+        },
+        "position_types": {},
+        "sample_transactions": [
+          {
+            "tx_hash": "0x1c0d070e0483701d5473a5bfd08be138c70c2ba7700c12b9c8de938ee7290bb2",
+            "tx_success": true,
+            "events_count": 2,
+            "positions_count": 6,
+            "errors_count": 0,
+            "event_types": [
+              "DomainEvent",
+              "DomainEvent"
+            ],
+            "signals_count": 5
+          }
+        ]
+      },
+      "comparison": {
+        "block_number": 58584385,
+        "gcs_data": {
+          "block_number": 58584385,
+          "timestamp": 1741733435,
+          "indexing_status": "complete",
+          "transaction_count": 1,
+          "transactions_with_events": 1,
+          "transactions_with_positions": 1,
+          "transactions_with_errors": 0,
+          "total_events": 2,
+          "total_positions": 6,
+          "total_errors": 0,
+          "event_types": {
+            "DomainEvent": 2
+          },
+          "position_types": {},
+          "sample_transactions": [
+            {
+              "tx_hash": "0x1c0d070e0483701d5473a5bfd08be138c70c2ba7700c12b9c8de938ee7290bb2",
+              "tx_success": true,
+              "events_count": 2,
+              "positions_count": 6,
+              "errors_count": 0,
+              "event_types": [
+                "DomainEvent",
+                "DomainEvent"
+              ],
+              "signals_count": 5
+            }
+          ]
+        },
+        "database_data": {
+          "transaction_processing": [
+            {
+              "tx_hash": "0x1c0d070e0483701d5473a5bfd08be138c70c2ba7700c12b9c8de938ee7290bb2",
+              "status": "COMPLETED",
+              "events_generated": 0,
+              "tx_success": true
+            }
+          ],
+          "domain_events": {
+            "trades": 0,
+            "pool_swaps": 0,
+            "transfers": 0,
+            "liquidity": 1,
+            "rewards": 1,
+            "positions": 6
+          }
+        },
+        "discrepancies": [
+          "Event count mismatch: GCS=2, DB=8"
+        ]
+      }
+    },
+    {
+      "analysis": {
+        "block_number": 61090576,
+        "timestamp": 1745844478,
+        "indexing_status": "complete",
+        "transaction_count": 1,
+        "transactions_with_events": 1,
+        "transactions_with_positions": 1,
+        "transactions_with_errors": 0,
+        "total_events": 1,
+        "total_positions": 4,
+        "total_errors": 0,
+        "event_types": {
+          "DomainEvent": 1
+        },
+        "position_types": {},
+        "sample_transactions": [
+          {
+            "tx_hash": "0xc6a25db4259e7133ee399c1981a80bba1b378519c72dd0cd5479fbb8bd8dde4a",
+            "tx_success": true,
+            "events_count": 1,
+            "positions_count": 4,
+            "errors_count": 0,
+            "event_types": [
+              "DomainEvent"
+            ],
+            "signals_count": 4
+          }
+        ]
+      },
+      "comparison": {
+        "block_number": 61090576,
+        "gcs_data": {
+          "block_number": 61090576,
+          "timestamp": 1745844478,
+          "indexing_status": "complete",
+          "transaction_count": 1,
+          "transactions_with_events": 1,
+          "transactions_with_positions": 1,
+          "transactions_with_errors": 0,
+          "total_events": 1,
+          "total_positions": 4,
+          "total_errors": 0,
+          "event_types": {
+            "DomainEvent": 1
+          },
+          "position_types": {},
+          "sample_transactions": [
+            {
+              "tx_hash": "0xc6a25db4259e7133ee399c1981a80bba1b378519c72dd0cd5479fbb8bd8dde4a",
+              "tx_success": true,
+              "events_count": 1,
+              "positions_count": 4,
+              "errors_count": 0,
+              "event_types": [
+                "DomainEvent"
+              ],
+              "signals_count": 4
+            }
+          ]
+        },
+        "database_data": {
+          "transaction_processing": [
+            {
+              "tx_hash": "0xc6a25db4259e7133ee399c1981a80bba1b378519c72dd0cd5479fbb8bd8dde4a",
+              "status": "COMPLETED",
+              "events_generated": 0,
+              "tx_success": true
+            }
+          ],
+          "domain_events": {
+            "trades": 1,
+            "pool_swaps": 0,
+            "transfers": 0,
+            "liquidity": 0,
+            "rewards": 0,
+            "positions": 4
+          }
+        },
+        "discrepancies": [
+          "Event count mismatch: GCS=1, DB=5"
+        ]
+      }
+    },
+    {
+      "analysis": {
+        "block_number": 63269916,
+        "timestamp": 1749010993,
+        "indexing_status": "complete",
+        "transaction_count": 1,
+        "transactions_with_events": 1,
+        "transactions_with_positions": 1,
+        "transactions_with_errors": 0,
+        "total_events": 6,
+        "total_positions": 18,
+        "total_errors": 0,
+        "event_types": {
+          "DomainEvent": 6
+        },
+        "position_types": {},
+        "sample_transactions": [
+          {
+            "tx_hash": "0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b",
+            "tx_success": true,
+            "events_count": 6,
+            "positions_count": 18,
+            "errors_count": 0,
+            "event_types": [
+              "DomainEvent",
+              "DomainEvent",
+              "DomainEvent",
+              "DomainEvent",
+              "DomainEvent",
+              "DomainEvent"
+            ],
+            "signals_count": 13
+          }
+        ]
+      },
+      "comparison": {
+        "block_number": 63269916,
+        "gcs_data": {
+          "block_number": 63269916,
+          "timestamp": 1749010993,
+          "indexing_status": "complete",
+          "transaction_count": 1,
+          "transactions_with_events": 1,
+          "transactions_with_positions": 1,
+          "transactions_with_errors": 0,
+          "total_events": 6,
+          "total_positions": 18,
+          "total_errors": 0,
+          "event_types": {
+            "DomainEvent": 6
+          },
+          "position_types": {},
+          "sample_transactions": [
+            {
+              "tx_hash": "0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b",
+              "tx_success": true,
+              "events_count": 6,
+              "positions_count": 18,
+              "errors_count": 0,
+              "event_types": [
+                "DomainEvent",
+                "DomainEvent",
+                "DomainEvent",
+                "DomainEvent",
+                "DomainEvent",
+                "DomainEvent"
+              ],
+              "signals_count": 13
+            }
+          ]
+        },
+        "database_data": {
+          "transaction_processing": [
+            {
+              "tx_hash": "0xab6908d3303c7b77c6a6b945c42235fd972de6180d738c779d91e86d55e8c19b",
+              "status": "COMPLETED",
+              "events_generated": 0,
+              "tx_success": true
+            }
+          ],
+          "domain_events": {
+            "trades": 1,
+            "pool_swaps": 0,
+            "transfers": 5,
+            "liquidity": 0,
+            "rewards": 0,
+            "positions": 18
+          }
+        },
+        "discrepancies": [
+          "Event count mismatch: GCS=6, DB=24"
+        ]
+      }
+    }
+  ]
+}

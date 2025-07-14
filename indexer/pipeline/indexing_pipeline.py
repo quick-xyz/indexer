@@ -697,6 +697,15 @@ class IndexingPipeline:
         
         for tx_hash, transaction in transformed_block.transactions.items():
             try:
+                # 🔍 DEBUG: Log what we're about to persist
+                log_with_context(
+                    self.logger, logging.INFO, "🔍 DEBUG: About to persist transaction",
+                    tx_hash=tx_hash,
+                    events_count=len(transaction.events or {}),
+                    positions_count=len(transaction.positions or {}),
+                    events_types=[type(event).__name__ for event in (transaction.events or {}).values()],
+                    sample_event_data=str(list(transaction.events.values())[:1]) if transaction.events else "None"
+                )
                 # Write transaction results using domain event writer (same as end-to-end test)
                 events_written, positions_written, events_skipped = self.domain_event_writer.write_transaction_results(
                     tx_hash=tx_hash,
@@ -734,6 +743,27 @@ class IndexingPipeline:
         """Save processed block to storage (matches end-to-end test)"""
         
         try:
+            # 🔍 DEBUG: Log what we're about to save to GCS
+            total_events = sum(len(tx.events or {}) for tx in transformed_block.transactions.values())
+            total_positions = sum(len(tx.positions or {}) for tx in transformed_block.transactions.values())
+            
+            sample_transaction = None
+            if transformed_block.transactions:
+                sample_tx = next(iter(transformed_block.transactions.values()))
+                sample_transaction = {
+                    'events_count': len(sample_tx.events or {}),
+                    'positions_count': len(sample_tx.positions or {}),
+                    'events_types': [type(event).__name__ for event in (sample_tx.events or {}).values()],
+                    'sample_event': str(list(sample_tx.events.values())[:1]) if sample_tx.events else "None"
+                }
+            
+            log_with_context(
+                self.logger, logging.INFO, "🔍 DEBUG: About to save to GCS",
+                block_number=transformed_block.block_number,
+                total_events=total_events,
+                total_positions=total_positions,
+                sample_transaction=sample_transaction
+            )
             # Save to processing stage first (same as end-to-end test)
             processing_success = self.storage_handler.save_processing_block(
                 transformed_block.block_number, 

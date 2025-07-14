@@ -1,6 +1,7 @@
 # indexer/types/__init__.py
 
 from .constants import ZERO_ADDRESS, BURN_ADDRESS, MAX_UINT256
+from typing import Union
 
 # New Types
 from .new import (
@@ -53,6 +54,8 @@ from .indexer import (
     EncodedMethod,
     Transaction,
     Block,
+    DomainEventUnion,
+    SignalUnion,
 )
 
 # Model Types: Base
@@ -153,7 +156,6 @@ from .model.transfer import (
     Transfer,
     UnknownTransfer,
 )
-
 
 __all__ = [
     # Constants
@@ -270,4 +272,7 @@ __all__ = [
     "TransferSignal",
     "Transfer",
     "UnknownTransfer",
+    # Type Unions
+    "DomainEventUnion",
+    "SignalUnion",
 ]

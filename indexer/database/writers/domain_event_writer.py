@@ -1,7 +1,8 @@
 # indexer/database/writers/domain_event_writer.py
 
-from typing import Dict, Tuple, Any
+from typing import Dict, Tuple, Any, List
 import traceback
+from collections import defaultdict
 
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
@@ -20,13 +21,14 @@ class DomainEventWriter:
     Service for writing domain events to the database with dual database support.
     
     Handles thread-safe persistence of domain events, positions, and processing status
-    updates for the indexing pipeline.
+    updates for the indexing pipeline with optimized bulk operations.
     
     Architecture:
     - Full signals/events data stored in GCS blocks (stateful)
     - Structured domain events stored in indexer database tables (queryable)
     - Processing status with counts in transaction_processing table (monitoring)
     - Block prices and infrastructure data in shared database
+    - Bulk operations for high-performance processing
     """
     
     def __init__(self, repository_manager: RepositoryManager):
@@ -46,19 +48,29 @@ class DomainEventWriter:
         tx_success: bool = True
     ) -> Tuple[int, int, int]:
         """
-        Write domain events and positions for a transaction.
+        Write domain events and positions for a transaction using bulk operations.
         
         Returns (events_written, positions_written, events_skipped)
         
         This method:
         1. Updates/creates transaction processing record
-        2. Writes domain events to appropriate tables
-        3. Writes positions to positions table
+        2. Writes domain events to appropriate tables (using bulk operations)
+        3. Writes positions to positions table (using bulk operations)
         4. Marks transaction as complete with counts
         """
         
+        print(f"🔍 DEBUG: DomainEventWriter received:")
+        print(f"   TX Hash: {tx_hash}")
+        print(f"   Event count: {len(events)}")
+        print(f"   Position count: {len(positions)}")
+        if events:
+            print(f"   Event types: {[type(event).__name__ for event in events.values()]}")
+            for i, (event_id, event) in enumerate(list(events.items())[:2]):  # Show first 2 events
+                print(f"   Event {i+1}: {event_id} = {type(event).__name__}")
+                print(f"     String: {str(event)}")
+
         log_with_context(
-            self.logger, logging.DEBUG, "Writing transaction results",
+            self.logger, logging.DEBUG, "Writing transaction results (bulk)",
             tx_hash=tx_hash,
             block_number=block_number,
             event_count=len(events),
@@ -73,13 +85,13 @@ class DomainEventWriter:
                     session, tx_hash, block_number, timestamp, tx_success
                 )
                 
-                # 2. Write domain events to structured tables
-                events_written, events_skipped = self._write_events(
+                # 2. Write domain events to structured tables (bulk operations)
+                events_written, events_skipped = self._write_events_bulk(
                     session, events, tx_hash, block_number, timestamp
                 )
                 
-                # 3. Write positions to positions table
-                positions_written = self._write_positions(
+                # 3. Write positions to positions table (bulk operations)
+                positions_written = self._write_positions_bulk(
                     session, positions, tx_hash, block_number, timestamp
                 )
                 
@@ -89,7 +101,7 @@ class DomainEventWriter:
                 )
                 
                 log_with_context(
-                    self.logger, logging.DEBUG, "Transaction results written successfully",
+                    self.logger, logging.DEBUG, "Transaction results written successfully (bulk)",
                     tx_hash=tx_hash,
                     events_written=events_written,
                     positions_written=positions_written,
@@ -100,7 +112,7 @@ class DomainEventWriter:
                 
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Failed to write transaction results",
+                self.logger, logging.ERROR, "Failed to write transaction results (bulk)",
                 tx_hash=tx_hash,
                 error=str(e),
                 exception_type=type(e).__name__,
@@ -142,7 +154,7 @@ class DomainEventWriter:
         
         session.flush()
     
-    def _write_events(
+    def _write_events_bulk(
         self,
         session: Session,
         events: Dict[DomainEventId, Any],
@@ -150,77 +162,59 @@ class DomainEventWriter:
         block_number: int,
         timestamp: int
     ) -> Tuple[int, int]:
-        """Write domain events to structured tables, returning (written_count, skipped_count)"""
+        """Write domain events to structured tables using bulk operations, returning (written_count, skipped_count)"""
         if not events:
             return 0, 0
         
-        events_written = 0
-        events_skipped = 0
-        
-        for event_id, event in events.items():
-            try:
-                # Get appropriate repository for this event type
-                repository = self._get_event_repository(event)
-
-                # Check if event already exists
-                existing_event = repository.get_by_content_id(session, event_id)
-
-                if existing_event is not None:
-                    events_skipped += 1
-                    log_with_context(
-                        self.logger, logging.DEBUG, "Event already exists, skipping",
-                        event_id=event_id,
-                        event_type=type(event).__name__
-                    )
+        try:
+            # Group events by type for bulk operations
+            events_by_type = self._group_events_by_type(events, tx_hash, block_number, timestamp)
+            
+            total_written = 0
+            total_skipped = 0
+            
+            # Bulk insert each event type
+            for event_type, event_data_list in events_by_type.items():
+                if not event_data_list:
                     continue
+                    
+                repository = self._get_event_repository_by_type(event_type)
                 
-                # Extract event data and create record
-                event_data = self._extract_event_data(event, repository)
-
-                event_data.update({
-                    'content_id': event_id,
-                    'tx_hash': tx_hash,
-                    'block_number': block_number,
-                    'timestamp': timestamp
-                })
+                # Use bulk_create_skip_existing to handle duplicates efficiently
+                written_count = repository.bulk_create_skip_existing(session, event_data_list)
+                skipped_count = len(event_data_list) - written_count
                 
-                log_with_context(
-                    self.logger, logging.DEBUG, "About to write event",
-                    event_id=event_id,
-                    event_type=type(event).__name__,
-                    event_data_keys=list(event_data.keys()),
-                    event_data=event_data
-                )
-                
-                repository.create(session, **event_data)
-
-                events_written += 1
+                total_written += written_count
+                total_skipped += skipped_count
                 
                 log_with_context(
-                    self.logger, logging.DEBUG, "Event written successfully",
-                    event_id=event_id,
-                    event_type=type(event).__name__
+                    self.logger, logging.DEBUG, "Bulk wrote events",
+                    event_type=event_type,
+                    written=written_count,
+                    skipped=skipped_count,
+                    total_events=len(event_data_list)
                 )
-                
-            except Exception as e:
-                import traceback
-
-                log_with_context(
-                    self.logger, logging.ERROR, "Failed to write event",
-                    event_id=event_id,
-                    event_type=type(event).__name__ if event else "Unknown",
-                    error=str(e),
-                    exception_type=type(e).__name__,
-                    traceback=traceback.format_exc(),
-                    event_data_keys=list(event_data.keys()) if 'event_data' in locals() else "not_extracted",
-                    event_data=event_data if 'event_data' in locals() else "not_extracted"
-                )
-                # Continue processing other events rather than failing the entire batch
-                continue
-        
-        return events_written, events_skipped
+            
+            log_with_context(
+                self.logger, logging.DEBUG, "All events bulk written",
+                total_written=total_written,
+                total_skipped=total_skipped,
+                event_types=len(events_by_type)
+            )
+            
+            return total_written, total_skipped
+            
+        except Exception as e:
+            log_with_context(
+                self.logger, logging.ERROR, "Failed to bulk write events",
+                tx_hash=tx_hash,
+                error=str(e),
+                exception_type=type(e).__name__,
+                traceback=traceback.format_exc()
+            )
+            raise
     
-    def _write_positions(
+    def _write_positions_bulk(
         self,
         session: Session,
         positions: Dict[DomainEventId, Position],
@@ -228,28 +222,16 @@ class DomainEventWriter:
         block_number: int,
         timestamp: int
     ) -> int:
-        """Write positions to positions table, returning written count"""
+        """Write positions to positions table using bulk operations, returning written count"""
         
         if not positions:
             return 0
         
-        positions_written = 0
-        
-        for position_id, position in positions.items():
-            try:
-                # Check if position already exists
-                existing_position = self.repository_manager.positions.get_by_content_id(
-                    session, position_id
-                )
-                
-                if existing_position is not None:
-                    log_with_context(
-                        self.logger, logging.DEBUG, "Position already exists, skipping",
-                        position_id=position_id
-                    )
-                    continue
-                
-                # Extract position data for database
+        try:
+            # Prepare position data for bulk insert
+            position_data_list = []
+            
+            for position_id, position in positions.items():
                 position_data = self._extract_position_data(position)
                 position_data.update({
                     'content_id': position_id,
@@ -257,27 +239,31 @@ class DomainEventWriter:
                     'block_number': block_number,
                     'timestamp': timestamp
                 })
-                
-                self.repository_manager.positions.create(session, **position_data)
-                positions_written += 1
-                
-                log_with_context(
-                    self.logger, logging.DEBUG, "Position written successfully",
-                    position_id=position_id
-                )
-                
-            except Exception as e:
-                log_with_context(
-                    self.logger, logging.ERROR, "Failed to write position",
-                    position_id=position_id,
-                    error=str(e),
-                    exception_type=type(e).__name__,
-                    traceback=traceback.format_exc()
-                )
-                # Continue processing other positions
-                continue
-        
-        return positions_written
+                position_data_list.append(position_data)
+            
+            # Bulk insert positions with duplicate checking
+            written_count = self.repository_manager.positions.bulk_create_skip_existing(
+                session, position_data_list
+            )
+            
+            log_with_context(
+                self.logger, logging.DEBUG, "Bulk wrote positions",
+                written=written_count,
+                total_positions=len(position_data_list),
+                skipped=len(position_data_list) - written_count
+            )
+            
+            return written_count
+            
+        except Exception as e:
+            log_with_context(
+                self.logger, logging.ERROR, "Failed to bulk write positions",
+                tx_hash=tx_hash,
+                error=str(e),
+                exception_type=type(e).__name__,
+                traceback=traceback.format_exc()
+            )
+            raise
     
     def _mark_transaction_complete(
         self,
@@ -295,10 +281,91 @@ class DomainEventWriter:
             processing_record.status = TransactionStatus.COMPLETED
             processing_record.events_generated = events_generated
     
+    def _group_events_by_type(
+        self, 
+        events: Dict[DomainEventId, Any], 
+        tx_hash: EvmHash, 
+        block_number: int, 
+        timestamp: int
+    ) -> Dict[str, List[Dict]]:
+        """Group events by type and prepare data for bulk insertion"""
+        
+        events_by_type = defaultdict(list)
+        
+        for event_id, event in events.items():
+            try:
+                # 🔍 DEBUG: Log each event we're processing
+                log_with_context(
+                    self.logger, logging.INFO, "🔍 DEBUG: Processing individual event",
+                    event_id=event_id,
+                    event_type=type(event).__name__,
+                    event_data_preview=str(event)[:200],
+                    has_to_dict=hasattr(event, 'to_dict'),
+                    has_dict=hasattr(event, '__dict__')
+                )
+
+                event_type = type(event).__name__.lower()
+                
+                # Get appropriate repository to extract data format
+                repository = self._get_event_repository(event)
+                
+                # Extract event data
+                event_data = self._extract_event_data(event, repository)
+                event_data.update({
+                    'content_id': event_id,
+                    'tx_hash': tx_hash,
+                    'block_number': block_number,
+                    'timestamp': timestamp
+                })
+                
+                # 🔍 DEBUG: Log extracted data
+                log_with_context(
+                    self.logger, logging.INFO, "🔍 DEBUG: Extracted event data for DB",
+                    event_id=event_id,
+                    event_type=type(event).__name__,
+                    event_type_lower=event_type,
+                    extracted_keys=list(event_data.keys()),
+                    extracted_data=event_data
+                )
+
+                events_by_type[event_type].append(event_data)
+                
+            except Exception as e:
+                log_with_context(
+                    self.logger, logging.ERROR, "Failed to prepare event for bulk insert",
+                    event_id=event_id,
+                    event_type=type(event).__name__ if event else "Unknown",
+                    error=str(e),
+                    exception_type=type(e).__name__,
+                    traceback=traceback.format_exc()
+                )
+                # Continue processing other events
+                continue
+        
+        # 🔍 DEBUG: Log grouping results
+        log_with_context(
+            self.logger, logging.INFO, "🔍 DEBUG: Events grouped by type",
+            total_events=len(events),
+            event_types_found=list(events_by_type.keys()),
+            counts_by_type={k: len(v) for k, v in events_by_type.items()}
+        )
+
+        print(f"🔍 DEBUG: Events grouped by type:")
+        for event_type, event_list in events_by_type.items():
+            print(f"   {event_type}: {len(event_list)} events")
+            if event_list:
+                sample_event = event_list[0]
+                print(f"     Sample data: {sample_event}")
+
+        return events_by_type
+    
     def _get_event_repository(self, event: Any):
         """Get appropriate repository for domain event type"""
         event_type = type(event).__name__.lower()
-        
+        return self._get_event_repository_by_type(event_type)
+    
+    def _get_event_repository_by_type(self, event_type: str):
+        """Get appropriate repository by event type string"""
         if event_type == 'trade':
             return self.repository_manager.trades
         elif event_type in ['poolswap', 'pool_swap']:
@@ -311,170 +378,111 @@ class DomainEventWriter:
             return self.repository_manager.rewards
         else:
             raise ValueError(f"Unknown event type: {event_type}. "
-                           f"Available types: Trade, PoolSwap, Transfer, Liquidity, Reward")
+                           f"Supported types: trade, poolswap, transfer, liquidity, reward")
     
-    def _extract_event_data(self, event: Any, repository: Any) -> Dict:
-        """Extract database-specific data from domain event, with enhanced error handling and conversion"""
-        
-        # Step 1: Extract raw data from event
-        if hasattr(event, 'to_dict'):
-            # msgspec.Struct with to_dict method
-            raw_data = event.to_dict()
-        elif hasattr(event, '__dict__'):
-            # Regular object with attributes
-            raw_data = {
-                attr: getattr(event, attr) 
-                for attr in dir(event) 
-                if not attr.startswith('_') and not callable(getattr(event, attr))
-            }
-        else:
-            # Try to extract key attributes manually
-            raw_data = {}
-            common_attrs = ['taker', 'pool', 'direction', 'base_token', 'base_amount', 
-                          'quote_token', 'quote_amount', 'trade_type', 'user', 'token', 
-                          'amount', 'position_type', 'from_address', 'to_address', 
-                          'provider', 'action', 'contract', 'recipient', 'reward_type']
-            
-            for attr in common_attrs:
-                if hasattr(event, attr):
-                    raw_data[attr] = getattr(event, attr)
-        
-        log_with_context(
-            self.logger, logging.DEBUG, "Extracted raw event data",
-            event_type=type(event).__name__,
-            raw_fields=list(raw_data.keys()),
-            raw_data=raw_data
-        )
-        
-        # Step 2: Remove fields that are handled separately or don't belong in database
-        excluded_fields = ['content_id', 'tx_hash', 'timestamp', 'block_number', 'signals', 'positions', 'swaps', 'transfers']
-        filtered_data = {k: v for k, v in raw_data.items() if k not in excluded_fields}
-        
-        # Step 3: Get valid database columns
-        if hasattr(repository, 'model_class') and hasattr(repository.model_class, '__table__'):
-            valid_columns = {col.name for col in repository.model_class.__table__.columns}
-            
-            # Step 4: Filter to only valid columns
-            db_filtered_data = {}
-            for key, value in filtered_data.items():
-                if key in valid_columns:
-                    db_filtered_data[key] = value
-            
-            # Step 5: Apply event-type specific conversions
-            converted_data = self._convert_event_data(event, db_filtered_data)
-            
-            log_with_context(
-                self.logger, logging.DEBUG, "Filtered and converted event data",
-                event_type=type(event).__name__,
-                original_fields=len(raw_data),
-                filtered_fields=len(db_filtered_data),
-                final_fields=len(converted_data),
-                excluded_fields=[k for k in filtered_data.keys() if k not in valid_columns],
-                final_data=converted_data
-            )
-            
-            return converted_data
-        else:
-            # Fallback to original filtering if can't inspect model
-            log_with_context(
-                self.logger, logging.WARNING, "Using fallback event data filtering - no model introspection",
-                event_type=type(event).__name__,
-                field_count=len(filtered_data)
-            )
-            
-            return filtered_data
-    
-    def _convert_event_data(self, event: Any, data: Dict) -> Dict:
-        """Apply generic data conversions for database compatibility"""
-        converted_data = data.copy()
-        
+    def _extract_event_data(self, event: Any, repository) -> Dict[str, Any]:
+        """Extract event data in format suitable for repository"""
         try:
-            # Get the database model class to understand expected types
-            repository = self._get_event_repository(event)
-            if not hasattr(repository, 'model_class') or not hasattr(repository.model_class, '__table__'):
-                return converted_data
-            
-            model_class = repository.model_class
-            
-            # Generic enum conversion: string -> enum instance
-            for column in model_class.__table__.columns:
-                field_name = column.name
-                if field_name in converted_data:
-                    field_value = converted_data[field_name]
-                    
-                    # Check if this column expects an enum
-                    if hasattr(column.type, 'enum_class') and column.type.enum_class:
-                        enum_class = column.type.enum_class
-                        
-                        # Convert string to enum instance if needed
-                        if isinstance(field_value, str) and hasattr(enum_class, '__members__'):
-                            # Find enum member by value (your enums use lowercase values)
-                            for enum_member in enum_class:
-                                if enum_member.value == field_value:
-                                    converted_data[field_name] = enum_member
-                                    log_with_context(
-                                        self.logger, logging.DEBUG, "Converted enum field",
-                                        field_name=field_name,
-                                        string_value=field_value,
-                                        enum_value=enum_member
-                                    )
-                                    break
-                        elif not isinstance(field_value, enum_class):
-                            log_with_context(
-                                self.logger, logging.WARNING, "Unexpected enum field type",
-                                field_name=field_name,
-                                expected_enum=enum_class.__name__,
-                                actual_type=type(field_value).__name__,
-                                actual_value=field_value
-                            )
-            
-            # Calculate derived fields based on rich domain event data
-            self._add_derived_fields(event, converted_data)
-            
+            print(f"🔍 DEBUG: Extracting event data for {type(event).__name__}")
+            print(f"   Event string: {str(event)}")
+            print(f"   Has __dict__: {hasattr(event, '__dict__')}")
+            print(f"   Has to_dict: {hasattr(event, 'to_dict')}")
+
+            # Use to_dict() method for msgspec objects (preferred)
+            if hasattr(event, 'to_dict'):
+                raw_data = event.to_dict()
+                print(f"   Raw data from to_dict(): {raw_data}")
+                
+                # Filter out complex nested objects that don't belong in database
+                excluded_fields = ['signals', 'positions', 'swaps', 'transfers']
+                event_data = {k: v for k, v in raw_data.items() 
+                             if k not in excluded_fields and not k.startswith('_')}
+                
+                # Convert complex types to appropriate database format
+                for key, value in event_data.items():
+                    if hasattr(value, 'hex'):  # Handle hash types
+                        event_data[key] = value.hex()
+                    elif isinstance(value, dict):  # Skip complex nested objects
+                        continue
+                    elif hasattr(value, '__str__') and not isinstance(value, (int, float, bool)):
+                        event_data[key] = str(value)
+                
+                print(f"   Final extracted data: {event_data}")
+                return event_data
+                
+            # Fallback to __dict__ for other objects
+            elif hasattr(event, '__dict__'):
+                raw_attrs = {k: v for k, v in event.__dict__.items() if not k.startswith('_')}
+                print(f"   Raw attributes from __dict__: {raw_attrs}")
+                
+                event_data = {}
+                for key, value in raw_attrs.items():
+                    # Convert complex types to appropriate database format
+                    if hasattr(value, 'hex'):  # Handle hash types
+                        event_data[key] = value.hex()
+                    elif isinstance(value, dict):  # Skip complex nested objects
+                        continue
+                    elif hasattr(value, '__str__') and not isinstance(value, (int, float, bool)):
+                        event_data[key] = str(value)
+                    else:
+                        event_data[key] = value
+                
+                print(f"   Final extracted data: {event_data}")
+                return event_data
+            else:
+                print(f"   No extraction method available")
+                return {}
+                
         except Exception as e:
             log_with_context(
-                self.logger, logging.WARNING, "Error during event data conversion",
+                self.logger, logging.ERROR, "Failed to extract event data",
                 event_type=type(event).__name__,
                 error=str(e),
-                data=data
+                traceback=traceback.format_exc()
             )
-            # Return original data if conversion fails
-            return data
-        
-        return converted_data
+            return {}
     
-    def _add_derived_fields(self, event: Any, data: Dict) -> None:
-        """Add derived fields that are calculated from rich domain event data"""
-        event_type = type(event).__name__.lower()
-        
-        # Calculate swap_count for Trade events
-        if event_type == 'trade' and hasattr(event, 'swaps') and event.swaps:
-            if 'swap_count' not in data:
-                data['swap_count'] = len(event.swaps)
-        
-        # Add more derived field calculations as needed...
-    
-    def _extract_position_data(self, position: Position) -> Dict:
-        """Extract database-specific data from position"""
-        if hasattr(position, 'to_dict'):
-            data = position.to_dict()
-        else:
-            # Extract key position attributes
-            data = {
-                'user': getattr(position, 'user', None),
-                'token': getattr(position, 'token', None),
-                'amount': getattr(position, 'amount', None),
-                'position_type': getattr(position, 'position_type', None)
-            }
-        
-        # Remove fields handled separately
-        excluded_fields = ['content_id', 'tx_hash', 'timestamp', 'block_number']
-        filtered_data = {k: v for k, v in data.items() if k not in excluded_fields}
-        
-        log_with_context(
-            self.logger, logging.DEBUG, "Extracted position data",
-            position_type=type(position).__name__,
-            field_count=len(filtered_data)
-        )
-        
-        return filtered_data
+    def _extract_position_data(self, position: Position) -> Dict[str, Any]:
+        """Extract position data in format suitable for repository"""
+        try:
+            # Use to_dict() method for msgspec objects (preferred)
+            if hasattr(position, 'to_dict'):
+                raw_data = position.to_dict()
+                
+                # Filter out fields that don't belong in database
+                excluded_fields = ['signals', 'positions']
+                position_data = {k: v for k, v in raw_data.items() 
+                               if k not in excluded_fields and not k.startswith('_')}
+                
+                # Convert complex types to appropriate database format
+                for key, value in position_data.items():
+                    if hasattr(value, 'hex'):  # Handle hash types
+                        position_data[key] = value.hex()
+                    elif hasattr(value, '__str__') and not isinstance(value, (int, float, bool)):
+                        position_data[key] = str(value)
+                
+                return position_data
+                
+            # Fallback to __dict__ for other objects
+            elif hasattr(position, '__dict__'):
+                position_data = {}
+                for key, value in position.__dict__.items():
+                    if not key.startswith('_'):
+                        # Convert complex types to appropriate database format
+                        if hasattr(value, 'hex'):  # Handle hash types
+                            position_data[key] = value.hex()
+                        elif hasattr(value, '__str__') and not isinstance(value, (int, float, bool)):
+                            position_data[key] = str(value)
+                        else:
+                            position_data[key] = value
+                return position_data
+            else:
+                return {}
+                
+        except Exception as e:
+            log_with_context(
+                self.logger, logging.ERROR, "Failed to extract position data",
+                error=str(e),
+                traceback=traceback.format_exc()
+            )
+            return {}

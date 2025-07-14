@@ -163,29 +163,32 @@ class BatchRunner:
         print(f"   ⏱️  Total time: {stats.get('total_elapsed_seconds', 0):,} seconds")
     
     def show_status(self) -> None:
-        """Show current processing status"""
-        print(f"📊 Processing Status - {self.config.model_name}")
-        print("=" * 50)
-        
-        status = self.batch_pipeline.get_processing_status()
-        
-        # Job queue status
-        job_queue = status.get('job_queue', {})
-        print(f"🎯 Job Queue:")
-        for status_name, count in job_queue.items():
-            if count > 0:
-                print(f"   {status_name.title()}: {count:,}")
-        
-        # Storage status
-        storage = status.get('storage', {})
-        print(f"\n💾 Storage:")
-        print(f"   Processing blocks: {storage.get('processing_count', 0):,}")
-        print(f"   Complete blocks: {storage.get('complete_count', 0):,}")
-        
-        if storage.get('latest_complete'):
-            print(f"   Latest complete: {storage['latest_complete']:,}")
-        if storage.get('oldest_processing'):
-            print(f"   Oldest processing: {storage['oldest_processing']:,}")
+            """Show current processing status with timestamp and progress info"""
+            from datetime import datetime
+            
+            current_time = datetime.now().strftime("%H:%M:%S")
+            status = self.batch_pipeline.get_processing_status()
+            
+            # Job queue status
+            job_queue = status.get('job_queue', {})
+            pending = job_queue.get('pending', 0)
+            processing = job_queue.get('processing', 0)
+            complete = job_queue.get('complete', 0)
+            failed = job_queue.get('failed', 0)
+            
+            # Storage status
+            storage = status.get('storage', {})
+            complete_blocks = storage.get('complete_count', 0)
+            processing_blocks = storage.get('processing_count', 0)
+            
+            # Calculate total jobs and progress
+            total_jobs = pending + processing + complete + failed
+            if total_jobs > 0:
+                progress_pct = (complete / total_jobs) * 100
+            else:
+                progress_pct = 0
+            
+            print(f"📊 [{current_time}] Jobs: {complete}✅ {processing}🔄 {pending}⏳ {failed}❌ | Blocks: {complete_blocks:,} | Progress: {progress_pct:.1f}%")
     
     def test_single_block(self, block_number: int) -> None:
         """Test processing a single block"""
