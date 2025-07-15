@@ -13,8 +13,8 @@ This is a comprehensive blockchain token indexer with a modular architecture des
 
 **Service Architecture:**
 - **Pricing Service**: Canonical price calculation (1-minute schedule) + Direct pricing for swaps/trades
-- **Calculation Service**: Materialized views for valuations (5-minute schedule) 
-- **Aggregation Service**: Summary metrics and time-series (15-minute schedule)
+- **Calculation Service**: Event valuations and analytics aggregation (5-minute schedule) 
+- **Aggregation Service**: User metrics and portfolio summaries (15-minute schedule)
 
 **Dual Database Strategy:**
 - **Shared Database** (`indexer_shared`): Chain-level data and configuration shared across all indexers
@@ -68,6 +68,19 @@ This is a comprehensive blockchain token indexer with a modular architecture des
 - **Volume Weighting**: Trade pricing aggregates from constituent swaps
 - **Comprehensive CLI**: Full management interface for all pricing operations
 
+### **Three-Service Architecture**
+- **Pricing Service**: Canonical price calculation and direct event pricing
+- **Calculation Service**: Event valuations, OHLC candles, and volume metrics
+- **Aggregation Service**: User portfolio summaries, pool statistics, and daily metrics
+- **Service Independence**: Each service runs on independent schedules with graceful delay handling
+- **Database Strategy**: Materialized views for balance calculations, calculated tables for pricing details
+
+### **API Architecture Design**
+- **PostgreSQL + REST API**: Proven scalable approach for Web3 applications
+- **Read Replicas**: 2-3 read replicas serving REST API with pre-calculated data
+- **Database Abstraction**: Clean API contracts that hide database schema complexity
+- **Performance Strategy**: Sub-second response times using pre-calculated data
+
 ### **Enhanced Configuration System**
 - **Separated Configuration**: Split into shared (`shared_v1_0.yaml`) vs model (`blub_test_v1_0.yaml`) files
 - **Global Defaults + Overrides**: Contract pricing defaults with model-specific pool configurations
@@ -98,11 +111,44 @@ This is a comprehensive blockchain token indexer with a modular architecture des
    - Shared database with infrastructure tables
    - Model database with event/processing tables
    - Proper table separation and relationships
+   - Modern lowercase enum architecture
 
-4. **Pricing System**:
-   - Direct pricing implementation complete
+4. **Direct Pricing System**:
+   - Complete implementation for AVAX/USD pools
    - Pool pricing configuration system
    - CLI management and monitoring
+
+5. **End-to-End Pipeline**:
+   - Block retrieval and decoding working
+   - Event transformation and signal processing
+   - Database persistence with correct enum handling
+   - GCS storage with processing → complete workflow
+
+6. **Batch Processing System**:
+   - IndexingPipeline with storage loading from external RPC stream
+   - BatchPipeline with queue management for 216K+ blocks
+   - Worker coordination with skip locks
+   - Small-scale validation successful (10 blocks processed)
+
+### **🎯 NEXT PHASE: Canonical Pricing & Calculation Services**
+
+**Priority Development Plan:**
+1. **Tables/Repositories**: Update any missing fields (contract.project) and repositories
+2. **Pricing Service**: Canonical VWAP pricing and global event pricing application
+3. **Calculation Service**: Event valuations, OHLC candles, protocol volume metrics
+4. **Database Updates**: Handle any schema changes discovered during development
+5. **Migration Strategy**: Migrate existing data with proper field handling
+6. **Service Runner**: Central CLI-based runner for all services (similar to batch processing)
+7. **CLI Integration**: Update CLI to operate service runner
+8. **Sample Processing**: Test services with sample batches
+9. **Bulk Processing**: Process remaining test batch data
+
+### **Architecture Ready for Production**
+- ✅ Migration system handles complex schema evolution
+- ✅ Direct pricing provides foundation for canonical pricing
+- ✅ Batch processing architecture scales to production volumes
+- ✅ Service patterns established (dependency injection, CLI integration)
+- ✅ Database architecture supports pricing and calculation separation
 
 ## Chat Interaction Preferences
 
@@ -196,16 +242,24 @@ python -m indexer.cli pricing update-all blub_test
 - Direct pricing implementation
 - CLI interface and documentation
 
-### **🎯 NEXT: Testing Module Overhaul**
+### **🎯 CURRENT: Canonical Pricing & Calculation Services**
 
-The testing module needs to be rebuilt from scratch to focus on:
+**Following 9-step development plan:**
+1. **Update tables and repositories** (contract.project field verification needed)
+2. **Develop pricing service** (canonical VWAP pricing methods)
+3. **Develop calculation service** (event valuations and analytics)
+4. **Review database updates** (handle schema changes from development)
+5. **Migrate databases** (handle existing data and new fields)
+6. **Create service runner** (CLI-based runner following batch processing patterns)
+7. **Update CLI** (integrate service runner)
+8. **Process sample batches** (validate services)
+9. **Process bulk test batch** (production validation)
 
-1. **Clean up legacy files**: Remove outdated diagnostic and test files created for specific issues
-2. **End-to-end tests**: 1-2 comprehensive tests for core functionality
-3. **Infrastructure diagnostics**: Health checks for indexer containers, cloud services, database
-4. **Development-focused**: Testing suitable for ongoing development rather than comprehensive test suite
-
-The system is now ready for comprehensive testing and validation before moving to production indexing operations.
+### **Architecture Foundations Complete**
+- ✅ Direct pricing provides foundation for canonical pricing
+- ✅ Repository patterns established for new service development
+- ✅ Batch processing architecture ready for service runner implementation
+- ✅ CLI patterns established for comprehensive service management
 
 ## Key Design Principles
 
@@ -230,4 +284,4 @@ The system is now ready for comprehensive testing and validation before moving t
 - Scalable architecture with read replicas
 - Pricing accuracy and method tracking
 
-The indexer is now architecturally complete and ready for the final testing phase before production deployment.
+The indexer is now architecturally complete and ready for the canonical pricing and calculation services implementation phase.
