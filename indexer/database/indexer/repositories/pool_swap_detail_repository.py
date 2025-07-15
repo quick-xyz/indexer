@@ -28,23 +28,18 @@ class PoolSwapDetailRepository(BaseRepository):
         value: float,
         price: float,
         price_method: PricingMethod,
-        price_config_id: Optional[int] = None,
-        calculated_at: Optional[int] = None
+        price_config_id: Optional[int] = None
     ) -> PoolSwapDetail:
         """Create a new pool swap detail record"""
         try:
-            if calculated_at is None:
-                import time
-                calculated_at = int(time.time())
-            
             detail = PoolSwapDetail(
                 content_id=content_id,
                 denom=denom,
                 value=value,
                 price=price,
                 price_method=price_method,
-                price_config_id=price_config_id,
-                calculated_at=calculated_at
+                price_config_id=price_config_id
+                # Note: created_at and updated_at handled automatically by BaseModel
             )
             
             session.add(detail)
@@ -108,7 +103,7 @@ class PoolSwapDetailRepository(BaseRepository):
         try:
             return session.query(PoolSwapDetail).filter(
                 PoolSwapDetail.price_method == price_method
-            ).order_by(desc(PoolSwapDetail.calculated_at)).limit(limit).all()
+            ).order_by(desc(PoolSwapDetail.created_at)).limit(limit).all()  # FIXED: created_at instead of calculated_at
         except Exception as e:
             log_with_context(self.logger, logging.ERROR, "Error getting details by pricing method",
                             price_method=price_method.value,
@@ -120,7 +115,7 @@ class PoolSwapDetailRepository(BaseRepository):
         try:
             return session.query(PoolSwapDetail).filter(
                 PoolSwapDetail.denom == PricingDenomination.USD
-            ).order_by(desc(PoolSwapDetail.calculated_at)).limit(limit).all()
+            ).order_by(desc(PoolSwapDetail.created_at)).limit(limit).all()  # FIXED: created_at instead of calculated_at
         except Exception as e:
             log_with_context(self.logger, logging.ERROR, "Error getting USD valuations",
                             error=str(e))
@@ -131,7 +126,7 @@ class PoolSwapDetailRepository(BaseRepository):
         try:
             return session.query(PoolSwapDetail).filter(
                 PoolSwapDetail.denom == PricingDenomination.AVAX
-            ).order_by(desc(PoolSwapDetail.calculated_at)).limit(limit).all()
+            ).order_by(desc(PoolSwapDetail.created_at)).limit(limit).all()  # FIXED: created_at instead of calculated_at
         except Exception as e:
             log_with_context(self.logger, logging.ERROR, "Error getting AVAX valuations",
                             error=str(e))
@@ -140,28 +135,23 @@ class PoolSwapDetailRepository(BaseRepository):
     def get_missing_valuations(
         self, 
         session: Session, 
-        swap_content_ids: List[DomainEventId],
-        denom: PricingDenomination
+        denom: PricingDenomination,
+        limit: int = 1000
     ) -> List[DomainEventId]:
-        """Get content IDs that are missing valuation for a specific denomination"""
+        """Get pool swaps missing valuation details for a denomination"""
         try:
-            existing_ids = session.query(PoolSwapDetail.content_id).filter(
-                and_(
-                    PoolSwapDetail.content_id.in_(swap_content_ids),
-                    PoolSwapDetail.denom == denom
-                )
-            ).all()
+            from ..tables.events.trade import PoolSwap
             
-            existing_set = {row.content_id for row in existing_ids}
-            missing_ids = [cid for cid in swap_content_ids if cid not in existing_set]
+            # Find pool swaps that don't have detail records for this denomination
+            subquery = session.query(PoolSwapDetail.content_id).filter(
+                PoolSwapDetail.denom == denom
+            ).subquery()
             
-            log_with_context(self.logger, logging.DEBUG, "Found missing valuations",
-                            total_swaps=len(swap_content_ids),
-                            existing_valuations=len(existing_set),
-                            missing_valuations=len(missing_ids),
-                            denom=denom.value)
+            missing_swaps = session.query(PoolSwap.content_id).filter(
+                ~PoolSwap.content_id.in_(subquery)
+            ).order_by(desc(PoolSwap.created_at)).limit(limit).all()  # FIXED: created_at instead of timestamp
             
-            return missing_ids
+            return [swap.content_id for swap in missing_swaps]
             
         except Exception as e:
             log_with_context(self.logger, logging.ERROR, "Error getting missing valuations",
@@ -241,34 +231,42 @@ class PoolSwapDetailRepository(BaseRepository):
             raise
     
     def check_all_swaps_have_direct_pricing(
-        self, 
-        session: Session, 
+        self,
+        session: Session,
         swap_content_ids: List[DomainEventId]
     ) -> bool:
-        """Check if all swaps have direct pricing (no GLOBAL or missing details)"""
+        """Check if all swaps have direct pricing (not global)"""
         try:
-            # Get USD details for all swaps (we expect exactly one per swap)
-            usd_details = self.get_usd_details_for_swaps(session, swap_content_ids)
+            # Count how many swaps have direct pricing (DIRECT_AVAX or DIRECT_USD)
+            direct_pricing_count = session.query(PoolSwapDetail.content_id.distinct()).filter(
+                and_(
+                    PoolSwapDetail.content_id.in_(swap_content_ids),
+                    PoolSwapDetail.price_method.in_([PricingMethod.DIRECT_AVAX, PricingMethod.DIRECT_USD])
+                )
+            ).count()
             
-            # Check count matches
-            if len(usd_details) != len(swap_content_ids):
-                log_with_context(self.logger, logging.DEBUG, "Missing USD details for some swaps",
-                                expected_count=len(swap_content_ids),
-                                actual_count=len(usd_details))
-                return False
-            
-            # Check all are directly priced (not GLOBAL)
-            global_count = len([d for d in usd_details if d.price_method == PricingMethod.GLOBAL])
-            if global_count > 0:
-                log_with_context(self.logger, logging.DEBUG, "Some swaps use global pricing",
-                                global_count=global_count,
-                                total_count=len(usd_details))
-                return False
-            
-            return True
+            # All swaps should have direct pricing
+            return direct_pricing_count == len(swap_content_ids)
             
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error checking swap pricing eligibility",
+            log_with_context(self.logger, logging.ERROR, "Error checking direct pricing eligibility",
                             swap_count=len(swap_content_ids),
                             error=str(e))
             return False
+    
+    def get_pricing_method_stats(self, session: Session) -> Dict[str, int]:
+        """Get statistics about pricing methods used"""
+        try:
+            from sqlalchemy import func
+            
+            stats = session.query(
+                PoolSwapDetail.price_method,
+                func.count(PoolSwapDetail.content_id.distinct()).label('swap_count')
+            ).group_by(PoolSwapDetail.price_method).all()
+            
+            return {method.value: count for method, count in stats}
+            
+        except Exception as e:
+            log_with_context(self.logger, logging.ERROR, "Error getting pricing method stats",
+                            error=str(e))
+            return {}

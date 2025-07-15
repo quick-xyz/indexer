@@ -1,15 +1,12 @@
-# indexer/database/shared/tables/pool_pricing_config.py - Enhanced with global defaults support
+# indexer/database/shared/tables/pool_pricing_config.py
 
-from sqlalchemy import Column, Integer, String, Boolean, TIMESTAMP, ForeignKey, Index, Enum, Text
+from sqlalchemy import Column, Integer, String, Boolean, ForeignKey, Index
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
-import enum
 
-from ...base import SharedBase
-from ...types import EvmAddressType
+from ...base import SharedBase, SharedTimestampMixin
 
 
-class PoolPricingConfig(SharedBase):
+class PoolPricingConfig(SharedBase, SharedTimestampMixin):
     """
     Model-specific pool pricing configurations with time ranges.
     
@@ -39,20 +36,11 @@ class PoolPricingConfig(SharedBase):
     # Pricing configuration (lowercase values to match your enum pattern)
     pricing_strategy = Column(String(50), nullable=False, default='global')  # "direct_avax", "direct_usd", "global"
     
-    # NEW: Enhanced to work with global defaults
-    # If pricing_strategy is 'use_global_default', fall back to contracts.pricing_strategy_default
-    # This allows models to explicitly opt into global defaults while maintaining override capability
-    
-    # Pool designation for this model (renamed from primary_pool for clarity)
+    # Pool designation for this model
     pricing_pool = Column(Boolean, nullable=False, default=False)  # Used for canonical pricing by this model
     
-    # Direct pricing configuration (when pricing_strategy = 'direct_avax' or 'direct_usd')
-    quote_token_address = Column(EvmAddressType(), nullable=True)
-    
-    # Metadata
-    created_at = Column(TIMESTAMP, default=func.now())
-    created_by = Column(String(255))  # Who made this config change
-    notes = Column(Text)  # Why this change was made
+    # Note: created_at and updated_at provided by SharedTimestampMixin
+    # Removed fields: quote_token_address, created_by, notes (as requested)
     
     # Relationships
     model = relationship("Model")
@@ -66,14 +54,11 @@ class PoolPricingConfig(SharedBase):
         # Efficient block range queries
         Index('idx_pool_pricing_blocks', 'start_block', 'end_block'),
         
-        # Efficient pricing pool lookups (renamed from primary_pool)
+        # Efficient pricing pool lookups
         Index('idx_pool_pricing_pricing_pool', 'model_id', 'pricing_pool', 'start_block', 'end_block'),
         
         # Efficient strategy lookups
         Index('idx_pool_pricing_strategy', 'pricing_strategy'),
-        
-        # Note: Block range overlap prevention is enforced by application logic
-        # since PostgreSQL can't easily handle overlapping ranges with NULL end_block
     )
     
     def __repr__(self) -> str:
@@ -118,11 +103,6 @@ class PoolPricingConfig(SharedBase):
         valid_strategies = ['direct_avax', 'direct_usd', 'global', 'use_global_default']
         if self.pricing_strategy not in valid_strategies:
             errors.append(f"Invalid pricing strategy: {self.pricing_strategy}")
-        
-        # Validate direct pricing requirements
-        if self.pricing_strategy in ['direct_avax', 'direct_usd']:
-            if not self.quote_token_address:
-                errors.append("Direct pricing strategies require quote_token_address")
         
         # Validate block range
         if self.end_block and self.start_block >= self.end_block:

@@ -1,4 +1,4 @@
-# indexer/database/indexer/repositories/trade_detail_repository.py
+# indexer/database/indexer/repositories/pool_swap_detail_repository.py
 
 from typing import List, Optional, Dict
 
@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, desc
 
 from ...connection import ModelDatabaseManager
-from ..tables.detail.trade_detail import TradeDetail, PricingDenomination, TradePricingMethod
+from ..tables.detail.pool_swap_detail import PoolSwapDetail, PricingDenomination, PricingMethod
 from ....core.logging_config import log_with_context
 from ....types.new import DomainEventId
 from ...base_repository import BaseRepository
@@ -14,11 +14,11 @@ from ...base_repository import BaseRepository
 import logging
 
 
-class TradeDetailRepository(BaseRepository):
-    """Repository for trade pricing details"""
+class PoolSwapDetailRepository(BaseRepository):
+    """Repository for pool swap pricing details"""
     
     def __init__(self, db_manager: ModelDatabaseManager):
-        super().__init__(db_manager, TradeDetail)
+        super().__init__(db_manager, PoolSwapDetail)
     
     def create_detail(
         self,
@@ -27,86 +27,45 @@ class TradeDetailRepository(BaseRepository):
         denom: PricingDenomination,
         value: float,
         price: float,
-        pricing_method: TradePricingMethod
-    ) -> TradeDetail:
-        """Create a new trade detail record"""
+        price_method: PricingMethod,
+        price_config_id: Optional[int] = None
+    ) -> PoolSwapDetail:
+        """Create a new pool swap detail record"""
         try:
-            detail = TradeDetail(
+            detail = PoolSwapDetail(
                 content_id=content_id,
                 denom=denom,
                 value=value,
                 price=price,
-                pricing_method=pricing_method
+                price_method=price_method,
+                price_config_id=price_config_id
+                # Note: created_at and updated_at handled automatically by BaseModel
             )
             
             session.add(detail)
             session.flush()
             
-            log_with_context(self.logger, logging.DEBUG, "Trade detail created",
+            log_with_context(self.logger, logging.DEBUG, "Pool swap detail created",
                             content_id=content_id,
                             denom=denom.value,
                             value=value,
-                            price=price,
-                            pricing_method=pricing_method.value)
+                            price_method=price_method.value)
             
             return detail
             
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error creating trade detail",
+            log_with_context(self.logger, logging.ERROR, "Error creating pool swap detail",
                             content_id=content_id,
                             denom=denom.value if denom else None,
-                            pricing_method=pricing_method.value if pricing_method else None,
-                            error=str(e))
-    def get_direct_pricing_trades(self, session: Session, limit: int = 100) -> List[TradeDetail]:
-        """Get trades that were directly priced"""
-        try:
-            return session.query(TradeDetail).filter(
-                TradeDetail.pricing_method == TradePricingMethod.DIRECT
-            ).order_by(desc(TradeDetail.created_at)).limit(limit).all()
-        except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error getting direct pricing trades",
                             error=str(e))
             raise
     
-    def get_global_pricing_trades(self, session: Session, limit: int = 100) -> List[TradeDetail]:
-        """Get trades that use global pricing"""
+    def get_by_content_id(self, session: Session, content_id: DomainEventId) -> List[PoolSwapDetail]:
+        """Get all pricing details for a pool swap"""
         try:
-            return session.query(TradeDetail).filter(
-                TradeDetail.pricing_method == TradePricingMethod.GLOBAL
-            ).order_by(desc(TradeDetail.created_at)).limit(limit).all()
-        except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error getting global pricing trades",
-                            error=str(e))
-            raise
-    
-    def get_pricing_method_stats(self, session: Session) -> Dict[str, int]:
-        """Get statistics on trade pricing method usage"""
-        try:
-            from sqlalchemy import func
-            
-            results = session.query(
-                TradeDetail.pricing_method,
-                func.count(TradeDetail.id).label('count')
-            ).group_by(TradeDetail.pricing_method).all()
-            
-            stats = {method.value: count for method, count in results}
-            
-            log_with_context(self.logger, logging.DEBUG, "Trade pricing method stats retrieved",
-                            stats=stats)
-            
-            return stats
-            
-        except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error getting trade pricing method stats",
-                            error=str(e))
-            raise
-    
-    def get_by_content_id(self, session: Session, content_id: DomainEventId) -> List[TradeDetail]:
-        """Get all pricing details for a trade"""
-        try:
-            return session.query(TradeDetail).filter(
-                TradeDetail.content_id == content_id
-            ).order_by(TradeDetail.denom).all()
+            return session.query(PoolSwapDetail).filter(
+                PoolSwapDetail.content_id == content_id
+            ).order_by(PoolSwapDetail.denom).all()
         except Exception as e:
             log_with_context(self.logger, logging.ERROR, "Error getting details by content_id",
                             content_id=content_id,
@@ -118,13 +77,13 @@ class TradeDetailRepository(BaseRepository):
         session: Session, 
         content_id: DomainEventId, 
         denom: PricingDenomination
-    ) -> Optional[TradeDetail]:
-        """Get specific denomination detail for a trade"""
+    ) -> Optional[PoolSwapDetail]:
+        """Get specific denomination detail for a pool swap"""
         try:
-            return session.query(TradeDetail).filter(
+            return session.query(PoolSwapDetail).filter(
                 and_(
-                    TradeDetail.content_id == content_id,
-                    TradeDetail.denom == denom
+                    PoolSwapDetail.content_id == content_id,
+                    PoolSwapDetail.denom == denom
                 )
             ).one_or_none()
         except Exception as e:
@@ -134,23 +93,40 @@ class TradeDetailRepository(BaseRepository):
                             error=str(e))
             raise
     
-    def get_usd_valuations(self, session: Session, limit: int = 100) -> List[TradeDetail]:
+    def get_by_pricing_method(
+        self, 
+        session: Session, 
+        price_method: PricingMethod, 
+        limit: int = 100
+    ) -> List[PoolSwapDetail]:
+        """Get details by pricing method"""
+        try:
+            return session.query(PoolSwapDetail).filter(
+                PoolSwapDetail.price_method == price_method
+            ).order_by(desc(PoolSwapDetail.created_at)).limit(limit).all()  # FIXED: created_at instead of calculated_at
+        except Exception as e:
+            log_with_context(self.logger, logging.ERROR, "Error getting details by pricing method",
+                            price_method=price_method.value,
+                            error=str(e))
+            raise
+    
+    def get_usd_valuations(self, session: Session, limit: int = 100) -> List[PoolSwapDetail]:
         """Get USD valuation details"""
         try:
-            return session.query(TradeDetail).filter(
-                TradeDetail.denom == PricingDenomination.USD
-            ).order_by(desc(TradeDetail.created_at)).limit(limit).all()
+            return session.query(PoolSwapDetail).filter(
+                PoolSwapDetail.denom == PricingDenomination.USD
+            ).order_by(desc(PoolSwapDetail.created_at)).limit(limit).all()  # FIXED: created_at instead of calculated_at
         except Exception as e:
             log_with_context(self.logger, logging.ERROR, "Error getting USD valuations",
                             error=str(e))
             raise
     
-    def get_avax_valuations(self, session: Session, limit: int = 100) -> List[TradeDetail]:
+    def get_avax_valuations(self, session: Session, limit: int = 100) -> List[PoolSwapDetail]:
         """Get AVAX valuation details"""
         try:
-            return session.query(TradeDetail).filter(
-                TradeDetail.denom == PricingDenomination.AVAX
-            ).order_by(desc(TradeDetail.created_at)).limit(limit).all()
+            return session.query(PoolSwapDetail).filter(
+                PoolSwapDetail.denom == PricingDenomination.AVAX
+            ).order_by(desc(PoolSwapDetail.created_at)).limit(limit).all()  # FIXED: created_at instead of calculated_at
         except Exception as e:
             log_with_context(self.logger, logging.ERROR, "Error getting AVAX valuations",
                             error=str(e))
@@ -159,31 +135,26 @@ class TradeDetailRepository(BaseRepository):
     def get_missing_valuations(
         self, 
         session: Session, 
-        trade_content_ids: List[DomainEventId],
-        denom: PricingDenomination
+        denom: PricingDenomination,
+        limit: int = 1000
     ) -> List[DomainEventId]:
-        """Get content IDs that are missing valuation for a specific denomination"""
+        """Get pool swaps missing valuation details for a denomination"""
         try:
-            existing_ids = session.query(TradeDetail.content_id).filter(
-                and_(
-                    TradeDetail.content_id.in_(trade_content_ids),
-                    TradeDetail.denom == denom
-                )
-            ).all()
+            from ..tables.events.trade import PoolSwap
             
-            existing_set = {row.content_id for row in existing_ids}
-            missing_ids = [cid for cid in trade_content_ids if cid not in existing_set]
+            # Find pool swaps that don't have detail records for this denomination
+            subquery = session.query(PoolSwapDetail.content_id).filter(
+                PoolSwapDetail.denom == denom
+            ).subquery()
             
-            log_with_context(self.logger, logging.DEBUG, "Found missing trade valuations",
-                            total_trades=len(trade_content_ids),
-                            existing_valuations=len(existing_set),
-                            missing_valuations=len(missing_ids),
-                            denom=denom.value)
+            missing_swaps = session.query(PoolSwap.content_id).filter(
+                ~PoolSwap.content_id.in_(subquery)
+            ).order_by(desc(PoolSwap.created_at)).limit(limit).all()  # FIXED: created_at instead of timestamp
             
-            return missing_ids
+            return [swap.content_id for swap in missing_swaps]
             
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error getting missing trade valuations",
+            log_with_context(self.logger, logging.ERROR, "Error getting missing valuations",
                             denom=denom.value,
                             error=str(e))
             raise
@@ -194,8 +165,8 @@ class TradeDetailRepository(BaseRepository):
         content_id: DomainEventId,
         denom: PricingDenomination,
         **updates
-    ) -> Optional[TradeDetail]:
-        """Update existing trade detail"""
+    ) -> Optional[PoolSwapDetail]:
+        """Update existing pool swap detail"""
         try:
             detail = self.get_by_content_id_and_denom(session, content_id, denom)
             if not detail:
@@ -207,7 +178,7 @@ class TradeDetailRepository(BaseRepository):
             
             session.flush()
             
-            log_with_context(self.logger, logging.DEBUG, "Trade detail updated",
+            log_with_context(self.logger, logging.DEBUG, "Pool swap detail updated",
                             content_id=content_id,
                             denom=denom.value,
                             updates=list(updates.keys()))
@@ -215,8 +186,87 @@ class TradeDetailRepository(BaseRepository):
             return detail
             
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error updating trade detail",
+            log_with_context(self.logger, logging.ERROR, "Error updating pool swap detail",
                             content_id=content_id,
                             denom=denom.value,
                             error=str(e))
             raise
+    
+    def get_usd_details_for_swaps(
+        self, 
+        session: Session, 
+        swap_content_ids: List[DomainEventId]
+    ) -> List[PoolSwapDetail]:
+        """Get USD valuation details for multiple swaps"""
+        try:
+            return session.query(PoolSwapDetail).filter(
+                and_(
+                    PoolSwapDetail.content_id.in_(swap_content_ids),
+                    PoolSwapDetail.denom == PricingDenomination.USD
+                )
+            ).order_by(PoolSwapDetail.content_id).all()
+        except Exception as e:
+            log_with_context(self.logger, logging.ERROR, "Error getting USD details for swaps",
+                            swap_count=len(swap_content_ids),
+                            error=str(e))
+            raise
+    
+    def get_avax_details_for_swaps(
+        self, 
+        session: Session, 
+        swap_content_ids: List[DomainEventId]
+    ) -> List[PoolSwapDetail]:
+        """Get AVAX valuation details for multiple swaps"""
+        try:
+            return session.query(PoolSwapDetail).filter(
+                and_(
+                    PoolSwapDetail.content_id.in_(swap_content_ids),
+                    PoolSwapDetail.denom == PricingDenomination.AVAX
+                )
+            ).order_by(PoolSwapDetail.content_id).all()
+        except Exception as e:
+            log_with_context(self.logger, logging.ERROR, "Error getting AVAX details for swaps",
+                            swap_count=len(swap_content_ids),
+                            error=str(e))
+            raise
+    
+    def check_all_swaps_have_direct_pricing(
+        self,
+        session: Session,
+        swap_content_ids: List[DomainEventId]
+    ) -> bool:
+        """Check if all swaps have direct pricing (not global)"""
+        try:
+            # Count how many swaps have direct pricing (DIRECT_AVAX or DIRECT_USD)
+            direct_pricing_count = session.query(PoolSwapDetail.content_id.distinct()).filter(
+                and_(
+                    PoolSwapDetail.content_id.in_(swap_content_ids),
+                    PoolSwapDetail.price_method.in_([PricingMethod.DIRECT_AVAX, PricingMethod.DIRECT_USD])
+                )
+            ).count()
+            
+            # All swaps should have direct pricing
+            return direct_pricing_count == len(swap_content_ids)
+            
+        except Exception as e:
+            log_with_context(self.logger, logging.ERROR, "Error checking direct pricing eligibility",
+                            swap_count=len(swap_content_ids),
+                            error=str(e))
+            return False
+    
+    def get_pricing_method_stats(self, session: Session) -> Dict[str, int]:
+        """Get statistics about pricing methods used"""
+        try:
+            from sqlalchemy import func
+            
+            stats = session.query(
+                PoolSwapDetail.price_method,
+                func.count(PoolSwapDetail.content_id.distinct()).label('swap_count')
+            ).group_by(PoolSwapDetail.price_method).all()
+            
+            return {method.value: count for method, count in stats}
+            
+        except Exception as e:
+            log_with_context(self.logger, logging.ERROR, "Error getting pricing method stats",
+                            error=str(e))
+            return {}

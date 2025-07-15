@@ -3,11 +3,12 @@
 from sqlalchemy import Column, Integer, TIMESTAMP, Index
 from sqlalchemy.dialects.postgresql import NUMERIC
 from sqlalchemy.sql import func
+from sqlalchemy.orm import declarative_mixin
 
-from ...base import SharedBase
+from ...base import SharedBase, SharedTimestampMixin
 
 
-class BlockPrice(SharedBase):
+class BlockPrice(SharedBase, SharedTimestampMixin):
     """
     Chain-level AVAX-USD prices from Chainlink price feed.
     
@@ -19,6 +20,8 @@ class BlockPrice(SharedBase):
     - Chain-level data (not indexer-specific)
     - Used by all indexers for USD valuations
     - Single source of truth for base currency pricing
+    
+    UPDATED: Uses SharedTimestampMixin for consistent timestamp handling
     """
     __tablename__ = 'block_prices'
     
@@ -26,18 +29,12 @@ class BlockPrice(SharedBase):
     timestamp = Column(Integer, nullable=False, index=True)  # Block timestamp
     price_usd = Column(NUMERIC(precision=20, scale=8), nullable=False)  # AVAX price in USD
     
-    # Optionally store the raw Chainlink data for debugging
-    chainlink_round_id = Column(NUMERIC(precision=20, scale=0), nullable=True)
-    chainlink_updated_at = Column(Integer, nullable=True)  # Chainlink's last update timestamp
-    
-    # Fetch metadata
-    fetched_at = Column(TIMESTAMP, nullable=False, default=func.now())
+    # Note: created_at and updated_at provided by SharedTimestampMixin
     
     # Indexes for common queries
     __table_args__ = (
         Index('idx_block_prices_timestamp', 'timestamp'),
         Index('idx_block_prices_price', 'price_usd'),
-        Index('idx_block_prices_fetched_at', 'fetched_at'),
     )
     
     def __repr__(self) -> str:

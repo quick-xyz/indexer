@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict
 import uuid
 
-from sqlalchemy import Column, DateTime, Integer, text
+from sqlalchemy import Column, DateTime, Integer, text, TIMESTAMP, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import declarative_mixin
@@ -33,6 +33,19 @@ class TimestampMixin:
         server_default=text('CURRENT_TIMESTAMP'),
         onupdate=lambda: datetime.now(timezone.utc)
     )
+
+@declarative_mixin
+class SharedTimestampMixin:
+    """
+    Timestamp mixin for shared database tables.
+    
+    Provides consistent created_at and updated_at timestamp handling
+    across all shared database tables (configuration, pricing, periods).
+    
+    Uses TIMESTAMP type for consistency with PostgreSQL best practices.
+    """
+    created_at = Column(TIMESTAMP, nullable=False, default=func.now())
+    updated_at = Column(TIMESTAMP, nullable=False, default=func.now(), onupdate=func.now())
 
 
 @declarative_mixin

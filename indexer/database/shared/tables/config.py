@@ -1,115 +1,70 @@
 # indexer/database/shared/tables/config.py
+
 from typing import List, Optional
-from sqlalchemy import Column, Integer, String, Text, TIMESTAMP, ForeignKey, UniqueConstraint, Index, Boolean
+from sqlalchemy import Column, Integer, String, Text, ForeignKey, UniqueConstraint, Index, Boolean
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
-from sqlalchemy.sql import func
 
-
-from ...base import SharedBase
+from ...base import SharedBase, SharedTimestampMixin
 from ...types import EvmAddressType
 
 
-class Model(SharedBase):
+class Model(SharedBase, SharedTimestampMixin):
     __tablename__ = 'models'
     
     id = Column(Integer, primary_key=True)
     name = Column(String(255), unique=True, nullable=False) # "blub_test" (unique model name)
-    version = Column(String(50), nullable=False)    # "v1", "v2", etc. (latest version for this model)
-    display_name = Column(String(255))  # "BLUB Ecosystem Indexer" (human-readable name)
-    description = Column(Text)
-    database_name = Column(String(255), unique=True, nullable=False) # "blub_test" (unique across all models)
-    source_paths = Column(JSONB, nullable=False)  # [{"path": "indexer-blocks/streams/quicknode/blub/", "format": "avalanche-mainnet_block_with_receipts_{:012d}-{:012d}.json"}]
-
-    status = Column(String(50), default='active')  # 'active', 'inactive', 'deprecated'
-    created_at = Column(TIMESTAMP, default=func.now())
-    updated_at = Column(TIMESTAMP, default=func.now(), onupdate=func.now())
-
-    # Relationships
-    model_contracts = relationship("ModelContract", back_populates="model", cascade="all, delete-orphan")
-    model_tokens = relationship("ModelToken", back_populates="model", cascade="all, delete-orphan")
-    model_sources = relationship("ModelSource", back_populates="model", cascade="all, delete-orphan")
+    version = Column(String(50), nullable=False)    # "v1", "v2", etc.
+    description = Column(Text)                     # Description of this model
+    target_asset = Column(EvmAddressType(), nullable=True)  # Primary asset being indexed
+    status = Column(String(50), nullable=False, default='active')  # "active", "deprecated", "development"
     
-    # NEW: Relationship to pool pricing configurations
-    pool_pricing_configs = relationship("PoolPricingConfig", back_populates="model", cascade="all, delete-orphan")
-
+    # Note: created_at and updated_at provided by SharedTimestampMixin
+    
+    # Relationships
+    contracts = relationship("ModelContract", back_populates="model")
+    tokens = relationship("ModelToken", back_populates="model")
+    sources = relationship("ModelSource", back_populates="model")
+    pool_pricing_configs = relationship("PoolPricingConfig", back_populates="model")
+    
     # Indexes
     __table_args__ = (
         Index('idx_models_name', 'name'),
-        Index('idx_models_version', 'version'),
         Index('idx_models_status', 'status'),
+        Index('idx_models_version', 'version'),
     )
     
     def __repr__(self) -> str:
-        return f"<Model(name='{self.name}', version='{self.version}', database='{self.database_name}')>"
-
-    @classmethod
-    def get_latest_version(cls, session, model_name: str):
-        return session.query(cls).filter(
-            cls.name == model_name,
-            cls.status == 'active'
-        ).order_by(cls.version.desc()).first()
-
-    def get_sources(self):
-        """Get all sources for this model via the junction table"""
-        return [ms.source for ms in self.model_sources]
-    
-    def get_pricing_pools(self, session, block_number: int = None):
-        """Get all pools designated as pricing pools for this model at a specific block"""
-        from .pool_pricing_config import PoolPricingConfig
-        
-        if block_number is None:
-            # Get current pricing pools (no end_block or end_block in future)
-            import time
-            current_block = int(time.time())  # Simplified - you'd use actual current block
-            block_number = current_block
-        
-        return PoolPricingConfig.get_pricing_pools_for_model(session, self.id, block_number)
-    
-    def get_pool_pricing_strategy(self, session, contract_id: int, block_number: int) -> str:
-        """Get effective pricing strategy for a specific pool at a block"""
-        from .pool_pricing_config import PoolPricingConfig
-        return PoolPricingConfig.get_effective_pricing_strategy_for_pool(
-            session, self.id, contract_id, block_number
-        )
+        return f"<Model(name='{self.name}', version='{self.version}', status='{self.status}')>"
 
 
-class Contract(SharedBase):
+class Contract(SharedBase, SharedTimestampMixin):
     __tablename__ = 'contracts'
     
     id = Column(Integer, primary_key=True)
-    address = Column(EvmAddressType(), unique=True, nullable=False)  # Contract address
-    name = Column(String(255), nullable=False)  # "BLUB", "JLP:BLUB-AVAX"
-    project = Column(String(255))  # "Blub", "LFJ", "Pharaoh"
-    type = Column(String(50), nullable=False)  # 'token', 'pool', 'aggregator' (no enum - changed from your original)
-    description = Column(Text)  # Optional description
+    name = Column(String(255), nullable=False)     # Human-readable name
+    address = Column(EvmAddressType(), unique=True, nullable=False, index=True)  # Contract address
+    type = Column(String(50), nullable=False)      # "pool", "router", "token", "factory", etc. (flexible string)
+    description = Column(Text)                     # Description of contract purpose
+    status = Column(String(50), nullable=False, default='active')  # "active", "deprecated"
     
-    # ABI and transformer configuration
-    decode_config = Column(JSONB)  # {"abi_dir": "tokens", "abi_file": "blub.json"}
-    transform_config = Column(JSONB)  # {"name": "TokenTransformer", "instantiate": {"contract": "0x..."}}
-    
-    # NEW: Pool pricing defaults (only for type='pool' contracts)
-    # These are the global defaults that models can override via PoolPricingConfig
+    # ENHANCED: Global pricing defaults for pools (embedded in contracts table)
     pricing_strategy_default = Column(String(50), nullable=True)  # "direct_avax", "direct_usd", "global"
-    quote_token_address = Column(EvmAddressType(), nullable=True)  # For direct pricing strategies
-    pricing_start_block = Column(Integer, nullable=True)  # When this pricing became valid
-    pricing_end_block = Column(Integer, nullable=True)  # When this pricing expires (NULL = indefinite)
+    pricing_start_block = Column(Integer, nullable=True)  # When pricing config becomes valid
+    pricing_end_block = Column(Integer, nullable=True)    # When pricing config expires (NULL = indefinite)
     
-    status = Column(String(50), default='active')  # 'active', 'inactive', 'deprecated'
-    created_at = Column(TIMESTAMP, default=func.now())
-    updated_at = Column(TIMESTAMP, default=func.now(), onupdate=func.now())
+    # Note: created_at and updated_at provided by SharedTimestampMixin
     
     # Relationships
-    model_contracts = relationship("ModelContract", back_populates="contract", cascade="all, delete-orphan")
-    pool_pricing_configs = relationship("PoolPricingConfig", back_populates="contract", cascade="all, delete-orphan")
+    models = relationship("ModelContract", back_populates="contract")
+    pool_pricing_configs = relationship("PoolPricingConfig", back_populates="contract")
     
     # Indexes
     __table_args__ = (
         Index('idx_contracts_address', 'address'),
         Index('idx_contracts_type', 'type'),
-        Index('idx_contracts_project', 'project'),
         Index('idx_contracts_status', 'status'),
-        Index('idx_contracts_pricing_strategy', 'pricing_strategy_default'),  # NEW
+        Index('idx_contracts_pricing_strategy', 'pricing_strategy_default'),
     )
     
     def __repr__(self) -> str:
@@ -159,102 +114,58 @@ class Contract(SharedBase):
         errors = []
         
         if self.type == 'pool' and self.pricing_strategy_default:
-            if self.pricing_strategy_default in ['direct_avax', 'direct_usd']:
-                if not self.quote_token_address:
-                    errors.append("quote_token_address required for direct pricing strategies")
-            
             if not self.pricing_start_block:
                 errors.append("pricing_start_block required for pool pricing configuration")
         
         return errors
 
-    def get_effective_pricing_strategy(self, model_name: str, block_number: int) -> Optional[str]:
-        """Get effective pricing strategy for a model at a specific block"""
-        from .pool_pricing_config import PoolPricingConfig
-        return PoolPricingConfig.get_effective_pricing_strategy(
-            self.id, model_name, block_number
-        )
-    
-    def get_model_pricing_configs(self, session, model_id: int):
-        """Get all pricing configurations for this contract within a specific model"""
-        from .pool_pricing_config import PoolPricingConfig
-        return session.query(PoolPricingConfig).filter(
-            PoolPricingConfig.contract_id == self.id,
-            PoolPricingConfig.model_id == model_id
-        ).order_by(PoolPricingConfig.start_block).all()
 
-
-class Token(SharedBase):
+class Token(SharedBase, SharedTimestampMixin):
     __tablename__ = 'tokens'
     
     id = Column(Integer, primary_key=True)
-    address = Column(EvmAddressType(), unique=True, nullable=False)  # Token address
-    type = Column(String(50), nullable=False)  # "lp_receipt", "token", "nft"
-    symbol = Column(String(20))  # "BLUB", "AVAX", "JLP"
-    name = Column(String(255))  # "Blub Token", "Avalanche"
-    decimals = Column(Integer)  # 18
-    project = Column(String(255))  # "Blub", "Avax", "LFJ"
-    description = Column(Text)  # Optional description
-    status = Column(String(50), default='active')  # 'active', 'inactive', 'deprecated'
-    created_at = Column(TIMESTAMP, default=func.now())
-    updated_at = Column(TIMESTAMP, default=func.now(), onupdate=func.now())
-
-    model_tokens = relationship("ModelToken", back_populates="token", cascade="all, delete-orphan")
-
+    name = Column(String(255), nullable=False)     # "Blub Token"
+    symbol = Column(String(50), nullable=False)    # "BLUB" 
+    address = Column(EvmAddressType(), unique=True, nullable=False, index=True)  # Token contract address
+    decimals = Column(Integer, nullable=False, default=18)  # Token decimals
+    description = Column(Text)                     # Token description
+    type = Column(String(50), nullable=False, default='erc20')  # "erc20", "lp", "derivative", etc.
+    project = Column(String(255))                  # Associated project name
+    status = Column(String(50), nullable=False, default='active')  # "active", "deprecated"
+    
+    # Note: created_at and updated_at provided by SharedTimestampMixin
+    
+    # Relationships
+    models = relationship("ModelToken", back_populates="token")
+    
     # Indexes
     __table_args__ = (
         Index('idx_tokens_address', 'address'),
-        Index('idx_tokens_type', 'type'),
         Index('idx_tokens_symbol', 'symbol'),
+        Index('idx_tokens_type', 'type'),
         Index('idx_tokens_project', 'project'),
         Index('idx_tokens_status', 'status'),
     )
     
     def __repr__(self) -> str:
-        return f"<Token(symbol='{self.symbol}', address='{self.address}', project='{self.project}')>"
+        return f"<Token(symbol='{self.symbol}', name='{self.name}', address='{self.address}')>"
 
 
-class Address(SharedBase):
-    __tablename__ = 'addresses'
-    
-    id = Column(Integer, primary_key=True)
-    address = Column(EvmAddressType(), unique=True, nullable=False)  # Address
-    name = Column(String(255), nullable=False)  # "Treasury", "JoeRouter02"
-    type = Column(String(50), nullable=False)  # "Wallet", "Router", "AggLogic"
-    project = Column(String(255))  # "Blub", "LFJ", "Pharaoh"
-    description = Column(Text)  # Optional description
-    grouping = Column(String(255))  # Optional grouping for UI
-    tags = Column(JSONB)  # Optional tags array
-    status = Column(String(50), default='active')  # 'active', 'inactive', 'deprecated'
-    created_at = Column(TIMESTAMP, default=func.now())
-    updated_at = Column(TIMESTAMP, default=func.now(), onupdate=func.now())
-    
-    # Indexes
-    __table_args__ = (
-        Index('idx_addresses_address', 'address'),
-        Index('idx_addresses_type', 'type'),
-        Index('idx_addresses_project', 'project'),
-        Index('idx_addresses_grouping', 'grouping'),
-        Index('idx_addresses_status', 'status'),
-    )
-    
-    def __repr__(self) -> str:
-        return f"<Address(name='{self.name}', address='{self.address}', type='{self.type}')>"
-
-class Source(SharedBase):
-    """Sources define where block data is stored (path + format)"""
+class Source(SharedBase, SharedTimestampMixin):
     __tablename__ = 'sources'
     
     id = Column(Integer, primary_key=True)
-    name = Column(String(255), nullable=False)  # "quicknode-blub", "alchemy-mainnet"
-    path = Column(String(500), nullable=False)  # "indexer-blocks/streams/quicknode/blub/"
-    format = Column(String(255), nullable=False)  # "avalanche-mainnet_block_with_receipts_{:012d}-{:012d}.json"
-    status = Column(String(50), default='active')  # 'active', 'inactive', 'deprecated'
-    created_at = Column(TIMESTAMP, default=func.now())
-
+    name = Column(String(255), nullable=False, index=True)  # "quicknode_rpc", "gcs_bucket"
+    path = Column(String(500), nullable=False)     # Connection string, URL, or path
+    source_type = Column(String(50), nullable=False)  # "rpc", "storage", "api", etc.
+    configuration = Column(JSONB)                  # JSON configuration for source
+    status = Column(String(50), nullable=False, default='active')  # "active", "deprecated"
+    
+    # Note: created_at and updated_at provided by SharedTimestampMixin
+    
     # Relationships
-    model_sources = relationship("ModelSource", back_populates="source", cascade="all, delete-orphan")
-
+    models = relationship("ModelSource", back_populates="source")
+    
     # Indexes
     __table_args__ = (
         Index('idx_sources_name', 'name'),
@@ -262,83 +173,92 @@ class Source(SharedBase):
     )
     
     def __repr__(self) -> str:
-        return f"<Source(name='{self.name}', path='{self.path}')>"
+        return f"<Source(name='{self.name}', type='{self.source_type}')>"
 
 
-class ModelSource(SharedBase):
-    """Junction table linking Models to their Sources"""
-    __tablename__ = 'model_sources'
+class Address(SharedBase, SharedTimestampMixin):
+    __tablename__ = 'addresses'
     
     id = Column(Integer, primary_key=True)
-    model_id = Column(Integer, ForeignKey('models.id', ondelete='CASCADE'), nullable=False)
-    source_id = Column(Integer, ForeignKey('sources.id', ondelete='CASCADE'), nullable=False)
-    created_at = Column(TIMESTAMP, default=func.now())
-
-    # Relationships
-    model = relationship("Model", back_populates="model_sources")
-    source = relationship("Source", back_populates="model_sources")
-
-    # Indexes and constraints
+    name = Column(String(255), nullable=False)     # "treasury", "multisig", "deployer"
+    address = Column(EvmAddressType(), nullable=False, index=True)  # Ethereum address
+    address_type = Column(String(50), nullable=False)  # "treasury", "multisig", "eoa", etc.
+    description = Column(Text)                     # Description of address purpose
+    status = Column(String(50), nullable=False, default='active')  # "active", "deprecated"
+    
+    # Note: created_at and updated_at provided by SharedTimestampMixin
+    
+    # Indexes
     __table_args__ = (
-        Index('idx_model_sources_model_id', 'model_id'),
-        Index('idx_model_sources_source_id', 'source_id'),
-        UniqueConstraint('model_id', 'source_id', name='uq_model_source'),
+        Index('idx_addresses_address', 'address'),
+        Index('idx_addresses_type', 'address_type'),
+        Index('idx_addresses_status', 'status'),
     )
     
     def __repr__(self) -> str:
-        return f"<ModelSource(model_id={self.model_id}, source_id={self.source_id})>"
-    
-class ModelToken(SharedBase):
-    __tablename__ = 'model_tokens'
-    
-    id = Column(Integer, primary_key=True)
-    model_id = Column(Integer, ForeignKey('models.id', ondelete='CASCADE'), nullable=False)
-    token_id = Column(Integer, ForeignKey('tokens.id', ondelete='CASCADE'), nullable=False)
-    created_at = Column(TIMESTAMP, default=func.now())
-    
-    # Relationships
-    model = relationship("Model", back_populates="model_tokens")
-    token = relationship("Token", back_populates="model_tokens")
-    
-    # Constraints and Indexes
-    __table_args__ = (
-        UniqueConstraint('model_id', 'token_id'),
-        Index('idx_model_tokens_model_id', 'model_id'),
-        Index('idx_model_tokens_token_id', 'token_id'),
-    )
-    
-    def __repr__(self) -> str:
-        return f"<ModelToken(model_id={self.model_id}, token_id={self.token_id})>"
-   
+        return f"<Address(name='{self.name}', address='{self.address}', type='{self.address_type}')>"
 
-class ModelContract(SharedBase):
+
+# Junction Tables (Many-to-Many relationships)
+
+class ModelContract(SharedBase, SharedTimestampMixin):
     __tablename__ = 'model_contracts'
     
     id = Column(Integer, primary_key=True)
     model_id = Column(Integer, ForeignKey('models.id', ondelete='CASCADE'), nullable=False)
     contract_id = Column(Integer, ForeignKey('contracts.id', ondelete='CASCADE'), nullable=False)
-    created_at = Column(TIMESTAMP, default=func.now())
     
-    model = relationship("Model", back_populates="model_contracts")
-    contract = relationship("Contract", back_populates="model_contracts")
+    # Note: created_at and updated_at provided by SharedTimestampMixin
     
-    # Constraints and Indexes
+    # Relationships
+    model = relationship("Model", back_populates="contracts")
+    contract = relationship("Contract", back_populates="models")
+    
+    # Constraints and indexes
     __table_args__ = (
         UniqueConstraint('model_id', 'contract_id'),
         Index('idx_model_contracts_model_id', 'model_id'),
         Index('idx_model_contracts_contract_id', 'contract_id'),
     )
+
+
+class ModelToken(SharedBase, SharedTimestampMixin):
+    __tablename__ = 'model_tokens'
     
-    def __repr__(self) -> str:
-        return f"<ModelContract(model_id={self.model_id}, contract_id={self.contract_id})>"
+    id = Column(Integer, primary_key=True)
+    model_id = Column(Integer, ForeignKey('models.id', ondelete='CASCADE'), nullable=False)
+    token_id = Column(Integer, ForeignKey('tokens.id', ondelete='CASCADE'), nullable=False)
+    
+    # Note: created_at and updated_at provided by SharedTimestampMixin
+    
+    # Relationships
+    model = relationship("Model", back_populates="tokens")
+    token = relationship("Token", back_populates="models")
+    
+    # Constraints and indexes
+    __table_args__ = (
+        UniqueConstraint('model_id', 'token_id'),
+        Index('idx_model_tokens_model_id', 'model_id'),
+        Index('idx_model_tokens_token_id', 'token_id'),
+    )
 
 
-def validate_evm_address(address: str) -> bool:
-    """Validate EVM address format"""
-    import re
-    return bool(re.match(r'^0x[a-f0-9]{40}$', address.lower()))
-
-
-def validate_storage_prefix(prefix: str) -> bool:
-    """Validate storage prefix format (no leading/trailing slashes)"""
-    return not prefix.startswith('/') and not prefix.endswith('/')
+class ModelSource(SharedBase, SharedTimestampMixin):
+    __tablename__ = 'model_sources'
+    
+    id = Column(Integer, primary_key=True)
+    model_id = Column(Integer, ForeignKey('models.id', ondelete='CASCADE'), nullable=False)
+    source_id = Column(Integer, ForeignKey('sources.id', ondelete='CASCADE'), nullable=False)
+    
+    # Note: created_at and updated_at provided by SharedTimestampMixin
+    
+    # Relationships
+    model = relationship("Model", back_populates="sources")
+    source = relationship("Source", back_populates="models")
+    
+    # Constraints and indexes
+    __table_args__ = (
+        UniqueConstraint('model_id', 'source_id'),
+        Index('idx_model_sources_model_id', 'model_id'),
+        Index('idx_model_sources_source_id', 'source_id'),
+    )

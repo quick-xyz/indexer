@@ -39,15 +39,14 @@ class PoolSwapDetail(BaseModel):
     
     # Pricing denomination and value
     denom = Column(Enum(PricingDenomination, native_enum=False), nullable=False, index=True)
-    value = Column(NUMERIC(precision=20, scale=8), nullable=False)  # Base amount value in selected denom
+    value = Column(NUMERIC(precision=30, scale=8), nullable=False)  # Base amount value in selected denom
     price = Column(NUMERIC(precision=20, scale=8), nullable=False)  # Per-unit base token price in selected denom
     
-    # Pricing methodology and source
+    # Pricing methodology and source (UPDATED: consistent field name)
     price_method = Column(Enum(PricingMethod, native_enum=False), nullable=False, index=True)
     price_config_id = Column(Integer, nullable=True)  # Reference to pricing config used
     
-    # Additional metadata
-    calculated_at = Column(Integer, nullable=False, index=True)  # When calculation was performed
+    # Note: created_at and updated_at provided by BaseModel via TimestampMixin
     
     # Indexes for efficient querying
     __table_args__ = (
@@ -59,9 +58,6 @@ class PoolSwapDetail(BaseModel):
         
         # Efficient USD/AVAX value queries
         Index('idx_pool_swap_detail_denom_value', 'denom', 'value'),
-        
-        # Efficient time-based queries
-        Index('idx_pool_swap_detail_calculated_at', 'calculated_at'),
         
         # Efficient pricing config lookups
         Index('idx_pool_swap_detail_config', 'price_config_id'),

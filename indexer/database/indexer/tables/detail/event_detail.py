@@ -15,27 +15,27 @@ class PricingDenomination(enum.Enum):
 
 class EventDetail(BaseModel):
     """
-    USD and AVAX valuation details for general domain events.
+    Simple USD and AVAX valuation details for general events.
     
-    Shared table for events that only need valuation without pricing methodology:
-    - Transfers: Value of transferred tokens
-    - Liquidity: Value of liquidity provided/removed
-    - Rewards: Value of reward tokens received
-    - Positions: Value of position changes
+    Used for transfers, liquidity, rewards, positions and other events
+    that need basic valuation but don't require complex pricing methodology
+    tracking like swaps and trades.
     
     Located in indexer database since:
     - Contains model-specific valuation calculations
     - References model-specific domain events
-    - Updated by model-specific pricing services
+    - Updated by model-specific calculation services
     """
     __tablename__ = 'event_details'
     
-    # Link to any domain event
+    # Link to the domain event
     content_id = Column(DomainEventIdType(), nullable=False, index=True)
     
     # Pricing denomination and value
     denom = Column(Enum(PricingDenomination, native_enum=False), nullable=False, index=True)
-    value = Column(NUMERIC(precision=20, scale=8), nullable=False)  # Event value in selected denom
+    value = Column(NUMERIC(precision=30, scale=8), nullable=False)  # Event value in selected denom
+    
+    # Note: created_at and updated_at provided by BaseModel via TimestampMixin
     
     # Indexes for efficient querying
     __table_args__ = (

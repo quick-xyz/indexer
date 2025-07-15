@@ -1,6 +1,6 @@
-# indexer/database/indexer/tables/events/trade_detail.py
+# indexer/database/indexer/tables/detail/trade_detail.py
 
-from sqlalchemy import Column, UniqueConstraint, Index, Enum, String
+from sqlalchemy import Column, UniqueConstraint, Index, Enum
 from sqlalchemy.dialects.postgresql import NUMERIC
 import enum
 
@@ -37,11 +37,13 @@ class TradeDetail(BaseModel):
     
     # Pricing denomination and value
     denom = Column(Enum(PricingDenomination, native_enum=False), nullable=False, index=True)
-    value = Column(NUMERIC(precision=20, scale=8), nullable=False)  # Base amount value in selected denom
+    value = Column(NUMERIC(precision=30, scale=8), nullable=False)  # Base amount value in selected denom
     price = Column(NUMERIC(precision=20, scale=8), nullable=False)  # Per-unit base token price in selected denom
     
-    # NEW: Track pricing methodology for debugging and analysis
-    pricing_method = Column(Enum(TradePricingMethod, native_enum=False), nullable=False, index=True)
+    # UPDATED: Track pricing methodology for debugging and analysis (consistent field name)
+    price_method = Column(Enum(TradePricingMethod, native_enum=False), nullable=False, index=True)
+    
+    # Note: created_at and updated_at provided by BaseModel via TimestampMixin
     
     # Indexes for efficient querying
     __table_args__ = (
@@ -52,7 +54,7 @@ class TradeDetail(BaseModel):
         Index('idx_trade_detail_denom_value', 'denom', 'value'),
         
         # Efficient pricing method queries
-        Index('idx_trade_detail_pricing_method', 'pricing_method'),
+        Index('idx_trade_detail_pricing_method', 'price_method'),
         
         # Efficient content_id lookups (for joins)
         Index('idx_trade_detail_content_id', 'content_id'),
@@ -61,7 +63,7 @@ class TradeDetail(BaseModel):
     def __repr__(self) -> str:
         return (f"<TradeDetail(content_id={self.content_id}, "
                 f"denom={self.denom.value}, value={self.value}, "
-                f"price={self.price}, method={self.pricing_method.value})>")
+                f"price={self.price}, method={self.price_method.value})>")
     
     @property
     def is_usd_valuation(self) -> bool:
@@ -76,4 +78,4 @@ class TradeDetail(BaseModel):
     @property
     def is_direct_pricing(self) -> bool:
         """Check if this trade was directly priced (not global)"""
-        return self.pricing_method == TradePricingMethod.DIRECT
+        return self.price_method == TradePricingMethod.DIRECT
