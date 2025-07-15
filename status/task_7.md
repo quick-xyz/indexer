@@ -282,28 +282,42 @@ pricing backfill-comprehensive --asset 0xToken --days 30
 - ✅ **NEW**: `config.py` - All configuration tables updated with SharedTimestampMixin
 - ✅ **NEW**: `periods.py` - Updated with SharedTimestampMixin
 
-**Architecture Improvements**:
-- ✅ **Consistent Timestamps**: All tables now use proper timestamp mixins
-  - SharedBase tables: `SharedTimestampMixin` (created_at, updated_at)
-  - ModelBase tables: `BaseModel` includes `TimestampMixin` automatically
-- ✅ **Consistent Field Names**: `price_method` used across all detail tables
-- ✅ **Removed Manual Timestamps**: Eliminated `calculated_at`, `fetched_at`, manual `created_at` fields
-- ✅ **Removed Unnecessary Fields**: Cleaned up pool_pricing_config (quote_token_address, created_by, notes)
-- ✅ **Centralized Timestamp Handling**: SharedTimestampMixin for all shared database tables
-- ✅ **Database Placement**: Proper separation of shared vs indexer-specific data
+### **Phase 2: Repository Layer** - ✅ **COMPLETED**
 
-**Timestamp Strategy Finalized**:
-- ✅ **SharedTimestampMixin**: Used by all shared database tables (config, periods, block_prices, pool_pricing_config, price_vwap)
-- ✅ **BaseModel (TimestampMixin)**: Used by all indexer database tables (events, details, processing)
-- ✅ **Automatic handling**: No manual timestamp parameters needed in create methods
+**Status**: All repositories implemented and fixed for field name consistency
+**Fixed Existing Repositories**:
+- ✅ `PoolSwapDetailRepository` - Fixed `price_method` field name, removed `calculated_at` references
+- ✅ `TradeDetailRepository` - Fixed `pricing_method` → `price_method` field name consistency
+- ✅ `EventDetailRepository` - Already correct with BaseModel timestamps
+- ✅ `PoolPricingConfigRepository` - Fixed removed fields (quote_token_address, created_by, notes)
 
-**Design Decisions Made**:
-- ✅ **Decimal conversion**: All prices/values stored in human-readable format (Decimal)
-- ✅ **Protocol integration**: Volume tracking by protocol name from contract configuration
-- ✅ **Primary keys**: Composite keys for time/period + asset + denomination
-- ✅ **Clean configuration**: Simplified pool pricing config without unnecessary detail fields
+**New Repositories Created**:
+- ✅ `PriceVwapRepository` - Canonical pricing operations (shared database)
+  - Create/update canonical prices with VWAP calculation
+  - Time-based price lookup with minute-level precision
+  - Missing price detection for backfill operations
+  - Price statistics and asset coverage analysis
+- ✅ `AssetPriceRepository` - OHLC candle operations (indexer database) 
+  - Create/update OHLC candles from swap activity
+  - Period-based candle queries and range operations
+  - Missing period detection for gap filling
+  - Bulk candle creation for efficient batch processing
+- ✅ `AssetVolumeRepository` - Volume tracking by protocol (indexer database)
+  - Create/update volume records segmented by protocol
+  - Protocol summary statistics and ranking
+  - Period-based volume aggregation and analysis
+  - Bulk volume creation for efficient processing
 
-**Next**: Fix broken repositories and create new repositories for new tables
+**Repository Architecture Benefits**:
+- ✅ **Consistent Field Names**: All repositories use `price_method` consistently
+- ✅ **Automatic Timestamps**: All use BaseModel or SharedTimestampMixin appropriately
+- ✅ **Database Separation**: Shared vs indexer repositories properly organized
+- ✅ **Bulk Operations**: All new repositories support efficient batch processing
+- ✅ **Missing Data Detection**: Built-in gap detection for backfill operations
+- ✅ **Error Handling**: Comprehensive logging and graceful error handling
+- ✅ **Statistics Methods**: Coverage analysis and operational monitoring built-in
+
+**Next**: Address downstream CLI commands and service calls that use old repository signatures
 
 ---
 
