@@ -15,10 +15,17 @@ from .indexer.repositories.pool_swap_detail_repository import PoolSwapDetailRepo
 from .indexer.repositories.trade_detail_repository import TradeDetailRepository
 from .indexer.repositories.event_detail_repository import EventDetailRepository
 
+# Import calculation service repositories (indexer database)
+from .indexer.repositories.asset_price_repository import AssetPriceRepository
+from .indexer.repositories.asset_volume_repository import AssetVolumeRepository
+
 # Import shared database repositories
 from .shared.repositories.block_prices_repository import BlockPricesRepository
 from .shared.repositories.periods_repository import PeriodsRepository
 from .shared.repositories.pool_pricing_config_repository import PoolPricingConfigRepository
+
+# Import pricing service repositories (shared database)
+from .shared.repositories.price_vwap_repository import PriceVwapRepository
 
 # Import transfer/liquidity/reward repositories that extend DomainEventRepository
 from .indexer.repositories.transfer_repository import TransferRepository
@@ -37,6 +44,10 @@ class RepositoryManager:
     
     Integrates with dependency injection container and provides
     unified access to all database operations.
+    
+    Repository Distribution:
+    - Shared Database: Infrastructure, configuration, canonical pricing
+    - Indexer Database: Model-specific events, details, analytics
     """
     
     def __init__(self, 
@@ -78,8 +89,13 @@ class RepositoryManager:
         self.trade_details = TradeDetailRepository(self.model_db_manager)
         self.event_details = EventDetailRepository(self.model_db_manager)
         
+        # Calculation service repositories (indexer database)
+        self.asset_prices = AssetPriceRepository(self.model_db_manager)
+        self.asset_volumes = AssetVolumeRepository(self.model_db_manager)
+        
         log_with_context(
-            self.logger, logging.DEBUG, "Indexer database repositories initialized"
+            self.logger, logging.DEBUG, "Indexer database repositories initialized",
+            repository_count=11
         )
     
     def _init_shared_repositories(self):
@@ -89,108 +105,179 @@ class RepositoryManager:
         self.periods = PeriodsRepository(self.infrastructure_db_manager)
         self.pool_pricing_configs = PoolPricingConfigRepository(self.infrastructure_db_manager)
         
+        # Pricing service repositories (shared database)
+        self.price_vwap = PriceVwapRepository(self.infrastructure_db_manager)
+        
         log_with_context(
-            self.logger, logging.DEBUG, "Shared database repositories initialized"
+            self.logger, logging.DEBUG, "Shared database repositories initialized",
+            repository_count=4
         )
     
     @contextmanager
     def get_session(self):
-        """Get session for indexer database (model-specific data)"""
+        """Get session from model database manager (primary database)"""
         with self.model_db_manager.get_session() as session:
             yield session
     
     @contextmanager
     def get_shared_session(self):
-        """Get session for shared database (infrastructure data)"""
+        """Get session from shared database manager"""
         if not self.infrastructure_db_manager:
             raise RuntimeError("Shared database manager not available")
         
         with self.infrastructure_db_manager.get_session() as session:
             yield session
     
-    @contextmanager
-    def get_transaction(self):
-        """Get transaction context for indexer database"""
-        with self.model_db_manager.get_transaction() as session:
-            yield session
+    # =====================================================================
+    # REPOSITORY ACCESS METHODS
+    # =====================================================================
     
-    @contextmanager
-    def get_shared_transaction(self):
-        """Get transaction context for shared database"""
+    # Processing repositories
+    def get_processing_repository(self) -> ProcessingRepository:
+        """Get processing repository for batch processing operations"""
+        return self.processing
+    
+    # Domain event repositories (indexer database)
+    def get_trade_repository(self) -> TradeRepository:
+        """Get trade repository for trade event operations"""
+        return self.trades
+    
+    def get_pool_swap_repository(self) -> PoolSwapRepository:
+        """Get pool swap repository for swap event operations"""
+        return self.pool_swaps
+    
+    def get_position_repository(self) -> PositionRepository:
+        """Get position repository for position event operations"""
+        return self.positions
+    
+    def get_transfer_repository(self) -> TransferRepository:
+        """Get transfer repository for transfer event operations"""
+        return self.transfers
+    
+    def get_liquidity_repository(self) -> LiquidityRepository:
+        """Get liquidity repository for liquidity event operations"""
+        return self.liquidity
+    
+    def get_reward_repository(self) -> RewardRepository:
+        """Get reward repository for reward event operations"""
+        return self.rewards
+    
+    # Detail repositories (indexer database)
+    def get_pool_swap_detail_repository(self) -> PoolSwapDetailRepository:
+        """Get pool swap detail repository for swap pricing operations"""
+        return self.pool_swap_details
+    
+    def get_trade_detail_repository(self) -> TradeDetailRepository:
+        """Get trade detail repository for trade pricing operations"""
+        return self.trade_details
+    
+    def get_event_detail_repository(self) -> EventDetailRepository:
+        """Get event detail repository for event pricing operations"""
+        return self.event_details
+    
+    # Calculation service repositories (indexer database)
+    def get_asset_price_repository(self) -> AssetPriceRepository:
+        """Get asset price repository for OHLC candle operations"""
+        return self.asset_prices
+    
+    def get_asset_volume_repository(self) -> AssetVolumeRepository:
+        """Get asset volume repository for protocol volume metrics"""
+        return self.asset_volumes
+    
+    # Infrastructure repositories (shared database)
+    def get_block_prices_repository(self) -> BlockPricesRepository:
+        """Get block prices repository for chain-level pricing operations"""
         if not self.infrastructure_db_manager:
-            raise RuntimeError("Shared database manager not available")
-        
-        with self.infrastructure_db_manager.get_transaction() as session:
-            yield session
+            raise RuntimeError("Shared database manager required for block prices repository")
+        return self.block_prices
     
-    def has_shared_access(self) -> bool:
-        """Check if shared database access is available"""
-        return self.infrastructure_db_manager is not None
+    def get_periods_repository(self) -> PeriodsRepository:
+        """Get periods repository for time period management"""
+        if not self.infrastructure_db_manager:
+            raise RuntimeError("Shared database manager required for periods repository")
+        return self.periods
     
-    def get_event_repository(self, event_type: str):
-        """
-        Get appropriate repository for domain event type.
-        
-        Used by DomainEventWriter to route events to correct repositories.
-        """
-        event_type_lower = event_type.lower()
-        
-        if event_type_lower in ['trade']:
-            return self.trades
-        elif event_type_lower in ['poolswap', 'pool_swap']:
-            return self.pool_swaps
-        elif event_type_lower in ['transfer']:
-            return self.transfers
-        elif event_type_lower in ['liquidity']:
-            return self.liquidity
-        elif event_type_lower in ['reward']:
-            return self.rewards
-        elif event_type_lower in ['position']:
-            return self.positions
-        else:
-            raise ValueError(f"Unknown event type: {event_type}")
+    def get_pool_pricing_config_repository(self) -> PoolPricingConfigRepository:
+        """Get pool pricing config repository for pricing configuration"""
+        if not self.infrastructure_db_manager:
+            raise RuntimeError("Shared database manager required for pool pricing config repository")
+        return self.pool_pricing_configs
     
-    def health_check(self) -> dict:
-        """
-        Perform health check on database connections.
-        
-        Returns status of both indexer and shared database connections.
-        """
-        health_status = {
-            'indexer_db': False,
-            'shared_db': False,
-            'errors': []
+    # Pricing service repositories (shared database)
+    def get_price_vwap_repository(self) -> PriceVwapRepository:
+        """Get price VWAP repository for canonical pricing operations"""
+        if not self.infrastructure_db_manager:
+            raise RuntimeError("Shared database manager required for price VWAP repository")
+        return self.price_vwap
+    
+    # =====================================================================
+    # REPOSITORY STATUS AND MONITORING
+    # =====================================================================
+    
+    def get_repository_status(self) -> dict:
+        """Get status information about all repositories"""
+        status = {
+            'model_database': {
+                'url': self.model_db_manager.config.url.split('/')[-1] if self.model_db_manager.config.url else "unknown",
+                'repositories': [
+                    'processing', 'trades', 'pool_swaps', 'positions', 'transfers', 
+                    'liquidity', 'rewards', 'pool_swap_details', 'trade_details', 
+                    'event_details', 'asset_prices', 'asset_volumes'
+                ]
+            }
         }
         
-        # Test indexer database connection
+        if self.infrastructure_db_manager:
+            status['shared_database'] = {
+                'url': self.infrastructure_db_manager.config.url.split('/')[-1] if self.infrastructure_db_manager.config.url else "unknown",
+                'repositories': [
+                    'block_prices', 'periods', 'pool_pricing_configs', 'price_vwap'
+                ]
+            }
+        else:
+            status['shared_database'] = {
+                'status': 'not_configured',
+                'repositories': []
+            }
+        
+        return status
+    
+    def validate_repository_connections(self) -> bool:
+        """Validate that all repository database connections are working"""
         try:
-            with self.get_session() as session:
-                from sqlalchemy import text
-                result = session.execute(text("SELECT 1")).fetchone()
-                health_status['indexer_db'] = result[0] == 1
+            # Test model database connection
+            with self.model_db_manager.get_session() as session:
+                session.execute("SELECT 1").scalar()
+            
+            # Test shared database connection if available
+            if self.infrastructure_db_manager:
+                with self.infrastructure_db_manager.get_session() as session:
+                    session.execute("SELECT 1").scalar()
+            
+            log_with_context(
+                self.logger, logging.INFO, "Repository connections validated successfully"
+            )
+            return True
+            
         except Exception as e:
-            health_status['errors'].append(f"Indexer DB error: {str(e)}")
-        
-        # Test shared database connection (if available)
-        if self.has_shared_access():
-            try:
-                with self.get_shared_session() as session:
-                    from sqlalchemy import text
-                    result = session.execute(text("SELECT 1")).fetchone()
-                    health_status['shared_db'] = result[0] == 1
-            except Exception as e:
-                health_status['errors'].append(f"Shared DB error: {str(e)}")
-        
-        return health_status
-
-
-# Legacy compatibility - keeping the old BaseRepository import for any code that still uses it
-# This will be removed once all imports are updated
-from .base_repository import BaseRepository, DomainEventBaseRepository, ProcessingBaseRepository
-
-__all__ = [
-    'RepositoryManager',
-    'BaseRepository',
-    'DomainEventBaseRepository', 
-    'ProcessingBaseRepository'
-]
+            log_with_context(
+                self.logger, logging.ERROR, "Repository connection validation failed",
+                error=str(e)
+            )
+            return False
+    
+    # =====================================================================
+    # LEGACY COMPATIBILITY METHODS
+    # =====================================================================
+    
+    def get_trade_detail_repo(self) -> TradeDetailRepository:
+        """Legacy compatibility method for trade detail repository access"""
+        return self.get_trade_detail_repository()
+    
+    def get_pool_swap_detail_repo(self) -> PoolSwapDetailRepository:
+        """Legacy compatibility method for pool swap detail repository access"""
+        return self.get_pool_swap_detail_repository()
+    
+    def get_event_detail_repo(self) -> EventDetailRepository:
+        """Legacy compatibility method for event detail repository access"""
+        return self.get_event_detail_repository()

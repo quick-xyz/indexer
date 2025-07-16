@@ -29,37 +29,20 @@ def pool_pricing():
               help='Mark as primary pool for canonical pricing')
 @click.option('--end-block', type=int, 
               help='End block for this configuration (optional)')
-@click.option('--quote-token', 
-              help='Quote token address for DIRECT pricing')
-@click.option('--quote-type', 
-              type=click.Choice(['AVAX', 'USD', 'OTHER']),
-              help='Quote token type for DIRECT pricing')
-@click.option('--notes', 
-              help='Configuration notes (optional)')
 @click.pass_context
 def add(ctx, model_name, pool_address, start_block, strategy, primary, 
-        end_block, quote_token, quote_type, notes):
+        end_block):
     """Add a new pool pricing configuration
     
     Examples:
-        # Add AVAX-quoted pool with direct pricing
+        # Add pool with direct pricing
         pool-pricing add blub_test 0x1234... 12345678 \\
-            --strategy DIRECT --quote-token 0xB31f66AA3C1e785363F0875A1B74E27b85FD66c7 \\
-            --quote-type AVAX --primary
-        
-        # Add USD equivalent pool  
-        pool-pricing add blub_test 0x5678... 12345678 \\
-            --strategy DIRECT --quote-token 0xA7D7079b0FEaD91F3e65f86E8915Cb59c1a4C664 \\
-            --quote-type USD
+            --strategy DIRECT --primary
         
         # Add global pricing pool
         pool-pricing add blub_test 0x9abc... 12345678 --strategy GLOBAL
     """
     cli_context = ctx.obj['cli_context']
-    
-    # Validate direct pricing requirements
-    if strategy == 'DIRECT' and (not quote_token or not quote_type):
-        raise click.BadParameter("DIRECT pricing strategy requires --quote-token and --quote-type")
     
     try:
         with cli_context.infrastructure_db_manager.get_session() as session:
@@ -85,18 +68,14 @@ def add(ctx, model_name, pool_address, start_block, strategy, primary,
             
             # Create configuration
             repo = PoolPricingConfigRepository(cli_context.infrastructure_db_manager)
-            config = repo.create_config(
+            config = repo.create_pool_pricing_config(
                 session=session,
                 model_id=model.id,
                 contract_id=contract.id,
                 start_block=start_block,
-                pricing_strategy=strategy,
-                primary_pool=primary,
+                pricing_strategy=strategy.lower(),
+                pricing_pool=primary,
                 end_block=end_block,
-                quote_token_address=quote_token,
-                quote_token_type=quote_type,
-                created_by=ctx.obj.get('user', 'cli'),
-                notes=notes
             )
             
             session.commit()
@@ -107,8 +86,6 @@ def add(ctx, model_name, pool_address, start_block, strategy, primary,
             click.echo(f"   Strategy: {strategy}")
             click.echo(f"   Primary: {'Yes' if primary else 'No'}")
             click.echo(f"   Block Range: {start_block} - {end_block or '∞'}")
-            if quote_token:
-                click.echo(f"   Quote Token: {quote_token} ({quote_type})")
             
     except Exception as e:
         raise click.ClickException(f"Failed to create configuration: {e}")
@@ -118,14 +95,9 @@ def add(ctx, model_name, pool_address, start_block, strategy, primary,
 @click.argument('model_name')
 @click.argument('pool_address')
 @click.argument('end_block', type=int)
-@click.option('--notes', help='Notes about why configuration was closed')
 @click.pass_context
-def close(ctx, model_name, pool_address, end_block, notes):
+def close(ctx, model_name, pool_address, end_block):
     """Close the active configuration for a pool
-    
-    Examples:
-        pool-pricing close blub_test 0x1234... 12400000 \\
-            --notes "Pool deprecated, switching to new pool"
     """
     cli_context = ctx.obj['cli_context']
     
@@ -139,7 +111,6 @@ def close(ctx, model_name, pool_address, end_block, notes):
                 model_name=model_name,
                 pool_address=pool_address,
                 end_block=end_block,
-                notes=notes
             )
             
             if success:
@@ -209,10 +180,6 @@ def show(ctx, model_name, pool_address, block):
                 click.echo(f"     Block Range: {config.start_block} - {end_str}")
                 click.echo(f"     Strategy: {config.pricing_strategy}")
                 click.echo(f"     Primary Pool: {config.primary_pool}")
-                if config.quote_token_address:
-                    click.echo(f"     Quote Token: {config.quote_token_address} ({config.quote_token_type})")
-                if config.notes:
-                    click.echo(f"     Notes: {config.notes}")
             else:
                 click.echo("   No Configuration Found")
                 click.echo("     Default: GLOBAL pricing strategy")
@@ -299,9 +266,6 @@ def list_configs(ctx, model_name, strategy, active_only):
                 primary_str = " [PRIMARY]" if config.primary_pool else ""
                 
                 click.echo(f"   {config.start_block:>8} - {end_str:<8} | {config.pricing_strategy:<8} | {status}{primary_str}")
-                
-                if config.quote_token_address:
-                    click.echo(f"            Quote: {config.quote_token_address} ({config.quote_token_type})")
             
     except Exception as e:
         raise click.ClickException(f"Failed to list configurations: {e}")
@@ -359,10 +323,6 @@ def primary_pools(ctx, model_name, block):
                 click.echo(f"🏊 {config.contract.name} ({config.contract.address})")
                 click.echo(f"   Block Range: {config.start_block} - {end_str}")
                 click.echo(f"   Strategy: {config.pricing_strategy}")
-                if config.quote_token_address:
-                    click.echo(f"   Quote Token: {config.quote_token_address} ({config.quote_token_type})")
-                if config.notes:
-                    click.echo(f"   Notes: {config.notes}")
                 click.echo()
             
     except Exception as e:

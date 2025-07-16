@@ -108,7 +108,6 @@ contracts:
         base_token: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
         fee_collector: "0x60233142befce7d4ed73e7793ead2d6190fccaab"
     pricing_strategy_default: "direct_avax"
-    quote_token_address: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
     pricing_start_block: 58220057
 
   - address: "0xcb4c6fdcfb7d868df5f1e3d0018438205b243fd6"
@@ -127,7 +126,6 @@ contracts:
         token_y: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
         base_token: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
     pricing_strategy_default: "direct_avax"
-    quote_token_address: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
     pricing_start_block: 58220284
 
   - address: "0xa87866ba0d82155d0ff36ad06e555aebc98595ca"
@@ -146,7 +144,6 @@ contracts:
         token1: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
         base_token: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
     pricing_strategy_default: "direct_avax"
-    quote_token_address: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
     pricing_start_block: 58220990
 
   - address: "0x819fe65a885d40493f4b91e8a10e242018758432"
@@ -166,7 +163,6 @@ contracts:
         base_token: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
         fee_collector: "0x60233142befce7d4ed73e7793ead2d6190fccaab"
     pricing_strategy_default: "direct_avax"
-    quote_token_address: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
     pricing_start_block: 58299144
 
   - address: "0x3fc41c1ae339322ab87b6ba48e30781d88a304d4"
@@ -185,7 +181,6 @@ contracts:
         token1: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
         base_token: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
     pricing_strategy_default: "direct_avax"
-    quote_token_address: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
     pricing_start_block: 58220991
 
   - address: "0x45a62b090df48243f12a21897e7ed91863e2c86b"

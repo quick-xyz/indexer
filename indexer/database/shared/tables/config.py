@@ -48,6 +48,13 @@ class Contract(SharedBase, SharedTimestampMixin):
     description = Column(Text)                     # Description of contract purpose
     status = Column(String(50), nullable=False, default='active')  # "active", "deprecated"
     
+    # RESTORED MISSING FIELDS:
+    project = Column(String(255))                  # Project/protocol identifier - "Blub", "LFJ", "Pharaoh"
+    
+    # Configuration fields (JSONB for nested structures) - RESTORED FROM CLI USAGE
+    decode_config = Column(JSONB)                  # ABI configuration: {"abi_dir": "...", "abi_file": "..."}
+    transform_config = Column(JSONB)               # Transformer config: {"name": "...", "instantiate": {...}}
+    
     # ENHANCED: Global pricing defaults for pools (embedded in contracts table)
     pricing_strategy_default = Column(String(50), nullable=True)  # "direct_avax", "direct_usd", "global"
     pricing_start_block = Column(Integer, nullable=True)  # When pricing config becomes valid
@@ -63,6 +70,7 @@ class Contract(SharedBase, SharedTimestampMixin):
     __table_args__ = (
         Index('idx_contracts_address', 'address'),
         Index('idx_contracts_type', 'type'),
+        Index('idx_contracts_project', 'project'),  # RESTORED INDEX
         Index('idx_contracts_status', 'status'),
         Index('idx_contracts_pricing_strategy', 'pricing_strategy_default'),
     )

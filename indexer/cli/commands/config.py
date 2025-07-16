@@ -275,7 +275,6 @@ def _import_shared_config_data(ctx, config_data: Dict[str, Any]) -> None:
                         
                         # Pool pricing defaults (unchanged)
                         pricing_strategy_default=contract_data.get('pricing_strategy_default'),
-                        quote_token_address=contract_data.get('quote_token_address', '').lower() if contract_data.get('quote_token_address') else None,
                         pricing_start_block=contract_data.get('pricing_start_block'),
                         pricing_end_block=contract_data.get('pricing_end_block'),
                         
