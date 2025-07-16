@@ -3,9 +3,11 @@
 from .block_prices_repository import BlockPricesRepository
 from .periods_repository import PeriodsRepository
 from .pool_pricing_config_repository import PoolPricingConfigRepository
+from .price_vwap_repository import PriceVwapRepository
 
 __all__ = [
     'BlockPricesRepository',
     'PeriodsRepository', 
-    'PoolPricingConfigRepository'
+    'PoolPricingConfigRepository',
+    'PriceVwapRepository'
 ]

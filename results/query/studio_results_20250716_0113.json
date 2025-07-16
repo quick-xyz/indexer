@@ -1,0 +1,32 @@
+[
+  {
+    "id": "1",
+    "address": "0xe8afa8eb383ced1696c2d8ceb080f47df48f11af",
+    "name": "Treasury",
+    "type": "wallet"
+  },
+  {
+    "id": "2",
+    "address": "0x60ae616a2155ee3d9a68541ba4544862310933d4",
+    "name": "JoeRouter02",
+    "type": "router"
+  },
+  {
+    "id": "3",
+    "address": "0x18556da13313f3532c54711497a8fedac273220e",
+    "name": "LBRouterV2.2",
+    "type": "router"
+  },
+  {
+    "id": "4",
+    "address": "0xaaa45c8f5ef92a000a121d102f4e89278a711faa",
+    "name": "V1Router",
+    "type": "router"
+  },
+  {
+    "id": "5",
+    "address": "0x38575264810371c15f0e5744fa2ab29cdef7245d",
+    "name": "DexRouter",
+    "type": "router"
+  }
+]

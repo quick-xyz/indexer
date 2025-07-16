@@ -16,7 +16,7 @@ from ..database.connection import DatabaseManager
 from ..types import DatabaseConfig
 from ..core.logging_config import IndexerLogger, log_with_context
 from ..core.secrets_service import SecretsService
-from ..services.pricing_service_runner import PricingServiceRunner
+from ..services.service_runner import ServiceRunner
 from ..database.migration_manager import MigrationManager
 import logging
 
@@ -172,9 +172,9 @@ class CLIContext:
     # Service Factory Methods
     # These create service instances for CLI operations
     
-    def get_pricing_service_runner(self, model_name: Optional[str] = None):
-        """Get PricingServiceRunner for pricing operations"""
-        return PricingServiceRunner(model_name=model_name)
+    def get_service_runner(self, model_name: Optional[str] = None):
+        """Get ServiceRunner for service operations"""
+        return ServiceRunner(model_name=model_name)
     
     def shutdown(self):
         """Shutdown all database connections"""
