@@ -1,7 +1,8 @@
 # indexer/database/shared/repositories/periods_repository.py
 
 from typing import List, Optional, Tuple, Dict
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, desc, asc, func
 from sqlalchemy.exc import IntegrityError
@@ -380,3 +381,305 @@ class PeriodsRepository(BaseRepository):
             raise
         
         return created_count, skipped_count
+
+    def get_periods_in_timeframe(
+        self,
+        session: Session,
+        start_time: datetime,
+        end_time: datetime,
+        period_type: PeriodType
+    ) -> List[Period]:
+        """
+        Get periods within a datetime timeframe.
+        
+        Used by PricingService.update_canonical_pricing() and CalculationService methods
+        to get periods for processing within specific time ranges.
+        """
+        try:
+            # Convert datetime to timestamp
+            start_timestamp = int(start_time.timestamp())
+            end_timestamp = int(end_time.timestamp())
+            
+            periods = session.query(Period).filter(
+                and_(
+                    Period.period_type == period_type,
+                    Period.timestamp >= start_time,
+                    Period.timestamp <= end_time
+                )
+            ).order_by(Period.timestamp).all()
+            
+            log_with_context(
+                self.logger, logging.DEBUG, "Periods retrieved in timeframe",
+                period_type=period_type.value,
+                start_time=start_time.isoformat(),
+                end_time=end_time.isoformat(),
+                periods_found=len(periods)
+            )
+            
+            return periods
+            
+        except Exception as e:
+            log_with_context(
+                self.logger, logging.ERROR, "Error getting periods in timeframe",
+                period_type=period_type.value,
+                start_time=start_time.isoformat(),
+                end_time=end_time.isoformat(),
+                error=str(e)
+            )
+            return []
+
+    def get_periods_since(
+        self,
+        session: Session,
+        cutoff_time: datetime,
+        period_type: PeriodType
+    ) -> List[Period]:
+        """
+        Get all periods since a cutoff time.
+        
+        Used by CalculationService.update_event_valuations() and update_analytics()
+        to get recent periods for processing.
+        """
+        try:
+            periods = session.query(Period).filter(
+                and_(
+                    Period.period_type == period_type,
+                    Period.timestamp >= cutoff_time
+                )
+            ).order_by(Period.timestamp).all()
+            
+            log_with_context(
+                self.logger, logging.DEBUG, "Periods retrieved since cutoff",
+                period_type=period_type.value,
+                cutoff_time=cutoff_time.isoformat(),
+                periods_found=len(periods)
+            )
+            
+            return periods
+            
+        except Exception as e:
+            log_with_context(
+                self.logger, logging.ERROR, "Error getting periods since cutoff",
+                period_type=period_type.value,
+                cutoff_time=cutoff_time.isoformat(),
+                error=str(e)
+            )
+            return []
+
+    def get_periods_by_ids(
+        self,
+        session: Session,
+        period_ids: List[int]
+    ) -> List[Period]:
+        """
+        Get periods by their IDs.
+        
+        Used by CalculationService.update_analytics() to get periods
+        for missing analytics processing.
+        """
+        try:
+            periods = session.query(Period).filter(
+                Period.id.in_(period_ids)
+            ).order_by(Period.timestamp).all()
+            
+            log_with_context(
+                self.logger, logging.DEBUG, "Periods retrieved by IDs",
+                requested_ids=len(period_ids),
+                periods_found=len(periods)
+            )
+            
+            return periods
+            
+        except Exception as e:
+            log_with_context(
+                self.logger, logging.ERROR, "Error getting periods by IDs",
+                requested_ids=len(period_ids),
+                error=str(e)
+            )
+            return []
+
+    def get_recent_periods(
+        self,
+        session: Session,
+        period_type: PeriodType,
+        limit: int = 1000
+    ) -> List[Period]:
+        """
+        Get recent periods of a specific type.
+        
+        Used by various service methods for gap detection and recent processing.
+        """
+        try:
+            periods = session.query(Period).filter(
+                Period.period_type == period_type
+            ).order_by(desc(Period.timestamp)).limit(limit).all()
+            
+            log_with_context(
+                self.logger, logging.DEBUG, "Recent periods retrieved",
+                period_type=period_type.value,
+                limit=limit,
+                periods_found=len(periods)
+            )
+            
+            return periods
+            
+        except Exception as e:
+            log_with_context(
+                self.logger, logging.ERROR, "Error getting recent periods",
+                period_type=period_type.value,
+                limit=limit,
+                error=str(e)
+            )
+            return []
+
+    def create_periods_to_present(
+        self,
+        session: Session,
+        period_type: PeriodType,
+        rpc_client
+    ) -> int:
+        """
+        Create periods from the latest existing period to present time.
+        
+        Enhanced version that integrates with RPC client for block-timestamp lookup.
+        Used by PricingService.update_periods_to_present().
+        """
+        try:
+            # Get the latest existing period
+            latest_period = self.get_latest_period(session, period_type)
+            
+            if latest_period:
+                start_time = latest_period.time_close + 1
+                start_block = latest_period.block_close + 1
+            else:
+                # No periods exist - start from a reasonable genesis point
+                # You may want to customize this based on your chain
+                start_time = 1640995200  # Jan 1, 2022 as example
+                start_block = 1
+            
+            # Get current block info from RPC
+            current_block_info = rpc_client.get_latest_block()
+            current_time = current_block_info.get('timestamp', int(datetime.now(timezone.utc).timestamp()))
+            current_block = current_block_info.get('number', start_block)
+            
+            # Calculate period duration based on type
+            period_duration = self._get_period_duration(period_type)
+            
+            # Generate periods
+            created_count = 0
+            period_start_time = start_time
+            period_start_block = start_block
+            
+            while period_start_time < current_time:
+                period_end_time = period_start_time + period_duration - 1
+                
+                # Estimate end block (simplified - you may want more sophisticated block time calculation)
+                estimated_block_duration = max(1, (current_block - start_block) * period_duration // (current_time - start_time))
+                period_end_block = period_start_block + estimated_block_duration
+                
+                # Create period
+                period = self.create_period(
+                    session,
+                    period_type=period_type,
+                    time_open=period_start_time,
+                    time_close=period_end_time,
+                    block_open=period_start_block,
+                    block_close=period_end_block,
+                    is_complete=period_end_time < current_time
+                )
+                
+                if period:
+                    created_count += 1
+                
+                # Move to next period
+                period_start_time = period_end_time + 1
+                period_start_block = period_end_block + 1
+            
+            log_with_context(
+                self.logger, logging.INFO, "Periods created to present",
+                period_type=period_type.value,
+                created_count=created_count
+            )
+            
+            return created_count
+            
+        except Exception as e:
+            log_with_context(
+                self.logger, logging.ERROR, "Error creating periods to present",
+                period_type=period_type.value,
+                error=str(e)
+            )
+            return 0
+
+    def _get_period_duration(self, period_type: PeriodType) -> int:
+        """Get duration in seconds for a period type"""
+        durations = {
+            PeriodType.ONE_MINUTE: 60,
+            PeriodType.FIVE_MINUTE: 300,
+            PeriodType.ONE_HOUR: 3600,
+            PeriodType.ONE_DAY: 86400
+        }
+        return durations.get(period_type, 300)  # Default to 5 minutes
+
+    def get_period_gaps(
+        self,
+        session: Session,
+        period_type: PeriodType,
+        start_time: datetime,
+        end_time: datetime
+    ) -> List[Tuple[datetime, datetime]]:
+        """
+        Find gaps in period coverage within a time range.
+        
+        Returns list of (gap_start, gap_end) datetime tuples.
+        Used for gap detection and backfill operations.
+        """
+        try:
+            # Convert to timestamps for comparison
+            start_timestamp = int(start_time.timestamp())
+            end_timestamp = int(end_time.timestamp())
+            
+            # Get existing periods in range
+            periods = session.query(Period).filter(
+                and_(
+                    Period.period_type == period_type,
+                    Period.timestamp >= start_time,
+                    Period.timestamp <= end_time
+                )
+            ).order_by(Period.timestamp).all()
+            
+            if not periods:
+                return [(start_time, end_time)]
+            
+            gaps = []
+            current_time = start_time
+            
+            for period in periods:
+                # Check for gap before this period
+                if period.timestamp > current_time:
+                    gaps.append((current_time, period.timestamp))
+                
+                # Move current time to end of this period
+                period_duration = self._get_period_duration(period_type)
+                period_end = period.timestamp + timedelta(seconds=period_duration)
+                current_time = max(current_time, period_end)
+            
+            # Check for gap after last period
+            if current_time < end_time:
+                gaps.append((current_time, end_time))
+            
+            log_with_context(
+                self.logger, logging.DEBUG, "Period gaps identified",
+                period_type=period_type.value,
+                gaps_found=len(gaps)
+            )
+            
+            return gaps
+            
+        except Exception as e:
+            log_with_context(
+                self.logger, logging.ERROR, "Error finding period gaps",
+                period_type=period_type.value,
+                error=str(e)
+            )
+            return []

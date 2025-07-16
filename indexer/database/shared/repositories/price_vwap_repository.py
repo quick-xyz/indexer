@@ -11,6 +11,7 @@ from ...connection import InfrastructureDatabaseManager
 from ....core.logging_config import IndexerLogger, log_with_context
 from ....types import EvmAddress
 from ...base_repository import BaseRepository
+from ....database.indexer.tables.detail.pool_swap_detail import PricingDenomination
 
 import logging
 
@@ -33,25 +34,27 @@ class PriceVwapRepository(BaseRepository):
     def create_canonical_price(
         self,
         session: Session,
-        time: datetime,
-        asset: str,
-        denom: str,
-        base_volume: Decimal,
-        quote_volume: Decimal,
-        price_period: Decimal,
-        price_vwap: Decimal
+        asset_address: str,
+        timestamp_minute: int,
+        denomination: PricingDenomination,
+        price: Decimal,
+        volume: Decimal,
+        pool_count: int,
+        swap_count: int
     ) -> Optional[PriceVwap]:
         """Create a new canonical price record"""
         try:
+            # Convert timestamp to datetime
+            timestamp = datetime.fromtimestamp(timestamp_minute, tz=timezone.utc)
+            
             price_record = PriceVwap(
-                time=time,
-                asset=asset.lower(),
-                denom=denom.lower(),
-                base_volume=float(base_volume),
-                quote_volume=float(quote_volume),
-                price_period=float(price_period),
-                price_vwap=float(price_vwap)
-                # Note: created_at and updated_at handled automatically by SharedTimestampMixin
+                timestamp_minute=timestamp,
+                asset_address=asset_address.lower(),
+                denomination=denomination.value,
+                price=float(price),
+                volume=float(volume),
+                pool_count=pool_count,
+                swap_count=swap_count
             )
             
             session.add(price_record)
@@ -59,11 +62,11 @@ class PriceVwapRepository(BaseRepository):
             
             log_with_context(
                 self.logger, logging.DEBUG, "Canonical price created",
-                time=time.isoformat(),
-                asset=asset,
-                denom=denom,
-                price_vwap=str(price_vwap),
-                base_volume=str(base_volume)
+                asset_address=asset_address,
+                timestamp_minute=timestamp_minute,
+                denomination=denomination.value,
+                price=float(price),
+                volume=float(volume)
             )
             
             return price_record
@@ -71,9 +74,9 @@ class PriceVwapRepository(BaseRepository):
         except Exception as e:
             log_with_context(
                 self.logger, logging.ERROR, "Error creating canonical price",
-                time=time.isoformat() if time else None,
-                asset=asset,
-                denom=denom,
+                asset_address=asset_address,
+                timestamp_minute=timestamp_minute,
+                denomination=denomination.value if denomination else None,
                 error=str(e)
             )
             raise
@@ -82,155 +85,188 @@ class PriceVwapRepository(BaseRepository):
         self, 
         session: Session, 
         asset_address: str, 
-        timestamp: datetime, 
-        denom: str = 'usd'
+        timestamp_minute: int,
+        denomination: PricingDenomination
     ) -> Optional[PriceVwap]:
-        """Get canonical price for an asset at a specific timestamp"""
+        """Get canonical price for an asset at a specific timestamp minute"""
         try:
-            # Floor timestamp to minute for lookup
-            minute_timestamp = timestamp.replace(second=0, microsecond=0)
+            timestamp = datetime.fromtimestamp(timestamp_minute, tz=timezone.utc)
             
             return session.query(PriceVwap).filter(
-                PriceVwap.time == minute_timestamp,
-                PriceVwap.asset == asset_address.lower(),
-                PriceVwap.denom == denom.lower()
-            ).first()
+                and_(
+                    PriceVwap.asset_address == asset_address.lower(),
+                    PriceVwap.timestamp_minute == timestamp,
+                    PriceVwap.denomination == denomination.value
+                )
+            ).one_or_none()
             
         except Exception as e:
             log_with_context(
                 self.logger, logging.ERROR, "Error getting canonical price",
-                asset=asset_address,
-                timestamp=timestamp.isoformat(),
-                denom=denom,
+                asset_address=asset_address,
+                timestamp_minute=timestamp_minute,
+                denomination=denomination.value,
                 error=str(e)
             )
-            return None
+            raise
     
-    def get_price_before_timestamp(
+    def find_canonical_pricing_gaps(
         self, 
         session: Session, 
         asset_address: str, 
-        timestamp: datetime, 
-        denom: str = 'usd'
-    ) -> Optional[PriceVwap]:
-        """Get the most recent canonical price before a timestamp"""
+        denomination: PricingDenomination,
+        limit: Optional[int] = None
+    ) -> List[int]:
+        """
+        Find timestamp minutes that are missing canonical pricing.
+        
+        This could be implemented in multiple ways depending on your needs:
+        1. Find gaps between min/max existing timestamps
+        2. Find gaps relative to available period data
+        3. Find gaps relative to available swap data
+        
+        This implementation finds gaps relative to 1-minute periods.
+        """
         try:
-            minute_timestamp = timestamp.replace(second=0, microsecond=0)
+            from ...shared.tables.periods import Period, PeriodType
             
-            return session.query(PriceVwap).filter(
-                PriceVwap.time <= minute_timestamp,
-                PriceVwap.asset == asset_address.lower(),
-                PriceVwap.denom == denom.lower()
-            ).order_by(PriceVwap.time.desc()).first()
+            # Get existing canonical price timestamps for this asset/denom
+            existing_timestamps = session.query(PriceVwap.timestamp_minute).filter(
+                and_(
+                    PriceVwap.asset_address == asset_address.lower(),
+                    PriceVwap.denomination == denomination.value
+                )
+            ).subquery()
             
-        except Exception as e:
+            # Find 1-minute periods that don't have canonical pricing
+            missing_periods_query = session.query(Period.timestamp).filter(
+                and_(
+                    Period.period_type == PeriodType.ONE_MINUTE,
+                    ~Period.timestamp.in_(existing_timestamps)
+                )
+            ).order_by(desc(Period.timestamp))
+            
+            if limit:
+                missing_periods_query = missing_periods_query.limit(limit)
+            
+            missing_periods = missing_periods_query.all()
+            
+            # Convert to timestamp minutes
+            missing_timestamp_minutes = [
+                int(period.timestamp.timestamp()) for period in missing_periods
+            ]
+            
             log_with_context(
-                self.logger, logging.ERROR, "Error getting price before timestamp",
-                asset=asset_address,
-                timestamp=timestamp.isoformat(),
-                denom=denom,
-                error=str(e)
+                self.logger, logging.DEBUG, "Found canonical pricing gaps",
+                asset_address=asset_address,
+                denomination=denomination.value,
+                gaps_found=len(missing_timestamp_minutes)
             )
-            return None
-    
-    def get_price_range(
-        self, 
-        session: Session, 
-        asset_address: str, 
-        start_time: datetime, 
-        end_time: datetime, 
-        denom: str = 'usd'
-    ) -> List[PriceVwap]:
-        """Get canonical prices for a time range"""
-        try:
-            return session.query(PriceVwap).filter(
-                PriceVwap.time.between(start_time, end_time),
-                PriceVwap.asset == asset_address.lower(),
-                PriceVwap.denom == denom.lower()
-            ).order_by(PriceVwap.time).all()
+            
+            return missing_timestamp_minutes
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting price range",
-                asset=asset_address,
-                start_time=start_time.isoformat(),
-                end_time=end_time.isoformat(),
-                denom=denom,
+                self.logger, logging.ERROR, "Error finding canonical pricing gaps",
+                asset_address=asset_address,
+                denomination=denomination.value,
                 error=str(e)
             )
             return []
     
-    def get_latest_price(
+    def get_canonical_pricing_stats(
         self, 
         session: Session, 
         asset_address: str, 
-        denom: str = 'usd'
-    ) -> Optional[PriceVwap]:
-        """Get the most recent canonical price for an asset"""
+        denomination: PricingDenomination
+    ) -> Dict:
+        """Get statistics about canonical pricing coverage for an asset"""
         try:
-            return session.query(PriceVwap).filter(
-                PriceVwap.asset == asset_address.lower(),
-                PriceVwap.denom == denom.lower()
-            ).order_by(PriceVwap.time.desc()).first()
+            stats = session.query(
+                func.count(PriceVwap.timestamp_minute).label('price_count'),
+                func.min(PriceVwap.timestamp_minute).label('earliest_price'),
+                func.max(PriceVwap.timestamp_minute).label('latest_price'),
+                func.avg(PriceVwap.price).label('avg_price'),
+                func.min(PriceVwap.price).label('min_price'),
+                func.max(PriceVwap.price).label('max_price'),
+                func.sum(PriceVwap.volume).label('total_volume'),
+                func.avg(PriceVwap.pool_count).label('avg_pool_count'),
+                func.sum(PriceVwap.swap_count).label('total_swaps')
+            ).filter(
+                and_(
+                    PriceVwap.asset_address == asset_address.lower(),
+                    PriceVwap.denomination == denomination.value
+                )
+            ).first()
+            
+            return {
+                'price_count': stats.price_count or 0,
+                'earliest_price': stats.earliest_price.isoformat() if stats.earliest_price else None,
+                'latest_price': stats.latest_price.isoformat() if stats.latest_price else None,
+                'avg_price': float(stats.avg_price) if stats.avg_price else 0.0,
+                'min_price': float(stats.min_price) if stats.min_price else 0.0,
+                'max_price': float(stats.max_price) if stats.max_price else 0.0,
+                'total_volume': float(stats.total_volume) if stats.total_volume else 0.0,
+                'avg_pool_count': float(stats.avg_pool_count) if stats.avg_pool_count else 0.0,
+                'total_swaps': int(stats.total_swaps) if stats.total_swaps else 0
+            }
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting latest price",
-                asset=asset_address,
-                denom=denom,
+                self.logger, logging.ERROR, "Error getting canonical pricing stats",
+                asset_address=asset_address,
+                denomination=denomination.value,
+                error=str(e)
+            )
+            return {}
+    
+    def get_latest_canonical_price_timestamp(
+        self, 
+        session: Session, 
+        asset_address: str
+    ) -> Optional[str]:
+        """Get the latest canonical price timestamp for an asset (any denomination)"""
+        try:
+            latest = session.query(func.max(PriceVwap.timestamp_minute)).filter(
+                PriceVwap.asset_address == asset_address.lower()
+            ).scalar()
+            
+            return latest.isoformat() if latest else None
+            
+        except Exception as e:
+            log_with_context(
+                self.logger, logging.ERROR, "Error getting latest canonical price timestamp",
+                asset_address=asset_address,
                 error=str(e)
             )
             return None
     
-    def get_missing_prices(
-        self, 
-        session: Session, 
-        asset_address: str, 
-        start_time: datetime, 
-        end_time: datetime, 
-        denom: str = 'usd'
-    ) -> List[datetime]:
-        """Find minutes that are missing canonical price data"""
+    def get_canonical_prices_in_range(
+        self,
+        session: Session,
+        asset_address: str,
+        start_timestamp: datetime,
+        end_timestamp: datetime,
+        denomination: PricingDenomination
+    ) -> List[PriceVwap]:
+        """Get canonical prices within a timestamp range"""
         try:
-            # Get all existing price timestamps in range
-            existing_prices = session.query(PriceVwap.time).filter(
-                PriceVwap.time.between(start_time, end_time),
-                PriceVwap.asset == asset_address.lower(),
-                PriceVwap.denom == denom.lower()
-            ).all()
-            
-            existing_times = {price.time for price in existing_prices}
-            
-            # Generate all minute timestamps in range
-            missing_times = []
-            current_time = start_time.replace(second=0, microsecond=0)
-            end_time_floored = end_time.replace(second=0, microsecond=0)
-            
-            while current_time <= end_time_floored:
-                if current_time not in existing_times:
-                    missing_times.append(current_time)
-                current_time = current_time.replace(minute=current_time.minute + 1)
-                # Handle hour rollover
-                if current_time.minute == 60:
-                    current_time = current_time.replace(minute=0, hour=current_time.hour + 1)
-            
-            log_with_context(
-                self.logger, logging.DEBUG, "Found missing canonical prices",
-                asset=asset_address,
-                denom=denom,
-                missing_count=len(missing_times),
-                total_minutes=(end_time_floored - start_time).total_seconds() // 60
-            )
-            
-            return missing_times
+            return session.query(PriceVwap).filter(
+                and_(
+                    PriceVwap.asset_address == asset_address.lower(),
+                    PriceVwap.denomination == denomination.value,
+                    PriceVwap.timestamp_minute >= start_timestamp,
+                    PriceVwap.timestamp_minute <= end_timestamp
+                )
+            ).order_by(PriceVwap.timestamp_minute).all()
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error finding missing prices",
-                asset=asset_address,
-                start_time=start_time.isoformat(),
-                end_time=end_time.isoformat(),
-                denom=denom,
+                self.logger, logging.ERROR, "Error getting canonical prices in range",
+                asset_address=asset_address,
+                denomination=denomination.value,
+                start_timestamp=start_timestamp.isoformat(),
+                end_timestamp=end_timestamp.isoformat(),
                 error=str(e)
             )
             return []
@@ -238,18 +274,16 @@ class PriceVwapRepository(BaseRepository):
     def update_canonical_price(
         self,
         session: Session,
-        time: datetime,
-        asset: str,
-        denom: str,
+        asset_address: str,
+        timestamp_minute: int,
+        denomination: PricingDenomination,
         **updates
     ) -> Optional[PriceVwap]:
         """Update existing canonical price record"""
         try:
-            price_record = session.query(PriceVwap).filter(
-                PriceVwap.time == time,
-                PriceVwap.asset == asset.lower(),
-                PriceVwap.denom == denom.lower()
-            ).first()
+            price_record = self.get_canonical_price(
+                session, asset_address, timestamp_minute, denomination
+            )
             
             if not price_record:
                 return None
@@ -262,9 +296,9 @@ class PriceVwapRepository(BaseRepository):
             
             log_with_context(
                 self.logger, logging.DEBUG, "Canonical price updated",
-                time=time.isoformat(),
-                asset=asset,
-                denom=denom,
+                asset_address=asset_address,
+                timestamp_minute=timestamp_minute,
+                denomination=denomination.value,
                 updates=list(updates.keys())
             )
             
@@ -273,47 +307,9 @@ class PriceVwapRepository(BaseRepository):
         except Exception as e:
             log_with_context(
                 self.logger, logging.ERROR, "Error updating canonical price",
-                time=time.isoformat(),
-                asset=asset,
-                denom=denom,
+                asset_address=asset_address,
+                timestamp_minute=timestamp_minute,
+                denomination=denomination.value,
                 error=str(e)
             )
             raise
-    
-    def get_asset_price_stats(
-        self, 
-        session: Session, 
-        asset_address: str, 
-        denom: str = 'usd'
-    ) -> Dict:
-        """Get statistics about canonical pricing data for an asset"""
-        try:
-            stats = session.query(
-                func.count(PriceVwap.time).label('price_count'),
-                func.min(PriceVwap.time).label('earliest_price'),
-                func.max(PriceVwap.time).label('latest_price'),
-                func.avg(PriceVwap.price_vwap).label('avg_price'),
-                func.min(PriceVwap.price_vwap).label('min_price'),
-                func.max(PriceVwap.price_vwap).label('max_price')
-            ).filter(
-                PriceVwap.asset == asset_address.lower(),
-                PriceVwap.denom == denom.lower()
-            ).first()
-            
-            return {
-                'price_count': stats.price_count or 0,
-                'earliest_price': stats.earliest_price,
-                'latest_price': stats.latest_price,
-                'avg_price': float(stats.avg_price) if stats.avg_price else 0,
-                'min_price': float(stats.min_price) if stats.min_price else 0,
-                'max_price': float(stats.max_price) if stats.max_price else 0
-            }
-            
-        except Exception as e:
-            log_with_context(
-                self.logger, logging.ERROR, "Error getting asset price stats",
-                asset=asset_address,
-                denom=denom,
-                error=str(e)
-            )
-            return {}

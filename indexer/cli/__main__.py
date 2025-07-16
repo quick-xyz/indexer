@@ -37,8 +37,9 @@ def cli(ctx, verbose, model):
     Unified command-line interface for all indexer operations including:
     - Configuration management (models, contracts, tokens)
     - Pool pricing configuration
-    - Pricing service operations
+    - Service operations (pricing and calculation)
     - Database administration
+    - Batch processing
     """
     # Ensure context object exists
     ctx.ensure_object(dict)
@@ -65,6 +66,7 @@ from indexer.cli.commands.token import token
 from indexer.cli.commands.address import address
 from indexer.cli.commands.pool_pricing import pool_pricing
 from indexer.cli.commands.pricing import pricing
+from indexer.cli.commands.service import service  # NEW: Service commands
 from indexer.cli.commands.migrate import migrate
 from indexer.cli.commands.batch import batch
 
@@ -76,6 +78,7 @@ cli.add_command(token)
 cli.add_command(address)
 cli.add_command(pool_pricing)
 cli.add_command(pricing)
+cli.add_command(service)  # NEW: Service command group
 cli.add_command(migrate)
 cli.add_command(batch)
 

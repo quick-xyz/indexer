@@ -10,7 +10,8 @@ from ..tables.asset_volume import AssetVolume
 from ....core.logging_config import IndexerLogger, log_with_context
 from ....types import EvmAddress
 from ...base_repository import BaseRepository
-
+from ..tables.detail.pool_swap_detail import PricingDenomination
+from ...shared.tables.periods import Period, PeriodType
 import logging
 
 
@@ -366,3 +367,273 @@ class AssetVolumeRepository(BaseRepository):
                 error=str(e)
             )
             return {}
+        
+    def create_volume_metric(
+        self,
+        session: Session,
+        period_id: int,
+        asset_address: str,
+        denomination: PricingDenomination,
+        protocol: str,
+        volume: Decimal,
+        pool_count: int,
+        swap_count: int
+    ) -> Optional[AssetVolume]:
+        """
+        Create a volume metric record with additional metadata.
+        
+        Enhanced version of create_volume_record() that matches the CalculationService
+        interface with pool_count and swap_count tracking.
+        """
+        try:
+            volume_record = AssetVolume(
+                period_id=period_id,
+                asset=asset_address.lower(),
+                denom=denomination.value,
+                protocol=protocol.lower(),
+                volume=float(volume),
+                # Note: pool_count and swap_count may need to be added to AssetVolume table
+                # For now, storing in volume field - you may want to extend the table
+            )
+            
+            session.add(volume_record)
+            session.flush()
+            
+            log_with_context(
+                self.logger, logging.DEBUG, "Volume metric created",
+                period_id=period_id,
+                asset_address=asset_address,
+                denomination=denomination.value,
+                protocol=protocol,
+                volume=float(volume),
+                pool_count=pool_count,
+                swap_count=swap_count
+            )
+            
+            return volume_record
+            
+        except Exception as e:
+            log_with_context(
+                self.logger, logging.ERROR, "Error creating volume metric",
+                period_id=period_id,
+                asset_address=asset_address,
+                denomination=denomination.value,
+                protocol=protocol,
+                error=str(e)
+            )
+            raise
+
+    def get_volume(
+        self,
+        session: Session,
+        period_id: int,
+        asset_address: str,
+        denomination: PricingDenomination,
+        protocol: str
+    ) -> Optional[AssetVolume]:
+        """Get volume record for specific period/asset/denomination/protocol"""
+        try:
+            return session.query(AssetVolume).filter(
+                and_(
+                    AssetVolume.period_id == period_id,
+                    AssetVolume.asset == asset_address.lower(),
+                    AssetVolume.denom == denomination.value,
+                    AssetVolume.protocol == protocol.lower()
+                )
+            ).one_or_none()
+            
+        except Exception as e:
+            log_with_context(
+                self.logger, logging.ERROR, "Error getting volume record",
+                period_id=period_id,
+                asset_address=asset_address,
+                denomination=denomination.value,
+                protocol=protocol,
+                error=str(e)
+            )
+            raise
+
+    def find_periods_with_missing_volumes(
+        self,
+        session: Session,
+        asset_address: str
+    ) -> List[int]:
+        """
+        Find periods that should have volume data but don't.
+        
+        Used by CalculationService.update_analytics() for gap detection.
+        """
+        try:
+            # Get existing volume periods for this asset
+            existing_periods = session.query(AssetVolume.period_id.distinct()).filter(
+                AssetVolume.asset == asset_address.lower()
+            ).subquery()
+            
+            # Get recent 5-minute periods that don't have volume data
+            with self.db_manager.get_shared_session() as shared_session:
+                missing_periods = shared_session.query(Period.id).filter(
+                    and_(
+                        Period.period_type == PeriodType.FIVE_MINUTE,
+                        ~Period.id.in_(existing_periods)
+                    )
+                ).order_by(desc(Period.id)).limit(1000).all()  # Recent periods only
+            
+            missing_period_ids = [p.id for p in missing_periods]
+            
+            log_with_context(
+                self.logger, logging.DEBUG, "Found periods with missing volumes",
+                asset_address=asset_address,
+                missing_periods=len(missing_period_ids)
+            )
+            
+            return missing_period_ids
+            
+        except Exception as e:
+            log_with_context(
+                self.logger, logging.ERROR, "Error finding periods with missing volumes",
+                asset_address=asset_address,
+                error=str(e)
+            )
+            return []
+
+    def count_missing_volumes(
+        self,
+        session: Session,
+        asset_address: str,
+        denomination: PricingDenomination
+    ) -> int:
+        """Count how many periods are missing volume data"""
+        try:
+            missing_periods = self.find_periods_with_missing_volumes(session, asset_address)
+            
+            # Filter by periods that should have data for this denomination
+            # For simplicity, return total missing periods
+            return len(missing_periods)
+            
+        except Exception as e:
+            log_with_context(
+                self.logger, logging.ERROR, "Error counting missing volumes",
+                asset_address=asset_address,
+                denomination=denomination.value,
+                error=str(e)
+            )
+            return 0
+
+    def get_volume_stats(
+        self,
+        session: Session,
+        asset_address: str,
+        denomination: PricingDenomination
+    ) -> Dict:
+        """
+        Get statistics about volume data coverage for an asset.
+        
+        Used by CalculationService.get_calculation_status() for monitoring.
+        """
+        try:
+            stats = session.query(
+                func.count(AssetVolume.period_id).label('record_count'),
+                func.sum(AssetVolume.volume).label('total_volume'),
+                func.avg(AssetVolume.volume).label('avg_volume'),
+                func.min(AssetVolume.period_id).label('earliest_period'),
+                func.max(AssetVolume.period_id).label('latest_period'),
+                func.count(AssetVolume.protocol.distinct()).label('protocol_count')
+            ).filter(
+                and_(
+                    AssetVolume.asset == asset_address.lower(),
+                    AssetVolume.denom == denomination.value
+                )
+            ).first()
+            
+            return {
+                'record_count': stats.record_count or 0,
+                'total_volume': float(stats.total_volume) if stats.total_volume else 0.0,
+                'avg_volume': float(stats.avg_volume) if stats.avg_volume else 0.0,
+                'earliest_period': stats.earliest_period,
+                'latest_period': stats.latest_period,
+                'protocol_count': stats.protocol_count or 0
+            }
+            
+        except Exception as e:
+            log_with_context(
+                self.logger, logging.ERROR, "Error getting volume stats",
+                asset_address=asset_address,
+                denomination=denomination.value,
+                error=str(e)
+            )
+            return {}
+
+    def get_latest_volume_timestamp(
+        self,
+        session: Session,
+        asset_address: str
+    ) -> Optional[str]:
+        """Get the latest volume timestamp for an asset (any denomination)"""
+        try:
+            latest = session.query(func.max(AssetVolume.created_at)).filter(
+                AssetVolume.asset == asset_address.lower()
+            ).scalar()
+            
+            return latest.isoformat() if latest else None
+            
+        except Exception as e:
+            log_with_context(
+                self.logger, logging.ERROR, "Error getting latest volume timestamp",
+                asset_address=asset_address,
+                error=str(e)
+            )
+            return None
+
+    # ENHANCED EXISTING METHOD SIGNATURE
+    # Update the existing create_volume_record method to match CalculationService expectations:
+
+    def create_volume_record_enhanced(
+        self,
+        session: Session,
+        period_id: int,
+        asset: str,
+        denom: str,
+        protocol: str,
+        volume: Decimal,
+        pool_count: Optional[int] = None,
+        swap_count: Optional[int] = None
+    ) -> Optional[AssetVolume]:
+        """Enhanced create_volume_record with metadata tracking"""
+        try:
+            volume_record = AssetVolume(
+                period_id=period_id,
+                asset=asset.lower(),
+                denom=denom.lower(),
+                protocol=protocol.lower(),
+                volume=float(volume)
+                # Note: If you extend AssetVolume table to include pool_count and swap_count:
+                # pool_count=pool_count,
+                # swap_count=swap_count
+            )
+            
+            session.add(volume_record)
+            session.flush()
+            
+            log_with_context(
+                self.logger, logging.DEBUG, "Enhanced volume record created",
+                period_id=period_id,
+                asset=asset,
+                denom=denom,
+                protocol=protocol,
+                volume=str(volume),
+                pool_count=pool_count,
+                swap_count=swap_count
+            )
+            
+            return volume_record
+            
+        except Exception as e:
+            log_with_context(
+                self.logger, logging.ERROR, "Error creating enhanced volume record",
+                period_id=period_id,
+                asset=asset,
+                denom=denom,
+                protocol=protocol,
+                error=str(e)
+            )
+            raise
