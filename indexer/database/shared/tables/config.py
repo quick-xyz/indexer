@@ -167,6 +167,7 @@ class Source(SharedBase, SharedTimestampMixin):
     name = Column(String(255), nullable=False, index=True)  # "quicknode_rpc", "gcs_bucket"
     path = Column(String(500), nullable=False)     # Connection string, URL, or path
     source_type = Column(String(50), nullable=False)  # "rpc", "storage", "api", etc.
+    format = Column(String(255), nullable=True)  # ADD THIS LINE
     configuration = Column(JSONB)                  # JSON configuration for source
     status = Column(String(50), nullable=False, default='active')  # "active", "deprecated"
     

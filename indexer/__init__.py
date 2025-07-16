@@ -239,7 +239,7 @@ def _create_infrastructure_db_manager(env: dict) -> InfrastructureDatabaseManage
     if not db_user or not db_password:
         raise ValueError("Infrastructure database credentials not found")
 
-    infrastructure_db_name = env.get("INDEXER_INFRASTRUCTURE_DB_NAME", "indexer_shared")
+    infrastructure_db_name = env.get("INDEXER_DB_NAME")
     infrastructure_db_url = f"postgresql+psycopg://{db_user}:{db_password}@{db_host}:{db_port}/{infrastructure_db_name}"
     infrastructure_db_config = DatabaseConfig(url=infrastructure_db_url)
 

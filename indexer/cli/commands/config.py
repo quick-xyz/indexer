@@ -200,7 +200,8 @@ def _import_shared_config_data(ctx, config_data: Dict[str, Any]) -> None:
                     source = config_service.create_source(
                         name=source_data['name'],
                         path=source_data['path'],
-                        format_string=source_data['format']
+                        format_string=source_data['format'],
+                        source_type=source_data.get('source_type', 'gcs')
                     )
                     if source:
                         click.echo(f"   ✓ Created source: {source.name}")
@@ -312,10 +313,8 @@ def _import_shared_config_data(ctx, config_data: Dict[str, Any]) -> None:
                     address = Address(
                         address=address_data['address'].lower(),
                         name=address_data['name'],
-                        type=address_data['type'],
-                        project=address_data.get('project'),
+                        address_type=address_data['type'],
                         description=address_data.get('description'),
-                        grouping=address_data.get('grouping'),
                         status='active'
                     )
                     
@@ -362,10 +361,8 @@ def _import_model_config_data(ctx, config_data: Dict[str, Any], update: bool = F
                 model = Model(
                     name=model_data['name'],
                     version=model_data['version'],
-                    display_name=model_data.get('display_name'),
                     description=model_data.get('description'),
-                    database_name=model_data['database_name'],
-                    source_paths=[],  # Legacy field, keep empty
+                    target_asset=model_data.get('target_asset', '').lower(),
                     status='active'
                 )
                 session.add(model)
@@ -459,19 +456,52 @@ def _import_model_config_data(ctx, config_data: Dict[str, Any], update: bool = F
                     else:
                         click.echo(f"   ⚠️  Source already associated: {source.name}")
             
-            # Create pool pricing configurations
+            # Import pool pricing configurations
             if 'pool_pricing_configs' in config_data:
                 click.echo("📋 Creating pool pricing configurations...")
+                from ...database.shared.tables.config import Contract
+                from ...database.shared.tables.pool_pricing_config import PoolPricingConfig
                 
-                pool_configs = pool_pricing_repo.create_configs_from_data(
-                    session, model.id, config_data['pool_pricing_configs']
-                )
-                
-                click.echo(f"   ✓ Created {len(pool_configs)} pool configurations")
-                
-                for config in pool_configs:
-                    pricing_status = " PRICING" if config.pricing_pool else ""
-                    click.echo(f"     • {config.contract.name}: {config.pricing_strategy}{pricing_status}")
+                created_count = 0
+                for pool_config in config_data['pool_pricing_configs']:
+                    try:
+                        # Convert pool_address to contract_id by looking up the contract
+                        contract = session.query(Contract).filter(
+                            Contract.address == pool_config['pool_address'].lower()
+                        ).first()
+                        
+                        if not contract:
+                            click.echo(f"   ⚠️  Pool contract not found: {pool_config['pool_address']}")
+                            continue
+                        
+                        # Check if config already exists
+                        existing = session.query(PoolPricingConfig).filter(
+                            PoolPricingConfig.model_id == model.id,
+                            PoolPricingConfig.contract_id == contract.id,
+                            PoolPricingConfig.start_block == pool_config['start_block']
+                        ).first()
+                        
+                        if existing:
+                            click.echo(f"   ⚠️  Pool config already exists for {contract.name}")
+                            continue
+                        
+                        # Create new pool pricing config
+                        pool_pricing_config = PoolPricingConfig(
+                            model_id=model.id,
+                            contract_id=contract.id,
+                            start_block=pool_config['start_block'],
+                            end_block=pool_config.get('end_block'),
+                            pricing_strategy=pool_config['pricing_strategy'],
+                            pricing_pool=pool_config['pricing_pool']
+                        )
+                        
+                        session.add(pool_pricing_config)
+                        created_count += 1
+                        
+                    except Exception as e:
+                        click.echo(f"   ❌ Failed to create pool config: {e}")
+                        
+                click.echo(f"   ✓ Created {created_count} pool configurations")
             
             session.commit()
             action = "updated" if update else "imported"

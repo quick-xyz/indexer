@@ -545,7 +545,7 @@ def get_database_url():
         # Determine database name based on migration target
         migration_target = os.environ.get('MIGRATION_TARGET', 'shared')
         if migration_target == 'shared':
-            db_name = os.getenv("INDEXER_INFRASTRUCTURE_DB_NAME", "indexer_shared")
+            db_name = os.getenv("INDEXER_DB_NAME")
         else:
             # This should not happen for shared migrations, but fallback
             db_name = "indexer_shared"

@@ -29,7 +29,7 @@ class ConfigService:
                 log_with_context(self.logger, logging.DEBUG, "Model found",
                                model_name=model_name,
                                version=model.version,
-                               database=model.database_name)
+                               database=model_name)
             else:
                 log_with_context(self.logger, logging.WARNING, "Model not found",
                                model_name=model_name)
@@ -170,7 +170,7 @@ class ConfigService:
         with self.db_manager.get_session() as session:
             return session.query(Source).filter(Source.status == 'active').all()
 
-    def create_source(self, name: str, path: str, format_string: str) -> Optional[Source]:
+    def create_source(self, name: str, path: str, format_string: str, source_type: str = 'gcs') -> Optional[Source]:
         """Create a new source"""
         try:
             with self.db_manager.get_session() as session:
@@ -183,6 +183,7 @@ class ConfigService:
                     name=name,
                     path=path,
                     format=format_string,
+                    source_type=source_type,  # Add this line
                     status='active'
                 )
                 
