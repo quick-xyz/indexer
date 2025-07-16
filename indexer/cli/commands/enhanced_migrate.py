@@ -73,158 +73,6 @@ def init_fresh_shared(ctx, database):
         raise click.ClickException(f"Fresh initialization failed: {e}")
 
 
-@shared.command('status-all')
-@click.pass_context
-def status_all_shared(ctx):
-    """Show status of all shared databases
-    
-    Examples:
-        migrate-enhanced shared status-all
-    """
-    cli_context = ctx.obj['cli_context']
-    
-    try:
-        from ...database.enhanced_migration_manager import EnhancedMigrationManager
-        from ...core.secrets_service import SecretsService
-        
-        # Get secrets service
-        import os
-        project_id = os.getenv("INDEXER_GCP_PROJECT_ID")
-        if not project_id:
-            raise click.ClickException("INDEXER_GCP_PROJECT_ID environment variable required")
-        
-        secrets_service = SecretsService(project_id)
-        
-        # Create enhanced migration manager
-        migration_manager = EnhancedMigrationManager(
-            cli_context.infrastructure_db_manager,
-            secrets_service
-        )
-        
-        # Get status of all databases
-        click.echo("📊 Shared Database Status")
-        click.echo("=" * 60)
-        
-        status = migration_manager.get_multi_database_status()
-        
-        if not status:
-            click.echo("No shared databases found")
-            return
-        
-        for db_name, db_status in status.items():
-            current_marker = " (CURRENT)" if db_status.get('current') else ""
-            
-            if db_status.get('accessible'):
-                status_icon = "✅"
-                revision = db_status.get('revision', 'unknown')
-                click.echo(f"{status_icon} {db_name}{current_marker}")
-                click.echo(f"   Revision: {revision}")
-            else:
-                status_icon = "❌"
-                error = db_status.get('error', 'Unknown error')
-                click.echo(f"{status_icon} {db_name}{current_marker}")
-                click.echo(f"   Error: {error}")
-        
-    except Exception as e:
-        raise click.ClickException(f"Status check failed: {e}")
-
-
-@shared.command('upgrade-specific')
-@click.argument('database_name')
-@click.option('--revision', default='head', help='Target revision (default: head)')
-@click.pass_context
-def upgrade_specific_shared(ctx, database_name, revision):
-    """Upgrade a specific shared database to a revision
-    
-    Examples:
-        # Upgrade specific database to latest
-        migrate-enhanced shared upgrade-specific indexer_shared_v2
-        
-        # Upgrade to specific revision
-        migrate-enhanced shared upgrade-specific indexer_shared_v2 --revision abc123
-    """
-    cli_context = ctx.obj['cli_context']
-    
-    try:
-        from ...database.enhanced_migration_manager import EnhancedMigrationManager
-        from ...core.secrets_service import SecretsService
-        
-        # Get secrets service
-        import os
-        project_id = os.getenv("INDEXER_GCP_PROJECT_ID")
-        if not project_id:
-            raise click.ClickException("INDEXER_GCP_PROJECT_ID environment variable required")
-        
-        secrets_service = SecretsService(project_id)
-        
-        # Create enhanced migration manager
-        migration_manager = EnhancedMigrationManager(
-            cli_context.infrastructure_db_manager,
-            secrets_service
-        )
-        
-        # Upgrade specific database
-        click.echo(f"⬆️ Upgrading {database_name} to revision: {revision}")
-        
-        success = migration_manager.upgrade_shared_database(database_name, revision)
-        
-        if success:
-            click.echo("✅ Database upgraded successfully")
-        else:
-            raise click.ClickException("Failed to upgrade database")
-            
-    except Exception as e:
-        raise click.ClickException(f"Upgrade failed: {e}")
-
-
-@shared.command('list')
-@click.pass_context
-def list_shared_databases(ctx):
-    """List all shared databases
-    
-    Examples:
-        migrate-enhanced shared list
-    """
-    cli_context = ctx.obj['cli_context']
-    
-    try:
-        from ...database.enhanced_migration_manager import EnhancedMigrationManager
-        from ...core.secrets_service import SecretsService
-        
-        # Get secrets service
-        import os
-        project_id = os.getenv("INDEXER_GCP_PROJECT_ID")
-        if not project_id:
-            raise click.ClickException("INDEXER_GCP_PROJECT_ID environment variable required")
-        
-        secrets_service = SecretsService(project_id)
-        
-        # Create enhanced migration manager
-        migration_manager = EnhancedMigrationManager(
-            cli_context.infrastructure_db_manager,
-            secrets_service
-        )
-        
-        # List databases
-        databases = migration_manager.list_shared_databases()
-        
-        click.echo("📋 Shared Databases")
-        click.echo("=" * 40)
-        
-        if not databases:
-            click.echo("No shared databases found")
-            return
-        
-        current_db = os.getenv("INDEXER_DB_NAME", "indexer_shared")
-        
-        for db in databases:
-            marker = " (CURRENT)" if db == current_db else ""
-            click.echo(f"  📊 {db}{marker}")
-        
-    except Exception as e:
-        raise click.ClickException(f"List failed: {e}")
-
-
 @migrate_enhanced.group()
 def model():
     """Enhanced model database operations"""
@@ -341,3 +189,128 @@ def setup_fresh(ctx, shared_db, model_db):
         
     except Exception as e:
         raise click.ClickException(f"Fresh setup failed: {e}")
+
+
+@migrate_enhanced.command('status')
+@click.pass_context
+def status(ctx):
+    """Show status of current migration system
+    
+    Examples:
+        migrate-enhanced status
+    """
+    cli_context = ctx.obj['cli_context']
+    
+    try:
+        from ...database.enhanced_migration_manager import EnhancedMigrationManager
+        from ...core.secrets_service import SecretsService
+        
+        # Get secrets service
+        import os
+        project_id = os.getenv("INDEXER_GCP_PROJECT_ID")
+        if not project_id:
+            raise click.ClickException("INDEXER_GCP_PROJECT_ID environment variable required")
+        
+        secrets_service = SecretsService(project_id)
+        
+        # Create enhanced migration manager
+        migration_manager = EnhancedMigrationManager(
+            cli_context.infrastructure_db_manager,
+            secrets_service
+        )
+        
+        # Show current status
+        click.echo("📊 Enhanced Migration System Status")
+        click.echo("=" * 50)
+        
+        # Check if migrations directory exists
+        migrations_dir = migration_manager.migrations_dir
+        if migrations_dir.exists():
+            click.echo(f"✅ Migrations directory: {migrations_dir}")
+            
+            # Check for key files
+            env_py = migrations_dir / "env.py"
+            if env_py.exists():
+                click.echo("✅ env.py file exists")
+            else:
+                click.echo("❌ env.py file missing")
+                
+            versions_dir = migrations_dir / "versions"
+            if versions_dir.exists():
+                version_files = list(versions_dir.glob("*.py"))
+                click.echo(f"✅ Versions directory: {len(version_files)} migration files")
+            else:
+                click.echo("❌ Versions directory missing")
+        else:
+            click.echo(f"❌ Migrations directory not found: {migrations_dir}")
+        
+        # Check current database
+        current_db = os.getenv("INDEXER_DB_NAME", "indexer_shared")
+        click.echo(f"📋 Current database: {current_db}")
+        
+        # Check environment variables
+        click.echo("🔧 Environment Configuration:")
+        env_vars = [
+            "INDEXER_GCP_PROJECT_ID",
+            "INDEXER_DB_NAME",
+            "INDEXER_MODEL_NAME",
+            "INDEXER_DB_USER",
+            "INDEXER_DB_HOST",
+            "INDEXER_DB_PORT"
+        ]
+        
+        for var in env_vars:
+            value = os.getenv(var)
+            if value:
+                # Don't show password or sensitive info
+                if "PASSWORD" in var:
+                    display_value = "***" if value else "Not set"
+                else:
+                    display_value = value
+                click.echo(f"   ✅ {var}: {display_value}")
+            else:
+                click.echo(f"   ❌ {var}: Not set")
+                
+    except Exception as e:
+        raise click.ClickException(f"Status check failed: {e}")
+
+
+@migrate_enhanced.command('list')
+@click.pass_context
+def list_databases(ctx):
+    """List accessible databases
+    
+    Examples:
+        migrate-enhanced list
+    """
+    cli_context = ctx.obj['cli_context']
+    
+    try:
+        # Show current configuration
+        import os
+        click.echo("📋 Database Configuration")
+        click.echo("=" * 40)
+        
+        # Show environment-based configuration
+        shared_db = os.getenv("INDEXER_DB_NAME", "indexer_shared")
+        model_db = os.getenv("INDEXER_MODEL_NAME", "blub_test")
+        
+        current_marker = " (CURRENT SHARED)"
+        click.echo(f"🗄️  {shared_db}{current_marker}")
+        
+        current_marker = " (CURRENT MODEL)"
+        click.echo(f"🗄️  {model_db}{current_marker}")
+        
+        # Test connectivity
+        click.echo("\n🔍 Testing database connectivity...")
+        
+        try:
+            # Test infrastructure database
+            with cli_context.infrastructure_db_manager.get_session() as session:
+                session.execute("SELECT 1")
+            click.echo(f"   ✅ {shared_db} - Connected")
+        except Exception as e:
+            click.echo(f"   ❌ {shared_db} - Error: {e}")
+            
+    except Exception as e:
+        raise click.ClickException(f"List failed: {e}")
