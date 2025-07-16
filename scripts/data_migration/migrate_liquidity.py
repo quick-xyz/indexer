@@ -1,29 +1,130 @@
 #!/usr/bin/env python3
 """
-Liquidity Table Migration Script
+Liquidity Table Migration Script - Proper DI Version
 
-Migrates liquidity table data from v1 (blub_test) to v2 (blub_test_v2) database.
+Uses the established create_indexer() pattern to get database connections with proper credentials.
 """
 
 import sys
-import logging
+import os
 from pathlib import Path
-from typing import Dict, List, Optional
-from sqlalchemy import text
+from typing import Dict
+from sqlalchemy import text, create_engine
 
 # Add project root to Python path
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
-from scripts.data_migration.base_migrator import BaseMigrator
+from indexer import create_indexer
+from indexer.database.connection import InfrastructureDatabaseManager, ModelDatabaseManager
 
 
-class LiquidityMigrator(BaseMigrator):
-    """Migrate liquidity table from v1 to v2 database."""
+class ProperLiquidityMigrator:
+    """Migrate liquidity table using proper DI container setup."""
     
-    def __init__(self, v1_db_name: str = "blub_test", v2_db_name: str = "blub_test_v2", model_name: str = None):
-        super().__init__("liquidity", v1_db_name, v2_db_name, model_name)
+    def __init__(self, v1_db_name: str = "blub_test", v2_db_name: str = "blub_test_v2"):
+        self.v1_db_name = v1_db_name
+        self.v2_db_name = v2_db_name
+        
+        print(f"🔧 Initializing liquidity migration")
+        print(f"   V1 DB: {v1_db_name}")
+        print(f"   V2 DB: {v2_db_name}")
+        
+        # Use create_indexer to get proper database credentials
+        self._setup_database_connections()
+        
+    def _setup_database_connections(self):
+        """Setup database connections using the established DI pattern."""
+        print("🔗 Setting up database connections using infrastructure DB pattern...")
+        
+        try:
+            # Use the same pattern as _create_infrastructure_db_manager() to get credentials
+            env = os.environ
+            project_id = env.get("INDEXER_GCP_PROJECT_ID")
+            
+            if project_id:
+                # Use SecretsService directly (like in _create_infrastructure_db_manager)
+                from indexer.core.secrets_service import SecretsService
+                temp_secrets_service = SecretsService(project_id)
+                db_credentials = temp_secrets_service.get_database_credentials()
+                
+                db_user = db_credentials.get('user') or env.get("INDEXER_DB_USER") 
+                db_password = db_credentials.get('password') or env.get("INDEXER_DB_PASSWORD")
+                db_host = env.get("INDEXER_DB_HOST") or db_credentials.get('host') or "127.0.0.1"
+                db_port = env.get("INDEXER_DB_PORT") or db_credentials.get('port') or "5432"
+            else:
+                db_user = env.get("INDEXER_DB_USER")
+                db_password = env.get("INDEXER_DB_PASSWORD")  
+                db_host = env.get("INDEXER_DB_HOST", "127.0.0.1")
+                db_port = env.get("INDEXER_DB_PORT", "5432")
+
+            if not db_user or not db_password:
+                raise ValueError("Database credentials not found")
+            
+            # Build URLs for both v1 and v2 databases using the same credentials
+            base_url = f"postgresql+psycopg://{db_user}:{db_password}@{db_host}:{db_port}"
+            
+            v1_url = f"{base_url}/{self.v1_db_name}"
+            v2_url = f"{base_url}/{self.v2_db_name}"
+            
+            # Create engines for both databases
+            self.v1_engine = create_engine(v1_url)
+            self.v2_engine = create_engine(v2_url)
+            
+            print(f"✅ Database credentials obtained via SecretsService")
+            print(f"   DB Host: {db_host}:{db_port}")
+            print(f"   DB User: {db_user}")
+            
+            # Test connections
+            self._test_connections()
+            
+        except Exception as e:
+            print(f"❌ Failed to setup database connections: {e}")
+            raise
+    
+    def _test_connections(self):
+        """Test both database connections."""
+        try:
+            with self.v1_engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            print(f"✅ V1 database connection ({self.v1_db_name}): OK")
+        except Exception as e:
+            raise Exception(f"Failed to connect to v1 database {self.v1_db_name}: {e}")
+            
+        try:
+            with self.v2_engine.connect() as conn:
+                conn.execute(text("SELECT 1"))
+            print(f"✅ V2 database connection ({self.v2_db_name}): OK")
+        except Exception as e:
+            raise Exception(f"Failed to connect to v2 database {self.v2_db_name}: {e}")
+    
+    def get_v1_schema_info(self) -> Dict:
+        """Get v1 table schema information."""
+        print(f"\n📋 Analyzing v1 liquidity table schema...")
+        
+        schema_query = text("""
+            SELECT 
+                column_name, 
+                data_type, 
+                is_nullable,
+                column_default
+            FROM information_schema.columns 
+            WHERE table_name = 'liquidity' 
+              AND table_schema = 'public'
+            ORDER BY ordinal_position
+        """)
+        
+        with self.v1_engine.connect() as conn:
+            result = conn.execute(schema_query)
+            columns = [dict(row._mapping) for row in result]
+            
+        print(f"   Found {len(columns)} columns:")
+        for col in columns:
+            nullable = "NULL" if col['is_nullable'] == 'YES' else "NOT NULL"
+            print(f"   - {col['column_name']:<15} {col['data_type']:<20} {nullable}")
+            
+        return {"columns": columns}
     
     def get_v1_data_stats(self) -> Dict:
         """Get detailed v1 liquidity data statistics."""
@@ -58,22 +159,85 @@ class LiquidityMigrator(BaseMigrator):
     
     def migrate_data(self) -> Dict:
         """Migrate liquidity data with proper field mapping."""
-        # Field mapping: v2_field -> v1_field (all fields map directly)
-        field_mapping = {
-            "content_id": "content_id",
-            "tx_hash": "tx_hash", 
-            "block_number": "block_number",
-            "timestamp": "timestamp",
-            "pool": "pool",
-            "provider": "provider",
-            "action": "action",
-            "base_token": "base_token",
-            "base_amount": "base_amount",
-            "quote_token": "quote_token",
-            "quote_amount": "quote_amount"
-        }
+        print(f"\n🚚 Migrating liquidity data from {self.v1_db_name} to {self.v2_db_name}...")
         
-        return self.execute_migration(field_mapping)
+        # Get all data from v1
+        select_query = text("""
+            SELECT 
+                content_id,
+                tx_hash,
+                block_number,
+                timestamp,
+                pool,
+                provider,
+                action,
+                base_token,
+                base_amount,
+                quote_token,
+                quote_amount
+            FROM liquidity
+            ORDER BY block_number, timestamp
+        """)
+        
+        # Prepare insert query for v2
+        insert_query = text("""
+            INSERT INTO liquidity (
+                content_id,
+                tx_hash,
+                block_number,
+                timestamp,
+                pool,
+                provider,
+                action,
+                base_token,
+                base_amount,
+                quote_token,
+                quote_amount
+            ) VALUES (
+                :content_id,
+                :tx_hash,
+                :block_number,
+                :timestamp,
+                :pool,
+                :provider,
+                :action,
+                :base_token,
+                :base_amount,
+                :quote_token,
+                :quote_amount
+            )
+        """)
+        
+        # Execute migration
+        with self.v1_engine.connect() as v1_conn:
+            v1_data = v1_conn.execute(select_query)
+            rows_to_migrate = [dict(row._mapping) for row in v1_data]
+        
+        print(f"   Fetched {len(rows_to_migrate)} rows from v1")
+        
+        with self.v2_engine.connect() as v2_conn:
+            trans = v2_conn.begin()
+            try:
+                # Clear existing data first (in case of re-migration)
+                v2_conn.execute(text("DELETE FROM liquidity"))
+                print(f"   Cleared existing v2 data")
+                
+                # Insert new data
+                if rows_to_migrate:
+                    v2_conn.execute(insert_query, rows_to_migrate)
+                    print(f"   Inserted {len(rows_to_migrate)} rows into v2")
+                else:
+                    print(f"   No data to migrate")
+                
+                trans.commit()
+                print(f"   ✅ Migration committed successfully")
+                
+                return {"migrated_rows": len(rows_to_migrate), "success": True}
+                
+            except Exception as e:
+                trans.rollback()
+                print(f"   ❌ Migration failed, rolled back: {e}")
+                raise
     
     def validate_migration(self) -> Dict:
         """Validate liquidity migration with detailed checks."""
@@ -179,7 +343,15 @@ class LiquidityMigrator(BaseMigrator):
             validation_result = self.validate_migration()
             
             # Print summary
-            overall_success = self.print_migration_summary(migration_result, validation_result)
+            print(f"\n📋 MIGRATION SUMMARY: liquidity")
+            print("=" * 50)
+            print(f"Source: {self.v1_db_name}")
+            print(f"Target: {self.v2_db_name}")
+            print(f"Rows migrated: {migration_result.get('migrated_rows', 0)}")
+            print(f"Validation: {'PASSED' if validation_result.get('validation_passed', False) else 'FAILED'}")
+            
+            overall_success = migration_result.get("success", False) and validation_result.get("validation_passed", False)
+            print(f"Overall status: {'✅ SUCCESS' if overall_success else '❌ FAILED'}")
             
             return {
                 "success": overall_success,
@@ -201,10 +373,9 @@ def main():
     parser = argparse.ArgumentParser(description="Migrate liquidity table from v1 to v2")
     parser.add_argument("--v1-db", default="blub_test", help="V1 database name")
     parser.add_argument("--v2-db", default="blub_test_v2", help="V2 database name")
-    parser.add_argument("--model", default=None, help="Model name (defaults to INDEXER_MODEL_NAME env var)")
     args = parser.parse_args()
     
-    migrator = LiquidityMigrator(v1_db_name=args.v1_db, v2_db_name=args.v2_db, model_name=args.model)
+    migrator = ProperLiquidityMigrator(v1_db_name=args.v1_db, v2_db_name=args.v2_db)
     result = migrator.run_full_migration()
     
     if not result["success"]:

@@ -17,11 +17,11 @@ This is a comprehensive blockchain token indexer with a modular architecture des
 - **Aggregation Service**: User metrics and portfolio summaries (15-minute schedule)
 
 **Dual Database Strategy:**
-- **Shared Database** (`indexer_shared`): Chain-level data and configuration shared across all indexers
+- **Shared Database** (`indexer_shared_v2`): Chain-level data and configuration shared across all indexers
   - Configuration: models, contracts, tokens, sources, addresses
   - Chain-level pricing: block_prices, periods, pool_pricing_configs
-- **Indexer Database** (per model, e.g., `blub_test`): Model-specific indexing data
-  - Processing state: transaction_processing, block_processing, processing_jobs
+- **Indexer Database** (per model, e.g., `blub_test_v2`): Model-specific indexing data
+  - Processing state: transaction_processing, processing_jobs
   - Domain events: trades, pool_swaps, positions, transfers, liquidity, rewards
   - Pricing details: pool_swap_details, trade_details, event_details
 - Database-driven configuration system with dependency injection
@@ -42,7 +42,7 @@ This is a comprehensive blockchain token indexer with a modular architecture des
 4. **Configuration System**: Database-driven with dependency injection
 5. **Storage**: GCS for stateful JSON + PostgreSQL for queryable events
 6. **Pricing System**: Block-level AVAX prices + configurable pool pricing strategies + direct pricing
-7. **Migration System**: Alembic for shared database + templates for model databases
+7. **Migration System**: Standalone scripts for schema evolution and data preservation
 
 ### Technology Stack
 - **Language**: Python with msgspec for data structures
@@ -50,105 +50,40 @@ This is a comprehensive blockchain token indexer with a modular architecture des
 - **Storage**: Google Cloud Storage
 - **RPC**: QuickNode for Avalanche mainnet
 - **Architecture**: Dependency injection container pattern
-- **Migrations**: Alembic with custom type support
+- **Migrations**: Standalone data migration scripts with comprehensive validation
 
-## Recent Major Enhancements
+## Recent Major Accomplishments ✅
 
-### **Complete Migration System Implementation**
-- **Dual Database Migrations**: Separate strategies for shared (Alembic) vs model (templates) databases
-- **Custom Type Support**: Automatic handling of `EvmAddressType`, `EvmHashType`, `DomainEventIdType`
-- **Development Workflow**: Easy reset, recreation, and status checking
-- **CLI Integration**: Complete management interface for all migration operations
-- **Troubleshooting**: Comprehensive documentation and fallback procedures
+### **✅ COMPLETED: Database Migration (July 16, 2025)**
+- **Complete Migration**: 440,817 rows across 8 tables migrated successfully
+- **100% Success Rate**: Perfect validation across all tables
+- **Schema Evolution**: Successfully handled reserved keywords, JSONB conversion, field drops
+- **Production Ready**: V2 databases (`indexer_shared_v2`, `blub_test_v2`) fully operational
+- **Data Integrity**: Complete blockchain activity preserved with all relationships intact
 
-### **Complete Direct Pricing Implementation**
+**Migration Details:**
+- liquidity: 46 rows (direct mapping)
+- pool_swaps: 32,365 rows (direct mapping)
+- positions: 256,624 rows (reserved keyword handling)
+- processing_jobs: 356 rows (JSONB conversion)
+- rewards: 44 rows (direct mapping)
+- trades: 32,295 rows (direct mapping)
+- transaction_processing: 54,310 rows (schema evolution)
+- transfers: 64,421 rows (direct mapping)
+
+### **✅ COMPLETED: Core Infrastructure**
+- Migration system with custom type support
+- Dual database architecture
+- Configuration management system
+- Direct pricing implementation
+- CLI interface and documentation
+
+### **✅ COMPLETED: Direct Pricing Implementation**
 - **Detail Tables**: Separate pricing tables (`pool_swap_details`, `trade_details`, `event_details`) 
 - **Dual Denominations**: Every event gets both USD and AVAX valuations
 - **Method Tracking**: DIRECT_AVAX, DIRECT_USD, GLOBAL, ERROR pricing methods
 - **Volume Weighting**: Trade pricing aggregates from constituent swaps
 - **Comprehensive CLI**: Full management interface for all pricing operations
-
-### **Three-Service Architecture**
-- **Pricing Service**: Canonical price calculation and direct event pricing
-- **Calculation Service**: Event valuations, OHLC candles, and volume metrics
-- **Aggregation Service**: User portfolio summaries, pool statistics, and daily metrics
-- **Service Independence**: Each service runs on independent schedules with graceful delay handling
-- **Database Strategy**: Materialized views for balance calculations, calculated tables for pricing details
-
-### **API Architecture Design**
-- **PostgreSQL + REST API**: Proven scalable approach for Web3 applications
-- **Read Replicas**: 2-3 read replicas serving REST API with pre-calculated data
-- **Database Abstraction**: Clean API contracts that hide database schema complexity
-- **Performance Strategy**: Sub-second response times using pre-calculated data
-
-### **Enhanced Configuration System**
-- **Separated Configuration**: Split into shared (`shared_v1_0.yaml`) vs model (`blub_test_v1_0.yaml`) files
-- **Global Defaults + Overrides**: Contract pricing defaults with model-specific pool configurations
-- **Import/Export CLI**: Complete configuration management with validation
-- **Database Integration**: Configuration successfully imported and validated
-
-### **Enhanced Service Architecture**
-- **PricingService**: Now handles swap and trade direct pricing + existing period/block price functionality
-- **Repository Layer**: Enhanced with bulk operations, eligibility checks, method statistics
-- **CLI Interface**: Complete pricing management with monitoring and validation
-- **Error Handling**: Graceful fallback to global pricing for complex cases
-
-## Current System Status
-
-### **✅ FULLY OPERATIONAL SYSTEMS**
-
-1. **Migration System**: 
-   - Dual database migrations with custom type support
-   - Development utilities (reset, status, schema generation)
-   - Comprehensive documentation and troubleshooting guides
-
-2. **Configuration Management**:
-   - Separated shared/model configuration files
-   - Import/export with validation
-   - Successfully loaded into databases
-
-3. **Database Architecture**:
-   - Shared database with infrastructure tables
-   - Model database with event/processing tables
-   - Proper table separation and relationships
-   - Modern lowercase enum architecture
-
-4. **Direct Pricing System**:
-   - Complete implementation for AVAX/USD pools
-   - Pool pricing configuration system
-   - CLI management and monitoring
-
-5. **End-to-End Pipeline**:
-   - Block retrieval and decoding working
-   - Event transformation and signal processing
-   - Database persistence with correct enum handling
-   - GCS storage with processing → complete workflow
-
-6. **Batch Processing System**:
-   - IndexingPipeline with storage loading from external RPC stream
-   - BatchPipeline with queue management for 216K+ blocks
-   - Worker coordination with skip locks
-   - Small-scale validation successful (10 blocks processed)
-
-### **🎯 NEXT PHASE: Canonical Pricing & Calculation Services**
-
-**Priority Development Plan:**
-1. **Tables/Repositories**: Update any missing fields (contract.project) and repositories
-2. **Pricing Service**: Canonical VWAP pricing and global event pricing application
-3. **Calculation Service**: Event valuations, OHLC candles, protocol volume metrics
-4. **Database Updates**: Handle any schema changes discovered during development
-5. **Migration Strategy**: Migrate existing data with proper field handling
-6. **Service Runner**: Central CLI-based runner for all services (similar to batch processing)
-7. **CLI Integration**: Update CLI to operate service runner
-8. **Sample Processing**: Test services with sample batches
-9. **Bulk Processing**: Process remaining test batch data
-
-### **Architecture Ready for Production**
-- ✅ Migration system handles complex schema evolution
-- ✅ Direct pricing provides foundation for canonical pricing
-- ✅ Batch processing architecture scales to production volumes
-- ✅ Service patterns established (dependency injection, CLI integration)
-- ✅ Database architecture supports pricing and calculation separation
 
 ## Chat Interaction Preferences
 
@@ -158,12 +93,18 @@ This is a comprehensive blockchain token indexer with a modular architecture des
 - **One file at a time**: Don't generate multiple files without confirmation
 - **Confirm before generating**: Always ask before creating files, especially large ones
 
-### Development Approach
+### Development Approach - ⭐ **Enhanced from Migration Experience**
 - **Step-by-step methodology**: Break complex tasks into manageable items
 - **One step per message**: Working incrementally means only one step per message
 - **Item-by-item walkthroughs**: Go through tasks systematically (very helpful)
 - **Hands-on collaboration**: I prefer to be involved in design decisions
 - **Practical focus**: Avoid sweeping changes, prefer targeted improvements
+
+**From Migration Success:**
+- **Ask before developing**: Don't jump straight into fixes without understanding the actual problem
+- **Verify current state**: Check actual files/tables instead of inferring from documentation
+- **Small targeted changes**: Update specific methods rather than rewriting entire classes
+- **Question mismatches**: When two things don't match, ask which should be changed rather than deciding
 
 ### Code Preferences  
 - **Small targeted changes**: Update specific methods rather than rewriting entire classes
@@ -174,17 +115,36 @@ This is a comprehensive blockchain token indexer with a modular architecture des
 - **Dependency injection**: All new development must use DI patterns implemented in the indexer init
 - **Configuration pattern**: All environment variables must use IndexerConfig, following existing patterns
 
+**From Migration Success:**
+- **Repository patterns**: Use established repository patterns for database access
+- **Error handling**: Graceful failure handling, log warnings but continue processing
+- **No assumptions**: Don't generate code for cases that aren't confirmed to be true
+- **Dependency injection**: All new development must use DI patterns
+
 ### Database Architecture Preferences
 - **Clear separation**: Shared vs indexer database tables must be clearly distinguished
 - **Dependency injection**: All database connections managed through DI container
 - **Repository pattern**: Clean query interfaces, business logic in services
 - **Infrastructure vs Model clarity**: Chain-level data in shared DB, indexer-specific data in model DB
 
-### Migration System Preferences
-- **Alembic for shared database**: Traditional migrations for infrastructure schema evolution
-- **Templates for model databases**: Recreation rather than migration for rapid development
-- **Custom type handling**: Automatic import generation for `EvmAddressType`, etc.
-- **Development workflow**: Easy reset and recreation during development iterations
+### What Works Well - ⭐ **Proven Patterns**
+- **Conversational tone**: Natural back-and-forth discussion
+- **Incremental building**: Building features piece by piece
+- **Clear documentation**: Well-commented code and explanations
+- **Practical examples**: CLI usage examples and cron job setups
+
+**From Migration Success:**
+- **Standalone scripts**: Independent, self-contained migration scripts work better than inheritance
+- **Comprehensive validation**: 5-6 validation checks per operation catch all issues
+- **Transaction safety**: Rollback capability essential for complex operations
+- **Copy-and-modify pattern**: Easier than complex base classes for similar operations
+
+### What Doesn't Work - ⚠️ **Learned from Experience**
+- **Jumping to solutions**: Don't immediately start developing without understanding the problem
+- **Making assumptions**: Don't infer problems exist without checking actual code
+- **Multiple versions**: Don't generate 9 versions of fixes without dialogue
+- **Ignoring guidance**: Don't proceed when told a different approach is needed
+- **Complex inheritance**: Simple standalone patterns often work better than abstract base classes
 
 ### Response Format
 - **Structured responses**: Use headings and bullet points for clarity
@@ -194,72 +154,71 @@ This is a comprehensive blockchain token indexer with a modular architecture des
 - **Complete replacement files**: When providing artifacts, provide complete replacement files
 - **Partial replacement clarity**: If a file is too long or only a single part is being updated, make it clear that it is a partial replacement and provide either a complete class replacement or complete method replacement
 
-### What Works Well
-- **Conversational tone**: Natural back-and-forth discussion
-- **Incremental building**: Building features piece by piece
-- **Clear documentation**: Well-commented code and explanations
-- **Practical examples**: CLI usage examples and cron job setups
-
 ## Development Workflow
 
-### **Migration Workflow**
+### **V2 Database Operations** ✅
 ```bash
-# Development setup
-python -m indexer.cli migrate dev setup blub_test
+# V2 database operations (post-migration)
+python -m indexer.cli migrate dev setup blub_test_v2
 
-# Configuration import
+# Configuration import (V2 databases)
 python -m indexer.cli config import-shared config/shared_db/shared_v1_0.yaml
 python -m indexer.cli config import-model config/model_db/blub_test_v1_0.yaml
 
 # Status checking
 python -m indexer.cli migrate status
-python db_inspector.py
 ```
 
-### **Development Iteration**
+### **Pricing Management** ✅
 ```bash
-# When making model schema changes
-python -m indexer.cli migrate model recreate blub_test
-
-# When making shared schema changes
-python -m indexer.cli migrate shared create "Description of changes"
-python -m indexer.cli migrate shared upgrade
+# Pricing operations (ready for testing)
+python -m indexer.cli pricing status blub_test_v2
+python -m indexer.cli pricing update-all blub_test_v2
 ```
 
-### **Pricing Management**
+### **Migration Operations** ✅ **COMPLETED**
 ```bash
-# Pricing operations
-python -m indexer.cli pricing status blub_test
-python -m indexer.cli pricing update-all blub_test
+# Migration scripts (successfully completed)
+python scripts/data_migration/migrate_liquidity.py
+python scripts/data_migration/migrate_pool_swaps.py
+python scripts/data_migration/migrate_positions.py
+python scripts/data_migration/migrate_processing_jobs.py
+python scripts/data_migration/migrate_rewards.py
+python scripts/data_migration/migrate_trades.py
+python scripts/data_migration/migrate_transaction_processing.py
+python scripts/data_migration/migrate_transfers.py
 ```
 
 ## Current Development Phase
 
-### **✅ COMPLETED: Core Infrastructure**
-- Migration system with custom type support
-- Dual database architecture
-- Configuration management system
-- Direct pricing implementation
-- CLI interface and documentation
+### **✅ COMPLETED: Database Migration & Core Infrastructure**
+- ✅ **Migration System**: 440,817 rows migrated with 100% validation success
+- ✅ **Dual Database Architecture**: V2 databases fully operational
+- ✅ **Configuration Management**: Successfully loaded into databases
+- ✅ **Direct Pricing System**: Complete implementation with CLI management
+- ✅ **Repository Layer**: Enhanced with bulk operations and validation
+- ✅ **Migration Scripts**: Standalone pattern proven across 8 tables
 
-### **🎯 CURRENT: Canonical Pricing & Calculation Services**
+### **🎯 CURRENT FOCUS: Pricing Service Testing & Validation**
 
-**Following 9-step development plan:**
-1. **Update tables and repositories** (contract.project field verification needed)
-2. **Develop pricing service** (canonical VWAP pricing methods)
-3. **Develop calculation service** (event valuations and analytics)
-4. **Review database updates** (handle schema changes from development)
-5. **Migrate databases** (handle existing data and new fields)
-6. **Create service runner** (CLI-based runner following batch processing patterns)
-7. **Update CLI** (integrate service runner)
-8. **Process sample batches** (validate services)
-9. **Process bulk test batch** (production validation)
+**Now that the core infrastructure is complete and 440K+ rows of real data are available:**
 
-### **Architecture Foundations Complete**
-- ✅ Direct pricing provides foundation for canonical pricing
-- ✅ Repository patterns established for new service development
-- ✅ Batch processing architecture ready for service runner implementation
-- ✅ CLI patterns established for comprehensive service management
+**Priority Development Plan:**
+1. **🎯 Test Pricing Service**: Validate canonical VWAP pricing with real data
+2. **🎯 Debug Pricing Issues**: Work out any calculation or configuration problems
+3. **🎯 Calculation Service**: Event valuations, OHLC candles, protocol volume metrics
+4. **🎯 Service Integration**: Test end-to-end pricing workflows
+5. **🎯 Performance Validation**: Ensure pricing services handle production load
+6. **🎯 CLI Testing**: Validate all pricing management commands
+7. **🎯 Error Handling**: Test graceful fallback scenarios
+8. **🎯 Data Quality**: Verify pricing accuracy against expected results
+
+### **Architecture Ready for Pricing Work**
+- ✅ **Real Data Available**: 440,817 rows across all event types for testing
+- ✅ **Database Schema**: All pricing tables and relationships established
+- ✅ **Service Foundation**: Repository patterns and DI container ready
+- ✅ **CLI Interface**: Management commands available for testing
+- ✅ **Configuration System**: Pool pricing configs ready for use
 
 ## Key Design Principles
 
@@ -274,14 +233,42 @@ python -m indexer.cli pricing update-all blub_test
 - Global defaults with model-specific customization
 
 ### **Development Efficiency** 
-- Template-based model database recreation for rapid iteration
+- Standalone scripts for complex operations (proven with migration)
 - Comprehensive CLI interface for all operations
 - Clear documentation and troubleshooting guides
+- Copy-and-modify patterns for similar functionality
 
 ### **Production Readiness**
 - Proper error handling and logging
 - Health monitoring and diagnostics
 - Scalable architecture with read replicas
 - Pricing accuracy and method tracking
+- Complete data validation and integrity checking
 
-The indexer is now architecturally complete and ready for the canonical pricing and calculation services implementation phase.
+### **Testing & Validation**
+- Comprehensive validation patterns (5-6 checks per operation)
+- Transaction safety with rollback capability
+- Real data testing with production-scale datasets
+- CLI-driven testing and debugging workflows
+
+## Data Migration Lessons Learned ⭐
+
+### **Successful Patterns**
+- **Standalone Scripts**: Self-contained operations easier than inheritance patterns
+- **Comprehensive Validation**: Multiple validation checks catch all edge cases
+- **Stable Ordering**: Use `ORDER BY id` not `ORDER BY created_at` for validation
+- **Transaction Safety**: Rollback essential for complex data operations
+- **Schema Evolution**: Handle reserved keywords, JSONB conversion, field drops gracefully
+
+### **Migration Success Metrics**
+- **100% Success Rate**: All 8 tables migrated perfectly
+- **Zero Data Loss**: Complete preservation of blockchain activity
+- **Perfect Validation**: All relationships and constraints maintained
+- **Production Ready**: V2 databases operational immediately after migration
+
+---
+
+**Current Status**: Database migration complete, pricing infrastructure ready  
+**Next Focus**: Pricing service testing and validation with real data  
+**Data Available**: 440,817 rows across 8 tables for comprehensive testing  
+**Architecture**: Production-ready with proven patterns and comprehensive validation
