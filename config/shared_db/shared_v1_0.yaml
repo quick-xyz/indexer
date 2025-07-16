@@ -95,6 +95,7 @@ contracts:
     name: "JLP:BLUB-AVAX"
     project: "LFJ"
     type: "pool"
+    base_token: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
     description: "Joe V1 AMM: BLUB-AVAX"
     abi:
       dir: "pools"
@@ -114,6 +115,7 @@ contracts:
     name: "LB:BLUB-AVAX"
     project: "LFJ"
     type: "pool"
+    base_token: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
     description: "Joe V2 Liquidity Book: BLUB-AVAX"
     abi:
       dir: "pools"
@@ -132,6 +134,7 @@ contracts:
     name: "PLP:BLUB-AVAX"
     project: "Pharaoh"
     type: "pool"
+    base_token: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
     description: "Pharaoh V1 AMM: BLUB-AVAX"
     abi:
       dir: "pools"
@@ -150,6 +153,7 @@ contracts:
     name: "LP0:BLUB-AVAX"
     project: "DWS"
     type: "pool"
+    base_token: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
     description: "DWS Launch AMM: BLUB-AVAX"
     abi:
       dir: "pools"
@@ -169,6 +173,7 @@ contracts:
     name: "PCL:BLUB-AVAX"
     project: "Pharaoh"
     type: "pool"
+    base_token: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
     description: "Pharaoh Concentrated Liquidity: BLUB-AVAX"
     abi:
       dir: "pools"

@@ -277,7 +277,10 @@ def _import_shared_config_data(ctx, config_data: Dict[str, Any]) -> None:
                         pricing_strategy_default=contract_data.get('pricing_strategy_default'),
                         pricing_start_block=contract_data.get('pricing_start_block'),
                         pricing_end_block=contract_data.get('pricing_end_block'),
-                        
+
+                        # ADD: Base token for pricing and volume calculations
+                        base_token_address=contract_data.get('base_token', '').lower() if contract_data.get('base_token') else None,
+    
                         status='active'
                     )
                     

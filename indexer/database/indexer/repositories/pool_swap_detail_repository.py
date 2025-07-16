@@ -301,7 +301,7 @@ class PoolSwapDetailRepository(BaseRepository):
                 )
             ).filter(
                 and_(
-                    PoolSwap.asset_in == asset_address.lower(),  # Asset being priced
+                    Contract.base_token_address == asset_address.lower(),  # Pool configured for this base token
                     PoolSwapDetail.denomination == denomination,
                     PoolSwap.timestamp >= start_time,
                     PoolSwap.timestamp <= end_time,
@@ -313,7 +313,7 @@ class PoolSwapDetailRepository(BaseRepository):
         except Exception as e:
             log_with_context(
                 self.logger, logging.ERROR, "Error getting pricing pool swaps in timeframe",
-                asset_address=asset_address,
+                base_token_address=asset_address,
                 start_time=start_time.isoformat(),
                 end_time=end_time.isoformat(),
                 denomination=denomination.value,

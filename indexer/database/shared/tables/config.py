@@ -57,6 +57,7 @@ class Contract(SharedBase, SharedTimestampMixin):
     
     # ENHANCED: Global pricing defaults for pools (embedded in contracts table)
     pricing_strategy_default = Column(String(50), nullable=True)  # "direct_avax", "direct_usd", "global"
+    base_token_address = Column(EvmAddressType())
     pricing_start_block = Column(Integer, nullable=True)  # When pricing config becomes valid
     pricing_end_block = Column(Integer, nullable=True)    # When pricing config expires (NULL = indefinite)
     

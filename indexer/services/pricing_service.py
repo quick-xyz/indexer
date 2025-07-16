@@ -238,17 +238,15 @@ class PricingService:
         Creates price_vwap records representing canonical price authority.
         Uses pricing pools (pricing_pool=True) to calculate volume-weighted prices.
         
-        Args:
-            timestamp_minutes: List of minute timestamps to process
-            asset_address: Asset to generate pricing for  
-            denomination: usd, avax, or None for both
-            
-        Returns:
-            Dict with creation statistics: {'usd_created': 0, 'avax_created': 0, 'errors': 0}
+        Logic:
+        1. Find all pools where contract.base_token_address == asset_address
+        2. Get pool_swap_details from pricing pools (pricing_pool=True) 
+        3. Calculate VWAP ensuring consistent base token price direction
+        4. Create price_vwap records for the base token
         """
         log_with_context(
             self.logger, logging.INFO, "Generating canonical prices",
-            asset_address=asset_address,
+            base_token_address=asset_address,
             minutes_count=len(timestamp_minutes),
             denomination=denomination.value if denomination else "both"
         )
@@ -283,7 +281,7 @@ class PricingService:
                         if not pricing_swaps:
                             log_with_context(
                                 self.logger, logging.WARNING, "No pricing pool data for canonical price",
-                                asset_address=asset_address,
+                                base_token_address=asset_address,
                                 timestamp_minute=minute_timestamp,
                                 denomination=denom.value
                             )
@@ -307,7 +305,7 @@ class PricingService:
                         if total_volume == Decimal('0'):
                             log_with_context(
                                 self.logger, logging.WARNING, "Zero volume for canonical price calculation",
-                                asset_address=asset_address,
+                                base_token_address=asset_address,
                                 timestamp_minute=minute_timestamp,
                                 denomination=denom.value
                             )
@@ -335,7 +333,7 @@ class PricingService:
                             
                         log_with_context(
                             self.logger, logging.DEBUG, "Created canonical price",
-                            asset_address=asset_address,
+                            base_token_address=asset_address,
                             timestamp_minute=minute_timestamp,
                             denomination=denom.value,
                             price=float(canonical_price),
@@ -346,7 +344,7 @@ class PricingService:
                     results['errors'] += 1
                     log_with_context(
                         self.logger, logging.ERROR, "Error generating canonical price",
-                        asset_address=asset_address,
+                        base_token_address=asset_address,
                         timestamp_minute=minute_timestamp,
                         error=str(e)
                     )
