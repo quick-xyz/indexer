@@ -82,7 +82,7 @@ class CLIContext:
             db_port = os.getenv("INDEXER_DB_PORT", "5432")
         
         # Infrastructure database name
-        db_name = os.getenv("INDEXER_INFRASTRUCTURE_DB_NAME", "indexer_shared")
+        db_name = os.getenv("INDEXER_DB_NAME")
         
         if not db_user or not db_password:
             raise ValueError("Database credentials not found. Set INDEXER_DB_USER and INDEXER_DB_PASSWORD environment variables or configure GCP secrets.")

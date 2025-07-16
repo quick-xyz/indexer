@@ -69,7 +69,6 @@ from indexer.cli.commands.pricing import pricing
 from indexer.cli.commands.service import service  # NEW: Service commands
 from indexer.cli.commands.migrate import migrate
 from indexer.cli.commands.batch import batch
-from indexer.cli.commands.enhanced_migrate import migrate_enhanced
 
 # Register command groups
 cli.add_command(config)
@@ -82,8 +81,6 @@ cli.add_command(pricing)
 cli.add_command(service)  # NEW: Service command group
 cli.add_command(migrate)
 cli.add_command(batch)
-cli.add_command(migrate_enhanced)
-
 
 def cleanup():
     """Cleanup function to properly shutdown database connections"""
