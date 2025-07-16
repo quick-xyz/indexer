@@ -191,7 +191,7 @@ class Address(SharedBase, SharedTimestampMixin):
     id = Column(Integer, primary_key=True)
     name = Column(String(255), nullable=False)     # "treasury", "multisig", "deployer"
     address = Column(EvmAddressType(), nullable=False, index=True)  # Ethereum address
-    address_type = Column(String(50), nullable=True)  # "treasury", "multisig", "eoa", etc.
+    address_type = Column(String(50), nullable=False)  # "treasury", "multisig", "eoa", etc.
     description = Column(Text)                     # Description of address purpose
     status = Column(String(50), nullable=False, default='active')  # "active", "deprecated"
     
