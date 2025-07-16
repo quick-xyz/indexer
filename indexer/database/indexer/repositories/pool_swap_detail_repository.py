@@ -24,6 +24,7 @@ class PoolSwapDetailRepository(BaseRepository):
     
     def __init__(self, db_manager: ModelDatabaseManager):
         super().__init__(db_manager, PoolSwapDetail)
+        self.logger = log_with_context(logging.getLogger('database.repositories.pool_swap_detail'))
     
     def create_detail(
         self,
@@ -38,13 +39,12 @@ class PoolSwapDetailRepository(BaseRepository):
         """Create a new pool swap detail record"""
         try:
             detail = PoolSwapDetail(
-                content_id=content_id,
-                denom=denom,
-                value=value,
-                price=price,
-                price_method=price_method,
-                price_config_id=price_config_id
-                # Note: created_at and updated_at handled automatically by BaseModel
+                content_id=content_id,           # ✅ Correct field name
+                denom=denom,                     # ✅ Correct field name
+                value=value,                     # ✅ Correct field name
+                price=price,                     # ✅ Correct field name
+                price_method=price_method,       # ✅ Correct field name
+                price_config_id=price_config_id  # ✅ Correct field name
             )
             
             session.add(detail)
@@ -88,7 +88,7 @@ class PoolSwapDetailRepository(BaseRepository):
             return session.query(PoolSwapDetail).filter(
                 and_(
                     PoolSwapDetail.content_id == content_id,
-                    PoolSwapDetail.denom == denom
+                    PoolSwapDetail.denom == denom               # ✅ Correct field name
                 )
             ).one_or_none()
         except Exception as e:
@@ -107,8 +107,8 @@ class PoolSwapDetailRepository(BaseRepository):
         """Get details by pricing method"""
         try:
             return session.query(PoolSwapDetail).filter(
-                PoolSwapDetail.price_method == price_method
-            ).order_by(desc(PoolSwapDetail.created_at)).limit(limit).all()  # FIXED: created_at instead of calculated_at
+                PoolSwapDetail.price_method == price_method  # ✅ Correct field name
+            ).order_by(desc(PoolSwapDetail.created_at)).limit(limit).all()
         except Exception as e:
             log_with_context(self.logger, logging.ERROR, "Error getting details by pricing method",
                             price_method=price_method.value,
@@ -119,8 +119,8 @@ class PoolSwapDetailRepository(BaseRepository):
         """Get USD valuation details"""
         try:
             return session.query(PoolSwapDetail).filter(
-                PoolSwapDetail.denom == PricingDenomination.USD
-            ).order_by(desc(PoolSwapDetail.created_at)).limit(limit).all()  # FIXED: created_at instead of calculated_at
+                PoolSwapDetail.denom == PricingDenomination.USD  # ✅ Correct field name
+            ).order_by(desc(PoolSwapDetail.created_at)).limit(limit).all()
         except Exception as e:
             log_with_context(self.logger, logging.ERROR, "Error getting USD valuations",
                             error=str(e))
@@ -130,35 +130,10 @@ class PoolSwapDetailRepository(BaseRepository):
         """Get AVAX valuation details"""
         try:
             return session.query(PoolSwapDetail).filter(
-                PoolSwapDetail.denom == PricingDenomination.AVAX
-            ).order_by(desc(PoolSwapDetail.created_at)).limit(limit).all()  # FIXED: created_at instead of calculated_at
+                PoolSwapDetail.denom == PricingDenomination.AVAX  # ✅ Correct field name
+            ).order_by(desc(PoolSwapDetail.created_at)).limit(limit).all()
         except Exception as e:
             log_with_context(self.logger, logging.ERROR, "Error getting AVAX valuations",
-                            error=str(e))
-            raise
-    
-    def get_missing_valuations(
-        self, 
-        session: Session, 
-        denom: PricingDenomination,
-        limit: int = 1000
-    ) -> List[DomainEventId]:
-        """Get pool swaps missing valuation details for a denomination"""
-        try:           
-            # Find pool swaps that don't have detail records for this denomination
-            subquery = session.query(PoolSwapDetail.content_id).filter(
-                PoolSwapDetail.denom == denom
-            ).subquery()
-            
-            missing_swaps = session.query(PoolSwap.content_id).filter(
-                ~PoolSwap.content_id.in_(subquery)
-            ).order_by(desc(PoolSwap.created_at)).limit(limit).all()  # FIXED: created_at instead of timestamp
-            
-            return [swap.content_id for swap in missing_swaps]
-            
-        except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error getting missing valuations",
-                            denom=denom.value,
                             error=str(e))
             raise
     
@@ -205,7 +180,7 @@ class PoolSwapDetailRepository(BaseRepository):
             return session.query(PoolSwapDetail).filter(
                 and_(
                     PoolSwapDetail.content_id.in_(swap_content_ids),
-                    PoolSwapDetail.denom == PricingDenomination.USD
+                    PoolSwapDetail.denom == PricingDenomination.USD  # ✅ Correct field name
                 )
             ).order_by(PoolSwapDetail.content_id).all()
         except Exception as e:
@@ -224,7 +199,7 @@ class PoolSwapDetailRepository(BaseRepository):
             return session.query(PoolSwapDetail).filter(
                 and_(
                     PoolSwapDetail.content_id.in_(swap_content_ids),
-                    PoolSwapDetail.denom == PricingDenomination.AVAX
+                    PoolSwapDetail.denom == PricingDenomination.AVAX  # ✅ Correct field name
                 )
             ).order_by(PoolSwapDetail.content_id).all()
         except Exception as e:
@@ -244,7 +219,7 @@ class PoolSwapDetailRepository(BaseRepository):
             direct_pricing_count = session.query(PoolSwapDetail.content_id.distinct()).filter(
                 and_(
                     PoolSwapDetail.content_id.in_(swap_content_ids),
-                    PoolSwapDetail.price_method.in_([PricingMethod.DIRECT_AVAX, PricingMethod.DIRECT_USD])
+                    PoolSwapDetail.price_method.in_([PricingMethod.DIRECT_AVAX, PricingMethod.DIRECT_USD])  # ✅ Correct field name
                 )
             ).count()
             
@@ -261,9 +236,9 @@ class PoolSwapDetailRepository(BaseRepository):
         """Get statistics about pricing methods used"""
         try:           
             stats = session.query(
-                PoolSwapDetail.price_method,
+                PoolSwapDetail.price_method,                    # ✅ Correct field name
                 func.count(PoolSwapDetail.content_id.distinct()).label('swap_count')
-            ).group_by(PoolSwapDetail.price_method).all()
+            ).group_by(PoolSwapDetail.price_method).all()        # ✅ Correct field name
             
             return {method.value: count for method, count in stats}
             
@@ -288,7 +263,6 @@ class PoolSwapDetailRepository(BaseRepository):
         """
         try:
             # Join with pool pricing config to find pricing pools
-            # Note: This assumes pool_pricing_config has a pricing_pool boolean field
             return session.query(PoolSwapDetail).join(
                 PoolSwap, PoolSwapDetail.content_id == PoolSwap.content_id
             ).join(
@@ -302,11 +276,11 @@ class PoolSwapDetailRepository(BaseRepository):
             ).filter(
                 and_(
                     Contract.base_token_address == asset_address.lower(),  # Pool configured for this base token
-                    PoolSwapDetail.denomination == denomination,
+                    PoolSwapDetail.denom == denomination,                   # ✅ Fixed: Use correct field name
                     PoolSwap.timestamp >= start_time,
                     PoolSwap.timestamp <= end_time,
-                    PoolSwapDetail.price_usd.isnot(None) if denomination == PricingDenomination.USD else PoolSwapDetail.price_avax.isnot(None),
-                    PoolSwapDetail.volume_usd.isnot(None) if denomination == PricingDenomination.USD else PoolSwapDetail.volume_avax.isnot(None)
+                    PoolSwapDetail.price.isnot(None),                      # ✅ Fixed: Use actual price field
+                    PoolSwapDetail.value.isnot(None)                       # ✅ Fixed: Use actual value field
                 )
             ).order_by(PoolSwap.timestamp).all()
             
@@ -336,30 +310,17 @@ class PoolSwapDetailRepository(BaseRepository):
         to price swaps that couldn't be directly priced.
         """
         try:
-            # Calculate volume using canonical price and swap amounts
-            # This assumes the swap has amount_in/amount_out fields
-            if denomination == PricingDenomination.USD:
-                # For USD denomination, calculate volume using canonical USD price
-                volume_usd = swap.amount_out * canonical_price  # Assumes amount_out is in human-readable format
-                price_usd = canonical_price
-                volume_avax = None
-                price_avax = None
-            else:
-                # For AVAX denomination, calculate volume using canonical AVAX price  
-                volume_avax = swap.amount_out * canonical_price
-                price_avax = canonical_price
-                volume_usd = None
-                price_usd = None
+            # Calculate value using canonical price and swap base amount
+            # Assumes swap.base_amount is in human-readable format
+            swap_value = float(swap.base_amount) * float(canonical_price)
             
             detail = PoolSwapDetail(
-                content_id=swap.content_id,
-                denomination=denomination,
-                volume_usd=float(volume_usd) if volume_usd else None,
-                volume_avax=float(volume_avax) if volume_avax else None,
-                price_usd=float(price_usd) if price_usd else None,
-                price_avax=float(price_avax) if price_avax else None,
-                pricing_method=pricing_method,
-                pool_address=swap.pool
+                content_id=swap.content_id,      # ✅ Correct field name
+                denom=denomination,              # ✅ Fixed: Correct field name
+                value=swap_value,                # ✅ Fixed: Use actual table field
+                price=float(canonical_price),    # ✅ Fixed: Use actual table field
+                price_method=pricing_method      # ✅ Fixed: Correct field name
+                # ✅ Removed: pool_address doesn't exist, price_config_id is optional
             )
             
             session.add(detail)
@@ -371,7 +332,7 @@ class PoolSwapDetailRepository(BaseRepository):
                 denomination=denomination.value,
                 canonical_price=float(canonical_price),
                 pricing_method=pricing_method.value,
-                volume=float(volume_usd) if volume_usd else float(volume_avax)
+                value=swap_value
             )
             
             return detail
@@ -397,53 +358,39 @@ class PoolSwapDetailRepository(BaseRepository):
         Used by PricingService.get_pricing_status() for monitoring.
         """
         try:
-            # Get stats for USD denomination
-            usd_stats = session.query(
-                func.count(PoolSwapDetail.content_id).label('detail_count'),
-                func.count(case([(PoolSwapDetail.pricing_method == PricingMethod.DIRECT, 1)])).label('direct_count'),
-                func.count(case([(PoolSwapDetail.pricing_method == PricingMethod.GLOBAL, 1)])).label('global_count'),
-                func.sum(PoolSwapDetail.volume_usd).label('total_volume'),
-                func.avg(PoolSwapDetail.price_usd).label('avg_price')
+            # Get stats for swaps involving this asset
+            stats = session.query(
+                func.count(PoolSwapDetail.content_id.distinct()).label('total_swaps'),
+                func.count(case(
+                    [(PoolSwapDetail.price_method.in_([PricingMethod.DIRECT_AVAX, PricingMethod.DIRECT_USD]), 1)],
+                    else_=None
+                )).label('direct_priced_swaps'),
+                func.count(case(
+                    [(PoolSwapDetail.price_method == PricingMethod.GLOBAL, 1)],
+                    else_=None
+                )).label('global_priced_swaps'),
+                func.count(case(
+                    [(PoolSwapDetail.denom == PricingDenomination.USD, 1)],  # ✅ Fixed: Correct field name
+                    else_=None
+                )).label('usd_details'),
+                func.count(case(
+                    [(PoolSwapDetail.denom == PricingDenomination.AVAX, 1)], # ✅ Fixed: Correct field name
+                    else_=None
+                )).label('avax_details')
             ).join(
                 PoolSwap, PoolSwapDetail.content_id == PoolSwap.content_id
             ).filter(
-                and_(
-                    PoolSwap.asset_in == asset_address.lower(),
-                    PoolSwapDetail.denomination == PricingDenomination.USD
-                )
-            ).first()
-            
-            # Get stats for AVAX denomination
-            avax_stats = session.query(
-                func.count(PoolSwapDetail.content_id).label('detail_count'),
-                func.count(case([(PoolSwapDetail.pricing_method == PricingMethod.DIRECT, 1)])).label('direct_count'),
-                func.count(case([(PoolSwapDetail.pricing_method == PricingMethod.GLOBAL, 1)])).label('global_count'),
-                func.sum(PoolSwapDetail.volume_avax).label('total_volume'),
-                func.avg(PoolSwapDetail.price_avax).label('avg_price')
-            ).join(
-                PoolSwap, PoolSwapDetail.content_id == PoolSwap.content_id
-            ).filter(
-                and_(
-                    PoolSwap.asset_in == asset_address.lower(),
-                    PoolSwapDetail.denomination == PricingDenomination.AVAX
-                )
+                # Filter for swaps involving the asset (either asset_in or asset_out)
+                (PoolSwap.asset_in == asset_address.lower()) | 
+                (PoolSwap.asset_out == asset_address.lower())
             ).first()
             
             return {
-                'usd': {
-                    'detail_count': usd_stats.detail_count or 0,
-                    'direct_count': usd_stats.direct_count or 0,
-                    'global_count': usd_stats.global_count or 0,
-                    'total_volume': float(usd_stats.total_volume) if usd_stats.total_volume else 0.0,
-                    'avg_price': float(usd_stats.avg_price) if usd_stats.avg_price else 0.0
-                },
-                'avax': {
-                    'detail_count': avax_stats.detail_count or 0,
-                    'direct_count': avax_stats.direct_count or 0,
-                    'global_count': avax_stats.global_count or 0,
-                    'total_volume': float(avax_stats.total_volume) if avax_stats.total_volume else 0.0,
-                    'avg_price': float(avax_stats.avg_price) if avax_stats.avg_price else 0.0
-                }
+                'total_swaps': stats.total_swaps or 0,
+                'direct_priced_swaps': stats.direct_priced_swaps or 0,
+                'global_priced_swaps': stats.global_priced_swaps or 0,
+                'usd_details': stats.usd_details or 0,
+                'avax_details': stats.avax_details or 0
             }
             
         except Exception as e:
@@ -452,7 +399,7 @@ class PoolSwapDetailRepository(BaseRepository):
                 asset_address=asset_address,
                 error=str(e)
             )
-            return {'usd': {}, 'avax': {}}
+            return {'total_swaps': 0, 'direct_priced_swaps': 0, 'global_priced_swaps': 0, 'usd_details': 0, 'avax_details': 0}
 
     def get_latest_pricing_timestamp(
         self,
@@ -464,7 +411,8 @@ class PoolSwapDetailRepository(BaseRepository):
             latest = session.query(func.max(PoolSwap.timestamp)).join(
                 PoolSwap, PoolSwapDetail.content_id == PoolSwap.content_id
             ).filter(
-                PoolSwap.asset_in == asset_address.lower()
+                (PoolSwap.asset_in == asset_address.lower()) | 
+                (PoolSwap.asset_out == asset_address.lower())
             ).scalar()
             
             return latest.isoformat() if latest else None
@@ -492,57 +440,41 @@ class PoolSwapDetailRepository(BaseRepository):
         to aggregate swap volume by protocol using contract.project.
         """
         try:
-            # Get the period timeframe
-            period = shared_session.query(Period).filter(Period.id == period_id).first()
-            if not period:
-                return {}
-            
-            # Calculate period start/end times (assuming period represents a time range)
-            period_start = period.timestamp
-            # For simplicity, assuming 5-minute periods - adjust based on your period structure
-            period_end = period_start + timedelta(minutes=5)
-            
-            # Aggregate volume by protocol
-            volume_by_protocol = indexer_session.query(
+            # Join swap details with contracts to get protocol info
+            results = indexer_session.query(
                 Contract.project.label('protocol'),
-                func.sum(
-                    PoolSwapDetail.volume_usd if denomination == PricingDenomination.USD 
-                    else PoolSwapDetail.volume_avax
-                ).label('total_volume'),
-                func.count(func.distinct(PoolSwap.pool)).label('pool_count'),
-                func.count(PoolSwapDetail.content_id).label('swap_count')
+                func.sum(PoolSwapDetail.value).label('total_volume'),   # ✅ Fixed: Use actual field name
+                func.count(PoolSwapDetail.content_id.distinct()).label('swap_count'),
+                func.count(PoolSwap.pool.distinct()).label('pool_count')
             ).join(
                 PoolSwap, PoolSwapDetail.content_id == PoolSwap.content_id
             ).join(
                 Contract, PoolSwap.pool == Contract.address
+            ).join(
+                Period, 
+                and_(
+                    PoolSwap.timestamp >= Period.time_open,
+                    PoolSwap.timestamp <= Period.time_close
+                )
             ).filter(
                 and_(
-                    PoolSwap.asset_in == asset_address.lower(),
-                    PoolSwapDetail.denomination == denomination,
-                    PoolSwap.timestamp >= period_start,
-                    PoolSwap.timestamp < period_end,
-                    Contract.project.isnot(None)  # Only contracts with project assigned
+                    Period.id == period_id,
+                    PoolSwapDetail.denom == denomination,               # ✅ Fixed: Correct field name
+                    (PoolSwap.asset_in == asset_address.lower()) | 
+                    (PoolSwap.asset_out == asset_address.lower()),
+                    Contract.project.isnot(None)  # Only pools with protocol info
                 )
             ).group_by(Contract.project).all()
             
-            # Convert to dictionary format
-            result = {}
-            for row in volume_by_protocol:
-                result[row.protocol] = {
-                    'total_volume': Decimal(str(row.total_volume)) if row.total_volume else Decimal('0'),
-                    'pool_count': row.pool_count or 0,
-                    'swap_count': row.swap_count or 0
+            protocol_volumes = {}
+            for protocol, volume, swap_count, pool_count in results:
+                protocol_volumes[protocol] = {
+                    'volume': float(volume) if volume else 0.0,
+                    'swap_count': swap_count or 0,
+                    'pool_count': pool_count or 0
                 }
             
-            log_with_context(
-                self.logger, logging.DEBUG, "Protocol volume aggregation calculated",
-                period_id=period_id,
-                asset_address=asset_address,
-                denomination=denomination.value,
-                protocols_found=len(result)
-            )
-            
-            return result
+            return protocol_volumes
             
         except Exception as e:
             log_with_context(
