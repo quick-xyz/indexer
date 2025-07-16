@@ -19,6 +19,10 @@ from .event_detail_repository import EventDetailRepository
 # Processing repository
 from .processing_repository import ProcessingRepository
 
+# Calculation service repositories (ADDED)
+from .asset_price_repository import AssetPriceRepository
+from .asset_volume_repository import AssetVolumeRepository
+
 __all__ = [
     # Base repository
     'DomainEventRepository',
@@ -37,5 +41,9 @@ __all__ = [
     'EventDetailRepository',
     
     # Processing repository
-    'ProcessingRepository'
+    'ProcessingRepository',
+    
+    # Calculation service repositories (ADDED)
+    'AssetPriceRepository',
+    'AssetVolumeRepository'
 ]
