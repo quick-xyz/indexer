@@ -7,8 +7,15 @@ from sqlalchemy.orm import relationship
 
 from ...base import SharedBase, SharedTimestampMixin
 from ...types import EvmAddressType
-from ....types import AddressConfig, ContractConfig, TokenConfig, PoolConfig, SourceConfig, ModelConfig
-
+from ....types import (
+    AddressConfig, 
+    ContractConfig, 
+    TokenConfig, 
+    PoolConfig, 
+    SourceConfig, 
+    ModelConfig, 
+    PricingConfig
+)
 
 class Model(SharedBase, SharedTimestampMixin):
     __tablename__ = 'models'
@@ -16,6 +23,7 @@ class Model(SharedBase, SharedTimestampMixin):
     id = Column(Integer, primary_key=True)
     name = Column(String(255), unique=True, nullable=False)
     version = Column(String(50), nullable=False)
+    network = Column(String(50), nullable=False, index=True, default='avalanche')
     description = Column(Text, nullable=True)
     database_name = Column(String(255), nullable=False)
     target_asset = Column(EvmAddressType(), nullable=True)
@@ -24,12 +32,14 @@ class Model(SharedBase, SharedTimestampMixin):
     contracts = relationship("ModelContract", back_populates="model", cascade="all, delete-orphan")
     tokens = relationship("ModelToken", back_populates="model", cascade="all, delete-orphan")
     sources = relationship("ModelSource", back_populates="model", cascade="all, delete-orphan")
-    pool_pricing_configs = relationship("PoolPricingConfig", back_populates="model", cascade="all, delete-orphan")
+    pools = relationship("ModelPool", back_populates="model", cascade="all, delete-orphan")
     
     __table_args__ = (
+        Index('idx_model_network_unique', 'name', 'network', unique=True),
         Index('idx_models_name', 'name'),
         Index('idx_models_status', 'status'),
         Index('idx_models_version', 'version'),
+        Index('idx_models_network', 'network'),
         Index('idx_models_target_asset', 'target_asset'),
     )
     
@@ -70,7 +80,7 @@ class Address(SharedBase, SharedTimestampMixin):
     __tablename__ = 'addresses'
     
     id = Column(Integer, primary_key=True)
-    network = Column(String(50), nullable=False, index=True)
+    network = Column(String(50), nullable=False, index=True, default='avalanche')
     address = Column(EvmAddressType(), nullable=False, index=True)
     name = Column(String(255), nullable=False)
     project = Column(String(255), nullable=True)
@@ -81,7 +91,7 @@ class Address(SharedBase, SharedTimestampMixin):
     status = Column(String(50), nullable=False, default='active')
     
     __table_args__ = (
-        UniqueConstraint('network', 'address'),
+        Index('idx_address_network_unique', 'network', 'address', unique=True),
         Index('idx_addresses_address', 'address'),
         Index('idx_addresses_type', 'type'),
         Index('idx_addresses_subtype', 'subtype'),
@@ -162,9 +172,7 @@ class Pool(SharedBase, SharedTimestampMixin):
                        nullable=False, unique=True)
     base_token = Column(EvmAddressType(), nullable=False)
     quote_token = Column(EvmAddressType(), nullable=True)
-    pricing_default = Column(String(50), nullable=True)
-    pricing_start = Column(Integer, nullable=True) 
-    pricing_end = Column(Integer, nullable=True)
+    pricing_default = Column(String(50), nullable=False)
     status = Column(String(50), nullable=False, default='active')
     
     address = relationship("Address", backref="pool")
@@ -174,7 +182,6 @@ class Pool(SharedBase, SharedTimestampMixin):
         Index('idx_pools_base_token', 'base_token'),
         Index('idx_pools_quote_token', 'quote_token'),
         Index('idx_pools_pricing_default', 'pricing_default'),
-        Index('idx_pools_pricing_start', 'pricing_start'),
         Index('idx_pools_status', 'status'),
     )
     
@@ -182,33 +189,16 @@ class Pool(SharedBase, SharedTimestampMixin):
         return f"<Pool(address_id={self.address_id}, base_token='{self.base_token}', pricing_default='{self.pricing_default}')>"
     
     @property
-    def has_direct_pricing(self) -> bool:
+    def has_direct_pricing_default(self) -> bool:
         return self.pricing_default in ['direct_avax', 'direct_usd']
     
     @property
-    def has_global_pricing(self) -> bool:
-        return self.pricing_default == 'global' or self.pricing_default is None
-    
-    def get_effective_pricing_strategy(self, block_number: int = None) -> str:
-        """Get the effective pricing strategy for this pool at a given block"""
-        if block_number and self.pricing_start:
-            if block_number < self.pricing_start:
-                return 'global'  # Before pricing start
-            
-            if self.pricing_end and block_number > self.pricing_end:
-                return 'global'  # After pricing end
-        
-        return self.pricing_default or 'global'
-    
-    def validate_pool_pricing_config(self) -> List[str]:
-        """Validate pool pricing configuration"""
-        errors = []
-        
-        if self.has_direct_pricing and not self.pricing_start:
-            errors.append("pricing_start required for direct pricing configuration")
-        
-        return errors
-    
+    def has_global_pricing_default(self) -> bool:
+        return self.pricing_default == 'global'
+
+    def get_pricing_default(self) -> str:
+        return self.pricing_default
+
     @classmethod
     def from_config(cls, config: PoolConfig, address_id: int) -> 'Pool':
         data = config.to_database_dict()
@@ -310,7 +300,8 @@ class ModelContract(SharedBase, SharedTimestampMixin):
     id = Column(Integer, primary_key=True)
     model_id = Column(Integer, ForeignKey('models.id', ondelete='CASCADE'), nullable=False)
     contract_id = Column(Integer, ForeignKey('contracts.id', ondelete='CASCADE'), nullable=False)
-    
+    status = Column(String(20), nullable=False, default='active')
+
     model = relationship("Model", back_populates="contracts")
     contract = relationship("Contract", back_populates="models")
     
@@ -327,7 +318,8 @@ class ModelToken(SharedBase, SharedTimestampMixin):
     id = Column(Integer, primary_key=True)
     model_id = Column(Integer, ForeignKey('models.id', ondelete='CASCADE'), nullable=False)
     token_id = Column(Integer, ForeignKey('tokens.id', ondelete='CASCADE'), nullable=False)
-    
+    status = Column(String(20), nullable=False, default='active')
+
     model = relationship("Model", back_populates="tokens")
     token = relationship("Token", back_populates="models")
     
@@ -341,13 +333,116 @@ class ModelToken(SharedBase, SharedTimestampMixin):
         return f"<ModelToken(model_id={self.model_id}, token_id={self.token_id})>"
 
 
+class Pricing(SharedBase, SharedTimestampMixin):
+    __tablename__ = 'model_pricing'
+
+    id = Column(Integer, primary_key=True)
+    model_id = Column(Integer, ForeignKey('models.id', ondelete='CASCADE'), nullable=False)
+    pool_id = Column(Integer, ForeignKey('pools.id', ondelete='CASCADE'), nullable=False)
+    pricing_method = Column(String(50), nullable=False, default='global')
+    pricing_feed = Column(Boolean, nullable=False, default=False)
+    pricing_start = Column(Integer, nullable=False) 
+    pricing_end = Column(Integer, nullable=True)
+    status = Column(String(20), nullable=False, default='active')
+
+    model = relationship("Model", back_populates="pools")
+    pool = relationship("Pool", back_populates="models")
+
+    __table_args__ = (
+        Index('idx_pricing_model_id', 'model_id'),
+        Index('idx_pricing_pool_id', 'pool_id'),
+        Index('idx_pricing_range', 'model_id', 'pool_id', 'pricing_start', 'pricing_end'),
+        Index('idx_pricing_feed', 'pricing_feed'),
+        Index('idx_pricing_status', 'status'),
+    )
+
+    def __repr__(self) -> str:
+        return f"<Pricing(model_id={self.model_id}, pool_id={self.pool_id}, pricing_start={self.pricing_start}, pricing_end={self.pricing_end})>"
+    
+    @property
+    def is_active(self) -> bool:
+        return self.status == 'active'
+    
+    @property
+    def is_indefinite(self) -> bool:
+        return self.pricing_end is None
+
+    @property
+    def has_direct_pricing(self) -> bool:
+        return self.pricing_method in ['direct_avax', 'direct_usd']
+    
+    @property
+    def has_global_pricing(self) -> bool:
+        return self.pricing_method == 'global'
+    
+    @property
+    def is_price_feed(self) -> bool:
+        return self.pricing_feed
+
+    def is_active_at_block(self, block_number: int) -> bool:
+        if not self.is_active:
+            return False
+        
+        return (self.pricing_start <= block_number and 
+                (self.pricing_end is None or self.pricing_end >= block_number))
+    
+    def get_effective_pricing_method(self, block_number: int = None) -> str:
+        if not self.pricing_start:
+            return 'global'
+        elif self.pricing_end and block_number < self.pricing_start:
+            return 'global'
+        elif self.pricing_end and block_number > self.pricing_end:
+            return 'global'
+        
+        return self.pricing_method
+    
+    def validate_pool_pricing_config(self) -> List[str]:
+        errors = []
+        
+        if self.has_direct_pricing and not self.pricing_start:
+            errors.append("pricing_start required for direct pricing configuration")
+        
+        return errors
+
+    @classmethod
+    def from_config(cls, config: PricingConfig, model_id: int, pool_id: int) -> 'Pricing':
+        data = config.to_database_dict(model_id, pool_id)
+        return cls(**data)
+
+    @classmethod
+    def get_active_config_for_pool(cls, session, model_id: int, pool_address: str, 
+                                  block_number: int):
+        return session.query(cls).filter(
+            cls.model_id == model_id,
+            cls.contract_id == pool_id,
+            cls.network == network,
+            cls.status == 'active',
+            cls.start_block <= block_number,
+            (cls.end_block.is_(None) | (cls.end_block >= block_number))
+        ).order_by(cls.start_block.desc()).first()
+    
+    @classmethod
+    def get_pricing_pools_for_model(cls, session, model_id: int, block_number: int, 
+                                   network: str = 'avalanche'):
+        """Get all pools configured as pricing pools for a model at a specific block"""
+        return session.query(cls).filter(
+            cls.model_id == model_id,
+            cls.pricing_pool == True,
+            cls.network == network,
+            cls.status == 'active',
+            cls.start_block <= block_number,
+            (cls.end_block.is_(None) | (cls.end_block >= block_number))
+        ).all()
+    
+
 class ModelSource(SharedBase, SharedTimestampMixin):
     __tablename__ = 'model_sources'
     
     id = Column(Integer, primary_key=True)
     model_id = Column(Integer, ForeignKey('models.id', ondelete='CASCADE'), nullable=False)
     source_id = Column(Integer, ForeignKey('sources.id', ondelete='CASCADE'), nullable=False)
-    
+    status = Column(String(20), nullable=False, default='active')
+
     model = relationship("Model", back_populates="sources")
     source = relationship("Source", back_populates="models")
     

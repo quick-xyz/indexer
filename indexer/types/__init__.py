@@ -43,6 +43,7 @@ from .configs.address import AddressConfig, Label
 from .configs.source    import SourceConfig
 from .configs.model import ModelConfig
 from .configs.contract import ContractConfig
+from .configs.pricing import PricingConfig
 
 # Indexer Types
 from .indexer import (
@@ -193,6 +194,7 @@ __all__ = [
     "AddressConfig",
     "Label",
     "SourceConfig",
+    "PricingConfig",
     "ModelConfig",
     "DecoderConfig",
     "TransformerConfig",
