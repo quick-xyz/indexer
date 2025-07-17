@@ -91,10 +91,6 @@ class SourcesDiagnostic:
             
             if len(sources) == 0:
                 self.logger.warning("  ⚠️  No sources found - may need to run migration")
-                # Check legacy source_paths
-                if model.source_paths:
-                    self.logger.info(f"  ℹ️  Found {len(model.source_paths)} legacy source_paths")
-                    self.logger.info("  💡 Run: python scripts/migrate_sources.py --model " + self.model_name)
                 return False
             
             for i, source in enumerate(sources):

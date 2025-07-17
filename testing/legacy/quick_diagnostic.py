@@ -208,7 +208,6 @@ class QuickDiagnostic:
                     "check": "Sources Configuration",
                     "error": "No sources configured",
                     "details": "Model has no sources in database. Run sources migration.",
-                    "legacy_source_paths": getattr(config, 'source_paths', [])
                 })
                 return False
             

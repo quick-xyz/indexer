@@ -298,9 +298,8 @@ class ConfigService:
                            model_name=model_name)
             return False
         
-        # Check for sources (new structure) first, then fall back to source_paths (legacy)
         sources = self.get_sources_for_model(model_name)
-        if not sources and not model.source_paths:
+        if not sources:
             log_with_context(self.logger, logging.ERROR, "Model validation failed - no sources configured",
                         model_name=model_name)
             return False
@@ -309,7 +308,6 @@ class ConfigService:
                        model_name=model_name,
                        version=model.version,
                        contract_count=len(contracts),
-                       source_count=len(sources) if sources else 0,
-                       legacy_source_paths=len(model.source_paths) if model.source_paths else 0)
+                       source_count=len(sources) if sources else 0)
         
         return True

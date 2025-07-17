@@ -24,8 +24,6 @@ class IndexerConfig(Struct):
     model_name: str
     model_version: str
     model_db_name: str
-    source_paths: List[str]  # Deprecated, use sources instead
-
     database: DatabaseConfig
     rpc: RpcConfig
     gcs: GCSConfig
@@ -65,10 +63,7 @@ class IndexerConfig(Struct):
         # NEW: Get sources from database
         sources_list = config_service.get_sources_for_model(model_name)
         sources = {source.id: source for source in sources_list}
-        
-        # Fallback to old source_paths for backward compatibility
-        source_paths = model.source_paths if model.source_paths else []
-        
+                
         log_with_context(logger, logging.INFO, "Model configuration loaded from database",
                        model_name=model_name,
                        model_version=model.version,
@@ -87,7 +82,6 @@ class IndexerConfig(Struct):
             model_name=model_name,
             model_version=model.version,
             model_db_name=model.database_name,
-            source_paths=source_paths,  # Backward compatibility
             contracts=contracts,  # Now contains ContractConfig objects
             model_tokens=model_tokens,
             addresses=addresses,
@@ -122,7 +116,7 @@ class IndexerConfig(Struct):
         if db_contract.transform_config:
             transform = TransformerConfig(
                 name=db_contract.transform_config.get('name', ''),
-                instantiate=db_contract.transform_config.get('instantiate', {})
+                instantiate=db_contract.transform_config.get('instantiate', {}),
             )
         
         return ContractConfig(
