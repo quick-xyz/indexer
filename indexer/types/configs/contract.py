@@ -12,7 +12,7 @@ from .token import TokenConfig
 class ContractConfig(Struct):
     address: EvmAddress
     status: str = 'active'
-    creation_block: Optional[int] = None 
+    block_created: Optional[int] = None 
     abi_dir: Optional[str] = None 
     abi_file: Optional[str] = None
     abi: Optional[List[Dict[str, Any]]] = None
@@ -27,7 +27,7 @@ class ContractConfig(Struct):
     def to_database_dict(self) -> Dict[str, Any]:
         """Convert to dictionary suitable for database Contract creation"""
         return {
-            'creation_block': self.creation_block,
+            'block_created': self.block_created,
             'abi_dir': self.abi_dir,
             'abi_file': self.abi_file,
             'transformer': self.transformer,

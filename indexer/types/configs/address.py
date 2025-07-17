@@ -5,7 +5,7 @@ from typing import Dict, Optional, Any, Literal
 from msgspec import Struct
 
 from ..new import EvmAddress
-from ...database.shared.tables.config.config import Address
+from ...database.shared.tables.config.address import Address
 
 
 class AddressConfig(Struct):

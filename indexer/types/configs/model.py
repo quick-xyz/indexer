@@ -12,7 +12,7 @@ class ModelConfig(Struct):
     name: str
     version: str = 'v1'
     network: str = 'avalanche'
-    shared_db = str
+    shared_db: str
     indexer_db: str
     status: str = 'active'
     description: Optional[str] = None

@@ -13,7 +13,7 @@
 **`contracts`**
 - `id` (Primary Key)
 - `address_id` (Foreign Key)
-- `creation_block` (block number when created)
+- `block_created` (block number when created)
 - `abi_dir` (where abi can be found)
 - `abi_file` (abi filename)
 - `transformer` (transformer class name)
