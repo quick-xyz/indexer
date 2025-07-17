@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_
 
 from ..tables.pool_pricing_config import PoolPricingConfig
-from ..tables.config import Contract, Model
+from ..tables.config.config import Contract, Model
 from ...connection import InfrastructureDatabaseManager
 from ....core.logging_config import IndexerLogger, log_with_context
 from ....types import EvmAddress

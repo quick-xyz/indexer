@@ -30,7 +30,7 @@ class PeriodType(enum.Enum):
         return ((current_timestamp // period_seconds) + 1) * period_seconds
 
 
-class Period(SharedBase, SharedTimestampMixin):
+class DBPeriod(SharedBase, SharedTimestampMixin):
     """
     Time periods for aggregating blockchain data.
     

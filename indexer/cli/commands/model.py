@@ -43,7 +43,7 @@ def create(ctx, name, display_name, description, database, source_path, version)
     
     try:
         with cli_context.infrastructure_db_manager.get_session() as session:
-            from ...database.shared.tables.config import Model, Source, ModelSource
+            from ...database.shared.tables.config.config import Model, Source, ModelSource
             
             # Check if model already exists
             existing_model = session.query(Model).filter(Model.name == name).first()
@@ -112,7 +112,7 @@ def list_models(ctx, status):
     
     try:
         with cli_context.infrastructure_db_manager.get_session() as session:
-            from ...database.shared.tables.config import Model
+            from ...database.shared.tables.config.config import Model
             
             query = session.query(Model)
             if status:
@@ -154,7 +154,7 @@ def show(ctx, model_name):
     
     try:
         with cli_context.infrastructure_db_manager.get_session() as session:
-            from ...database.shared.tables.config import Model, ModelSource, ModelContract, ModelToken
+            from ...database.shared.tables.config.config import Model, ModelSource, ModelContract, ModelToken
             
             model = session.query(Model).filter(Model.name == model_name).first()
             if not model:
@@ -214,7 +214,7 @@ def update(ctx, model_name, display_name, description, status, version):
     
     try:
         with cli_context.infrastructure_db_manager.get_session() as session:
-            from ...database.shared.tables.config import Model
+            from ...database.shared.tables.config.config import Model
             
             model = session.query(Model).filter(Model.name == model_name).first()
             if not model:
@@ -265,7 +265,7 @@ def add_source(ctx, model_name, source_path, source_type, description):
     
     try:
         with cli_context.infrastructure_db_manager.get_session() as session:
-            from ...database.shared.tables.config import Model, Source, ModelSource
+            from ...database.shared.tables.config.config import Model, Source, ModelSource
             
             # Get model
             model = session.query(Model).filter(Model.name == model_name).first()
@@ -322,7 +322,7 @@ def remove_source(ctx, model_name, source_path):
     
     try:
         with cli_context.infrastructure_db_manager.get_session() as session:
-            from ...database.shared.tables.config import Model, Source, ModelSource
+            from ...database.shared.tables.config.config import Model, Source, ModelSource
             
             # Get model and source
             model = session.query(Model).filter(Model.name == model_name).first()
@@ -366,7 +366,7 @@ def add_token(ctx, model_name, token_address):
     
     try:
         with cli_context.infrastructure_db_manager.get_session() as session:
-            from ...database.shared.tables.config import Model, Token, ModelToken
+            from ...database.shared.tables.config.config import Model, Token, ModelToken
             
             # Get model
             model = session.query(Model).filter(Model.name == model_name).first()
@@ -416,7 +416,7 @@ def remove_token(ctx, model_name, token_address):
     
     try:
         with cli_context.infrastructure_db_manager.get_session() as session:
-            from ...database.shared.tables.config import Model, Token, ModelToken
+            from ...database.shared.tables.config.config import Model, Token, ModelToken
             
             # Get model and token
             model = session.query(Model).filter(Model.name == model_name).first()
@@ -459,7 +459,7 @@ def list_tokens(ctx, model_name):
     
     try:
         with cli_context.infrastructure_db_manager.get_session() as session:
-            from ...database.shared.tables.config import Model, Token, ModelToken
+            from ...database.shared.tables.config.config import Model, Token, ModelToken
             
             # Get model
             model = session.query(Model).filter(Model.name == model_name).first()

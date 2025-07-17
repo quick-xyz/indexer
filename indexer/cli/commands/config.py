@@ -209,7 +209,7 @@ def _import_shared_config_data(ctx, config_data: Dict[str, Any]) -> None:
             # Import global tokens
             if 'global_tokens' in config_data:
                 click.echo("📋 Importing global tokens...")
-                from ...database.shared.tables.config import Token
+                from ...database.shared.tables.config.config import Token
                 
                 for token_data in config_data['global_tokens']:
                     # Check if token already exists
@@ -238,7 +238,7 @@ def _import_shared_config_data(ctx, config_data: Dict[str, Any]) -> None:
             # Import contracts with pricing defaults
             if 'contracts' in config_data:
                 click.echo("📋 Importing contracts...")
-                from ...database.shared.tables.config import Contract
+                from ...database.shared.tables.config.config import Contract
                 
                 for contract_data in config_data['contracts']:
                     # Check if contract already exists
@@ -298,7 +298,7 @@ def _import_shared_config_data(ctx, config_data: Dict[str, Any]) -> None:
             # Import addresses
             if 'addresses' in config_data:
                 click.echo("📋 Importing addresses...")
-                from ...database.shared.tables.config import Address
+                from ...database.shared.tables.config.config import Address
                 
                 for address_data in config_data['addresses']:
                     # Check if address already exists
@@ -337,7 +337,7 @@ def _import_model_config_data(ctx, config_data: Dict[str, Any], update: bool = F
         with cli_context.infrastructure_db_manager.get_session() as session:
             from ...core.config_service import ConfigService
             from ...database.shared.repositories.pool_pricing_config_repository import PoolPricingConfigRepository
-            from ...database.shared.tables.config import Model, Contract, Token, Source, ModelContract, ModelToken, ModelSource
+            from ...database.shared.tables.config.config import Model, Contract, Token, Source, ModelContract, ModelToken, ModelSource
             
             config_service = ConfigService(cli_context.infrastructure_db_manager)
             pool_pricing_repo = PoolPricingConfigRepository(cli_context.infrastructure_db_manager)
@@ -459,7 +459,7 @@ def _import_model_config_data(ctx, config_data: Dict[str, Any], update: bool = F
             # Import pool pricing configurations
             if 'pool_pricing_configs' in config_data:
                 click.echo("📋 Creating pool pricing configurations...")
-                from ...database.shared.tables.config import Contract
+                from ...database.shared.tables.config.config import Contract
                 from ...database.shared.tables.pool_pricing_config import PoolPricingConfig
                 
                 created_count = 0

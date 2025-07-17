@@ -1,11 +1,8 @@
 # indexer/types/configs/source.py
 
-from typing import Dict, Optional, List, Any
-from pathlib import Path
+from typing import Dict, Optional, Any
 
 from msgspec import Struct
-
-from ..new import EvmAddress
 
 
 class SourceConfig(Struct):

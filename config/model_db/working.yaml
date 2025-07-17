@@ -1,0 +1,50 @@
+# blub_test_v2_0.yaml - Model-specific configuration
+# This file defines what contracts, tokens, and sources this specific indexer tracks
+
+# Model definition
+model:
+  name: blub_test_v2
+  version: v2
+  description: Tracks BLUB tokens and related DEX pools with pricing service support
+  target_asset: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
+  sources:
+    - name: "quicknode-blub"
+
+config_type: "model"
+config_version: "v2.0"
+created_for: "avalanche"
+description: "BLUB ecosystem indexer configuration V2 with pricing service support"
+
+
+
+# Reference data sources by name (must exist in shared sources table)
+sources:
+  - "quicknode-blub"
+
+# Model-specific pool pricing configurations
+# These override global defaults and designate pricing pools for this model
+pool_pricing_configs:
+  - pool_address: "0x39888258d60fed9228f89e13eb57a92f1fa832eb"  # JLP:BLUB-AVAX
+    start_block: 58220057
+    pricing_strategy: "direct_avax"  # Use global default (direct_avax)
+    pricing_pool: true   # This model uses this pool as primary pricing source
+
+  - pool_address: "0xcb4c6fdcfb7d868df5f1e3d0018438205b243fd6"  # LB:BLUB-AVAX
+    start_block: 58220284
+    pricing_strategy: "direct_avax"  # Use global default (direct_avax)
+    pricing_pool: true   # Secondary pricing pool
+
+  - pool_address: "0xa87866ba0d82155d0ff36ad06e555aebc98595ca"  # PLP:BLUB-AVAX
+    start_block: 58220990
+    pricing_strategy: "direct_avax"  # Use global default (direct_avax)
+    pricing_pool: false  # Not used for canonical pricing
+
+  - pool_address: "0x819fe65a885d40493f4b91e8a10e242018758432"  # LP0:BLUB-AVAX
+    start_block: 58299144
+    pricing_strategy: "direct_avax"  # Use global default (direct_avax)
+    pricing_pool: false  # Not used for canonical pricing
+
+  - pool_address: "0x3fc41c1ae339322ab87b6ba48e30781d88a304d4"  # PCL:BLUB-AVAX
+    start_block: 58220991
+    pricing_strategy: "direct_avax"  # Use global default (direct_avax)
+    pricing_pool: false  # Not used for canonical pricing

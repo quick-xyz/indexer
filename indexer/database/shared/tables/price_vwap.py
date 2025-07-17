@@ -9,7 +9,7 @@ from ...base import SharedBase, SharedTimestampMixin
 from ...types import EvmAddressType
 
 
-class PriceVwap(SharedBase, SharedTimestampMixin):
+class DBPriceVwap(SharedBase, SharedTimestampMixin):
     """
     Canonical pricing table with 1-minute VWAP prices for assets.
     

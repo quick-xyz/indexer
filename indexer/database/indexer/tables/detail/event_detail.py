@@ -13,7 +13,7 @@ class PricingDenomination(enum.Enum):
     AVAX = "avax"
 
 
-class EventDetail(BaseModel):
+class DBEventDetail(BaseModel):
     """
     Simple USD and AVAX valuation details for general events.
     

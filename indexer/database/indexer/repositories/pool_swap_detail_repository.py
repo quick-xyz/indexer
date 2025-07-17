@@ -12,7 +12,7 @@ from ....core.logging_config import log_with_context
 from ....types.new import DomainEventId
 from ...base_repository import BaseRepository
 from ..tables.events.trade import PoolSwap
-from ...shared.tables.config import Contract
+from ...shared.tables.config.config import Contract
 from ...shared.tables.periods import Period
 from ...shared.tables.pool_pricing_config import PoolPricingConfig
 

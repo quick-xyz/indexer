@@ -8,7 +8,7 @@ from sqlalchemy.orm import declarative_mixin
 from ...base import SharedBase, SharedTimestampMixin
 
 
-class BlockPrice(SharedBase, SharedTimestampMixin):
+class DBBlockPrice(SharedBase, SharedTimestampMixin):
     """
     Chain-level AVAX-USD prices from Chainlink price feed.
     

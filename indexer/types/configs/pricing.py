@@ -1,7 +1,6 @@
 # indexer/types/configs/pricing.py
 
-from typing import Dict, Optional, List, Any, Literal
-from pathlib import Path
+from typing import Dict, Optional, Any, Literal
 
 from msgspec import Struct
 
@@ -12,7 +11,7 @@ class PricingConfig(Struct):
     model: str
     pool_address: EvmAddress
     pricing_method: Literal['direct_avax', 'direct_usd', 'global'] = 'global'
-    pricing_feed: bool = False
+    price_feed: bool = False
     pricing_start: int 
     status: str = 'active' 
     pricing_end: Optional[int] = None
@@ -26,7 +25,7 @@ class PricingConfig(Struct):
             'model': self.model,
             'pool_address': self.pool_address.lower() if self.pool_address else None,
             'pricing_method': self.pricing_method,
-            'pricing_feed': self.pricing_feed,
+            'price_feed': self.price_feed,
             'pricing_start': self.pricing_start,
             'pricing_end': self.pricing_end,
             'status': self.status,

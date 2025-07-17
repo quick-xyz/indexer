@@ -1,7 +1,6 @@
 # indexer/types/configs/pool.py
 
-from typing import Dict, Optional, List, Any, Literal
-from pathlib import Path
+from typing import Dict, Optional, Any, Literal
 
 from msgspec import Struct
 
@@ -14,7 +13,6 @@ class PoolConfig(Struct):
     status: str = 'active' 
     pricing_default: Literal['direct_avax', 'direct_usd', 'global'] = 'global'
     quote_token: Optional[EvmAddress] = None
-
 
     @classmethod
     def from_yaml_dict(cls, data: Dict[str, Any]) -> 'PoolConfig':

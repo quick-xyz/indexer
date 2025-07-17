@@ -47,7 +47,7 @@ def add(ctx, model_name, pool_address, start_block, strategy, primary,
     try:
         with cli_context.infrastructure_db_manager.get_session() as session:
             # Import here to avoid circular imports
-            from ...database.shared.tables.config import Model, Contract
+            from ...database.shared.tables.config.config import Model, Contract
             from ...database.shared.repositories.pool_pricing_config_repository import PoolPricingConfigRepository
             
             # Get model
@@ -142,7 +142,7 @@ def show(ctx, model_name, pool_address, block):
     
     try:
         with cli_context.infrastructure_db_manager.get_session() as session:
-            from ...database.shared.tables.config import Model, Contract
+            from ...database.shared.tables.config.config import Model, Contract
             from ...database.shared.repositories.pool_pricing_config_repository import PoolPricingConfigRepository
             
             # Get model and contract
@@ -212,7 +212,7 @@ def list_configs(ctx, model_name, strategy, active_only):
     
     try:
         with cli_context.infrastructure_db_manager.get_session() as session:
-            from ...database.shared.tables.config import Model
+            from ...database.shared.tables.config.config import Model
             from ...database.shared.repositories.pool_pricing_config_repository import PoolPricingConfigRepository
             
             # Get model
@@ -289,7 +289,7 @@ def primary_pools(ctx, model_name, block):
     
     try:
         with cli_context.infrastructure_db_manager.get_session() as session:
-            from ...database.shared.tables.config import Model
+            from ...database.shared.tables.config.config import Model
             from ...database.shared.repositories.pool_pricing_config_repository import PoolPricingConfigRepository
             
             # Get model

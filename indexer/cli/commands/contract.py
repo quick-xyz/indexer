@@ -60,7 +60,7 @@ def add(ctx, address, name, project, contract_type, abi_dir, abi_file,
     
     try:
         with cli_context.infrastructure_db_manager.get_session() as session:
-            from ...database.shared.tables.config import Contract, Model, ModelContract
+            from ...database.shared.tables.config.config import Contract, Model, ModelContract
             
             # Check if contract already exists
             existing_contract = session.query(Contract).filter(
@@ -155,7 +155,7 @@ def list_contracts(ctx, model, contract_type, project):
     
     try:
         with cli_context.infrastructure_db_manager.get_session() as session:
-            from ...database.shared.tables.config import Contract, Model, ModelContract
+            from ...database.shared.tables.config.config import Contract, Model, ModelContract
             
             query = session.query(Contract)
             
@@ -242,7 +242,7 @@ def associate(ctx, address, model_name):
     
     try:
         with cli_context.infrastructure_db_manager.get_session() as session:
-            from ...database.shared.tables.config import Contract, Model, ModelContract
+            from ...database.shared.tables.config.config import Contract, Model, ModelContract
             
             # Get contract and model
             contract = session.query(Contract).filter(
@@ -319,7 +319,7 @@ def update(ctx, address, name, project, contract_type, transformer, transformer_
     
     try:
         with cli_context.infrastructure_db_manager.get_session() as session:
-            from ...database.shared.tables.config import Contract
+            from ...database.shared.tables.config.config import Contract
             
             contract = session.query(Contract).filter(
                 Contract.address == address.lower()

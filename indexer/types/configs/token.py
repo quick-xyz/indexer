@@ -1,7 +1,6 @@
 # indexer/types/configs/token.py
 
-from typing import Dict, Optional, List, Any
-from pathlib import Path
+from typing import Dict, Any
 
 from msgspec import Struct
 

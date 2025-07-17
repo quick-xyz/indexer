@@ -556,7 +556,7 @@ class IndexingPipeline:
             # NEW: Try RPC storage (external stream source)
             try:
                 # Use hardcoded primary source for now - this matches the diagnostic results
-                from indexer.database.shared.tables.config import Source
+                from indexer.database.shared.tables.config.config import Source
                 primary_source = Source(
                     id=1,
                     name="quicknode-blub",

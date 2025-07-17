@@ -4,7 +4,7 @@ from typing import Dict, Optional, List
 from sqlalchemy import and_
 
 from ..database.connection import DatabaseManager
-from ..database.shared.tables.config import Model, Contract, Token, Address, ModelContract, ModelToken, Source, ModelSource
+from ..database.shared.tables.config.config import Model, Contract, Token, Address, ModelContract, ModelToken, Source, ModelSource
 from ..core.logging_config import IndexerLogger, log_with_context
 from ..types import EvmAddress
 

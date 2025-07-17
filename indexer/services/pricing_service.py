@@ -14,7 +14,7 @@ from ..database.shared.repositories.block_prices_repository import BlockPricesRe
 from ..database.shared.repositories.periods_repository import PeriodsRepository
 from ..clients.quicknode_rpc import QuickNodeRpcClient
 from ..database.indexer.tables.detail.pool_swap_detail import PricingDenomination, PricingMethod
-from ..database.shared.tables.config import Model, Contract
+from ..database.shared.tables.config.config import Model, Contract
 
 
 from ..database.indexer.tables.events.trade import PoolSwap

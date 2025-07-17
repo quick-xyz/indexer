@@ -41,7 +41,7 @@ def create(ctx, address, symbol, name, decimals, project, token_type, descriptio
     
     try:
         with cli_context.infrastructure_db_manager.get_session() as session:
-            from ...database.shared.tables.config import Token
+            from ...database.shared.tables.config.config import Token
             
             # Check if token already exists
             existing_token = session.query(Token).filter(
@@ -99,7 +99,7 @@ def list_tokens(ctx, project, token_type):
     
     try:
         with cli_context.infrastructure_db_manager.get_session() as session:
-            from ...database.shared.tables.config import Token
+            from ...database.shared.tables.config.config import Token
             
             query = session.query(Token)
             

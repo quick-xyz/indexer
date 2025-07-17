@@ -1,29 +1,38 @@
 # indexer/database/shared/tables/__init__.py
 
-from .config import (
-    Model, Contract, Token, Address, Source,
-    ModelContract, ModelToken, ModelSource
-)
-from .block_prices import BlockPrice
-from .periods import Period, PeriodType
-from .pool_pricing_config import PoolPricingConfig
+from .config.address import DBAddress
+from .config.contract import DBContract
+from .config.label import DBLabel
+from .config.model_relations import DBModelContract, DBModelToken, DBModelSource
+from .config.model import DBModel
+from .config.pool import DBPool
+from .config.pricing import DBPricing
+from .config.source import DBSource
+from .config.token import DBToken
+
+from .block_prices import DBBlockPrice
+from .periods import DBPeriod, DBPeriodType
+from .price_vwap import DBPriceVwap
+
 
 __all__ = [
     # Configuration tables
-    'Model',
-    'Contract', 
-    'Token',
-    'Address',
-    'Source',
-    
+    'DBAddress',
+    'DBContract',
+    'DBModel',
+    'DBPool',
+    'DBPricing',
+    'DBSource',
+    'DBToken',
+
     # Junction tables
-    'ModelContract',
-    'ModelToken',
-    'ModelSource',
-    
+    'DBModelContract',
+    'DBModelToken',
+    'DBModelSource',
+
     # Pricing infrastructure
-    'BlockPrice',
-    'Period',
-    'PeriodType',
-    'PoolPricingConfig'
+    'DBBlockPrice',
+    'DBPeriod',
+    'DBPeriodType',
+    'DBPriceVwap'
 ]

@@ -39,7 +39,7 @@ def add(ctx, address, name, address_type, project, description, grouping):
     
     try:
         with cli_context.infrastructure_db_manager.get_session() as session:
-            from ...database.shared.tables.config import Address
+            from ...database.shared.tables.config.config import Address
             
             # Check if address already exists
             existing_address = session.query(Address).filter(
@@ -97,7 +97,7 @@ def list_addresses(ctx, address_type, project, grouping):
     
     try:
         with cli_context.infrastructure_db_manager.get_session() as session:
-            from ...database.shared.tables.config import Address
+            from ...database.shared.tables.config.config import Address
             
             query = session.query(Address)
             
