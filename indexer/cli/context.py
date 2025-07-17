@@ -109,7 +109,7 @@ class CLIContext:
             if not model:
                 raise ValueError(f"Model '{model_name}' not found in configuration")
             
-            model_db_name = model.database_name
+            model_db_name = model.name
         
         # Use same connection details but different database name
         project_id = os.getenv("INDEXER_GCP_PROJECT_ID")

@@ -262,7 +262,7 @@ def _import_shared_config_data(ctx, config_data: Dict[str, Any]) -> None:
                     if 'transformer' in contract_data and contract_data['transformer']:
                         transform_config = {
                             'name': contract_data['transformer'].get('name'),
-                            'config': contract_data['transformer'].get('config', {})
+                            'instantiate': contract_data['transformer'].get('instantiate', {})
                         }
                     
                     contract = Contract(

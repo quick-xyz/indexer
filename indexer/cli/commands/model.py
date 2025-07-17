@@ -53,9 +53,7 @@ def create(ctx, name, display_name, description, database, source_path, version)
             # Create model
             new_model = Model(
                 name=name,
-                display_name=display_name or name,
                 description=description,
-                database_name=database,
                 version=version,
                 status='active'
             )
@@ -132,9 +130,7 @@ def list_models(ctx, status):
             
             for model in models:
                 status_indicator = "🟢" if model.status == 'active' else "🔴"
-                click.echo(f"{status_indicator} {model.name} ({model.version})")
-                click.echo(f"   Display Name: {model.display_name}")
-                click.echo(f"   Database: {model.database_name}")
+                click.echo(f"{status_indicator} {model.name} ({model.version})")                click.echo(f"   Database: {model.name}")
                 click.echo(f"   Status: {model.status}")
                 if model.description:
                     click.echo(f"   Description: {model.description}")

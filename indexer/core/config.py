@@ -81,7 +81,7 @@ class IndexerConfig(Struct):
         config = cls(
             model_name=model_name,
             model_version=model.version,
-            model_db_name=model.database_name,
+            model_db_name=model_name,
             contracts=contracts,  # Now contains ContractConfig objects
             model_tokens=model_tokens,
             addresses=addresses,
@@ -96,7 +96,7 @@ class IndexerConfig(Struct):
         log_with_context(logger, logging.INFO, "IndexerConfig created successfully",
                        model_name=model_name,
                        model_version=model.version,
-                       model_database=model.database_name)
+                       model_database=model_name)
         
         return config
 
