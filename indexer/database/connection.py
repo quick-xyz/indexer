@@ -9,7 +9,7 @@ from sqlalchemy.orm import sessionmaker, Session, scoped_session
 from sqlalchemy.pool import QueuePool
 
 from ..core.logging_config import IndexerLogger, log_with_context
-from ..types.config import DatabaseConfig
+from ..types.configs.config import DatabaseConfig
 
 
 class DatabaseManager:

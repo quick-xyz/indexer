@@ -29,19 +29,20 @@ from .evm import (
 )
 
 # Configuration Types
-from .config import (
+from .configs.config import (
     GCSConfig,
     StorageConfig,
-    TokenConfig,
-    AddressConfig,
-    DecoderConfig,
-    TransformerConfig,
-    ABIConfig,
-    ContractConfig,
     DatabaseConfig,
     RpcConfig,
     PathsConfig,
 )
+
+from .configs.token import TokenConfig
+from .configs.pool import PoolConfig
+from .configs.address import AddressConfig, Label
+from .configs.source    import SourceConfig
+from .configs.model import ModelConfig
+from .configs.contract import ContractConfig
 
 # Indexer Types
 from .indexer import (
@@ -188,10 +189,13 @@ __all__ = [
     "GCSConfig",
     "StorageConfig",
     "TokenConfig",
+    "PoolConfig",
     "AddressConfig",
+    "Label",
+    "SourceConfig",
+    "ModelConfig",
     "DecoderConfig",
     "TransformerConfig",
-    "ABIConfig",
     "ContractConfig",
     "DatabaseConfig",
     "RpcConfig",

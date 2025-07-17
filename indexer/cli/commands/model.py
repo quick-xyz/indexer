@@ -130,7 +130,8 @@ def list_models(ctx, status):
             
             for model in models:
                 status_indicator = "🟢" if model.status == 'active' else "🔴"
-                click.echo(f"{status_indicator} {model.name} ({model.version})")                click.echo(f"   Database: {model.name}")
+                click.echo(f"{status_indicator} {model.name} ({model.version})")                
+                click.echo(f"   Database: {model.name}")
                 click.echo(f"   Status: {model.status}")
                 if model.description:
                     click.echo(f"   Description: {model.description}")
