@@ -5,8 +5,15 @@ from sqlalchemy.orm import Session
 
 from .config_base_repository import ConfigRepositoryBase
 from ...tables import DBModelContract, DBModelToken, DBModelSource, DBModel, DBContract, DBToken, DBSource, DBAddress
-from .....types.configs.model_relations import ModelContractConfig, ModelTokenConfig, ModelSourceConfig
-
+from .....types import (
+    ModelContractConfig, 
+    ModelTokenConfig, 
+    ModelSourceConfig,
+    ContractConfig,
+    TokenConfig,
+    SourceConfig,
+    EvmAddress,
+)
 
 class ModelContractRepository(ConfigRepositoryBase[DBModelContract, ModelContractConfig]):
     def __init__(self, db_manager):
@@ -65,6 +72,15 @@ class ModelContractRepository(ConfigRepositoryBase[DBModelContract, ModelContrac
                 DBContract.status == 'active'
             ).all()
 
+    def get_active_contracts_for_model_as_config(self, model_id: int, abi_loader=None) -> Dict[EvmAddress, ContractConfig]:
+        """Get all active contracts for a model as ContractConfig objects"""
+        db_contracts = self.get_active_contracts_for_model(model_id)
+        contract_repo = self.db_manager.get_contract_repo()
+        return {
+            EvmAddress(contract.address.address): contract_repo.to_config(contract, abi_loader)
+            for contract in db_contracts
+        }
+
 class ModelTokenRepository(ConfigRepositoryBase[DBModelToken, ModelTokenConfig]):
     def __init__(self, db_manager):
         super().__init__(db_manager, "ModelToken")
@@ -83,7 +99,7 @@ class ModelTokenRepository(ConfigRepositoryBase[DBModelToken, ModelTokenConfig])
             DBModel.name == model_name,
             DBAddress.address == token_address.lower()
         ).first()
-    
+
     def _create_entity_from_config(self, session: Session, config: ModelTokenConfig) -> DBModelToken:
         # Get model
         model = session.query(DBModel).filter(DBModel.name == config.model).first()
@@ -121,6 +137,16 @@ class ModelTokenRepository(ConfigRepositoryBase[DBModelToken, ModelTokenConfig])
                 DBModelToken.status == 'active',
                 DBToken.status == 'active'
             ).all()
+
+    def get_active_tokens_for_model_as_config(self, model_id: int) -> Dict[EvmAddress, TokenConfig]:
+        """Get all active tokens for a model as TokenConfig objects"""
+        db_tokens = self.get_active_tokens_for_model(model_id)
+        token_repo = self.db_manager.get_token_repo()
+        return {
+            EvmAddress(token.address.address): token_repo.to_config(token)
+            for token in db_tokens
+        }
+
 
 class ModelSourceRepository(ConfigRepositoryBase[DBModelSource, ModelSourceConfig]):
     def __init__(self, db_manager):
@@ -173,7 +199,17 @@ class ModelSourceRepository(ConfigRepositoryBase[DBModelSource, ModelSourceConfi
                 DBModelSource.status == 'active',
                 DBSource.status == 'active'
             ).all()
-    
+
+    def get_active_sources_for_model_as_config(self, model_id: int) -> Dict[int, SourceConfig]:
+        """Get all active sources for a model as SourceConfig objects"""
+        db_sources = self.get_active_sources_for_model(model_id)
+        source_repo = self.db_manager.get_source_repo()
+        return {
+            source.id: source_repo.to_config(source)
+            for source in db_sources
+        }
+
+
 class ModelRelationsRepository:
     """
     Unified repository for managing all model relations.

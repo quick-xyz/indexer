@@ -19,6 +19,7 @@ class IndexerConfig(Struct):
     model_name: str
     model_version: str
     model_db: str
+    model_token: EvmAddress
     paths: PathsConfig
 
     contracts: Dict[EvmAddress, ContractConfig]
@@ -27,7 +28,7 @@ class IndexerConfig(Struct):
 
     
     @classmethod
-    def from_model(cls, model_name: str, config_service: ConfigService, 
+    def from_database(cls, model_name: str, config_service: ConfigService, 
                    env_vars: dict = None) -> 'IndexerConfig':
         logger = IndexerLogger.get_logger('core.config')
         log_with_context(logger, INFO, "Loading configuration for model", model_name=model_name)
@@ -64,7 +65,8 @@ class IndexerConfig(Struct):
         config = cls(
             model_name=model_name,
             model_version=model.version,
-            model_db=model_name,
+            model_db=model.model_db,
+            model_token=model.model_token,
             contracts=contracts,
             tracked_tokens=tracked_tokens,
             sources=sources,

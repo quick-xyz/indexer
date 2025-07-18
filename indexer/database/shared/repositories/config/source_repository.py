@@ -1,6 +1,6 @@
 # indexer/database/shared/repositories/config/source_repository.py
 
-from typing import List, Optional
+from typing import List, Optional, Dict
 from sqlalchemy.orm import Session
 
 from .config_base_repository import ConfigRepositoryBase
@@ -65,3 +65,32 @@ class SourceRepository(ConfigRepositoryBase[DBSource, SourceConfig]):
     def get_by_id(self, source_id: int) -> Optional[DBSource]:
         with self.db_manager.get_session() as session:
             return session.query(DBSource).filter(DBSource.id == source_id).first()
+
+    def to_config(self, db_source: DBSource) -> SourceConfig:
+        """Convert database source to SourceConfig msgspec struct"""
+        return SourceConfig(
+            id=db_source.id,
+            name=db_source.name,
+            path=db_source.path,
+            format_string=db_source.format,
+            source_type=db_source.source_type
+        )
+
+    def get_by_id_as_config(self, source_id: int) -> Optional[SourceConfig]:
+        db_source = self.get_by_id(source_id)
+        if db_source:
+            return self.to_config(db_source)
+        return None
+
+    def get_by_name_as_config(self, name: str) -> Optional[SourceConfig]:
+        db_source = self.get_by_name(name)
+        if db_source:
+            return self.to_config(db_source)
+        return None
+
+    def get_all_active_as_config(self) -> Dict[int, SourceConfig]:
+        db_sources = self.get_all_active()
+        return {
+            source.id: self.to_config(source)
+            for source in db_sources
+        }

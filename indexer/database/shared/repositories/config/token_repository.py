@@ -1,11 +1,11 @@
 # indexer/database/shared/repositories/config/token_repository.py
 
-from typing import List, Optional
+from typing import List, Optional, Dict
 from sqlalchemy.orm import Session
 
 from .config_base_repository import ConfigRepositoryBase
 from ...tables import DBToken, DBAddress
-from .....types.configs.token import TokenConfig
+from .....types import TokenConfig, EvmAddress
 
 
 class TokenRepository(ConfigRepositoryBase[DBToken, TokenConfig]):    
@@ -59,3 +59,25 @@ class TokenRepository(ConfigRepositoryBase[DBToken, TokenConfig]):
     def get_by_symbol(self, symbol: str) -> List[DBToken]:
         with self.db_manager.get_session() as session:
             return session.query(DBToken).filter(DBToken.symbol == symbol).all()
+        
+    def to_config(self, db_token: DBToken) -> TokenConfig:
+        """Convert database token to TokenConfig msgspec struct"""
+        return TokenConfig(
+            address=EvmAddress(db_token.address.address),
+            symbol=db_token.symbol,
+            decimals=db_token.decimals,
+            status=db_token.status
+        )
+
+    def get_by_address_as_config(self, address: str) -> Optional[TokenConfig]:
+        db_token = self.get_by_address(address)
+        if db_token:
+            return self.to_config(db_token)
+        return None
+
+    def get_all_active_as_config(self) -> Dict[EvmAddress, TokenConfig]:
+        db_tokens = self.get_all_active()
+        return {
+            EvmAddress(token.address.address): self.to_config(token)
+            for token in db_tokens
+        }

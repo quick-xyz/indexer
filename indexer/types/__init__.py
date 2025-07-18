@@ -43,6 +43,11 @@ from .configs.source    import SourceConfig
 from .configs.model import ModelConfig
 from .configs.contract import ContractConfig
 from .configs.pricing import PricingConfig
+from .configs.model_relations import (
+    ModelContractConfig,
+    ModelTokenConfig,
+    ModelSourceConfig,
+)
 
 # Indexer Types
 from .indexer import (
@@ -193,13 +198,14 @@ __all__ = [
     "LabelConfig",
     "SourceConfig",
     "PricingConfig",
+    "ModelContractConfig",
+    "ModelTokenConfig",
+    "ModelSourceConfig",
     "ModelConfig",
-    "DecoderConfig",
-    "TransformerConfig",
     "ContractConfig",
     "DatabaseConfig",
     "PathsConfig",
-    
+
     # Indexer Types
     "BlockStatus",
     "TransactionStatus",

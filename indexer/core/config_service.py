@@ -1,27 +1,10 @@
 # indexer/core/config_service.py
 
 from typing import Dict, Optional, List, Set
+from sqlalchemy.orm import joinedload
 
-from ..database.shared.tables import (
-    DBModel,
-    DBToken,
-    DBContract,
-    DBSource,
-)
-from ..database.shared.repositories import (
-    ModelRepository,
-    TokenRepository,
-    ContractRepository,
-    SourceRepository,
-    ModelContractRepository,
-    ModelTokenRepository,
-    ModelSourceRepository,
-)
-from ..types import (
-    EvmAddress,
-    ContractConfig,
-    SourceConfig,
-)
+from ..database.shared.tables import DBModel, DBContract, DBToken, DBSource, DBModelContract, DBModelToken, DBModelSource
+from ..types import EvmAddress, SourceConfig, ContractConfig
 from ..database.connection import SharedDatabaseManager
 from ..core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 
@@ -29,272 +12,332 @@ from ..core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING
 
 class ConfigService:    
     def __init__(self, shared_db_manager: SharedDatabaseManager):
-        self.db_manager = shared_db_manager
+        self.shared_db_manager = shared_db_manager
         self.logger = IndexerLogger.get_logger('core.config_service')
-    
+
+    # === MODEL OPERATIONS ===
+
     def get_model_by_name(self, model_name: str) -> Optional[DBModel]:
-        with self.db_manager.get_session() as session:
-            model = session.query(DBModel).filter(
-                and_(
-                    DBModel.name == model_name,
-                    DBModel.status == 'active'
-                )
-            ).first()
-            
-            if model:
-                log_with_context(self.logger, DEBUG, "Model found",
-                               model_name=model_name,
-                               version=model.version,
-                               database=model_name)
-            else:
-                log_with_context(self.logger, WARNING, "Model not found",
-                               model_name=model_name)
-            
-            return model
-    
-    def get_contracts_for_model(self, model_name: str) -> Dict[EvmAddress, ContractConfig]:
-        with self.db_manager.get_session() as session:
-            contracts = session.query(DBContract).join(DBModelContract).filter(
-                and_(
-                    DBModel.name == model_name,
-                    DBModel.status == 'active',
-                    DBModelContract.status == 'active'
-                )
-            ).all()
-            
-            contract_dict = {
-                EvmAddress(contract.address): contract.to_config()
-                for contract in contracts
-            }
-
-            
-            log_with_context(self.logger, DEBUG, "Contracts loaded for model",
-                           model_name=model_name,
-                           contract_count=len(contract_dict))
-            
-            return contract_dict
-    
-    def get_tracked_tokens(self, model_name: str) -> Set[EvmAddress]:
-        with self.db_manager.get_session() as session:
-            tokens = session.query(Token).join(
-                ModelToken, Token.id == ModelToken.token_id
-            ).join(
-                Model, ModelToken.model_id == Model.id
-            ).filter(
-                and_(
-                    Model.name == model_name,
-                    Model.status == 'active',
-                    Token.status == 'active'
-                )
-            ).all()
-            
-            token_dict = {
-                EvmAddress(token.address): token 
-                for token in tokens
-            }
-            
-            log_with_context(self.logger, DEBUG, "Tokens of interest loaded for model",
-                           model_name=model_name,
-                           token_count=len(token_dict))
-            
-            return token_dict
-    
-    def get_all_tokens(self) -> Set[EvmAddress]:
-        with self.db_manager.get_session() as session:
-            tokens = session.query(Token).filter(
-                Token.status == 'active'
-            ).all()
-            
-            token_dict = {
-                EvmAddress(token.address): token 
-                for token in tokens
-            }
-            
-            log_with_context(self.logger, DEBUG, "Tokens loaded",
-                           token_count=len(token_dict))
-            
-            return token_dict
-    
-    def get_token_by_address(self, address: str) -> Optional[Token]:
-        with self.db_manager.get_session() as session:
-            token = session.query(Token).filter(
-                and_(
-                    Token.address == address.lower(),
-                    Token.status == 'active'
-                )
-            ).first()
-            
-            return token
-
-    
-    def get_source_by_id(self, source_id: int) -> Optional[Source]:
-        """Get source by ID"""
-        with self.db_manager.get_session() as session:
-            return session.query(Source).filter(Source.id == source_id).first()
-
-    def get_source_by_name(self, source_name: str) -> Optional[Source]:
-        """Get source by name"""
-        with self.db_manager.get_session() as session:
-            return session.query(Source).filter(Source.name == source_name).first()
-
-    def get_sources_for_model(self, model_name: str) -> List[Source]:
-        """Get all sources for a model"""
-        with self.db_manager.get_session() as session:
-            model = self.get_model_by_name(model_name)
-            if not model:
-                return []
-            
-            sources = session.query(Source)\
-                .join(ModelSource, Source.id == ModelSource.source_id)\
-                .filter(ModelSource.model_id == model.id)\
-                .filter(Source.status == 'active')\
-                .all()
-            
-            return sources
-
-    def get_all_sources(self) -> List[Source]:
-        """Get all active sources"""
-        with self.db_manager.get_session() as session:
-            return session.query(Source).filter(Source.status == 'active').all()
-
-    def create_source(self, name: str, path: str, format_string: str, source_type: str = 'gcs') -> Optional[Source]:
-        """Create a new source"""
-        try:
-            with self.db_manager.get_session() as session:
-                # Check if source already exists
-                existing = session.query(Source).filter(Source.name == name).first()
-                if existing:
-                    return existing
-                
-                source = Source(
-                    name=name,
-                    path=path,
-                    format=format_string,
-                    source_type=source_type,  # Add this line
-                    status='active'
-                )
-                
-                session.add(source)
-                session.commit()
-                session.refresh(source)
-                
-                return source
-        except Exception as e:
-            self.logger.error(f"Failed to create source: {e}")
-            return None
-
-    def link_model_to_source(self, model_name: str, source_id: int) -> bool:
-        """Link a model to a source"""
-        try:
-            with self.db_manager.get_session() as session:
-                model = self.get_model_by_name(model_name)
-                if not model:
-                    return False
-                
-                # Check if link already exists
-                existing = session.query(ModelSource)\
-                    .filter(ModelSource.model_id == model.id)\
-                    .filter(ModelSource.source_id == source_id)\
-                    .first()
-                
-                if existing:
-                    return True
-                
-                model_source = ModelSource(
-                    model_id=model.id,
-                    source_id=source_id
-                )
-                
-                session.add(model_source)
-                session.commit()
-                
-                return True
-        except Exception as e:
-            self.logger.error(f"Failed to link model to source: {e}")
-            return False
-
-    def migrate_model_sources(self, model_name: str) -> bool:
-        """Migrate a model's source_paths JSONB to Sources table"""
-        try:
-            with self.db_manager.get_session() as session:
-                model = self.get_model_by_name(model_name)
-                if not model:
-                    self.logger.error(f"Model {model_name} not found")
-                    return False
-                
-                if not model.source_paths:
-                    self.logger.warning(f"No source_paths to migrate for model {model_name}")
-                    return True
-                
-                for i, source_data in enumerate(model.source_paths):
-                    if isinstance(source_data, str):
-                        # Old format: just a path string
-                        path = source_data
-                        format_string = "block_{:012d}.json"  # Default format
-                    elif isinstance(source_data, dict):
-                        # New format: {"path": "...", "format": "..."}
-                        path = source_data.get('path', '')
-                        format_string = source_data.get('format', 'block_{:012d}.json')
-                    else:
-                        self.logger.warning(f"Unknown source format: {source_data}")
-                        continue
-                    
-                    # Create source name from model and index
-                    source_name = f"{model_name}-source-{i}"
-                    
-                    # Create or get source
-                    source = self.create_source(source_name, path, format_string)
-                    if source:
-                        # Link model to source
-                        self.link_model_to_source(model_name, source.id)
-                        self.logger.info(f"Migrated source {source_name} for model {model_name}")
-                
-                return True
-                
-        except Exception as e:
-            self.logger.error(f"Failed to migrate sources for model {model_name}: {e}")
-            return False
-
-    def get_model_source_configuration(self, model_name: str) -> Dict:
-        """Get source configuration for a model in the new format"""
-        sources = self.get_sources_for_model(model_name)
+        """Get an active model by name"""
+        model = self.shared_db_manager.get_model_repo().get_by_name(model_name)
         
-        return {
-            'sources': [
-                {
-                    'id': source.id,
-                    'name': source.name,
-                    'path': source.path,
-                    'format': source.format
-                }
-                for source in sources
-            ]
-        }
-
-
+        if model and model.status == 'active':
+            log_with_context(self.logger, DEBUG, "Model found",
+                           model_name=model.name,
+                           version=model.version,
+                           model_token=model.model_token,
+                           model_db=model.model_db)
+            return model
+        else:
+            log_with_context(self.logger, WARNING, "Model not found or not active",
+                           model_name=model_name)
+            return None
+        
     def validate_model_configuration(self, model_name: str) -> bool:
+        """Validate that a model has complete configuration"""
         model = self.get_model_by_name(model_name)
         if not model:
-            log_with_context(self.logger, ERROR, "Model validation failed - model not found",
-                           model_name=model_name)
             return False
         
         contracts = self.get_contracts_for_model(model_name)
-        if not contracts:
-            log_with_context(self.logger, ERROR, "Model validation failed - no contracts",
-                           model_name=model_name)
-            return False
-        
+        tokens = self.get_tracked_tokens(model_name)
         sources = self.get_sources_for_model(model_name)
-        if not sources:
-            log_with_context(self.logger, ERROR, "Model validation failed - no sources configured",
-                        model_name=model_name)
-            return False
         
-        log_with_context(self.logger, INFO, "Model validation passed",
+        has_config = len(contracts) > 0 and len(tokens) > 0 and len(sources) > 0
+        
+        log_with_context(self.logger, DEBUG, "Model configuration validation",
                        model_name=model_name,
-                       version=model.version,
                        contract_count=len(contracts),
-                       source_count=len(sources) if sources else 0)
+                       token_count=len(tokens),
+                       source_count=len(sources),
+                       is_valid=has_config)
         
-        return True
+        return has_config
+    
+
+    # === CONTRACT OPERATIONS ===
+
+    def get_contracts_for_model(self, model_name: str) -> Dict[EvmAddress, DBContract]:
+        """Get all active contracts for a model with address relationships loaded"""
+        model = self.get_model_by_name(model_name)
+        if not model:
+            return {}
+        
+        # Get active contracts through model relations repository
+        relations_repo = self.shared_db_manager.get_relations_repo()
+        contracts = relations_repo.model_contracts.get_active_contracts_for_model(model.id)
+        
+        contract_dict = {
+            EvmAddress(contract.address.address): contract
+            for contract in contracts
+        }
+        
+        log_with_context(self.logger, DEBUG, "Contracts loaded for model",
+                       model_name=model_name,
+                       contract_count=len(contract_dict))
+        
+        return contract_dict
+    
+    def get_contract_by_address(self, address: str) -> Optional[DBContract]:
+        """Get a contract by address"""
+        return self.shared_db_manager.get_contract_repo().get_by_address(address)
+
+
+    # === TOKEN OPERATIONS ===
+    
+    def get_tracked_tokens(self, model_name: str) -> Set[EvmAddress]:
+        """Get all tracked token addresses for a model"""
+        model = self.get_model_by_name(model_name)
+        if not model:
+            return set()
+        
+        # Get active tokens through model relations repository
+        relations_repo = self.shared_db_manager.get_relations_repo()
+        tokens = relations_repo.model_tokens.get_active_tokens_for_model(model.id)
+        
+        token_addresses = {
+            EvmAddress(token.address.address)
+            for token in tokens
+        }
+        
+        log_with_context(self.logger, DEBUG, "Tracked tokens loaded for model",
+                       model_name=model_name,
+                       token_count=len(token_addresses))
+        
+        return token_addresses
+    
+    def get_token_by_address(self, address: str) -> Optional[DBToken]:
+        return self.shared_db_manager.get_token_repo().get_by_address(address)
+    
+    def get_all_active_tokens(self) -> Dict[EvmAddress, DBToken]:
+        tokens = self.shared_db_manager.get_token_repo().get_all_active()
+        
+        token_dict = {
+            EvmAddress(token.address.address): token
+            for token in tokens
+        }
+        
+        log_with_context(self.logger, DEBUG, "All active tokens loaded",
+                       token_count=len(token_dict))
+        
+        return token_dict
+
+    # === SOURCE OPERATIONS ===
+    
+    def get_sources_for_model(self, model_name: str) -> Dict[int, SourceConfig]:
+        """Get all active sources for a model as SourceConfig objects"""
+        model = self.get_model_by_name(model_name)
+        if not model:
+            return {}
+        
+        relations_repo = self.shared_db_manager.get_relations_repo()
+        sources = relations_repo.model_sources.get_active_sources_for_model(model.id)
+        
+        source_configs = {}
+        for source in sources:
+            source_config = SourceConfig(
+                id=source.id,
+                name=source.name,
+                path=source.path,
+                format_string=source.format_string,
+                source_type=source.source_type
+            )
+            source_configs[source.id] = source_config
+        
+        log_with_context(self.logger, DEBUG, "Sources loaded for model",
+                       model_name=model_name,
+                       source_count=len(source_configs))
+        
+        return source_configs
+    
+    def get_source_by_id(self, source_id: int) -> Optional[DBSource]:
+        return self.shared_db_manager.get_source_repo().get_by_id(source_id)
+    
+    def get_source_by_name(self, source_name: str) -> Optional[DBSource]:
+        return self.shared_db_manager.get_source_repo().get_by_name(source_name)
+
+    # === CONVENIENCE METHODS FOR IndexerConfig ===
+    
+    def get_complete_model_config(self, model_name: str, abi_loader=None) -> Dict[str, any]:
+        """
+        Get complete model configuration in a single optimized database query.
+        
+        This method loads the model with all its relationships (contracts, tokens, sources)
+        in one database query using eager loading. This is the main method for IndexerConfig
+        bootstrapping.
+        
+        Returns:
+            Dict containing model, contracts, tokens, and sources
+        """       
+        log_with_context(self.logger, INFO, "Loading complete model configuration with single query",
+                       model_name=model_name)
+        
+        with self.shared_db_manager.get_session() as session:
+            model = session.query(DBModel).options(
+                joinedload(DBModel.contracts).joinedload(DBModelContract.contract).joinedload(DBContract.address),
+                joinedload(DBModel.tokens).joinedload(DBModelToken.token).joinedload(DBToken.address),
+                joinedload(DBModel.sources).joinedload(DBModelSource.source)
+            ).filter(
+                DBModel.name == model_name,
+                DBModel.status == 'active'
+            ).first()
+            
+            if not model:
+                raise ValueError(f"Model '{model_name}' not found or not active")
+            
+            contracts = {}
+            for model_contract in model.contracts:
+                if model_contract.status == 'active' and model_contract.contract.status == 'active':
+                    db_contract = model_contract.contract
+                    address = EvmAddress(db_contract.address.address)
+                    
+                    abi_data = None
+                    if abi_loader and db_contract.abi_dir and db_contract.abi_file:
+                        abi_data = abi_loader.load_abi(db_contract.abi_dir, db_contract.abi_file)
+                    
+                    contract_config = ContractConfig(
+                        address=address,
+                        status=db_contract.status,
+                        block_created=db_contract.block_created,
+                        abi_dir=db_contract.abi_dir,
+                        abi_file=db_contract.abi_file,
+                        abi=abi_data,
+                        transformer=db_contract.transformer,
+                        transform_init=db_contract.transform_init
+                    )
+                    contracts[address] = contract_config
+            
+            tracked_tokens = set()
+            for model_token in model.tokens:
+                if model_token.status == 'active' and model_token.token.status == 'active':
+                    address = EvmAddress(model_token.token.address.address)
+                    tracked_tokens.add(address)
+            
+            sources = {}
+            for model_source in model.sources:
+                if model_source.status == 'active' and model_source.source.status == 'active':
+                    source_obj = model_source.source
+                    source_config = SourceConfig(
+                        id=source_obj.id,
+                        name=source_obj.name,
+                        path=source_obj.path,
+                        format_string=source_obj.format,
+                        source_type=source_obj.source_type
+                    )
+                    sources[source_obj.id] = source_config
+            
+            if not contracts:
+                log_with_context(self.logger, WARNING, "No active contracts found for model",
+                               model_name=model_name)
+            
+            if not tracked_tokens:
+                log_with_context(self.logger, WARNING, "No active tracked tokens found for model",
+                               model_name=model_name)
+            
+            if not sources:
+                log_with_context(self.logger, WARNING, "No active sources found for model",
+                               model_name=model_name)
+            
+            config_data = {
+                'model': model,
+                'contracts': contracts,  # Dict[EvmAddress, ContractConfig]
+                'tracked_tokens': tracked_tokens,  # Set[EvmAddress]
+                'sources': sources  # Dict[int, SourceConfig]
+            }
+            
+            log_with_context(self.logger, INFO, "Complete model configuration loaded successfully",
+                           model_name=model_name,
+                           contract_count=len(contracts),
+                           token_count=len(tracked_tokens),
+                           source_count=len(sources),
+                           abis_loaded=len([c for c in contracts.values() if c.abi is not None]))
+            
+            return config_data
+    
+    def get_model_config_data(self, model: DBModel) -> Dict[str, any]:
+        """
+        Get configuration data for an already-loaded model.
+        
+        This method takes a DBModel instance and assembles configuration data
+        by calling the individual repository methods. Useful when you already
+        have the model and want to avoid re-fetching it.
+        
+        Args:
+            model: Already loaded DBModel instance
+            
+        Returns:
+            Dict containing model, contracts, tokens, and sources
+        """
+        log_with_context(self.logger, INFO, "Loading configuration data for provided model",
+                       model_name=model.name)
+        
+        contracts = self._get_contracts_for_model_id(model.id)
+        tracked_tokens = self._get_tracked_tokens_for_model_id(model.id)
+        sources = self._get_sources_for_model_id(model.id)
+        
+        if not contracts:
+            log_with_context(self.logger, WARNING, "No contracts found for model",
+                           model_name=model.name)
+        
+        if not tracked_tokens:
+            log_with_context(self.logger, WARNING, "No tracked tokens found for model",
+                           model_name=model.name)
+        
+        if not sources:
+            log_with_context(self.logger, WARNING, "No sources found for model",
+                           model_name=model.name)
+        
+        config_data = {
+            'model': model,
+            'contracts': contracts,
+            'tracked_tokens': tracked_tokens,
+            'sources': sources
+        }
+        
+        log_with_context(self.logger, INFO, "Model configuration data assembled successfully",
+                       model_name=model.name,
+                       contract_count=len(contracts),
+                       token_count=len(tracked_tokens),
+                       source_count=len(sources))
+        
+        return config_data
+    
+    # === INTERNAL HELPER METHODS ===
+    
+    def _get_contracts_for_model_id(self, model_id: int) -> Dict[EvmAddress, DBContract]:
+        """Get active contracts for a model by model ID"""
+        relations_repo = self.shared_db_manager.get_relations_repo()
+        contracts = relations_repo.model_contracts.get_active_contracts_for_model(model_id)
+        
+        return {
+            EvmAddress(contract.address.address): contract
+            for contract in contracts
+        }
+    
+    def _get_tracked_tokens_for_model_id(self, model_id: int) -> Set[EvmAddress]:
+        """Get tracked token addresses for a model by model ID"""
+        relations_repo = self.shared_db_manager.get_relations_repo()
+        tokens = relations_repo.model_tokens.get_active_tokens_for_model(model_id)
+        
+        return {
+            EvmAddress(token.address.address)
+            for token in tokens
+        }
+    
+    def _get_sources_for_model_id(self, model_id: int) -> Dict[int, SourceConfig]:
+        """Get active sources for a model by model ID"""
+        relations_repo = self.shared_db_manager.get_relations_repo()
+        sources = relations_repo.model_sources.get_active_sources_for_model(model_id)
+        
+        source_configs = {}
+        for source in sources:
+            source_config = SourceConfig(
+                id=source.id,
+                name=source.name,
+                path=source.path,
+                format_string=source.format,
+                source_type=source.source_type
+            )
+            source_configs[source.id] = source_config
+        
+        return source_configs

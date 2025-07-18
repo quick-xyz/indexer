@@ -1,12 +1,12 @@
 # indexer/database/shared/repositories/config/contract_repository.py
 
-from typing import List, Optional
+from typing import List, Optional, Dict
 from sqlalchemy.orm import Session
 
+from .....types import EvmAddress
 from .config_base_repository import ConfigRepositoryBase
 from ...tables import DBContract, DBAddress
 from .....types.configs.contract import ContractConfig
-
 
 class ContractRepository(ConfigRepositoryBase[DBContract, ContractConfig]):    
     def __init__(self, db_manager):
@@ -72,3 +72,33 @@ class ContractRepository(ConfigRepositoryBase[DBContract, ContractConfig]):
                 DBContract.abi_dir.isnot(None),
                 DBContract.abi_file.isnot(None)
             ).all()
+
+    def to_config(self, db_contract: DBContract, abi_loader=None) -> ContractConfig:
+        """Convert database contract to ContractConfig msgspec struct"""
+        abi_data = None
+        if abi_loader and db_contract.abi_dir and db_contract.abi_file:
+            abi_data = abi_loader.load_abi(db_contract.abi_dir, db_contract.abi_file)
+        
+        return ContractConfig(
+            address=EvmAddress(db_contract.address.address),
+            status=db_contract.status,
+            block_created=db_contract.block_created,
+            abi_dir=db_contract.abi_dir,
+            abi_file=db_contract.abi_file,
+            abi=abi_data,
+            transformer=db_contract.transformer,
+            transform_init=db_contract.transform_init
+        )
+
+    def get_by_address_as_config(self, address: str, abi_loader=None) -> Optional[ContractConfig]:
+        db_contract = self.get_by_address(address)
+        if db_contract:
+            return self.to_config(db_contract, abi_loader)
+        return None
+
+    def get_all_active_as_config(self, abi_loader=None) -> Dict[EvmAddress, ContractConfig]:
+        db_contracts = self.get_all_active()
+        return {
+            EvmAddress(contract.address.address): self.to_config(contract, abi_loader)
+            for contract in db_contracts
+        }
