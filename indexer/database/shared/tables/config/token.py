@@ -16,6 +16,7 @@ class DBToken(SharedBase, SharedTimestampMixin):
                        nullable=False, unique=True)
     symbol = Column(String(50), nullable=False)
     decimals = Column(Integer, nullable=False, default=18)
+    token_type = Column(String(20), nullable=False, default='erc20')
     status = Column(String(50), nullable=False, default='active')
 
     address = relationship("DBAddress", backref="token")
@@ -24,6 +25,7 @@ class DBToken(SharedBase, SharedTimestampMixin):
     __table_args__ = (
         Index('idx_tokens_address_id', 'address_id'),
         Index('idx_tokens_symbol', 'symbol'),
+        Index('idx_tokens_type', 'token_type'), 
         Index('idx_tokens_status', 'status'),
     )
 
@@ -50,3 +52,11 @@ class DBToken(SharedBase, SharedTimestampMixin):
         data = config.to_database_dict()
         data['address_id'] = address_id
         return cls(**data)
+
+    @property
+    def is_nft(self) -> bool:
+        return self.token_type in ['erc721', 'erc1155']
+    
+    @property
+    def is_fungible(self) -> bool:
+        return self.token_type == 'erc20'

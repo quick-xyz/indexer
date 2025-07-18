@@ -81,3 +81,19 @@ class TokenRepository(ConfigRepositoryBase[DBToken, TokenConfig]):
             EvmAddress(token.address.address): self.to_config(token)
             for token in db_tokens
         }
+    
+    def get_by_type(self, token_type: str) -> List[DBToken]:
+        """Get all tokens of a specific type"""
+        with self.db_manager.get_session() as session:
+            return session.query(DBToken).filter(
+                DBToken.token_type == token_type,
+                DBToken.status == 'active'
+            ).all()
+    
+    def get_nft_tokens(self) -> List[DBToken]:
+        """Get all NFT tokens (ERC721 + ERC1155)"""
+        with self.db_manager.get_session() as session:
+            return session.query(DBToken).filter(
+                DBToken.token_type.in_(['erc721', 'erc1155']),
+                DBToken.status == 'active'
+            ).all()

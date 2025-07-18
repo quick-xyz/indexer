@@ -302,26 +302,32 @@ tokens:
   - address: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"
     symbol: "BLUB"
     decimals: 18
+    token_type: "erc20" 
 
   - address: "0xb31f66aa3c1e785363f0875a1b74e27b85fd66c7"
     symbol: "WAVAX"
     decimals: 18
+    token_type: "erc20" 
 
   - address: "0x39888258d60fed9228f89e13eb57a92f1fa832eb"
     symbol: "JLP"
     decimals: 18
+    token_type: "erc20" 
 
   - address: "0xcb4c6fdcfb7d868df5f1e3d0018438205b243fd6"
     symbol: "LBT"
     decimals: 18
+    token_type: "erc20"
 
   - address: "0xa87866ba0d82155d0ff36ad06e555aebc98595ca"
     symbol: "PLP"
     decimals: 18
+    token_type: "erc20" 
 
   - address: "0x819fe65a885d40493f4b91e8a10e242018758432"
     symbol: "LP0"
     decimals: 18
+    token_type: "erc20" 
 
 
 labels:
