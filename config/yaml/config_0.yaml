@@ -5,7 +5,7 @@ model:
   name: "blub_test"
   version: "v2"
   network: "avalanche"
-  shared_db: "indexer_shared_0"
+  shared_db: "shared_0"
   indexer_db: "blub_test_v2"
   description: "Indexer development model: BLUB"
   model_token: "0x0f669808d88b2b0b3d23214dcd2a1cc6a8b1b5cd"

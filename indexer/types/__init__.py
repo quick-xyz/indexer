@@ -40,7 +40,7 @@ from .configs.config import (
 from .configs.token import TokenConfig
 from .configs.pool import PoolConfig
 from .configs.address import AddressConfig 
-from .configs.label import Label
+from .configs.label import LabelConfig
 from .configs.source    import SourceConfig
 from .configs.model import ModelConfig
 from .configs.contract import ContractConfig
@@ -193,7 +193,7 @@ __all__ = [
     "TokenConfig",
     "PoolConfig",
     "AddressConfig",
-    "Label",
+    "LabelConfig",
     "SourceConfig",
     "PricingConfig",
     "ModelConfig",
