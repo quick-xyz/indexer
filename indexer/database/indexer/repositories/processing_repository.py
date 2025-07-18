@@ -7,11 +7,9 @@ from sqlalchemy import and_
 
 from ...connection import ModelDatabaseManager
 from ..tables.processing import TransactionProcessing
-from ....core.logging import log_with_context
+from ....core.logging import log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 from ....types.new import EvmHash
 from ...base_repository import BaseRepository
-
-import logging
 
 
 class ProcessingRepository(BaseRepository):
@@ -27,7 +25,7 @@ class ProcessingRepository(BaseRepository):
                 TransactionProcessing.tx_hash == tx_hash
             ).one_or_none()
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error getting processing by tx_hash",
+            log_with_context(self.logger, ERROR, "Error getting processing by tx_hash",
                             tx_hash=tx_hash,
                             error=str(e))
             raise
@@ -42,6 +40,6 @@ class ProcessingRepository(BaseRepository):
                 )
             ).order_by(TransactionProcessing.last_processed_at).all()
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error getting failed transactions",
+            log_with_context(self.logger, ERROR, "Error getting failed transactions",
                             error=str(e))
             raise

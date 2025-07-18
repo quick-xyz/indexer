@@ -4,13 +4,11 @@ from typing import List, Optional, Dict, Tuple
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 
-from ..core.logging import IndexerLogger, log_with_context
+from ..core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 from ..database.repository_manager import RepositoryManager
 from ..database.connection import DatabaseManager
 from ..database.shared.tables.periods import Period, PeriodType
 from ..database.indexer.tables.detail.pool_swap_detail import PricingDenomination, PricingMethod
-
-import logging
 
 
 class CalculationService:
@@ -45,7 +43,7 @@ class CalculationService:
         self.logger = IndexerLogger.get_logger('services.calculation_service')
         
         log_with_context(
-            self.logger, logging.INFO, "CalculationService initialized",
+            self.logger, INFO, "CalculationService initialized",
             shared_database=shared_db_manager.config.url.split('/')[-1],
             model_database=model_db_manager.config.url.split('/')[-1]
         )
@@ -71,7 +69,7 @@ class CalculationService:
             Dict with statistics: {'transfers_valued': 0, 'liquidity_valued': 0, 'rewards_valued': 0, 'positions_valued': 0, 'errors': 0}
         """
         log_with_context(
-            self.logger, logging.INFO, "Calculating event valuations",
+            self.logger, INFO, "Calculating event valuations",
             asset_address=asset_address,
             periods_count=len(period_ids),
             denomination=denomination.value if denomination else "both"
@@ -208,7 +206,7 @@ class CalculationService:
                 except Exception as e:
                     results['errors'] += 1
                     log_with_context(
-                        self.logger, logging.ERROR, "Error calculating event valuations",
+                        self.logger, ERROR, "Error calculating event valuations",
                         asset_address=asset_address,
                         period_id=period_id,
                         error=str(e)
@@ -216,7 +214,7 @@ class CalculationService:
                     continue
         
         log_with_context(
-            self.logger, logging.INFO, "Event valuation calculation complete",
+            self.logger, INFO, "Event valuation calculation complete",
             asset_address=asset_address,
             **results
         )
@@ -244,7 +242,7 @@ class CalculationService:
             Dict with statistics: {'usd_candles_created': 0, 'avax_candles_created': 0, 'errors': 0}
         """
         log_with_context(
-            self.logger, logging.INFO, "Generating OHLC candles",
+            self.logger, INFO, "Generating OHLC candles",
             asset_address=asset_address,
             periods_count=len(period_ids),
             denomination=denomination.value if denomination else "both"
@@ -275,7 +273,7 @@ class CalculationService:
                         
                         if not trade_details:
                             log_with_context(
-                                self.logger, logging.DEBUG, "No trade data for OHLC candle",
+                                self.logger, DEBUG, "No trade data for OHLC candle",
                                 asset_address=asset_address,
                                 period_id=period_id,
                                 denomination=denom.value
@@ -301,7 +299,7 @@ class CalculationService:
                                 results['avax_candles_created'] += 1
                             
                             log_with_context(
-                                self.logger, logging.DEBUG, "Created OHLC candle",
+                                self.logger, DEBUG, "Created OHLC candle",
                                 asset_address=asset_address,
                                 period_id=period_id,
                                 denomination=denom.value,
@@ -311,7 +309,7 @@ class CalculationService:
                 except Exception as e:
                     results['errors'] += 1
                     log_with_context(
-                        self.logger, logging.ERROR, "Error generating OHLC candle",
+                        self.logger, ERROR, "Error generating OHLC candle",
                         asset_address=asset_address,
                         period_id=period_id,
                         error=str(e)
@@ -319,7 +317,7 @@ class CalculationService:
                     continue
         
         log_with_context(
-            self.logger, logging.INFO, "OHLC candle generation complete",
+            self.logger, INFO, "OHLC candle generation complete",
             asset_address=asset_address,
             **results
         )
@@ -347,7 +345,7 @@ class CalculationService:
             Dict with statistics: {'usd_volumes_created': 0, 'avax_volumes_created': 0, 'errors': 0}
         """
         log_with_context(
-            self.logger, logging.INFO, "Calculating protocol volume metrics",
+            self.logger, INFO, "Calculating protocol volume metrics",
             asset_address=asset_address,
             periods_count=len(period_ids),
             denomination=denomination.value if denomination else "both"
@@ -397,7 +395,7 @@ class CalculationService:
                                 results['avax_volumes_created'] += 1
                             
                             log_with_context(
-                                self.logger, logging.DEBUG, "Created protocol volume metric",
+                                self.logger, DEBUG, "Created protocol volume metric",
                                 asset_address=asset_address,
                                 period_id=period_id,
                                 denomination=denom.value,
@@ -408,7 +406,7 @@ class CalculationService:
                 except Exception as e:
                     results['errors'] += 1
                     log_with_context(
-                        self.logger, logging.ERROR, "Error calculating protocol volume",
+                        self.logger, ERROR, "Error calculating protocol volume",
                         asset_address=asset_address,
                         period_id=period_id,
                         error=str(e)
@@ -416,7 +414,7 @@ class CalculationService:
                     continue
         
         log_with_context(
-            self.logger, logging.INFO, "Protocol volume calculation complete",
+            self.logger, INFO, "Protocol volume calculation complete",
             asset_address=asset_address,
             **results
         )
@@ -444,7 +442,7 @@ class CalculationService:
             Dict with comprehensive valuation statistics
         """
         log_with_context(
-            self.logger, logging.INFO, "Starting event valuation update",
+            self.logger, INFO, "Starting event valuation update",
             asset_address=asset_address,
             days=days,
             denomination=denomination.value if denomination else "both"
@@ -474,13 +472,13 @@ class CalculationService:
         
         if not period_ids:
             log_with_context(
-                self.logger, logging.INFO, "No event valuation gaps found",
+                self.logger, INFO, "No event valuation gaps found",
                 asset_address=asset_address
             )
             return {'transfers_valued': 0, 'liquidity_valued': 0, 'rewards_valued': 0, 'positions_valued': 0, 'errors': 0}
         
         log_with_context(
-            self.logger, logging.INFO, "Processing event valuation gaps",
+            self.logger, INFO, "Processing event valuation gaps",
             asset_address=asset_address,
             periods_count=len(period_ids)
         )
@@ -509,7 +507,7 @@ class CalculationService:
             Dict with comprehensive analytics statistics
         """
         log_with_context(
-            self.logger, logging.INFO, "Starting analytics update",
+            self.logger, INFO, "Starting analytics update",
             asset_address=asset_address,
             days=days,
             denomination=denomination.value if denomination else "both"
@@ -557,13 +555,13 @@ class CalculationService:
         
         if not period_ids:
             log_with_context(
-                self.logger, logging.INFO, "No analytics gaps found",
+                self.logger, INFO, "No analytics gaps found",
                 asset_address=asset_address
             )
             return results
         
         log_with_context(
-            self.logger, logging.INFO, "Processing analytics gaps",
+            self.logger, INFO, "Processing analytics gaps",
             asset_address=asset_address,
             periods_count=len(period_ids)
         )
@@ -584,14 +582,14 @@ class CalculationService:
         except Exception as e:
             results['total_errors'] += 1
             log_with_context(
-                self.logger, logging.ERROR, "Error in analytics update",
+                self.logger, ERROR, "Error in analytics update",
                 asset_address=asset_address,
                 error=str(e)
             )
             raise
         
         log_with_context(
-            self.logger, logging.INFO, "Analytics update complete",
+            self.logger, INFO, "Analytics update complete",
             asset_address=asset_address,
             **results
         )
@@ -618,7 +616,7 @@ class CalculationService:
             Dict with comprehensive statistics from all calculation operations
         """
         log_with_context(
-            self.logger, logging.INFO, "Starting comprehensive calculation update",
+            self.logger, INFO, "Starting comprehensive calculation update",
             asset_address=asset_address,
             days=days,
             denomination=denomination.value if denomination else "both"
@@ -638,7 +636,7 @@ class CalculationService:
         
         try:
             # 1. Event Valuations
-            log_with_context(self.logger, logging.INFO, "Updating event valuations", asset_address=asset_address)
+            log_with_context(self.logger, INFO, "Updating event valuations", asset_address=asset_address)
             
             valuation_results = self.update_event_valuations(asset_address, days, denomination)
             results['transfers_valued'] = valuation_results.get('transfers_valued', 0)
@@ -648,7 +646,7 @@ class CalculationService:
             results['total_errors'] += valuation_results.get('errors', 0)
             
             # 2. Analytics (OHLC + Volume)
-            log_with_context(self.logger, logging.INFO, "Updating analytics", asset_address=asset_address)
+            log_with_context(self.logger, INFO, "Updating analytics", asset_address=asset_address)
             
             analytics_results = self.update_analytics(asset_address, days, denomination)
             results['usd_candles_created'] = analytics_results.get('usd_candles_created', 0)
@@ -660,14 +658,14 @@ class CalculationService:
         except Exception as e:
             results['total_errors'] += 1
             log_with_context(
-                self.logger, logging.ERROR, "Error in comprehensive calculation update",
+                self.logger, ERROR, "Error in comprehensive calculation update",
                 asset_address=asset_address,
                 error=str(e)
             )
             raise
         
         log_with_context(
-            self.logger, logging.INFO, "Comprehensive calculation update complete",
+            self.logger, INFO, "Comprehensive calculation update complete",
             asset_address=asset_address,
             **results
         )
@@ -687,7 +685,7 @@ class CalculationService:
             Dict with comprehensive calculation statistics and gap information
         """
         log_with_context(
-            self.logger, logging.INFO, "Getting calculation status",
+            self.logger, INFO, "Getting calculation status",
             asset_address=asset_address
         )
         

@@ -1,14 +1,21 @@
 # indexer/__init__.py
 
-import logging
 import os
 from pathlib import Path
 from typing import Set, Dict
 
+from .core.logging import (
+    IndexerLogger, 
+    log_with_context,
+    INFO,
+    DEBUG,
+    WARNING,
+    ERROR,
+    CRITICAL,
+)
 from .core.config_service import ConfigService
 from .core.container import IndexerContainer
 from .core.indexer_config import IndexerConfig
-from .core.logging import IndexerLogger, log_with_context
 from .core.secrets_service import SecretsService
 from .contracts.registry import ContractRegistry
 from .contracts.manager import ContractManager
@@ -109,7 +116,7 @@ def create_indexer(model_name: str = None, env_vars: dict = None, **overrides) -
             logger.error("No model name provided and INDEXER_MODEL not set")
             raise ValueError("Must provide model_name or set INDEXER_MODEL environment variable")
     
-    log_with_context(logger, logging.INFO, "Loading configuration for model", model_name=model_name)
+    log_with_context(logger, INFO, "Loading configuration for model", model_name=model_name)
 
     secrets_service = _create_secrets_service_singleton(env)
     shared_db_manager = _create_shared_db_manager(env,secrets_service)
@@ -119,7 +126,7 @@ def create_indexer(model_name: str = None, env_vars: dict = None, **overrides) -
     model_db_manager = _create_model_db_manager(env,secrets_service,config.model_db)
 
 
-    log_with_context(logger, logging.INFO, "Configuration loaded successfully", 
+    log_with_context(logger, INFO, "Configuration loaded successfully", 
                     model_name=config.model_name,
                     model_version=config.model_version,
                     contract_count=len(config.contracts),
@@ -129,7 +136,7 @@ def create_indexer(model_name: str = None, env_vars: dict = None, **overrides) -
     
     _register_services(container, shared_db_manager, model_db_manager, secrets_service)
     
-    log_with_context(logger, logging.INFO, "Indexer created successfully")
+    log_with_context(logger, INFO, "Indexer created successfully")
     
     return Indexer(container)
 
@@ -205,7 +212,7 @@ def _create_secrets_service_singleton(env: dict) -> SecretsService:
     if not project_id:
         raise ValueError("INDEXER_GCP_PROJECT_ID environment variable required for SecretsService")
     
-    log_with_context(logger, logging.DEBUG, "Creating singleton SecretsService", project_id=project_id)
+    log_with_context(logger, DEBUG, "Creating singleton SecretsService", project_id=project_id)
     
     return SecretsService(project_id)
 
@@ -234,7 +241,7 @@ def _create_shared_db_manager(env: dict, secrets_service: SecretsService) -> Sha
     shared_db_url = f"postgresql+psycopg://{db_user}:{db_password}@{db_host}:{db_port}/{shared_db_name}"
     shared_db_config = DatabaseConfig(url=shared_db_url)
 
-    log_with_context(logger, logging.DEBUG, "Creating shared database manager", database=shared_db_name)
+    log_with_context(logger, DEBUG, "Creating shared database manager", database=shared_db_name)
 
     db_manager = SharedDatabaseManager(shared_db_config)
     db_manager.initialize()
@@ -265,7 +272,7 @@ def _create_model_db_manager(env: dict, secrets_service: SecretsService, model_d
     model_db_url = f"postgresql+psycopg://{db_user}:{db_password}@{db_host}:{db_port}/{model_db_name}"
     model_db_config = DatabaseConfig(url=model_db_url)
 
-    log_with_context(logger, logging.DEBUG, "Creating model database manager", database=model_db_name)
+    log_with_context(logger, DEBUG, "Creating model database manager", database=model_db_name)
 
     db_manager = ModelDatabaseManager(model_db_config)
     db_manager.initialize()
@@ -299,7 +306,7 @@ def _create_gcs_handler(env: dict) -> GCSHandler:
             complete_format="block_{:012d}.json"
         )
 
-    log_with_context(logger, logging.DEBUG, "Storage configuration created",
+    log_with_context(logger, DEBUG, "Storage configuration created",
                     model_name=model_name,
                     processing_prefix=storage.processing_prefix,
                     complete_prefix=storage.complete_prefix)

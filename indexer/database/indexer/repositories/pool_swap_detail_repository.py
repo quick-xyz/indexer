@@ -8,15 +8,13 @@ from decimal import Decimal
 
 from ...connection import ModelDatabaseManager
 from ..tables.detail.pool_swap_detail import PoolSwapDetail, PricingDenomination, PricingMethod
-from ....core.logging import log_with_context
+from ....core.logging import log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 from ....types.new import DomainEventId
 from ...base_repository import BaseRepository
 from ..tables.events.trade import PoolSwap
 from ...shared.tables.config.config import Contract
 from ...shared.tables.periods import Period
 from ...shared.tables.pool_pricing_config import PoolPricingConfig
-
-import logging
 
 
 class PoolSwapDetailRepository(BaseRepository):
@@ -50,7 +48,7 @@ class PoolSwapDetailRepository(BaseRepository):
             session.add(detail)
             session.flush()
             
-            log_with_context(self.logger, logging.DEBUG, "Pool swap detail created",
+            log_with_context(self.logger, DEBUG, "Pool swap detail created",
                             content_id=content_id,
                             denom=denom.value,
                             value=value,
@@ -59,7 +57,7 @@ class PoolSwapDetailRepository(BaseRepository):
             return detail
             
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error creating pool swap detail",
+            log_with_context(self.logger, ERROR, "Error creating pool swap detail",
                             content_id=content_id,
                             denom=denom.value if denom else None,
                             error=str(e))
@@ -72,7 +70,7 @@ class PoolSwapDetailRepository(BaseRepository):
                 PoolSwapDetail.content_id == content_id
             ).order_by(PoolSwapDetail.denom).all()
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error getting details by content_id",
+            log_with_context(self.logger, ERROR, "Error getting details by content_id",
                             content_id=content_id,
                             error=str(e))
             raise
@@ -92,7 +90,7 @@ class PoolSwapDetailRepository(BaseRepository):
                 )
             ).one_or_none()
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error getting detail by content_id and denom",
+            log_with_context(self.logger, ERROR, "Error getting detail by content_id and denom",
                             content_id=content_id,
                             denom=denom.value,
                             error=str(e))
@@ -110,7 +108,7 @@ class PoolSwapDetailRepository(BaseRepository):
                 PoolSwapDetail.price_method == price_method  # ✅ Correct field name
             ).order_by(desc(PoolSwapDetail.created_at)).limit(limit).all()
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error getting details by pricing method",
+            log_with_context(self.logger, ERROR, "Error getting details by pricing method",
                             price_method=price_method.value,
                             error=str(e))
             raise
@@ -122,7 +120,7 @@ class PoolSwapDetailRepository(BaseRepository):
                 PoolSwapDetail.denom == PricingDenomination.USD  # ✅ Correct field name
             ).order_by(desc(PoolSwapDetail.created_at)).limit(limit).all()
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error getting USD valuations",
+            log_with_context(self.logger, ERROR, "Error getting USD valuations",
                             error=str(e))
             raise
     
@@ -133,7 +131,7 @@ class PoolSwapDetailRepository(BaseRepository):
                 PoolSwapDetail.denom == PricingDenomination.AVAX  # ✅ Correct field name
             ).order_by(desc(PoolSwapDetail.created_at)).limit(limit).all()
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error getting AVAX valuations",
+            log_with_context(self.logger, ERROR, "Error getting AVAX valuations",
                             error=str(e))
             raise
     
@@ -156,7 +154,7 @@ class PoolSwapDetailRepository(BaseRepository):
             
             session.flush()
             
-            log_with_context(self.logger, logging.DEBUG, "Pool swap detail updated",
+            log_with_context(self.logger, DEBUG, "Pool swap detail updated",
                             content_id=content_id,
                             denom=denom.value,
                             updates=list(updates.keys()))
@@ -164,7 +162,7 @@ class PoolSwapDetailRepository(BaseRepository):
             return detail
             
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error updating pool swap detail",
+            log_with_context(self.logger, ERROR, "Error updating pool swap detail",
                             content_id=content_id,
                             denom=denom.value,
                             error=str(e))
@@ -184,7 +182,7 @@ class PoolSwapDetailRepository(BaseRepository):
                 )
             ).order_by(PoolSwapDetail.content_id).all()
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error getting USD details for swaps",
+            log_with_context(self.logger, ERROR, "Error getting USD details for swaps",
                             swap_count=len(swap_content_ids),
                             error=str(e))
             raise
@@ -203,7 +201,7 @@ class PoolSwapDetailRepository(BaseRepository):
                 )
             ).order_by(PoolSwapDetail.content_id).all()
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error getting AVAX details for swaps",
+            log_with_context(self.logger, ERROR, "Error getting AVAX details for swaps",
                             swap_count=len(swap_content_ids),
                             error=str(e))
             raise
@@ -227,7 +225,7 @@ class PoolSwapDetailRepository(BaseRepository):
             return direct_pricing_count == len(swap_content_ids)
             
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error checking direct pricing eligibility",
+            log_with_context(self.logger, ERROR, "Error checking direct pricing eligibility",
                             swap_count=len(swap_content_ids),
                             error=str(e))
             return False
@@ -243,7 +241,7 @@ class PoolSwapDetailRepository(BaseRepository):
             return {method.value: count for method, count in stats}
             
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error getting pricing method stats",
+            log_with_context(self.logger, ERROR, "Error getting pricing method stats",
                             error=str(e))
             return {}
         
@@ -286,7 +284,7 @@ class PoolSwapDetailRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting pricing pool swaps in timeframe",
+                self.logger, ERROR, "Error getting pricing pool swaps in timeframe",
                 base_token_address=asset_address,
                 start_time=start_time.isoformat(),
                 end_time=end_time.isoformat(),
@@ -327,7 +325,7 @@ class PoolSwapDetailRepository(BaseRepository):
             session.flush()
             
             log_with_context(
-                self.logger, logging.DEBUG, "Global pricing detail created",
+                self.logger, DEBUG, "Global pricing detail created",
                 content_id=swap.content_id,
                 denomination=denomination.value,
                 canonical_price=float(canonical_price),
@@ -339,7 +337,7 @@ class PoolSwapDetailRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error creating global pricing detail",
+                self.logger, ERROR, "Error creating global pricing detail",
                 content_id=swap.content_id,
                 denomination=denomination.value,
                 canonical_price=float(canonical_price),
@@ -395,7 +393,7 @@ class PoolSwapDetailRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting direct pricing stats",
+                self.logger, ERROR, "Error getting direct pricing stats",
                 asset_address=asset_address,
                 error=str(e)
             )
@@ -419,7 +417,7 @@ class PoolSwapDetailRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting latest pricing timestamp",
+                self.logger, ERROR, "Error getting latest pricing timestamp",
                 asset_address=asset_address,
                 error=str(e)
             )
@@ -478,7 +476,7 @@ class PoolSwapDetailRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting protocol volume aggregation",
+                self.logger, ERROR, "Error getting protocol volume aggregation",
                 period_id=period_id,
                 asset_address=asset_address,
                 denomination=denomination.value,

@@ -14,7 +14,7 @@ from typing import Optional, Dict
 
 from ..database.connection import DatabaseManager
 from ..types import DatabaseConfig
-from ..core.logging import IndexerLogger, log_with_context
+from ..core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 from ..core.secrets_service import SecretsService
 from ..services.service_runner import ServiceRunner
 from ..database.migration_manager import MigrationManager
@@ -38,7 +38,7 @@ class CLIContext:
         self._model_db_managers: Dict[str, DatabaseManager] = {}  # Cache for model-specific DB managers
         self._migration_manager: Optional['MigrationManager'] = None  # Cache migration manager
 
-        log_with_context(self.logger, logging.INFO, "CLIContext initialized")
+        log_with_context(self.logger, INFO, "CLIContext initialized")
     
     @property
     def shared_db_manager(self) -> DatabaseManager:
@@ -55,7 +55,7 @@ class CLIContext:
     
     def _create_shared_db_manager(self) -> DatabaseManager:
         """Create database manager for the infrastructure database (indexer_shared)"""
-        log_with_context(self.logger, logging.INFO, "Creating shared database manager")
+        log_with_context(self.logger, INFO, "Creating shared database manager")
         
         project_id = os.getenv("INDEXER_GCP_PROJECT_ID")
         
@@ -70,7 +70,7 @@ class CLIContext:
                 db_port = os.getenv("INDEXER_DB_PORT") or db_credentials.get('port') or "5432"
                 
             except Exception as e:
-                log_with_context(self.logger, logging.WARNING, "Failed to get secrets, falling back to env vars", error=str(e))
+                log_with_context(self.logger, WARNING, "Failed to get secrets, falling back to env vars", error=str(e))
                 db_user = os.getenv("INDEXER_DB_USER")
                 db_password = os.getenv("INDEXER_DB_PASSWORD")
                 db_host = os.getenv("INDEXER_DB_HOST", "127.0.0.1")
@@ -93,14 +93,14 @@ class CLIContext:
         db_manager = DatabaseManager(config)
         db_manager.initialize()
         
-        log_with_context(self.logger, logging.INFO, "Infrastructure database manager created",
+        log_with_context(self.logger, INFO, "Infrastructure database manager created",
                         db_host=db_host, db_port=db_port, db_name=db_name)
         
         return db_manager
     
     def _create_model_db_manager(self, model_name: str) -> DatabaseManager:
         """Create database manager for a specific model's database"""
-        log_with_context(self.logger, logging.INFO, "Creating model database manager", model_name=model_name)
+        log_with_context(self.logger, INFO, "Creating model database manager", model_name=model_name)
         
         # Get model info from infrastructure database to find its database name
         with self.shared_db_manager.get_session() as session:
@@ -141,7 +141,7 @@ class CLIContext:
         db_manager = DatabaseManager(config)
         db_manager.initialize()
         
-        log_with_context(self.logger, logging.INFO, "Model database manager created",
+        log_with_context(self.logger, INFO, "Model database manager created",
                         model_name=model_name, db_name=model_db)
         
         return db_manager
@@ -184,4 +184,4 @@ class CLIContext:
         for db_manager in self._model_db_managers.values():
             db_manager.shutdown()
         
-        log_with_context(self.logger, logging.INFO, "CLIContext shutdown completed")
+        log_with_context(self.logger, INFO, "CLIContext shutdown completed")

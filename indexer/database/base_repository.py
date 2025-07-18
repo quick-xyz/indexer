@@ -4,10 +4,9 @@ from typing import TypeVar, Generic, Type, List, Optional, Any, Dict
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
-from ..core.logging import IndexerLogger
+from ..core.logging import IndexerLogger, INFO, DEBUG, WARNING, ERROR, CRITICAL
 from ..types.new import EvmHash, DomainEventId
 
-import logging
 
 T = TypeVar('T')
 

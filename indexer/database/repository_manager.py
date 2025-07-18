@@ -4,7 +4,7 @@ from typing import Optional
 from contextlib import contextmanager
 
 from .connection import ModelDatabaseManager, SharedDatabaseManager
-from ..core.logging import IndexerLogger, log_with_context
+from ..core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 
 # Import all indexer database repositories
 from .indexer.repositories.trade_repository import TradeRepository
@@ -31,8 +31,6 @@ from .shared.repositories.price_vwap_repository import PriceVwapRepository
 from .indexer.repositories.transfer_repository import TransferRepository
 from .indexer.repositories.liquidity_repository import LiquidityRepository
 from .indexer.repositories.reward_repository import RewardRepository
-
-import logging
 
 
 class RepositoryManager:
@@ -66,7 +64,7 @@ class RepositoryManager:
             self._init_shared_repositories()
         
         log_with_context(
-            self.logger, logging.INFO, "RepositoryManager initialized",
+            self.logger, INFO, "RepositoryManager initialized",
             has_shared_db=shared_db_manager is not None,
             model_db_url=model_db_manager.config.url.split('/')[-1] if model_db_manager.config.url else "unknown"
         )
@@ -94,7 +92,7 @@ class RepositoryManager:
         self.asset_volumes = AssetVolumeRepository(self.model_db_manager)
         
         log_with_context(
-            self.logger, logging.DEBUG, "Indexer database repositories initialized",
+            self.logger, DEBUG, "Indexer database repositories initialized",
             repository_count=11
         )
     
@@ -109,7 +107,7 @@ class RepositoryManager:
         self.price_vwap = PriceVwapRepository(self.shared_db_manager)
         
         log_with_context(
-            self.logger, logging.DEBUG, "Shared database repositories initialized",
+            self.logger, DEBUG, "Shared database repositories initialized",
             repository_count=4
         )
     
@@ -255,13 +253,13 @@ class RepositoryManager:
                     session.execute("SELECT 1").scalar()
             
             log_with_context(
-                self.logger, logging.INFO, "Repository connections validated successfully"
+                self.logger, INFO, "Repository connections validated successfully"
             )
             return True
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Repository connection validation failed",
+                self.logger, ERROR, "Repository connection validation failed",
                 error=str(e)
             )
             return False

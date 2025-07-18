@@ -16,7 +16,7 @@ from ..types import (
     ZERO_ADDRESS,
     UnknownTransfer,
 )
-from ..core.logging import LoggingMixin
+from ..core.logging import LoggingMixin, INFO, DEBUG, WARNING, ERROR, CRITICAL
 from .processors import TradeProcessor
 from ..utils.amounts import amount_to_negative_str
 

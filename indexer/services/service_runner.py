@@ -29,15 +29,13 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from indexer import create_indexer
-from indexer.core.logging import IndexerLogger, log_with_context
+from indexer.core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 from indexer.database.repository_manager import RepositoryManager
 from indexer.database.connection import ModelDatabaseManager, SharedDatabaseManager
 from indexer.clients.quicknode_rpc import QuickNodeRpcClient
 from indexer.services.pricing_service import PricingService
 from indexer.services.calculation_service import CalculationService
 from indexer.database.indexer.tables.detail.pool_swap_detail import PricingDenomination
-
-import logging
 
 
 class ServiceRunner:
@@ -71,7 +69,7 @@ class ServiceRunner:
         self.logger = IndexerLogger.get_logger('services.service_runner')
         
         log_with_context(
-            self.logger, logging.INFO, "ServiceRunner initialized",
+            self.logger, INFO, "ServiceRunner initialized",
             model_name=self.config.model_name,
             shared_database=self.shared_db_manager.config.url.split('/')[-1],
             model_database=self.model_db_manager.config.url.split('/')[-1]

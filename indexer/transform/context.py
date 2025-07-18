@@ -18,7 +18,7 @@ from ..types import (
     SwapBatchSignal,
     Position,
 )
-from ..core.logging import LoggingMixin
+from ..core.logging import LoggingMixin, INFO, DEBUG, WARNING, ERROR, CRITICAL
 
 TrfDict = Dict[EvmAddress, Dict[EvmAddress, Dict[int, TransferSignal]]] # {address: {token: {log_index: TransferSignal}}}
 

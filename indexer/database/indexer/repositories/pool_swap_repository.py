@@ -7,12 +7,9 @@ from sqlalchemy import desc
 
 from ...connection import ModelDatabaseManager
 from ..tables.events.trade import PoolSwap
-from ....core.logging import log_with_context
+from ....core.logging import log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 from ....types.new import EvmAddress, DomainEventId
 from .event_repository import DomainEventRepository
-
-import logging
-
 
 class PoolSwapRepository(DomainEventRepository):
     """Repository for pool swap events"""
@@ -27,7 +24,7 @@ class PoolSwapRepository(DomainEventRepository):
                 PoolSwap.trade_id == trade_id
             ).order_by(PoolSwap.timestamp).all()
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error getting swaps by trade_id",
+            log_with_context(self.logger, ERROR, "Error getting swaps by trade_id",
                             trade_id=trade_id,
                             error=str(e))
             raise
@@ -39,7 +36,7 @@ class PoolSwapRepository(DomainEventRepository):
                 PoolSwap.pool == pool
             ).order_by(desc(PoolSwap.timestamp)).limit(limit).all()
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error getting swaps by pool",
+            log_with_context(self.logger, ERROR, "Error getting swaps by pool",
                             pool=pool,
                             error=str(e))
             raise

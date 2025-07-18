@@ -23,7 +23,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from indexer import create_indexer
-from indexer.core.logging import IndexerLogger, log_with_context
+from indexer.core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 from indexer.database.repository_manager import RepositoryManager
 from indexer.database.writers.domain_event_writer import DomainEventWriter
 from indexer.clients.quicknode_rpc import QuickNodeRpcClient
@@ -32,8 +32,6 @@ from indexer.decode.block_decoder import BlockDecoder
 from indexer.transform.manager import TransformManager
 from indexer.pipeline.indexing_pipeline import IndexingPipeline
 from indexer.pipeline.batch_pipeline import BatchPipeline
-
-import logging
 
 
 class BatchRunner:
@@ -72,7 +70,7 @@ class BatchRunner:
         self.logger = IndexerLogger.get_logger('pipeline.batch_runner')
         
         log_with_context(
-            self.logger, logging.INFO, "BatchRunner initialized",
+            self.logger, INFO, "BatchRunner initialized",
             model_name=self.config.model_name,
             model_version=self.config.model_version
         )

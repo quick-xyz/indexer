@@ -14,6 +14,8 @@ from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Optional
 
+from indexer.core.logging import IndexerLogger, INFO, DEBUG, WARNING, ERROR, CRITICAL
+
 @click.group()
 def batch():
     """Batch block processing operations"""
@@ -53,7 +55,7 @@ def redirect_to_log(log_file_path: str, quiet: bool = False):
         os.environ['INDEXER_CONSOLE_ENABLED'] = 'false'
         
         # Configure the logger immediately
-        from indexer.core.logging import IndexerLogger
+        from indexer.core.logging import IndexerLogger, INFO, DEBUG, WARNING, ERROR, CRITICAL
         IndexerLogger.configure(
             log_dir=Path(log_file_path).parent,
             log_level="WARNING",  # Only warnings and errors  

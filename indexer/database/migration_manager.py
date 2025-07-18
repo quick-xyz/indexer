@@ -22,12 +22,10 @@ from alembic.script import ScriptDirectory
 from .connection import SharedDatabaseManager, ModelDatabaseManager, DatabaseManager
 from ..core.indexer_config import IndexerConfig
 from ..core.secrets_service import SecretsService
-from ..core.logging import IndexerLogger, log_with_context
+from ..core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 from ..types import DatabaseConfig
 from .shared.tables import *
 from .indexer.tables import *
-
-import logging
 
 
 class MigrationManager:
@@ -70,7 +68,7 @@ class MigrationManager:
         self.migrations_dir = Path(__file__).parent / "migrations"
         self.migrations_dir.mkdir(exist_ok=True)
         
-        log_with_context(self.logger, logging.INFO, "MigrationManager initialized", 
+        log_with_context(self.logger, INFO, "MigrationManager initialized", 
                         migrations_dir=str(self.migrations_dir),
                         has_config=config is not None)
     
@@ -78,7 +76,7 @@ class MigrationManager:
     
     def create_shared_migration(self, message: str, autogenerate: bool = True) -> str:
         """Create a new migration for the shared database"""
-        log_with_context(self.logger, logging.INFO, "Creating shared database migration", 
+        log_with_context(self.logger, INFO, "Creating shared database migration", 
                         migration_message=message, autogenerate=autogenerate)
         
         # Ensure migrations directory is properly initialized
@@ -98,13 +96,13 @@ class MigrationManager:
             script_dir = ScriptDirectory.from_config(alembic_cfg)
             revision = script_dir.get_current_head()
             
-            log_with_context(self.logger, logging.INFO, "Shared migration created successfully",
+            log_with_context(self.logger, INFO, "Shared migration created successfully",
                            revision=revision)
             
             return revision
             
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Failed to create shared migration",
+            log_with_context(self.logger, ERROR, "Failed to create shared migration",
                            error=str(e))
             raise
         finally:
@@ -112,7 +110,7 @@ class MigrationManager:
     
     def upgrade_shared(self, revision: str = 'head') -> None:
         """Apply migrations to shared database"""
-        log_with_context(self.logger, logging.INFO, "Upgrading shared database",
+        log_with_context(self.logger, INFO, "Upgrading shared database",
                         revision=revision)
         
         # Ensure migrations directory is initialized
@@ -126,10 +124,10 @@ class MigrationManager:
         
         try:
             command.upgrade(alembic_cfg, revision)
-            log_with_context(self.logger, logging.INFO, "Shared database upgraded successfully")
+            log_with_context(self.logger, INFO, "Shared database upgraded successfully")
             
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Failed to upgrade shared database",
+            log_with_context(self.logger, ERROR, "Failed to upgrade shared database",
                            error=str(e))
             raise
         finally:
@@ -137,7 +135,7 @@ class MigrationManager:
     
     def downgrade_shared(self, revision: str) -> None:
         """Downgrade shared database to specific revision"""
-        log_with_context(self.logger, logging.INFO, "Downgrading shared database",
+        log_with_context(self.logger, INFO, "Downgrading shared database",
                         revision=revision)
         
         alembic_cfg = self._get_shared_alembic_config()
@@ -147,10 +145,10 @@ class MigrationManager:
         
         try:
             command.downgrade(alembic_cfg, revision)
-            log_with_context(self.logger, logging.INFO, "Shared database downgraded successfully")
+            log_with_context(self.logger, INFO, "Shared database downgraded successfully")
             
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Failed to downgrade shared database",
+            log_with_context(self.logger, ERROR, "Failed to downgrade shared database",
                            error=str(e))
             raise
         finally:
@@ -170,7 +168,7 @@ class MigrationManager:
                 return context.get_current_revision()
                 
         except Exception as e:
-            log_with_context(self.logger, logging.WARNING, "Failed to get current revision",
+            log_with_context(self.logger, WARNING, "Failed to get current revision",
                            error=str(e))
             return None
         finally:
@@ -180,7 +178,7 @@ class MigrationManager:
     
     def create_model_database(self, model_name: str, drop_if_exists: bool = False) -> bool:
         """Create a new model database from current schema template"""
-        log_with_context(self.logger, logging.INFO, "Creating model database", 
+        log_with_context(self.logger, INFO, "Creating model database", 
                         model_name=model_name, drop_if_exists=drop_if_exists)
         
         try:
@@ -189,7 +187,7 @@ class MigrationManager:
                 if drop_if_exists:
                     self._drop_database(model_name)
                 else:
-                    log_with_context(self.logger, logging.WARNING, "Model database already exists",
+                    log_with_context(self.logger, WARNING, "Model database already exists",
                                     model_name=model_name)
                     return False
             
@@ -199,13 +197,13 @@ class MigrationManager:
             # Apply current schema template
             self._apply_model_template(model_name)
             
-            log_with_context(self.logger, logging.INFO, "Model database created successfully",
+            log_with_context(self.logger, INFO, "Model database created successfully",
                             model_name=model_name)
             
             return True
             
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Failed to create model database",
+            log_with_context(self.logger, ERROR, "Failed to create model database",
                            model_name=model_name, error=str(e))
             raise
     
@@ -232,7 +230,7 @@ class MigrationManager:
             return databases
             
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Failed to list model databases",
+            log_with_context(self.logger, ERROR, "Failed to list model databases",
                            error=str(e))
             return []
     
@@ -268,7 +266,7 @@ class MigrationManager:
             return ";\n\n".join(statements) + ";"
             
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Failed to generate model schema SQL",
+            log_with_context(self.logger, ERROR, "Failed to generate model schema SQL",
                            error=str(e))
             raise
     
@@ -315,7 +313,7 @@ class MigrationManager:
                     }
                     
         except Exception as e:
-            log_with_context(self.logger, logging.WARNING, "Failed to check model databases",
+            log_with_context(self.logger, WARNING, "Failed to check model databases",
                            error=str(e))
         
         return status
@@ -324,7 +322,7 @@ class MigrationManager:
     
     def reset_everything(self) -> None:
         """Reset all databases (DEVELOPMENT ONLY)"""
-        log_with_context(self.logger, logging.WARNING, "Resetting all databases")
+        log_with_context(self.logger, WARNING, "Resetting all databases")
         
         print("⚠️  WARNING: This will delete ALL data in shared and model databases!")
         print("⚠️  This should only be used in development environments!")
@@ -349,7 +347,7 @@ class MigrationManager:
                 print(f"   ⚠️  Shared database reset but no migrations applied: {e}")
                 
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Failed to reset shared database",
+            log_with_context(self.logger, ERROR, "Failed to reset shared database",
                            error=str(e))
             raise
         
@@ -375,7 +373,7 @@ class MigrationManager:
     
     def _initialize_migrations_directory(self) -> None:
         """Initialize Alembic migrations directory with proper templates"""
-        log_with_context(self.logger, logging.INFO, "Initializing migrations directory",
+        log_with_context(self.logger, INFO, "Initializing migrations directory",
                         directory=str(self.migrations_dir))
         
         # Create directory structure
@@ -441,7 +439,7 @@ datefmt = %H:%M:%S
         script_template_content = self._get_script_template()
         script_template_path.write_text(script_template_content)
         
-        log_with_context(self.logger, logging.INFO, "Migrations directory initialized successfully")
+        log_with_context(self.logger, INFO, "Migrations directory initialized successfully")
     
     def _get_env_py_template(self) -> str:
         """Generate env.py template with proper credential handling AND custom type support"""
@@ -675,13 +673,13 @@ def downgrade() -> None:
             return exists
             
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Failed to check database existence",
+            log_with_context(self.logger, ERROR, "Failed to check database existence",
                            database=db_name, error=str(e))
             raise
     
     def _create_database(self, db_name: str) -> None:
         """Create a new database"""
-        log_with_context(self.logger, logging.INFO, "Creating database", database=db_name)
+        log_with_context(self.logger, INFO, "Creating database", database=db_name)
         
         try:
             admin_engine = self._get_admin_engine()
@@ -693,13 +691,13 @@ def downgrade() -> None:
             admin_engine.dispose()
             
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Failed to create database",
+            log_with_context(self.logger, ERROR, "Failed to create database",
                            database=db_name, error=str(e))
             raise
     
     def _drop_database(self, db_name: str) -> None:
         """Drop a database"""
-        log_with_context(self.logger, logging.WARNING, "Dropping database", database=db_name)
+        log_with_context(self.logger, WARNING, "Dropping database", database=db_name)
         
         try:
             admin_engine = self._get_admin_engine()
@@ -719,13 +717,13 @@ def downgrade() -> None:
             admin_engine.dispose()
             
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Failed to drop database",
+            log_with_context(self.logger, ERROR, "Failed to drop database",
                            database=db_name, error=str(e))
             raise
     
     def _apply_model_template(self, model_name: str) -> None:
         """Apply current model schema template to a database with proper enum handling"""
-        log_with_context(self.logger, logging.INFO, "Applying model schema template",
+        log_with_context(self.logger, INFO, "Applying model schema template",
                         model_name=model_name)
         
         # Create a temporary DatabaseManager for this model database
@@ -765,7 +763,7 @@ def downgrade() -> None:
             # Create all tables (enums already exist, so no case conversion)
             ModelBase.metadata.create_all(temp_db_manager.engine, checkfirst=True)
             
-            log_with_context(self.logger, logging.INFO, "Model schema template applied successfully",
+            log_with_context(self.logger, INFO, "Model schema template applied successfully",
                         model_name=model_name, table_count=len(ModelBase.metadata.tables))
             
         finally:
@@ -777,7 +775,7 @@ def downgrade() -> None:
         from sqlalchemy.dialects.postgresql import ENUM
         import enum
         
-        log_with_context(self.logger, logging.INFO, "Creating enum types with proper case handling")
+        log_with_context(self.logger, INFO, "Creating enum types with proper case handling")
         
         # Collect all enum types from model tables
         enum_types_to_create = {}
@@ -798,7 +796,7 @@ def downgrade() -> None:
                         
                         if enum_name not in enum_types_to_create:
                             enum_types_to_create[enum_name] = enum_values
-                            log_with_context(self.logger, logging.DEBUG, "Found enum type",
+                            log_with_context(self.logger, DEBUG, "Found enum type",
                                         enum_name=enum_name, values=enum_values)
         
         # Create enum types with explicit quoted values to preserve case
@@ -818,20 +816,20 @@ def downgrade() -> None:
                         
                         create_enum_sql = f"CREATE TYPE {enum_name} AS ENUM ({values_str})"
                         
-                        log_with_context(self.logger, logging.INFO, "Creating enum type",
+                        log_with_context(self.logger, INFO, "Creating enum type",
                                     enum_name=enum_name, sql=create_enum_sql)
                         
                         conn.execute(text(create_enum_sql))
                     else:
-                        log_with_context(self.logger, logging.DEBUG, "Enum type already exists",
+                        log_with_context(self.logger, DEBUG, "Enum type already exists",
                                     enum_name=enum_name)
                 
                 trans.commit()
-                log_with_context(self.logger, logging.INFO, "All enum types created successfully",
+                log_with_context(self.logger, INFO, "All enum types created successfully",
                             enum_count=len(enum_types_to_create))
                 
             except Exception as e:
                 trans.rollback()
-                log_with_context(self.logger, logging.ERROR, "Failed to create enum types",
+                log_with_context(self.logger, ERROR, "Failed to create enum types",
                             error=str(e))
                 raise

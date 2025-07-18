@@ -2,13 +2,12 @@
 
 from typing import Generator, Optional
 from contextlib import contextmanager
-import logging
 
 from sqlalchemy import create_engine, Engine, text
 from sqlalchemy.orm import sessionmaker, Session, scoped_session
 from sqlalchemy.pool import QueuePool
 
-from ..core.logging import IndexerLogger, log_with_context
+from ..core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 from ..types.configs.config import DatabaseConfig
 
 
@@ -24,7 +23,7 @@ class DatabaseManager:
         self._session_factory: Optional[sessionmaker] = None
         self._scoped_session: Optional[scoped_session] = None
         
-        log_with_context(self.logger, logging.INFO, "DatabaseManager initialized",
+        log_with_context(self.logger, INFO, "DatabaseManager initialized",
                         db_url_host=self._extract_host_from_url(config.url))
     
     def _extract_host_from_url(self, url: str) -> str:
@@ -65,12 +64,12 @@ class DatabaseManager:
             with self._engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
             
-            log_with_context(self.logger, logging.INFO, "Database initialized successfully",
+            log_with_context(self.logger, INFO, "Database initialized successfully",
                             pool_size=getattr(self.config, 'pool_size', 5),
                             max_overflow=getattr(self.config, 'max_overflow', 10))
             
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Failed to initialize database",
+            log_with_context(self.logger, ERROR, "Failed to initialize database",
                             error=str(e),
                             exception_type=type(e).__name__)
             raise
@@ -92,7 +91,7 @@ class DatabaseManager:
             self.logger.info("Database shutdown completed")
             
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error during database shutdown",
+            log_with_context(self.logger, ERROR, "Error during database shutdown",
                             error=str(e),
                             exception_type=type(e).__name__)
     
@@ -120,17 +119,17 @@ class DatabaseManager:
         
         session = self._session_factory()
         try:
-            log_with_context(self.logger, logging.DEBUG, "Database session created")
+            log_with_context(self.logger, DEBUG, "Database session created")
             yield session
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Database session error, rolling back",
+            log_with_context(self.logger, ERROR, "Database session error, rolling back",
                             error=str(e),
                             exception_type=type(e).__name__)
             session.rollback()
             raise
         finally:
             session.close()
-            log_with_context(self.logger, logging.DEBUG, "Database session closed")
+            log_with_context(self.logger, DEBUG, "Database session closed")
     
     @contextmanager
     def get_transaction(self) -> Generator[Session, None, None]:
@@ -138,10 +137,10 @@ class DatabaseManager:
             try:
                 yield session
                 session.commit()
-                log_with_context(self.logger, logging.DEBUG, "Database transaction committed")
+                log_with_context(self.logger, DEBUG, "Database transaction committed")
             except Exception as e:
                 session.rollback()
-                log_with_context(self.logger, logging.ERROR, "Database transaction rolled back",
+                log_with_context(self.logger, ERROR, "Database transaction rolled back",
                                 error=str(e),
                                 exception_type=type(e).__name__)
                 raise
@@ -152,7 +151,7 @@ class DatabaseManager:
                 session.execute(text("SELECT 1"))
             return True
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Database health check failed",
+            log_with_context(self.logger, ERROR, "Database health check failed",
                             error=str(e),
                             exception_type=type(e).__name__)
             return False

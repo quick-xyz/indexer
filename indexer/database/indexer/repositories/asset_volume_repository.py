@@ -7,12 +7,10 @@ from sqlalchemy import and_, desc, func
 
 from ...connection import ModelDatabaseManager
 from ..tables.asset_volume import AssetVolume
-from ....core.logging import IndexerLogger, log_with_context
+from ....core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 from ....types import EvmAddress
 from ...base_repository import BaseRepository
 from ..tables.detail.pool_swap_detail import PricingDenomination
-
-import logging
 
 
 class AssetVolumeRepository(BaseRepository):
@@ -54,7 +52,7 @@ class AssetVolumeRepository(BaseRepository):
             session.flush()
             
             log_with_context(
-                self.logger, logging.DEBUG, "Volume record created",
+                self.logger, DEBUG, "Volume record created",
                 period_id=period_id,
                 asset=asset_address,
                 denom=denomination,
@@ -66,7 +64,7 @@ class AssetVolumeRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error creating volume record",
+                self.logger, ERROR, "Error creating volume record",
                 period_id=period_id,
                 asset=asset_address,
                 denom=denomination,
@@ -92,7 +90,7 @@ class AssetVolumeRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting volume for period",
+                self.logger, ERROR, "Error getting volume for period",
                 period_id=period_id,
                 asset=asset_address,
                 denom=denom,
@@ -119,7 +117,7 @@ class AssetVolumeRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting total volume for period",
+                self.logger, ERROR, "Error getting total volume for period",
                 period_id=period_id,
                 asset=asset_address,
                 denom=denom,
@@ -147,7 +145,7 @@ class AssetVolumeRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting protocol volume range",
+                self.logger, ERROR, "Error getting protocol volume range",
                 start_period_id=start_period_id,
                 end_period_id=end_period_id,
                 asset=asset_address,
@@ -179,7 +177,7 @@ class AssetVolumeRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting volume by protocol",
+                self.logger, ERROR, "Error getting volume by protocol",
                 period_id=period_id,
                 asset=asset_address,
                 denom=denom,
@@ -215,7 +213,7 @@ class AssetVolumeRepository(BaseRepository):
             session.flush()
             
             log_with_context(
-                self.logger, logging.DEBUG, "Volume record updated",
+                self.logger, DEBUG, "Volume record updated",
                 period_id=period_id,
                 asset=asset,
                 denom=denom,
@@ -227,7 +225,7 @@ class AssetVolumeRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error updating volume record",
+                self.logger, ERROR, "Error updating volume record",
                 period_id=period_id,
                 asset=asset,
                 denom=denom,
@@ -258,7 +256,7 @@ class AssetVolumeRepository(BaseRepository):
             session.flush()
             
             log_with_context(
-                self.logger, logging.INFO, "Bulk volume records created",
+                self.logger, INFO, "Bulk volume records created",
                 record_count=len(volume_records)
             )
             
@@ -266,7 +264,7 @@ class AssetVolumeRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error bulk creating volume records",
+                self.logger, ERROR, "Error bulk creating volume records",
                 record_count=len(volume_data),
                 error=str(e)
             )
@@ -303,7 +301,7 @@ class AssetVolumeRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting volume stats",
+                self.logger, ERROR, "Error getting volume stats",
                 asset=asset_address,
                 denom=denom,
                 error=str(e)
@@ -331,7 +329,7 @@ class AssetVolumeRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting volume record",
+                self.logger, ERROR, "Error getting volume record",
                 period_id=period_id,
                 asset_address=asset_address,
                 denomination=denomination,
@@ -357,7 +355,7 @@ class AssetVolumeRepository(BaseRepository):
             # to find periods that have trading activity but missing volume records
             
             log_with_context(
-                self.logger, logging.DEBUG, "Finding missing volume periods - implementation needed",
+                self.logger, DEBUG, "Finding missing volume periods - implementation needed",
                 asset_address=asset_address
             )
             
@@ -365,7 +363,7 @@ class AssetVolumeRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error finding periods with missing volumes",
+                self.logger, ERROR, "Error finding periods with missing volumes",
                 asset_address=asset_address,
                 error=str(e)
             )

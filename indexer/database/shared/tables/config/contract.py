@@ -4,6 +4,7 @@ from typing import Optional
 from sqlalchemy import Column, Integer, String, ForeignKey, Index
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
+import msgspec
 
 from ....base import SharedBase, SharedTimestampMixin
 from .....types import ContractConfig
@@ -54,3 +55,9 @@ class DBContract(SharedBase, SharedTimestampMixin):
         data = config.to_database_dict()
         data['address_id'] = address_id
         return cls(**data)
+    
+    def to_config(self) -> ContractConfig:
+        """Convert database contract to configuration object using msgspec"""
+        # Convert to dict, then let msgspec handle the conversion
+        contract_dict = msgspec.structs.asdict(self)
+        return msgspec.convert(contract_dict, ContractConfig)

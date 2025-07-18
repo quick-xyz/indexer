@@ -2,7 +2,6 @@
 
 from abc import ABC
 from typing import List, Any, Optional, Dict, Tuple
-import logging
 
 from ...types import (
     ZERO_ADDRESS,
@@ -15,8 +14,7 @@ from ...types import (
     EvmHash,
 )
 from ...utils.amounts import is_positive
-from ...core.logging import LoggingMixin
-from ...core.logging import log_with_context
+from ...core.logging import log_with_context, LoggingMixin, INFO, DEBUG, WARNING, ERROR, CRITICAL
 
 
 class BaseTransformer(ABC, LoggingMixin):

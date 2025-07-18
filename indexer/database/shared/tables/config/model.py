@@ -6,6 +6,7 @@ from sqlalchemy.orm import relationship
 from ....base import SharedBase, SharedTimestampMixin
 from ....types import EvmAddressType
 from .....types import ModelConfig
+from .. import DBModelContract, DBModelToken, DBModelSource, DBPricing
 
 
 class DBModel(SharedBase, SharedTimestampMixin):
@@ -51,16 +52,13 @@ class DBModel(SharedBase, SharedTimestampMixin):
         return f"{self.name}_{self.version}"
     
     def get_contract_count(self, session) -> int:
-        from .. import ModelContract
-        return session.query(ModelContract).filter(ModelContract.model_id == self.id).count()
-    
+        return session.query(DBModelContract).filter(DBModelContract.model_id == self.id).count()
+
     def get_token_count(self, session) -> int:
-        from .. import ModelToken
-        return session.query(ModelToken).filter(ModelToken.model_id == self.id).count()
+        return session.query(DBModelToken).filter(DBModelToken.model_id == self.id).count()
     
     def get_source_count(self, session) -> int:
-        from .. import ModelSource
-        return session.query(ModelSource).filter(ModelSource.model_id == self.id).count()
+        return session.query(DBModelSource).filter(DBModelSource.model_id == self.id).count()
     
     @classmethod
     def from_config(cls, config: ModelConfig) -> 'DBModel':

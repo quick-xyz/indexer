@@ -8,7 +8,6 @@ and configuration system.
 
 import os
 import sys
-import logging
 from pathlib import Path
 from typing import Optional, Any, TypeVar
 
@@ -20,7 +19,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from indexer import create_indexer
 from indexer.core.indexer_config import IndexerConfig
 from indexer.core.container import IndexerContainer
-from indexer.core.logging import IndexerLogger, log_with_context
+from indexer.core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 
 T = TypeVar('T')
 

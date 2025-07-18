@@ -8,12 +8,10 @@ from sqlalchemy import and_, desc, func
 
 from ..tables.price_vwap import PriceVwap
 from ...connection import SharedDatabaseManager
-from ....core.logging import IndexerLogger, log_with_context
+from ....core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 from ....types import EvmAddress
 from ...base_repository import BaseRepository
 from ....database.indexer.tables.detail.pool_swap_detail import PricingDenomination
-
-import logging
 
 
 class PriceVwapRepository(BaseRepository):
@@ -62,7 +60,7 @@ class PriceVwapRepository(BaseRepository):
             session.flush()
             
             log_with_context(
-                self.logger, logging.DEBUG, "Canonical price created",
+                self.logger, DEBUG, "Canonical price created",
                 asset_address=asset_address,
                 timestamp_minute=timestamp_minute,
                 denomination=denomination.value,
@@ -76,7 +74,7 @@ class PriceVwapRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error creating canonical price",
+                self.logger, ERROR, "Error creating canonical price",
                 asset_address=asset_address,
                 timestamp_minute=timestamp_minute,
                 denomination=denomination.value if denomination else None,
@@ -105,7 +103,7 @@ class PriceVwapRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting canonical price",
+                self.logger, ERROR, "Error getting canonical price",
                 asset_address=asset_address,
                 timestamp_minute=timestamp_minute,
                 denomination=denomination.value,
@@ -134,7 +132,7 @@ class PriceVwapRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting canonical prices in range",
+                self.logger, ERROR, "Error getting canonical prices in range",
                 asset_address=asset_address,
                 denomination=denomination.value,
                 start_timestamp=start_timestamp.isoformat(),
@@ -162,7 +160,7 @@ class PriceVwapRepository(BaseRepository):
             # to find missing canonical price minutes
             
             log_with_context(
-                self.logger, logging.DEBUG, "Finding canonical pricing gaps - implementation needed",
+                self.logger, DEBUG, "Finding canonical pricing gaps - implementation needed",
                 asset_address=asset_address,
                 denomination=denomination.value
             )
@@ -171,7 +169,7 @@ class PriceVwapRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error finding canonical pricing gaps",
+                self.logger, ERROR, "Error finding canonical pricing gaps",
                 asset_address=asset_address,
                 denomination=denomination.value,
                 error=str(e)
@@ -202,7 +200,7 @@ class PriceVwapRepository(BaseRepository):
             session.flush()
             
             log_with_context(
-                self.logger, logging.DEBUG, "Canonical price updated",
+                self.logger, DEBUG, "Canonical price updated",
                 asset_address=asset_address,
                 timestamp_minute=timestamp_minute,
                 denomination=denomination.value,
@@ -213,7 +211,7 @@ class PriceVwapRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error updating canonical price",
+                self.logger, ERROR, "Error updating canonical price",
                 asset_address=asset_address,
                 timestamp_minute=timestamp_minute,
                 denomination=denomination.value,
@@ -250,7 +248,7 @@ class PriceVwapRepository(BaseRepository):
             session.flush()
             
             log_with_context(
-                self.logger, logging.INFO, "Bulk canonical prices created",
+                self.logger, INFO, "Bulk canonical prices created",
                 price_count=len(price_records)
             )
             
@@ -258,7 +256,7 @@ class PriceVwapRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error bulk creating canonical prices",
+                self.logger, ERROR, "Error bulk creating canonical prices",
                 price_count=len(price_data),
                 error=str(e)
             )
@@ -301,7 +299,7 @@ class PriceVwapRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting canonical pricing stats",
+                self.logger, ERROR, "Error getting canonical pricing stats",
                 asset_address=asset_address,
                 denomination=denomination.value,
                 error=str(e)
@@ -325,7 +323,7 @@ class PriceVwapRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting latest canonical price",
+                self.logger, ERROR, "Error getting latest canonical price",
                 asset_address=asset_address,
                 denomination=denomination.value,
                 error=str(e)

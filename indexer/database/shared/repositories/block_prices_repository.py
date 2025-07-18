@@ -9,9 +9,7 @@ from sqlalchemy.exc import IntegrityError
 
 from ..tables.block_prices import BlockPrice
 from ...base_repository import BaseRepository
-from ....core.logging import IndexerLogger, log_with_context
-
-import logging
+from ....core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 
 
 class BlockPricesRepository(BaseRepository):
@@ -53,7 +51,7 @@ class BlockPricesRepository(BaseRepository):
             session.flush()
             
             log_with_context(
-                self.logger, logging.DEBUG, "Block price created",
+                self.logger, DEBUG, "Block price created",
                 block_number=block_number,
                 price_usd=str(price_usd),
                 timestamp=timestamp
@@ -64,14 +62,14 @@ class BlockPricesRepository(BaseRepository):
         except IntegrityError:
             # Block already has a price - this is expected in some cases
             log_with_context(
-                self.logger, logging.DEBUG, "Block price already exists",
+                self.logger, DEBUG, "Block price already exists",
                 block_number=block_number
             )
             session.rollback()
             return None
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error creating block price",
+                self.logger, ERROR, "Error creating block price",
                 block_number=block_number,
                 error=str(e)
             )
@@ -108,7 +106,7 @@ class BlockPricesRepository(BaseRepository):
         
         if closest_price:
             log_with_context(
-                self.logger, logging.DEBUG, "Found price near timestamp",
+                self.logger, DEBUG, "Found price near timestamp",
                 target_timestamp=timestamp,
                 found_timestamp=closest_price.timestamp,
                 time_difference=abs(closest_price.timestamp - timestamp),
@@ -176,7 +174,7 @@ class BlockPricesRepository(BaseRepository):
             gaps.append((price_blocks[-1] + 1, end_block))
         
         log_with_context(
-            self.logger, logging.DEBUG, "Price gaps identified",
+            self.logger, DEBUG, "Price gaps identified",
             start_block=start_block,
             end_block=end_block,
             gap_count=len(gaps),
@@ -243,7 +241,7 @@ class BlockPricesRepository(BaseRepository):
                 continue
             except Exception as e:
                 log_with_context(
-                    self.logger, logging.ERROR, "Error in bulk price creation",
+                    self.logger, ERROR, "Error in bulk price creation",
                     block_number=data.get('block_number'),
                     error=str(e)
                 )
@@ -254,14 +252,14 @@ class BlockPricesRepository(BaseRepository):
         try:
             session.flush()
             log_with_context(
-                self.logger, logging.INFO, "Bulk price creation completed",
+                self.logger, INFO, "Bulk price creation completed",
                 total_attempted=len(price_data),
                 created_count=created_count,
                 skipped_count=skipped_count
             )
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error committing bulk prices",
+                self.logger, ERROR, "Error committing bulk prices",
                 error=str(e)
             )
             raise

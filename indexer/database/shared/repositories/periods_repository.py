@@ -9,9 +9,7 @@ from sqlalchemy.exc import IntegrityError
 
 from ..tables.periods import Period, PeriodType
 from ...base_repository import BaseRepository
-from ....core.logging import IndexerLogger, log_with_context
-
-import logging
+from ....core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 
 
 class PeriodsRepository(BaseRepository):
@@ -51,7 +49,7 @@ class PeriodsRepository(BaseRepository):
             session.flush()
             
             log_with_context(
-                self.logger, logging.DEBUG, "Period created",
+                self.logger, DEBUG, "Period created",
                 period_type=period_type.value,
                 time_open=time_open,
                 block_range=f"{block_open}-{block_close}",
@@ -63,7 +61,7 @@ class PeriodsRepository(BaseRepository):
         except IntegrityError:
             # Period already exists
             log_with_context(
-                self.logger, logging.DEBUG, "Period already exists",
+                self.logger, DEBUG, "Period already exists",
                 period_type=period_type.value,
                 time_open=time_open
             )
@@ -71,7 +69,7 @@ class PeriodsRepository(BaseRepository):
             return None
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error creating period",
+                self.logger, ERROR, "Error creating period",
                 period_type=period_type.value,
                 time_open=time_open,
                 error=str(e)
@@ -204,7 +202,7 @@ class PeriodsRepository(BaseRepository):
             period = self.get_period(session, period_type, time_open)
             if not period:
                 log_with_context(
-                    self.logger, logging.WARNING, "Period not found for completion",
+                    self.logger, WARNING, "Period not found for completion",
                     period_type=period_type.value,
                     time_open=time_open
                 )
@@ -214,7 +212,7 @@ class PeriodsRepository(BaseRepository):
             session.flush()
             
             log_with_context(
-                self.logger, logging.DEBUG, "Period marked complete",
+                self.logger, DEBUG, "Period marked complete",
                 period_type=period_type.value,
                 time_open=time_open
             )
@@ -223,7 +221,7 @@ class PeriodsRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error marking period complete",
+                self.logger, ERROR, "Error marking period complete",
                 period_type=period_type.value,
                 time_open=time_open,
                 error=str(e)
@@ -269,7 +267,7 @@ class PeriodsRepository(BaseRepository):
             gaps.append((current_time, end_time))
         
         log_with_context(
-            self.logger, logging.DEBUG, "Period gaps identified",
+            self.logger, DEBUG, "Period gaps identified",
             period_type=period_type.value,
             start_time=start_time,
             end_time=end_time,
@@ -356,7 +354,7 @@ class PeriodsRepository(BaseRepository):
                 continue
             except Exception as e:
                 log_with_context(
-                    self.logger, logging.ERROR, "Error in bulk period creation",
+                    self.logger, ERROR, "Error in bulk period creation",
                     period_type=data.get('period_type'),
                     time_open=data.get('time_open'),
                     error=str(e)
@@ -368,14 +366,14 @@ class PeriodsRepository(BaseRepository):
         try:
             session.flush()
             log_with_context(
-                self.logger, logging.INFO, "Bulk period creation completed",
+                self.logger, INFO, "Bulk period creation completed",
                 total_attempted=len(period_data),
                 created_count=created_count,
                 skipped_count=skipped_count
             )
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error committing bulk periods",
+                self.logger, ERROR, "Error committing bulk periods",
                 error=str(e)
             )
             raise
@@ -409,7 +407,7 @@ class PeriodsRepository(BaseRepository):
             ).order_by(Period.timestamp).all()
             
             log_with_context(
-                self.logger, logging.DEBUG, "Periods retrieved in timeframe",
+                self.logger, DEBUG, "Periods retrieved in timeframe",
                 period_type=period_type.value,
                 start_time=start_time.isoformat(),
                 end_time=end_time.isoformat(),
@@ -420,7 +418,7 @@ class PeriodsRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting periods in timeframe",
+                self.logger, ERROR, "Error getting periods in timeframe",
                 period_type=period_type.value,
                 start_time=start_time.isoformat(),
                 end_time=end_time.isoformat(),
@@ -449,7 +447,7 @@ class PeriodsRepository(BaseRepository):
             ).order_by(Period.timestamp).all()
             
             log_with_context(
-                self.logger, logging.DEBUG, "Periods retrieved since cutoff",
+                self.logger, DEBUG, "Periods retrieved since cutoff",
                 period_type=period_type.value,
                 cutoff_time=cutoff_time.isoformat(),
                 periods_found=len(periods)
@@ -459,7 +457,7 @@ class PeriodsRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting periods since cutoff",
+                self.logger, ERROR, "Error getting periods since cutoff",
                 period_type=period_type.value,
                 cutoff_time=cutoff_time.isoformat(),
                 error=str(e)
@@ -483,7 +481,7 @@ class PeriodsRepository(BaseRepository):
             ).order_by(Period.timestamp).all()
             
             log_with_context(
-                self.logger, logging.DEBUG, "Periods retrieved by IDs",
+                self.logger, DEBUG, "Periods retrieved by IDs",
                 requested_ids=len(period_ids),
                 periods_found=len(periods)
             )
@@ -492,7 +490,7 @@ class PeriodsRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting periods by IDs",
+                self.logger, ERROR, "Error getting periods by IDs",
                 requested_ids=len(period_ids),
                 error=str(e)
             )
@@ -515,7 +513,7 @@ class PeriodsRepository(BaseRepository):
             ).order_by(desc(Period.timestamp)).limit(limit).all()
             
             log_with_context(
-                self.logger, logging.DEBUG, "Recent periods retrieved",
+                self.logger, DEBUG, "Recent periods retrieved",
                 period_type=period_type.value,
                 limit=limit,
                 periods_found=len(periods)
@@ -525,7 +523,7 @@ class PeriodsRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting recent periods",
+                self.logger, ERROR, "Error getting recent periods",
                 period_type=period_type.value,
                 limit=limit,
                 error=str(e)
@@ -596,7 +594,7 @@ class PeriodsRepository(BaseRepository):
                 period_start_block = period_end_block + 1
             
             log_with_context(
-                self.logger, logging.INFO, "Periods created to present",
+                self.logger, INFO, "Periods created to present",
                 period_type=period_type.value,
                 created_count=created_count
             )
@@ -605,7 +603,7 @@ class PeriodsRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error creating periods to present",
+                self.logger, ERROR, "Error creating periods to present",
                 period_type=period_type.value,
                 error=str(e)
             )
@@ -669,7 +667,7 @@ class PeriodsRepository(BaseRepository):
                 gaps.append((current_time, end_time))
             
             log_with_context(
-                self.logger, logging.DEBUG, "Period gaps identified",
+                self.logger, DEBUG, "Period gaps identified",
                 period_type=period_type.value,
                 gaps_found=len(gaps)
             )
@@ -678,7 +676,7 @@ class PeriodsRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error finding period gaps",
+                self.logger, ERROR, "Error finding period gaps",
                 period_type=period_type.value,
                 error=str(e)
             )

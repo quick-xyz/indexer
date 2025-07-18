@@ -6,7 +6,7 @@ from decimal import Decimal
 
 from sqlalchemy import and_, exists, distinct
 
-from ..core.logging import IndexerLogger, log_with_context
+from ..core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 from ..database.repository_manager import RepositoryManager
 from ..database.connection import DatabaseManager
 from ..database.shared.tables.periods import Period, PeriodType
@@ -21,8 +21,6 @@ from ..database.indexer.tables.events.trade import PoolSwap
 from ..database.indexer.tables.events.trade import Trade, PoolSwap
 from ..database.indexer.tables.detail.pool_swap_detail import PoolSwapDetail
 from ..database.indexer.tables.detail.trade_detail import TradeDetail, TradePricingMethod
-
-import logging
 
 
 class PricingService:
@@ -63,7 +61,7 @@ class PricingService:
         self.logger = IndexerLogger.get_logger('services.pricing_service')
         
         log_with_context(
-            self.logger, logging.INFO, "PricingService initialized",
+            self.logger, INFO, "PricingService initialized",
             shared_database=shared_db_manager.config.url.split('/')[-1],
             model_database=model_db_manager.config.url.split('/')[-1]
         )
@@ -90,7 +88,7 @@ class PricingService:
                           PeriodType.FOUR_HOUR, PeriodType.ONE_DAY]
         
         log_with_context(
-            self.logger, logging.INFO, "Updating periods to present",
+            self.logger, INFO, "Updating periods to present",
             period_types=[pt.value for pt in period_types]
         )
         
@@ -103,7 +101,7 @@ class PricingService:
                     total_created += created
                     
                     log_with_context(
-                        self.logger, logging.INFO, "Period type updated",
+                        self.logger, INFO, "Period type updated",
                         period_type=period_type.value,
                         periods_created=created
                     )
@@ -111,7 +109,7 @@ class PricingService:
                 session.commit()
                 
                 log_with_context(
-                    self.logger, logging.INFO, "Period update complete",
+                    self.logger, INFO, "Period update complete",
                     total_periods_created=total_created
                 )
                 
@@ -119,7 +117,7 @@ class PricingService:
                 
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Failed to update periods",
+                self.logger, ERROR, "Failed to update periods",
                 error=str(e)
             )
             return {'periods_created': 0, 'errors': 1}
@@ -135,7 +133,7 @@ class PricingService:
             Dict with price update statistics
         """
         log_with_context(
-            self.logger, logging.INFO, "Updating minute prices to present"
+            self.logger, INFO, "Updating minute prices to present"
         )
         
         try:
@@ -147,7 +145,7 @@ class PricingService:
                 session.commit()
                 
                 log_with_context(
-                    self.logger, logging.INFO, "Minute price update complete",
+                    self.logger, INFO, "Minute price update complete",
                     **results
                 )
                 
@@ -155,7 +153,7 @@ class PricingService:
                 
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Failed to update minute prices",
+                self.logger, ERROR, "Failed to update minute prices",
                 error=str(e)
             )
             return {'prices_updated': 0, 'errors': 1}
@@ -178,7 +176,7 @@ class PricingService:
             Dict with pricing statistics
         """
         log_with_context(
-            self.logger, logging.INFO, "Calculating swap pricing",
+            self.logger, INFO, "Calculating swap pricing",
             asset_address=asset_address,
             days=days
         )
@@ -198,7 +196,7 @@ class PricingService:
                 session.commit()
             
             log_with_context(
-                self.logger, logging.INFO, "Swap pricing calculation complete",
+                self.logger, INFO, "Swap pricing calculation complete",
                 asset_address=asset_address,
                 **results
             )
@@ -207,7 +205,7 @@ class PricingService:
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Failed to calculate swap pricing",
+                self.logger, ERROR, "Failed to calculate swap pricing",
                 asset_address=asset_address,
                 error=str(e)
             )
@@ -227,7 +225,7 @@ class PricingService:
             Dict with pricing statistics
         """
         log_with_context(
-            self.logger, logging.INFO, "Calculating trade pricing",
+            self.logger, INFO, "Calculating trade pricing",
             asset_address=asset_address,
             days=days
         )
@@ -247,7 +245,7 @@ class PricingService:
                 session.commit()
             
             log_with_context(
-                self.logger, logging.INFO, "Trade pricing calculation complete",
+                self.logger, INFO, "Trade pricing calculation complete",
                 asset_address=asset_address,
                 **results
             )
@@ -256,7 +254,7 @@ class PricingService:
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Failed to calculate trade pricing",
+                self.logger, ERROR, "Failed to calculate trade pricing",
                 asset_address=asset_address,
                 error=str(e)
             )
@@ -295,7 +293,7 @@ class PricingService:
             Dict with canonical price creation statistics
         """
         log_with_context(
-            self.logger, logging.INFO, "Generating canonical prices",
+            self.logger, INFO, "Generating canonical prices",
             asset_address=asset_address,
             minute_count=len(timestamp_minutes),
             denomination=denomination.value if denomination else "both"
@@ -322,7 +320,7 @@ class PricingService:
                     
                     if not model:
                         log_with_context(
-                            self.logger, logging.ERROR, "Could not find model for database",
+                            self.logger, ERROR, "Could not find model for database",
                             database_name=self.model_db_manager.config.url.split('/')[-1]
                         )
                         return {'prices_created': 0, 'errors': 1, 'minutes_processed': 0}
@@ -352,7 +350,7 @@ class PricingService:
                             
                             if not asset_pricing_pools:
                                 log_with_context(
-                                    self.logger, logging.DEBUG, "No pricing pools found for asset at timestamp",
+                                    self.logger, DEBUG, "No pricing pools found for asset at timestamp",
                                     asset_address=asset_address,
                                     timestamp_minute=timestamp_minute
                                 )
@@ -374,7 +372,7 @@ class PricingService:
                                     
                                     if not swap_details:
                                         log_with_context(
-                                            self.logger, logging.DEBUG, "No swap details found for minute",
+                                            self.logger, DEBUG, "No swap details found for minute",
                                             asset_address=asset_address,
                                             timestamp_minute=timestamp_minute,
                                             denomination=denom.value
@@ -394,7 +392,7 @@ class PricingService:
                                     
                                     if total_volume == 0:
                                         log_with_context(
-                                            self.logger, logging.DEBUG, "Zero volume for minute",
+                                            self.logger, DEBUG, "Zero volume for minute",
                                             asset_address=asset_address,
                                             timestamp_minute=timestamp_minute,
                                             denomination=denom.value
@@ -459,7 +457,7 @@ class PricingService:
                                     if canonical_price:
                                         results['prices_created'] += 1
                                         log_with_context(
-                                            self.logger, logging.DEBUG, "Canonical price created",
+                                            self.logger, DEBUG, "Canonical price created",
                                             asset_address=asset_address,
                                             timestamp_minute=timestamp_minute,
                                             denomination=denom.value,
@@ -471,7 +469,7 @@ class PricingService:
                                 except Exception as e:
                                     results['errors'] += 1
                                     log_with_context(
-                                        self.logger, logging.ERROR, "Error processing denomination",
+                                        self.logger, ERROR, "Error processing denomination",
                                         asset_address=asset_address,
                                         timestamp_minute=timestamp_minute,
                                         denomination=denom.value,
@@ -481,7 +479,7 @@ class PricingService:
                         except Exception as e:
                             results['errors'] += 1
                             log_with_context(
-                                self.logger, logging.ERROR, "Error processing timestamp minute",
+                                self.logger, ERROR, "Error processing timestamp minute",
                                 asset_address=asset_address,
                                 timestamp_minute=timestamp_minute,
                                 error=str(e)
@@ -491,7 +489,7 @@ class PricingService:
                     shared_session.commit()
                     
             log_with_context(
-                self.logger, logging.INFO, "Canonical price generation complete",
+                self.logger, INFO, "Canonical price generation complete",
                 asset_address=asset_address,
                 **results
             )
@@ -500,7 +498,7 @@ class PricingService:
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Failed to generate canonical prices",
+                self.logger, ERROR, "Failed to generate canonical prices",
                 asset_address=asset_address,
                 error=str(e)
             )
@@ -534,7 +532,7 @@ class PricingService:
             Dict with global pricing application statistics
         """
         log_with_context(
-            self.logger, logging.INFO, "Applying canonical pricing to global events",
+            self.logger, INFO, "Applying canonical pricing to global events",
             asset_address=asset_address,
             block_count=len(block_numbers),
             denomination=denomination.value if denomination else "both"
@@ -613,7 +611,7 @@ class PricingService:
                                         
                                         if not canonical_price:
                                             log_with_context(
-                                                self.logger, logging.DEBUG, "No canonical price found for swap",
+                                                self.logger, DEBUG, "No canonical price found for swap",
                                                 content_id=str(swap.content_id),
                                                 timestamp=swap.timestamp,
                                                 denomination=denom.value
@@ -642,7 +640,7 @@ class PricingService:
                                 except Exception as e:
                                     results['errors'] += 1
                                     log_with_context(
-                                        self.logger, logging.ERROR, "Error pricing swap",
+                                        self.logger, ERROR, "Error pricing swap",
                                         content_id=str(swap.content_id),
                                         error=str(e)
                                     )
@@ -665,7 +663,7 @@ class PricingService:
                                         
                                         if not canonical_price:
                                             log_with_context(
-                                                self.logger, logging.DEBUG, "No canonical price found for trade",
+                                                self.logger, DEBUG, "No canonical price found for trade",
                                                 content_id=str(trade.content_id),
                                                 timestamp=trade.timestamp,
                                                 denomination=denom.value
@@ -693,7 +691,7 @@ class PricingService:
                                 except Exception as e:
                                     results['errors'] += 1
                                     log_with_context(
-                                        self.logger, logging.ERROR, "Error pricing trade",
+                                        self.logger, ERROR, "Error pricing trade",
                                         content_id=str(trade.content_id),
                                         error=str(e)
                                     )
@@ -701,7 +699,7 @@ class PricingService:
                         except Exception as e:
                             results['errors'] += 1
                             log_with_context(
-                                self.logger, logging.ERROR, "Error processing block",
+                                self.logger, ERROR, "Error processing block",
                                 block_number=block_number,
                                 error=str(e)
                             )
@@ -710,7 +708,7 @@ class PricingService:
                     model_session.commit()
                     
             log_with_context(
-                self.logger, logging.INFO, "Global pricing application complete",
+                self.logger, INFO, "Global pricing application complete",
                 asset_address=asset_address,
                 **results
             )
@@ -719,7 +717,7 @@ class PricingService:
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Failed to apply canonical pricing to global events",
+                self.logger, ERROR, "Failed to apply canonical pricing to global events",
                 asset_address=asset_address,
                 error=str(e)
             )
@@ -753,7 +751,7 @@ class PricingService:
             minutes = 1440  # Default to 24 hours
         
         log_with_context(
-            self.logger, logging.INFO, "Updating canonical pricing",
+            self.logger, INFO, "Updating canonical pricing",
             asset_address=asset_address,
             minutes=minutes,
             denomination=denomination.value if denomination else "both"
@@ -776,7 +774,7 @@ class PricingService:
             results = self.generate_canonical_prices(timestamp_minutes, asset_address, denomination)
             
             log_with_context(
-                self.logger, logging.INFO, "Canonical pricing update complete",
+                self.logger, INFO, "Canonical pricing update complete",
                 asset_address=asset_address,
                 **results
             )
@@ -785,7 +783,7 @@ class PricingService:
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Failed to update canonical pricing",
+                self.logger, ERROR, "Failed to update canonical pricing",
                 asset_address=asset_address,
                 error=str(e)
             )
@@ -812,7 +810,7 @@ class PricingService:
             Dict with global pricing update statistics
         """
         log_with_context(
-            self.logger, logging.INFO, "Updating global pricing",
+            self.logger, INFO, "Updating global pricing",
             asset_address=asset_address,
             block_count=len(blocks) if blocks else "auto-detect",
             denomination=denomination.value if denomination else "both"
@@ -855,14 +853,14 @@ class PricingService:
                     blocks = sorted(list(all_blocks))
                     
                     log_with_context(
-                        self.logger, logging.INFO, "Auto-detected blocks with unpriced events",
+                        self.logger, INFO, "Auto-detected blocks with unpriced events",
                         asset_address=asset_address,
                         block_count=len(blocks)
                     )
             
             if not blocks:
                 log_with_context(
-                    self.logger, logging.INFO, "No blocks need global pricing",
+                    self.logger, INFO, "No blocks need global pricing",
                     asset_address=asset_address
                 )
                 return {'swaps_priced': 0, 'trades_priced': 0, 'errors': 0, 'blocks_processed': 0}
@@ -871,7 +869,7 @@ class PricingService:
             results = self.apply_canonical_pricing_to_global_events(blocks, asset_address, denomination)
             
             log_with_context(
-                self.logger, logging.INFO, "Global pricing update complete",
+                self.logger, INFO, "Global pricing update complete",
                 asset_address=asset_address,
                 **results
             )
@@ -880,7 +878,7 @@ class PricingService:
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Failed to update global pricing",
+                self.logger, ERROR, "Failed to update global pricing",
                 asset_address=asset_address,
                 error=str(e)
             )
@@ -912,7 +910,7 @@ class PricingService:
             days = 7  # Default to 1 week
             
         log_with_context(
-            self.logger, logging.INFO, "Starting comprehensive pricing update",
+            self.logger, INFO, "Starting comprehensive pricing update",
             asset_address=asset_address,
             days=days,
             denomination=denomination.value if denomination else "both"
@@ -929,33 +927,33 @@ class PricingService:
             }
             
             # 1. Direct pricing for swaps
-            log_with_context(self.logger, logging.INFO, "Phase 1: Direct swap pricing")
+            log_with_context(self.logger, INFO, "Phase 1: Direct swap pricing")
             direct_swap_results = self.calculate_swap_pricing(asset_address, days)
             total_results['direct_swaps'] = direct_swap_results.get('swaps_priced', 0)
             total_results['total_errors'] += direct_swap_results.get('errors', 0)
             
             # 2. Direct pricing for trades
-            log_with_context(self.logger, logging.INFO, "Phase 2: Direct trade pricing")
+            log_with_context(self.logger, INFO, "Phase 2: Direct trade pricing")
             direct_trade_results = self.calculate_trade_pricing(asset_address, days)
             total_results['direct_trades'] = direct_trade_results.get('trades_priced', 0)
             total_results['total_errors'] += direct_trade_results.get('errors', 0)
             
             # 3. Canonical pricing generation
-            log_with_context(self.logger, logging.INFO, "Phase 3: Canonical pricing generation")
+            log_with_context(self.logger, INFO, "Phase 3: Canonical pricing generation")
             minutes = days * 24 * 60 if days else 1440  # Convert days to minutes
             canonical_results = self.update_canonical_pricing(asset_address, minutes, denomination)
             total_results['canonical_prices'] = canonical_results.get('prices_created', 0)
             total_results['total_errors'] += canonical_results.get('errors', 0)
             
             # 4. Global pricing application
-            log_with_context(self.logger, logging.INFO, "Phase 4: Global pricing application")
+            log_with_context(self.logger, INFO, "Phase 4: Global pricing application")
             global_results = self.update_global_pricing(asset_address, None, denomination)
             total_results['global_swaps'] = global_results.get('swaps_priced', 0)
             total_results['global_trades'] = global_results.get('trades_priced', 0)
             total_results['total_errors'] += global_results.get('errors', 0)
             
             log_with_context(
-                self.logger, logging.INFO, "Comprehensive pricing update complete",
+                self.logger, INFO, "Comprehensive pricing update complete",
                 asset_address=asset_address,
                 **total_results
             )
@@ -964,7 +962,7 @@ class PricingService:
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Failed comprehensive pricing update",
+                self.logger, ERROR, "Failed comprehensive pricing update",
                 asset_address=asset_address,
                 error=str(e)
             )
@@ -987,7 +985,7 @@ class PricingService:
             Dict with detailed pricing status information
         """
         log_with_context(
-            self.logger, logging.INFO, "Getting pricing status",
+            self.logger, INFO, "Getting pricing status",
             asset_address=asset_address
         )
         
@@ -1031,7 +1029,7 @@ class PricingService:
                         status['canonical_pricing'][denom.value] = canonical_stats
             
             log_with_context(
-                self.logger, logging.INFO, "Pricing status retrieved",
+                self.logger, INFO, "Pricing status retrieved",
                 asset_address=asset_address
             )
             
@@ -1039,7 +1037,7 @@ class PricingService:
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Failed to get pricing status",
+                self.logger, ERROR, "Failed to get pricing status",
                 asset_address=asset_address,
                 error=str(e)
             )

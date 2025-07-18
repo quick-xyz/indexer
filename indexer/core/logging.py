@@ -14,6 +14,12 @@ from pathlib import Path
 from typing import Optional, Dict, Any
 from datetime import datetime
 
+DEBUG = logging.DEBUG
+INFO = logging.INFO
+WARNING = logging.WARNING
+ERROR = logging.ERROR
+CRITICAL = logging.CRITICAL
+Logger = logging.Logger
 
 class IndexerFormatter(logging.Formatter):
     def __init__(self, include_context: bool = False):
@@ -42,11 +48,9 @@ class IndexerFormatter(logging.Formatter):
 
 
 class IndexerLogger:
-    """Global logging configuration and management"""
-    
     _configured = False
     _log_dir: Optional[Path] = None
-    _log_level = logging.INFO
+    _log_level = INFO
     _console_enabled = True
     _file_enabled = True
     
@@ -97,7 +101,7 @@ class IndexerLogger:
             
             # Error log file
             error_handler = logging.FileHandler(log_dir / 'indexer_errors.log')
-            error_handler.setLevel(logging.ERROR)
+            error_handler.setLevel(ERROR)
             error_handler.setFormatter(file_formatter)
             root_logger.addHandler(error_handler)
         
@@ -120,7 +124,6 @@ def get_class_logger(cls_instance) -> logging.Logger:
     module = cls_instance.__class__.__module__
     class_name = cls_instance.__class__.__name__
     
-    # Clean up module name
     if module.startswith('indexer.'):
         module = module[8:]  # Remove 'indexer.' prefix
     
@@ -152,22 +155,21 @@ class LoggingMixin:
     
     @property
     def logger(self) -> logging.Logger:
-        """Get logger for this class"""
         if not hasattr(self, '_logger'):
             self._logger = get_class_logger(self)
         return self._logger
     
     def log_debug(self, message: str, **context) -> None:
-        log_with_context(self.logger, logging.DEBUG, message, **context)
+        log_with_context(self.logger, DEBUG, message, **context)
     
     def log_info(self, message: str, **context) -> None:
-        log_with_context(self.logger, logging.INFO, message, **context)
+        log_with_context(self.logger, INFO, message, **context)
     
     def log_warning(self, message: str, **context) -> None:
-        log_with_context(self.logger, logging.WARNING, message, **context)
+        log_with_context(self.logger, WARNING, message, **context)
     
     def log_error(self, message: str, **context) -> None:
-        log_with_context(self.logger, logging.ERROR, message, **context)
+        log_with_context(self.logger, ERROR, message, **context)
     
     def log_transaction_context(self, tx_hash: str, **additional_context) -> Dict[str, Any]:
         context = {'tx_hash': tx_hash}

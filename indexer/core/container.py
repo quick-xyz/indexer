@@ -2,9 +2,8 @@
 
 from typing import TypeVar, Type, Callable, Set, Dict, Any, Optional
 import inspect
-import logging
 
-from .logging import IndexerLogger, log_with_context
+from .logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 
 T = TypeVar('T')
 
@@ -31,7 +30,7 @@ class IndexerContainer:
         """Register a service that gets created once and reused"""
         self._validate_registration(interface, implementation)
         
-        log_with_context(self._logger, logging.DEBUG, "Registering singleton service",
+        log_with_context(self._logger, DEBUG, "Registering singleton service",
                         interface=interface.__name__,
                         implementation=implementation.__name__)
         
@@ -42,7 +41,7 @@ class IndexerContainer:
         """Register a service that gets created fresh each time"""
         self._validate_registration(interface, implementation)
         
-        log_with_context(self._logger, logging.DEBUG, "Registering transient service",
+        log_with_context(self._logger, DEBUG, "Registering transient service",
                         interface=interface.__name__,
                         implementation=implementation.__name__)
         
@@ -54,7 +53,7 @@ class IndexerContainer:
         if not callable(factory_func):
             raise ContainerError(f"Factory function for {interface.__name__} must be callable")
         
-        log_with_context(self._logger, logging.DEBUG, "Registering factory service",
+        log_with_context(self._logger, DEBUG, "Registering factory service",
                         interface=interface.__name__,
                         factory_func=factory_func.__name__)
         
@@ -66,7 +65,7 @@ class IndexerContainer:
         if instance is None:
             raise ContainerError(f"Cannot register None instance for {interface.__name__}")
             
-        log_with_context(self._logger, logging.DEBUG, "Registering instance",
+        log_with_context(self._logger, DEBUG, "Registering instance",
                         interface=interface.__name__,
                         instance_type=type(instance).__name__)
         
@@ -80,55 +79,55 @@ class IndexerContainer:
         
         if service_type in self._resolution_stack:
             circular_path = " -> ".join([t.__name__ for t in self._resolution_stack]) + f" -> {service_name}"
-            log_with_context(self._logger, logging.ERROR, "Circular dependency detected",
+            log_with_context(self._logger, ERROR, "Circular dependency detected",
                            service_type=service_name,
                            circular_path=circular_path)
             raise CircularDependencyException(f"Circular dependency detected: {circular_path}")
         
         if service_type not in self._services:
-            log_with_context(self._logger, logging.ERROR, "Service not registered",
+            log_with_context(self._logger, ERROR, "Service not registered",
                            service_type=service_name)
             raise ServiceNotRegisteredException(f"Service {service_name} not registered")
             
         implementation, factory, is_singleton = self._services[service_type]
         
         if is_singleton and service_type in self._instances:
-            log_with_context(self._logger, logging.DEBUG, "Returning cached singleton instance",
+            log_with_context(self._logger, DEBUG, "Returning cached singleton instance",
                            service_type=service_name)
             return self._instances[service_type]
             
         self._resolution_stack.add(service_type)
         
         try:
-            log_with_context(self._logger, logging.DEBUG, "Creating new service instance",
+            log_with_context(self._logger, DEBUG, "Creating new service instance",
                             service_type=service_name,
                             is_singleton=is_singleton,
                             has_factory=bool(factory))
             
             if factory:
-                log_with_context(self._logger, logging.DEBUG, "Using factory function",
+                log_with_context(self._logger, DEBUG, "Using factory function",
                                service_type=service_name,
                                factory_func=factory.__name__)
                 instance = factory(self)
             else:
-                log_with_context(self._logger, logging.DEBUG, "Using dependency injection",
+                log_with_context(self._logger, DEBUG, "Using dependency injection",
                                 service_type=service_name,
                                 implementation=implementation.__name__)
                 instance = self._create_instance(implementation)
                 
             if is_singleton:
-                log_with_context(self._logger, logging.DEBUG, "Caching singleton instance",
+                log_with_context(self._logger, DEBUG, "Caching singleton instance",
                                service_type=service_name)
                 self._instances[service_type] = instance
             
-            log_with_context(self._logger, logging.INFO, "Service instance created successfully",
+            log_with_context(self._logger, INFO, "Service instance created successfully",
                            service_type=service_name,
                            instance_type=type(instance).__name__)
             
             return instance
             
         except Exception as e:
-            log_with_context(self._logger, logging.ERROR, "Failed to create service instance",
+            log_with_context(self._logger, ERROR, "Failed to create service instance",
                            service_type=service_name,
                            error=str(e),
                            exception_type=type(e).__name__)
@@ -141,7 +140,7 @@ class IndexerContainer:
         """Create instance with dependency injection"""
         service_name = implementation_type.__name__
         
-        log_with_context(self._logger, logging.DEBUG, "Starting dependency injection",
+        log_with_context(self._logger, DEBUG, "Starting dependency injection",
                         implementation=service_name)
         
         try:
@@ -160,7 +159,7 @@ class IndexerContainer:
             
             if param_type == inspect.Parameter.empty:
                 if param.default == inspect.Parameter.empty:
-                    log_with_context(self._logger, logging.WARNING, 
+                    log_with_context(self._logger, WARNING, 
                                    "Parameter without type annotation and no default value",
                                    implementation=service_name,
                                    parameter=param_name)
@@ -173,32 +172,32 @@ class IndexerContainer:
                 
             except ServiceNotRegisteredException:
                 if param.default != inspect.Parameter.empty:
-                    log_with_context(self._logger, logging.DEBUG, 
+                    log_with_context(self._logger, DEBUG, 
                                    "Using default value for unregistered dependency",
                                    implementation=service_name,
                                    parameter=param_name)
                     continue
                 else:
-                    log_with_context(self._logger, logging.ERROR, 
+                    log_with_context(self._logger, ERROR, 
                                    "Required dependency not registered",
                                    implementation=service_name,
                                    parameter=param_name,
                                    parameter_type=param_type.__name__)
                     raise
         
-        log_with_context(self._logger, logging.DEBUG, "Dependencies resolved",
+        log_with_context(self._logger, DEBUG, "Dependencies resolved",
                         implementation=service_name,
                         resolved_dependencies=resolved_dependencies)
         
         try:
             instance = implementation_type(**kwargs)
-            log_with_context(self._logger, logging.DEBUG, "Instance created successfully",
+            log_with_context(self._logger, DEBUG, "Instance created successfully",
                            implementation=service_name,
                            instance_type=type(instance).__name__)
             return instance
             
         except Exception as e:
-            log_with_context(self._logger, logging.ERROR, "Instance creation failed",
+            log_with_context(self._logger, ERROR, "Instance creation failed",
                            implementation=service_name,
                            error=str(e),
                            exception_type=type(e).__name__,
@@ -217,7 +216,7 @@ class IndexerContainer:
 
     def has_service(self, service_type: Type) -> bool:
         has_service = service_type in self._services
-        log_with_context(self._logger, logging.DEBUG, "Service registration check",
+        log_with_context(self._logger, DEBUG, "Service registration check",
                         service_type=service_type.__name__,
                         is_registered=has_service)
         return has_service
@@ -227,12 +226,12 @@ class IndexerContainer:
         if service_type:
             if service_type in self._instances:
                 del self._instances[service_type]
-                log_with_context(self._logger, logging.DEBUG, "Cleared cached instance",
+                log_with_context(self._logger, DEBUG, "Cleared cached instance",
                                service_type=service_type.__name__)
         else:
             cleared_count = len(self._instances)
             self._instances.clear()
-            log_with_context(self._logger, logging.DEBUG, "Cleared all cached instances",
+            log_with_context(self._logger, DEBUG, "Cleared all cached instances",
                            cleared_count=cleared_count)
     
     def get_service_info(self) -> dict:
@@ -250,5 +249,5 @@ class IndexerContainer:
                 'is_cached': service_type in self._instances
             }
         
-        log_with_context(self._logger, logging.DEBUG, "Service info requested", **info)
+        log_with_context(self._logger, DEBUG, "Service info requested", **info)
         return info

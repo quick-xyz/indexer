@@ -6,7 +6,7 @@ import logging
 
 from indexer.database.repository_manager import RepositoryManager
 from indexer.database.connection import DatabaseManager
-from indexer.core.logging import IndexerLogger, log_with_context
+from indexer.core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 
 # Global variables - these get set during app startup
 _repository_manager: RepositoryManager = None
@@ -33,7 +33,7 @@ def get_database_session():
             yield session
         except Exception as e:
             if _logger:
-                log_with_context(_logger, logging.ERROR, "Database session error",
+                log_with_context(_logger, ERROR, "Database session error",
                                 error=str(e), exception_type=type(e).__name__)
             raise HTTPException(status_code=500, detail="Database error")
 

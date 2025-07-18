@@ -13,7 +13,7 @@ from ...types import (
     DomainEvent,
     Position
 )
-from ...core.logging import LoggingMixin
+from ...core.logging import LoggingMixin, INFO, DEBUG, WARNING, ERROR, CRITICAL
 from ...utils.amounts import amount_to_negative_str
 
 

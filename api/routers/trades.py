@@ -6,7 +6,7 @@ from typing import Optional, List, Dict, Any
 import logging
 
 from indexer.database.repository_manager import RepositoryManager
-from indexer.core.logging import log_with_context
+from indexer.core.logging import log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 from ..dependencies import get_repository_manager, get_database_session, get_logger
 
 router = APIRouter()
@@ -42,7 +42,7 @@ async def get_recent_trades(
         
         trade_data = [format_trade(trade) for trade in trades]
         
-        log_with_context(logger, logging.DEBUG, "Recent trades fetched",
+        log_with_context(logger, DEBUG, "Recent trades fetched",
                         count=len(trade_data), limit=limit)
         
         return {
@@ -52,7 +52,7 @@ async def get_recent_trades(
         }
         
     except Exception as e:
-        log_with_context(logger, logging.ERROR, "Error fetching recent trades",
+        log_with_context(logger, ERROR, "Error fetching recent trades",
                         error=str(e), limit=limit)
         raise HTTPException(status_code=500, detail="Failed to fetch trades")
 
@@ -70,7 +70,7 @@ async def get_trades_by_taker(
         
         trade_data = [format_trade(trade) for trade in trades]
         
-        log_with_context(logger, logging.DEBUG, "Trades by taker fetched",
+        log_with_context(logger, DEBUG, "Trades by taker fetched",
                         taker=taker_address, count=len(trade_data), limit=limit)
         
         return {
@@ -81,7 +81,7 @@ async def get_trades_by_taker(
         }
         
     except Exception as e:
-        log_with_context(logger, logging.ERROR, "Error fetching trades by taker",
+        log_with_context(logger, ERROR, "Error fetching trades by taker",
                         taker=taker_address, error=str(e), limit=limit)
         raise HTTPException(status_code=500, detail="Failed to fetch trades")
 
@@ -99,7 +99,7 @@ async def get_trades_by_token(
         
         trade_data = [format_trade(trade) for trade in trades]
         
-        log_with_context(logger, logging.DEBUG, "Trades by token fetched",
+        log_with_context(logger, DEBUG, "Trades by token fetched",
                         token=token_address, count=len(trade_data), limit=limit)
         
         return {
@@ -110,7 +110,7 @@ async def get_trades_by_token(
         }
         
     except Exception as e:
-        log_with_context(logger, logging.ERROR, "Error fetching trades by token",
+        log_with_context(logger, ERROR, "Error fetching trades by token",
                         token=token_address, error=str(e), limit=limit)
         raise HTTPException(status_code=500, detail="Failed to fetch trades")
 
@@ -127,7 +127,7 @@ async def get_arbitrage_trades(
         
         trade_data = [format_trade(trade) for trade in trades]
         
-        log_with_context(logger, logging.DEBUG, "Arbitrage trades fetched",
+        log_with_context(logger, DEBUG, "Arbitrage trades fetched",
                         count=len(trade_data), limit=limit)
         
         return {
@@ -138,6 +138,6 @@ async def get_arbitrage_trades(
         }
         
     except Exception as e:
-        log_with_context(logger, logging.ERROR, "Error fetching arbitrage trades",
+        log_with_context(logger, ERROR, "Error fetching arbitrage trades",
                         error=str(e), limit=limit)
         raise HTTPException(status_code=500, detail="Failed to fetch trades")

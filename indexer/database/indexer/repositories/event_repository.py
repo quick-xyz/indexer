@@ -5,11 +5,9 @@ from typing import List
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, and_
 
-from ....core.logging import log_with_context
+from ....core.logging import log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 from ....types.new import EvmHash, DomainEventId
 from ...base_repository import DomainEventBaseRepository
-
-import logging
 
 
 class DomainEventRepository(DomainEventBaseRepository):
@@ -30,7 +28,7 @@ class DomainEventRepository(DomainEventBaseRepository):
                 self.model_class.content_id == content_id
             ).one_or_none()
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error getting record by content_id",
+            log_with_context(self.logger, ERROR, "Error getting record by content_id",
                             model=self.model_class.__name__,
                             content_id=content_id,
                             error=str(e))
@@ -43,7 +41,7 @@ class DomainEventRepository(DomainEventBaseRepository):
                 self.model_class.tx_hash == tx_hash
             ).order_by(self.model_class.timestamp).all()
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error getting records by tx_hash",
+            log_with_context(self.logger, ERROR, "Error getting records by tx_hash",
                             model=self.model_class.__name__,
                             tx_hash=tx_hash,
                             error=str(e))
@@ -59,7 +57,7 @@ class DomainEventRepository(DomainEventBaseRepository):
                 )
             ).order_by(self.model_class.block_number, self.model_class.timestamp).all()
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error getting records by block range",
+            log_with_context(self.logger, ERROR, "Error getting records by block range",
                             model=self.model_class.__name__,
                             start_block=start_block,
                             end_block=end_block,
@@ -73,7 +71,7 @@ class DomainEventRepository(DomainEventBaseRepository):
                 desc(self.model_class.timestamp)
             ).limit(limit).all()
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error getting recent records",
+            log_with_context(self.logger, ERROR, "Error getting recent records",
                             model=self.model_class.__name__,
                             limit=limit,
                             error=str(e))

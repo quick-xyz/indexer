@@ -3,59 +3,68 @@
 from typing import Dict, Optional, List, Set
 from sqlalchemy import and_
 
-from ..database.connection import DatabaseManager
-from ..database.shared.tables.config.config import Model, Contract, Token, Address, ModelContract, ModelToken, Source, ModelSource
-from ..core.logging import IndexerLogger, log_with_context
-from ..types import EvmAddress
+from ..database.shared.tables import (
+    DBModel,
+    DBModelContract,
+    DBModelToken,
+    DBModelSource,
+    DBPricing,
+    DBContract,
+    DBToken,
+    DBSource,
+    DBAddress,
+)
+from ..types import (
+    EvmAddress,
+    ContractConfig,
+)
+from ..database.connection import SharedDatabaseManager
+from ..core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 
-import logging
 
 
 class ConfigService:    
-    def __init__(self, db_manager: DatabaseManager):
-        self.db_manager = db_manager
+    def __init__(self, shared_db_manager: SharedDatabaseManager):
+        self.db_manager = shared_db_manager
         self.logger = IndexerLogger.get_logger('core.config_service')
     
-    def get_model_by_name(self, model_name: str) -> Optional[Model]:
+    def get_model_by_name(self, model_name: str) -> Optional[DBModel]:
         with self.db_manager.get_session() as session:
-            model = session.query(Model).filter(
+            model = session.query(DBModel).filter(
                 and_(
-                    Model.name == model_name,
-                    Model.status == 'active'
+                    DBModel.name == model_name,
+                    DBModel.status == 'active'
                 )
             ).first()
             
             if model:
-                log_with_context(self.logger, logging.DEBUG, "Model found",
+                log_with_context(self.logger, DEBUG, "Model found",
                                model_name=model_name,
                                version=model.version,
                                database=model_name)
             else:
-                log_with_context(self.logger, logging.WARNING, "Model not found",
+                log_with_context(self.logger, WARNING, "Model not found",
                                model_name=model_name)
             
             return model
     
-    def get_contracts_for_model(self, model_name: str) -> Dict[EvmAddress, Contract]:
+    def get_contracts_for_model(self, model_name: str) -> Dict[EvmAddress, ContractConfig]:
         with self.db_manager.get_session() as session:
-            contracts = session.query(Contract).join(
-                ModelContract, Contract.id == ModelContract.contract_id
-            ).join(
-                Model, ModelContract.model_id == Model.id
-            ).filter(
+            contracts = session.query(DBContract).join(DBModelContract).filter(
                 and_(
-                    Model.name == model_name,
-                    Model.status == 'active',
-                    Contract.status == 'active'
+                    DBModel.name == model_name,
+                    DBModel.status == 'active',
+                    DBModelContract.status == 'active'
                 )
             ).all()
             
             contract_dict = {
-                EvmAddress(contract.address): contract 
+                EvmAddress(contract.address): contract.to_config()
                 for contract in contracts
             }
+
             
-            log_with_context(self.logger, logging.DEBUG, "Contracts loaded for model",
+            log_with_context(self.logger, DEBUG, "Contracts loaded for model",
                            model_name=model_name,
                            contract_count=len(contract_dict))
             
@@ -80,7 +89,7 @@ class ConfigService:
                 for token in tokens
             }
             
-            log_with_context(self.logger, logging.DEBUG, "Tokens of interest loaded for model",
+            log_with_context(self.logger, DEBUG, "Tokens of interest loaded for model",
                            model_name=model_name,
                            token_count=len(token_dict))
             
@@ -97,7 +106,7 @@ class ConfigService:
                 for token in tokens
             }
             
-            log_with_context(self.logger, logging.DEBUG, "Tokens loaded",
+            log_with_context(self.logger, DEBUG, "Tokens loaded",
                            token_count=len(token_dict))
             
             return token_dict
@@ -262,23 +271,23 @@ class ConfigService:
     def validate_model_configuration(self, model_name: str) -> bool:
         model = self.get_model_by_name(model_name)
         if not model:
-            log_with_context(self.logger, logging.ERROR, "Model validation failed - model not found",
+            log_with_context(self.logger, ERROR, "Model validation failed - model not found",
                            model_name=model_name)
             return False
         
         contracts = self.get_contracts_for_model(model_name)
         if not contracts:
-            log_with_context(self.logger, logging.ERROR, "Model validation failed - no contracts",
+            log_with_context(self.logger, ERROR, "Model validation failed - no contracts",
                            model_name=model_name)
             return False
         
         sources = self.get_sources_for_model(model_name)
         if not sources:
-            log_with_context(self.logger, logging.ERROR, "Model validation failed - no sources configured",
+            log_with_context(self.logger, ERROR, "Model validation failed - no sources configured",
                         model_name=model_name)
             return False
         
-        log_with_context(self.logger, logging.INFO, "Model validation passed",
+        log_with_context(self.logger, INFO, "Model validation passed",
                        model_name=model_name,
                        version=model.version,
                        contract_count=len(contracts),

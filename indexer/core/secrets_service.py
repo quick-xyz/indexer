@@ -2,9 +2,8 @@
 
 from google.cloud import secretmanager
 from typing import Optional
-import logging
 
-from .logging import IndexerLogger, log_with_context
+from .logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 
 
 class SecretsService:
@@ -19,13 +18,13 @@ class SecretsService:
             response = self.client.access_secret_version(request={"name": name})
             secret_value = response.payload.data.decode("UTF-8")
             
-            log_with_context(self.logger, logging.DEBUG, "Secret retrieved successfully",
+            log_with_context(self.logger, DEBUG, "Secret retrieved successfully",
                            secret_name=secret_name, project_id=self.project_id)
             
             return secret_value
             
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Failed to retrieve secret",
+            log_with_context(self.logger, ERROR, "Failed to retrieve secret",
                            secret_name=secret_name, project_id=self.project_id, error=str(e))
             return None
     
@@ -43,7 +42,7 @@ class SecretsService:
             if value:
                 credentials[field] = value
         
-        log_with_context(self.logger, logging.INFO, "Database credentials retrieved",
+        log_with_context(self.logger, INFO, "Database credentials retrieved",
                        credential_fields=list(credentials.keys()))
         
         return credentials

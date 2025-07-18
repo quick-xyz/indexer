@@ -9,12 +9,11 @@ from sqlalchemy import and_, desc, func, case, exists
 
 from ...connection import ModelDatabaseManager
 from ..tables.detail.event_detail import EventDetail, PricingDenomination
-from ....core.logging import log_with_context
+from ....core.logging import log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 from ....types.new import DomainEventId
 from ...base_repository import BaseRepository
 from ..tables.detail.pool_swap_detail import PricingMethod
 from ...shared.tables.periods import Period, PeriodType
-import logging
 
 
 class EventDetailRepository(BaseRepository):
@@ -41,7 +40,7 @@ class EventDetailRepository(BaseRepository):
             session.add(detail)
             session.flush()
             
-            log_with_context(self.logger, logging.DEBUG, "Event detail created",
+            log_with_context(self.logger, DEBUG, "Event detail created",
                             content_id=content_id,
                             denom=denom.value,
                             value=value)
@@ -49,7 +48,7 @@ class EventDetailRepository(BaseRepository):
             return detail
             
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error creating event detail",
+            log_with_context(self.logger, ERROR, "Error creating event detail",
                             content_id=content_id,
                             denom=denom.value if denom else None,
                             error=str(e))
@@ -62,7 +61,7 @@ class EventDetailRepository(BaseRepository):
                 EventDetail.content_id == content_id
             ).order_by(EventDetail.denom).all()
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error getting details by content_id",
+            log_with_context(self.logger, ERROR, "Error getting details by content_id",
                             content_id=content_id,
                             error=str(e))
             raise
@@ -82,7 +81,7 @@ class EventDetailRepository(BaseRepository):
                 )
             ).one_or_none()
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error getting detail by content_id and denom",
+            log_with_context(self.logger, ERROR, "Error getting detail by content_id and denom",
                             content_id=content_id,
                             denom=denom.value,
                             error=str(e))
@@ -95,7 +94,7 @@ class EventDetailRepository(BaseRepository):
                 EventDetail.denom == PricingDenomination.USD
             ).order_by(desc(EventDetail.created_at)).limit(limit).all()
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error getting USD valuations",
+            log_with_context(self.logger, ERROR, "Error getting USD valuations",
                             error=str(e))
             raise
     
@@ -106,7 +105,7 @@ class EventDetailRepository(BaseRepository):
                 EventDetail.denom == PricingDenomination.AVAX
             ).order_by(desc(EventDetail.created_at)).limit(limit).all()
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error getting AVAX valuations",
+            log_with_context(self.logger, ERROR, "Error getting AVAX valuations",
                             error=str(e))
             raise
     
@@ -128,7 +127,7 @@ class EventDetailRepository(BaseRepository):
             existing_set = {row.content_id for row in existing_ids}
             missing_ids = [cid for cid in event_content_ids if cid not in existing_set]
             
-            log_with_context(self.logger, logging.DEBUG, "Found missing event valuations",
+            log_with_context(self.logger, DEBUG, "Found missing event valuations",
                             total_events=len(event_content_ids),
                             existing_valuations=len(existing_set),
                             missing_valuations=len(missing_ids),
@@ -137,7 +136,7 @@ class EventDetailRepository(BaseRepository):
             return missing_ids
             
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error getting missing event valuations",
+            log_with_context(self.logger, ERROR, "Error getting missing event valuations",
                             denom=denom.value,
                             error=str(e))
             raise
@@ -161,7 +160,7 @@ class EventDetailRepository(BaseRepository):
             
             session.flush()
             
-            log_with_context(self.logger, logging.DEBUG, "Event detail updated",
+            log_with_context(self.logger, DEBUG, "Event detail updated",
                             content_id=content_id,
                             denom=denom.value,
                             updates=list(updates.keys()))
@@ -169,7 +168,7 @@ class EventDetailRepository(BaseRepository):
             return detail
             
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error updating event detail",
+            log_with_context(self.logger, ERROR, "Error updating event detail",
                             content_id=content_id,
                             denom=denom.value,
                             error=str(e))
@@ -193,7 +192,7 @@ class EventDetailRepository(BaseRepository):
             return query.order_by(EventDetail.content_id, EventDetail.denom).all()
             
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error getting valuations by content IDs",
+            log_with_context(self.logger, ERROR, "Error getting valuations by content IDs",
                             content_id_count=len(content_ids),
                             denom=denom.value if denom else None,
                             error=str(e))
@@ -218,7 +217,7 @@ class EventDetailRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error checking event valuation",
+                self.logger, ERROR, "Error checking event valuation",
                 content_id=content_id,
                 denomination=denomination.value,
                 error=str(e)
@@ -246,7 +245,7 @@ class EventDetailRepository(BaseRepository):
             
             if not event_amount:
                 log_with_context(
-                    self.logger, logging.WARNING, "Event has no amount field for valuation",
+                    self.logger, WARNING, "Event has no amount field for valuation",
                     content_id=event.content_id,
                     event_type=type(event).__name__
                 )
@@ -266,7 +265,7 @@ class EventDetailRepository(BaseRepository):
             session.flush()
             
             log_with_context(
-                self.logger, logging.DEBUG, "Event valuation created",
+                self.logger, DEBUG, "Event valuation created",
                 content_id=event.content_id,
                 denomination=denomination.value,
                 canonical_price=float(canonical_price),
@@ -279,7 +278,7 @@ class EventDetailRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error creating event valuation",
+                self.logger, ERROR, "Error creating event valuation",
                 content_id=event.content_id,
                 denomination=denomination.value,
                 canonical_price=float(canonical_price),
@@ -321,7 +320,7 @@ class EventDetailRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting event valuation stats",
+                self.logger, ERROR, "Error getting event valuation stats",
                 asset_address=asset_address,
                 denomination=denomination.value,
                 error=str(e)
@@ -355,7 +354,7 @@ class EventDetailRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error finding periods with unvalued events",
+                self.logger, ERROR, "Error finding periods with unvalued events",
                 asset_address=asset_address,
                 error=str(e)
             )
@@ -379,7 +378,7 @@ class EventDetailRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error counting unvalued events",
+                self.logger, ERROR, "Error counting unvalued events",
                 asset_address=asset_address,
                 denomination=denomination.value,
                 error=str(e)
@@ -399,7 +398,7 @@ class EventDetailRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting latest valuation timestamp",
+                self.logger, ERROR, "Error getting latest valuation timestamp",
                 asset_address=asset_address,
                 error=str(e)
             )
@@ -426,7 +425,7 @@ class EventDetailRepository(BaseRepository):
             session.flush()
             
             log_with_context(
-                self.logger, logging.INFO, "Bulk event valuations created",
+                self.logger, INFO, "Bulk event valuations created",
                 valuation_count=len(valuations)
             )
             
@@ -434,7 +433,7 @@ class EventDetailRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error bulk creating event valuations",
+                self.logger, ERROR, "Error bulk creating event valuations",
                 valuation_count=len(valuation_data),
                 error=str(e)
             )
@@ -467,7 +466,7 @@ class EventDetailRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting valuations in period",
+                self.logger, ERROR, "Error getting valuations in period",
                 period_id=period_id,
                 asset_address=asset_address,
                 denomination=denomination.value,
@@ -497,7 +496,7 @@ class EventDetailRepository(BaseRepository):
             session.flush()
             
             log_with_context(
-                self.logger, logging.DEBUG, "Event valuation updated",
+                self.logger, DEBUG, "Event valuation updated",
                 content_id=content_id,
                 denomination=denomination.value,
                 new_value=float(new_value)
@@ -507,7 +506,7 @@ class EventDetailRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error updating event valuation",
+                self.logger, ERROR, "Error updating event valuation",
                 content_id=content_id,
                 denomination=denomination.value,
                 new_value=float(new_value),

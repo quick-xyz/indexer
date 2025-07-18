@@ -23,9 +23,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from testing import get_testing_environment
-from indexer.core.logging import IndexerLogger, log_with_context
-import logging
-
+from indexer.core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 
 class DomainEventsExporter:
     """Export domain events with timestamped directories and pagination"""
@@ -101,7 +99,7 @@ class DomainEventsExporter:
     def _initialize_environment(self):
         """Initialize the testing environment and get required services"""
         try:
-            log_with_context(self.logger, logging.INFO, "Initializing testing environment",
+            log_with_context(self.logger, INFO, "Initializing testing environment",
                            model_name=self.model_name)
             
             # Use testing environment for proper DI setup
@@ -114,7 +112,7 @@ class DomainEventsExporter:
             self.repository_manager = self.env.get_service(RepositoryManager)
             self.model_db = self.env.get_service(ModelDatabaseManager)
             
-            log_with_context(self.logger, logging.INFO, "Testing environment initialized successfully",
+            log_with_context(self.logger, INFO, "Testing environment initialized successfully",
                            model_name=self.config.model_name,
                            model_version=self.config.model_version,
                            output_dir=str(self.output_dir))
@@ -124,7 +122,7 @@ class DomainEventsExporter:
             print(f"📁 Output directory: {self.output_dir}")
             
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Failed to initialize testing environment",
+            log_with_context(self.logger, ERROR, "Failed to initialize testing environment",
                            error=str(e), model_name=self.model_name)
             raise
     
@@ -175,7 +173,7 @@ class DomainEventsExporter:
                 }
                 
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Failed to get table info",
+            log_with_context(self.logger, ERROR, "Failed to get table info",
                            table_name=table_name, error=str(e))
             return {'exists': False, 'row_count': 0, 'columns': []}
     
@@ -252,7 +250,7 @@ class DomainEventsExporter:
             return True
             
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Failed to export table",
+            log_with_context(self.logger, ERROR, "Failed to export table",
                            table_name=table_name, error=str(e))
             print(f"❌ Failed to export {table_name}: {e}")
             return False

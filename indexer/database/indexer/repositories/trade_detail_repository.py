@@ -10,12 +10,10 @@ from ...connection import ModelDatabaseManager
 from ..tables.detail.trade_detail import TradeDetail, TradePricingMethod
 from ..tables.detail.pool_swap_detail import PricingDenomination, PoolSwapDetail
 from ..tables.events.trade import Trade, PoolSwap
-from ....core.logging import IndexerLogger, log_with_context
+from ....core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 from ....types.new import DomainEventId
 from ...base_repository import BaseRepository
 from ...shared.tables.periods import Period
-
-import logging
 
 
 class TradeDetailRepository(BaseRepository):
@@ -58,7 +56,7 @@ class TradeDetailRepository(BaseRepository):
             session.flush()
             
             log_with_context(
-                self.logger, logging.DEBUG, "Trade detail created",
+                self.logger, DEBUG, "Trade detail created",
                 content_id=content_id,
                 denom=denom.value,
                 value=float(value),
@@ -70,7 +68,7 @@ class TradeDetailRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error creating trade detail",
+                self.logger, ERROR, "Error creating trade detail",
                 content_id=content_id,
                 denom=denom.value,
                 error=str(e)
@@ -85,7 +83,7 @@ class TradeDetailRepository(BaseRepository):
             ).order_by(TradeDetail.denom).all()                    # ✅ Fixed: Correct field name
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting details by content_id",
+                self.logger, ERROR, "Error getting details by content_id",
                 content_id=content_id,
                 error=str(e)
             )
@@ -107,7 +105,7 @@ class TradeDetailRepository(BaseRepository):
             ).one_or_none()
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting detail by content_id and denomination",
+                self.logger, ERROR, "Error getting detail by content_id and denomination",
                 content_id=content_id,
                 denom=denom.value,
                 error=str(e)
@@ -127,7 +125,7 @@ class TradeDetailRepository(BaseRepository):
             ).order_by(desc(TradeDetail.created_at)).limit(limit).all()
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting details by pricing method",
+                self.logger, ERROR, "Error getting details by pricing method",
                 price_method=price_method.value,
                 error=str(e)
             )
@@ -141,7 +139,7 @@ class TradeDetailRepository(BaseRepository):
             ).order_by(desc(TradeDetail.created_at)).limit(limit).all()
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting USD valuations",
+                self.logger, ERROR, "Error getting USD valuations",
                 error=str(e)
             )
             raise
@@ -154,7 +152,7 @@ class TradeDetailRepository(BaseRepository):
             ).order_by(desc(TradeDetail.created_at)).limit(limit).all()
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting AVAX valuations",
+                self.logger, ERROR, "Error getting AVAX valuations",
                 error=str(e)
             )
             raise
@@ -179,7 +177,7 @@ class TradeDetailRepository(BaseRepository):
             session.flush()
             
             log_with_context(
-                self.logger, logging.DEBUG, "Trade detail updated",
+                self.logger, DEBUG, "Trade detail updated",
                 content_id=content_id,
                 denom=denom.value,
                 updates=list(updates.keys())
@@ -189,7 +187,7 @@ class TradeDetailRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error updating trade detail",
+                self.logger, ERROR, "Error updating trade detail",
                 content_id=content_id,
                 denom=denom.value,
                 error=str(e)
@@ -219,7 +217,7 @@ class TradeDetailRepository(BaseRepository):
             session.flush()
             
             log_with_context(
-                self.logger, logging.INFO, "Bulk trade details created",
+                self.logger, INFO, "Bulk trade details created",
                 detail_count=len(details)
             )
             
@@ -227,7 +225,7 @@ class TradeDetailRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error bulk creating trade details",
+                self.logger, ERROR, "Error bulk creating trade details",
                 detail_count=len(details_data),
                 error=str(e)
             )
@@ -268,7 +266,7 @@ class TradeDetailRepository(BaseRepository):
             session.flush()
             
             log_with_context(
-                self.logger, logging.DEBUG, "Global trade pricing detail created",
+                self.logger, DEBUG, "Global trade pricing detail created",
                 content_id=trade.content_id,
                 denomination=denomination.value,
                 canonical_price=float(canonical_price),
@@ -280,7 +278,7 @@ class TradeDetailRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error creating global trade pricing detail",
+                self.logger, ERROR, "Error creating global trade pricing detail",
                 content_id=trade.content_id,
                 denomination=denomination.value,
                 canonical_price=float(canonical_price),
@@ -320,7 +318,7 @@ class TradeDetailRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting trades in period",
+                self.logger, ERROR, "Error getting trades in period",
                 period_id=period_id,
                 asset_address=asset_address,
                 denomination=denomination.value,
@@ -404,7 +402,7 @@ class TradeDetailRepository(BaseRepository):
                 except Exception as e:
                     results['errors'] += 1
                     log_with_context(
-                        self.logger, logging.ERROR, "Error pricing individual trade",
+                        self.logger, ERROR, "Error pricing individual trade",
                         trade_id=trade.content_id,
                         error=str(e)
                     )
@@ -414,7 +412,7 @@ class TradeDetailRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error calculating direct pricing",
+                self.logger, ERROR, "Error calculating direct pricing",
                 asset_address=asset_address,
                 error=str(e)
             )
@@ -482,7 +480,7 @@ class TradeDetailRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting direct pricing stats",
+                self.logger, ERROR, "Error getting direct pricing stats",
                 asset_address=asset_address,
                 error=str(e)
             )
@@ -519,7 +517,7 @@ class TradeDetailRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting trades without direct pricing",
+                self.logger, ERROR, "Error getting trades without direct pricing",
                 block_number=block_number,
                 asset_address=asset_address,
                 error=str(e)
@@ -543,7 +541,7 @@ class TradeDetailRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting latest pricing timestamp",
+                self.logger, ERROR, "Error getting latest pricing timestamp",
                 asset_address=asset_address,
                 error=str(e)
             )

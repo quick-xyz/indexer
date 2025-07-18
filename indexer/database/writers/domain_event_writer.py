@@ -9,11 +9,9 @@ from sqlalchemy.exc import IntegrityError
 
 from ..repository_manager import RepositoryManager
 from ..indexer.tables.processing import TransactionProcessing, TransactionStatus
-from ...core.logging import IndexerLogger, log_with_context
+from ...core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 from ...types.new import EvmHash, DomainEventId
 from ...types.model.positions import Position
-
-import logging
 
 
 class DomainEventWriter:
@@ -35,7 +33,7 @@ class DomainEventWriter:
         self.repository_manager = repository_manager
         self.logger = IndexerLogger.get_logger('database.writers.domain_event_writer')
         
-        log_with_context(self.logger, logging.INFO, "DomainEventWriter initialized",
+        log_with_context(self.logger, INFO, "DomainEventWriter initialized",
                         has_shared_db=repository_manager.has_shared_access())
     
     def write_transaction_results(
@@ -70,7 +68,7 @@ class DomainEventWriter:
                 print(f"     String: {str(event)}")
 
         log_with_context(
-            self.logger, logging.DEBUG, "Writing transaction results (bulk)",
+            self.logger, DEBUG, "Writing transaction results (bulk)",
             tx_hash=tx_hash,
             block_number=block_number,
             event_count=len(events),
@@ -101,7 +99,7 @@ class DomainEventWriter:
                 )
                 
                 log_with_context(
-                    self.logger, logging.DEBUG, "Transaction results written successfully (bulk)",
+                    self.logger, DEBUG, "Transaction results written successfully (bulk)",
                     tx_hash=tx_hash,
                     events_written=events_written,
                     positions_written=positions_written,
@@ -112,7 +110,7 @@ class DomainEventWriter:
                 
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Failed to write transaction results (bulk)",
+                self.logger, ERROR, "Failed to write transaction results (bulk)",
                 tx_hash=tx_hash,
                 error=str(e),
                 exception_type=type(e).__name__,
@@ -188,7 +186,7 @@ class DomainEventWriter:
                 total_skipped += skipped_count
                 
                 log_with_context(
-                    self.logger, logging.DEBUG, "Bulk wrote events",
+                    self.logger, DEBUG, "Bulk wrote events",
                     event_type=event_type,
                     written=written_count,
                     skipped=skipped_count,
@@ -196,7 +194,7 @@ class DomainEventWriter:
                 )
             
             log_with_context(
-                self.logger, logging.DEBUG, "All events bulk written",
+                self.logger, DEBUG, "All events bulk written",
                 total_written=total_written,
                 total_skipped=total_skipped,
                 event_types=len(events_by_type)
@@ -206,7 +204,7 @@ class DomainEventWriter:
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Failed to bulk write events",
+                self.logger, ERROR, "Failed to bulk write events",
                 tx_hash=tx_hash,
                 error=str(e),
                 exception_type=type(e).__name__,
@@ -247,7 +245,7 @@ class DomainEventWriter:
             )
             
             log_with_context(
-                self.logger, logging.DEBUG, "Bulk wrote positions",
+                self.logger, DEBUG, "Bulk wrote positions",
                 written=written_count,
                 total_positions=len(position_data_list),
                 skipped=len(position_data_list) - written_count
@@ -257,7 +255,7 @@ class DomainEventWriter:
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Failed to bulk write positions",
+                self.logger, ERROR, "Failed to bulk write positions",
                 tx_hash=tx_hash,
                 error=str(e),
                 exception_type=type(e).__name__,
@@ -296,7 +294,7 @@ class DomainEventWriter:
             try:
                 # 🔍 DEBUG: Log each event we're processing
                 log_with_context(
-                    self.logger, logging.INFO, "🔍 DEBUG: Processing individual event",
+                    self.logger, INFO, "🔍 DEBUG: Processing individual event",
                     event_id=event_id,
                     event_type=type(event).__name__,
                     event_data_preview=str(event)[:200],
@@ -320,7 +318,7 @@ class DomainEventWriter:
                 
                 # 🔍 DEBUG: Log extracted data
                 log_with_context(
-                    self.logger, logging.INFO, "🔍 DEBUG: Extracted event data for DB",
+                    self.logger, INFO, "🔍 DEBUG: Extracted event data for DB",
                     event_id=event_id,
                     event_type=type(event).__name__,
                     event_type_lower=event_type,
@@ -333,7 +331,7 @@ class DomainEventWriter:
                 # FIXED: Extract and add nested pool swaps from Trade events
                 if event_type == 'trade' and hasattr(event, 'swaps') and event.swaps:
                     log_with_context(
-                        self.logger, logging.INFO, "🔍 DEBUG: Extracting nested pool swaps from trade",
+                        self.logger, INFO, "🔍 DEBUG: Extracting nested pool swaps from trade",
                         trade_id=event_id,
                         swap_count=len(event.swaps)
                     )
@@ -355,7 +353,7 @@ class DomainEventWriter:
                                 events_by_type['poolswap'].append(swap_data)
                                 
                                 log_with_context(
-                                    self.logger, logging.INFO, "🔍 DEBUG: Added nested pool swap to database events",
+                                    self.logger, INFO, "🔍 DEBUG: Added nested pool swap to database events",
                                     trade_id=event_id,
                                     swap_id=swap_id,
                                     swap_pool=swap_data.get('pool', 'unknown')
@@ -363,7 +361,7 @@ class DomainEventWriter:
                                 
                             except Exception as swap_error:
                                 log_with_context(
-                                    self.logger, logging.ERROR, "🔍 DEBUG: Failed to extract individual pool swap",
+                                    self.logger, ERROR, "🔍 DEBUG: Failed to extract individual pool swap",
                                     trade_id=event_id,
                                     swap_id=swap_id,
                                     error=str(swap_error),
@@ -375,7 +373,7 @@ class DomainEventWriter:
                                 
                     except Exception as e:
                         log_with_context(
-                            self.logger, logging.ERROR, "🔍 DEBUG: Failed to extract nested pool swaps from trade",
+                            self.logger, ERROR, "🔍 DEBUG: Failed to extract nested pool swaps from trade",
                             trade_id=event_id,
                             error=str(e),
                             exception_type=type(e).__name__,
@@ -385,7 +383,7 @@ class DomainEventWriter:
                     
             except Exception as e:
                 log_with_context(
-                    self.logger, logging.ERROR, "Failed to prepare event for bulk insert",
+                    self.logger, ERROR, "Failed to prepare event for bulk insert",
                     event_id=event_id,
                     event_type=type(event).__name__ if event else "Unknown",
                     error=str(e),
@@ -397,7 +395,7 @@ class DomainEventWriter:
         
         # 🔍 DEBUG: Log grouping results
         log_with_context(
-            self.logger, logging.INFO, "🔍 DEBUG: Events grouped by type",
+            self.logger, INFO, "🔍 DEBUG: Events grouped by type",
             total_events=len(events),
             event_types_found=list(events_by_type.keys()),
             counts_by_type={k: len(v) for k, v in events_by_type.items()}
@@ -488,7 +486,7 @@ class DomainEventWriter:
                 
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Failed to extract event data",
+                self.logger, ERROR, "Failed to extract event data",
                 event_type=type(event).__name__,
                 error=str(e),
                 traceback=traceback.format_exc()
@@ -534,7 +532,7 @@ class DomainEventWriter:
                 
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Failed to extract position data",
+                self.logger, ERROR, "Failed to extract position data",
                 error=str(e),
                 traceback=traceback.format_exc()
             )

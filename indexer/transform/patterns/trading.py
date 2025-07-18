@@ -6,7 +6,7 @@ from ...types import SwapSignal, PoolSwap, ZERO_ADDRESS, SwapBatchSignal, EvmAdd
 from .base import TransferPattern
 from ..context import TransformContext
 from ...utils.amounts import is_positive, amount_to_int, amount_to_str, abs_amount
-from ...core.logging import LoggingMixin
+from ...core.logging import LoggingMixin, INFO, DEBUG, WARNING, ERROR, CRITICAL
 
 
 class Swap_A(TransferPattern, LoggingMixin):

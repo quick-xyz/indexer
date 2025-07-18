@@ -8,7 +8,7 @@ from pathlib import Path
 
 from indexer import create_indexer
 from indexer.database.repository_manager import RepositoryManager
-from indexer.core.logging import IndexerLogger, log_with_context
+from indexer.core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 
 from .routers import trades, liquidity, positions
 from .dependencies import set_dependencies
@@ -36,7 +36,7 @@ async def lifespan(app: FastAPI):
         
         logger = IndexerLogger.get_logger('api.main')
         
-        log_with_context(logger, logging.INFO, "API startup completed",
+        log_with_context(logger, INFO, "API startup completed",
                         config_path=str(config_path))
         
     except Exception as e:

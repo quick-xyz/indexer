@@ -9,7 +9,7 @@ from contextlib import contextmanager
 from sqlalchemy import text, Integer
 from sqlalchemy.exc import IntegrityError
 
-from ..core.logging import IndexerLogger, log_with_context
+from ..core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 from ..database.repository_manager import RepositoryManager
 from ..database.indexer.tables.processing import ProcessingJob, JobStatus, JobType, TransactionStatus
 from ..database.writers.domain_event_writer import DomainEventWriter
@@ -19,8 +19,6 @@ from ..decode.block_decoder import BlockDecoder
 from ..transform.manager import TransformManager
 from ..types.indexer import Transaction, Block
 from ..types.new import EvmHash
-
-import logging
 
 
 class IndexingPipeline:
@@ -74,7 +72,7 @@ class IndexingPipeline:
         self.running = False
         
         log_with_context(
-            self.logger, logging.INFO, "IndexingPipeline initialized",
+            self.logger, INFO, "IndexingPipeline initialized",
             worker_id=self.worker_id,
             has_shared_db=repository_manager.has_shared_access()
         )
@@ -90,14 +88,14 @@ class IndexingPipeline:
         """
         
         log_with_context(
-            self.logger, logging.INFO, "=== STARTING RUN METHOD DEBUG ===",
+            self.logger, INFO, "=== STARTING RUN METHOD DEBUG ===",
             worker_id=self.worker_id,
             max_jobs=max_jobs,
             poll_interval=poll_interval
         )
         
         log_with_context(
-            self.logger, logging.INFO, "Setting running flag",
+            self.logger, INFO, "Setting running flag",
             worker_id=self.worker_id
         )
         
@@ -107,14 +105,14 @@ class IndexingPipeline:
         max_consecutive_no_jobs = 3  # Stop after 3 consecutive polls with no jobs
         
         log_with_context(
-            self.logger, logging.INFO, "Starting indexing pipeline worker",
+            self.logger, INFO, "Starting indexing pipeline worker",
             worker_id=self.worker_id,
             max_jobs=max_jobs,
             poll_interval=poll_interval
         )
         
         log_with_context(
-            self.logger, logging.INFO, "Entering main worker loop",
+            self.logger, INFO, "Entering main worker loop",
             worker_id=self.worker_id
         )
         
@@ -123,7 +121,7 @@ class IndexingPipeline:
             while self.running:
                 iteration += 1
                 log_with_context(
-                    self.logger, logging.INFO, "=== WORKER LOOP ITERATION ===",
+                    self.logger, INFO, "=== WORKER LOOP ITERATION ===",
                     worker_id=self.worker_id,
                     iteration=iteration,
                     jobs_processed=jobs_processed,
@@ -132,7 +130,7 @@ class IndexingPipeline:
                 
                 # Check if we've hit the job limit
                 log_with_context(
-                    self.logger, logging.INFO, "Checking job limit",
+                    self.logger, INFO, "Checking job limit",
                     worker_id=self.worker_id,
                     jobs_processed=jobs_processed,
                     max_jobs=max_jobs
@@ -140,14 +138,14 @@ class IndexingPipeline:
                 
                 if max_jobs and jobs_processed >= max_jobs:
                     log_with_context(
-                        self.logger, logging.INFO, "Job limit reached, stopping worker",
+                        self.logger, INFO, "Job limit reached, stopping worker",
                         jobs_processed=jobs_processed,
                         max_jobs=max_jobs
                     )
                     break
                 
                 log_with_context(
-                    self.logger, logging.INFO, "About to process next job",
+                    self.logger, INFO, "About to process next job",
                     worker_id=self.worker_id,
                     iteration=iteration
                 )
@@ -156,7 +154,7 @@ class IndexingPipeline:
                 job_processed = self._process_next_job()
                 
                 log_with_context(
-                    self.logger, logging.INFO, "Returned from _process_next_job",
+                    self.logger, INFO, "Returned from _process_next_job",
                     worker_id=self.worker_id,
                     job_processed=job_processed,
                     iteration=iteration
@@ -166,14 +164,14 @@ class IndexingPipeline:
                     jobs_processed += 1
                     consecutive_no_jobs = 0  # Reset counter
                     log_with_context(
-                        self.logger, logging.DEBUG, "Job processed successfully",
+                        self.logger, DEBUG, "Job processed successfully",
                         jobs_processed=jobs_processed,
                         worker_id=self.worker_id
                     )
                 else:
                     consecutive_no_jobs += 1
                     log_with_context(
-                        self.logger, logging.DEBUG, "No jobs available, waiting",
+                        self.logger, DEBUG, "No jobs available, waiting",
                         poll_interval=poll_interval,
                         consecutive_no_jobs=consecutive_no_jobs
                     )
@@ -181,14 +179,14 @@ class IndexingPipeline:
                     # Stop if no jobs available for several polls (unless max_jobs specified)
                     if not max_jobs and consecutive_no_jobs >= max_consecutive_no_jobs:
                         log_with_context(
-                            self.logger, logging.INFO, "No jobs available, stopping worker",
+                            self.logger, INFO, "No jobs available, stopping worker",
                             jobs_processed=jobs_processed,
                             consecutive_no_jobs=consecutive_no_jobs
                         )
                         break
                     
                     log_with_context(
-                        self.logger, logging.INFO, "About to sleep",
+                        self.logger, INFO, "About to sleep",
                         worker_id=self.worker_id,
                         poll_interval=poll_interval
                     )
@@ -196,32 +194,32 @@ class IndexingPipeline:
                     time.sleep(poll_interval)
                     
                     log_with_context(
-                        self.logger, logging.INFO, "Woke up from sleep",
+                        self.logger, INFO, "Woke up from sleep",
                         worker_id=self.worker_id
                     )
                     
         except KeyboardInterrupt:
             log_with_context(
-                self.logger, logging.INFO, "Pipeline worker interrupted by user",
+                self.logger, INFO, "Pipeline worker interrupted by user",
                 jobs_processed=jobs_processed
             )
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Pipeline worker failed with exception",
+                self.logger, ERROR, "Pipeline worker failed with exception",
                 error=str(e),
                 exception_type=type(e).__name__,
                 jobs_processed=jobs_processed
             )
             import traceback
             log_with_context(
-                self.logger, logging.ERROR, "Full traceback for run method",
+                self.logger, ERROR, "Full traceback for run method",
                 traceback=traceback.format_exc()
             )
             raise
         finally:
             self.running = False
             log_with_context(
-                self.logger, logging.INFO, "=== PIPELINE WORKER STOPPED ===",
+                self.logger, INFO, "=== PIPELINE WORKER STOPPED ===",
                 jobs_processed=jobs_processed,
                 worker_id=self.worker_id
             )
@@ -229,7 +227,7 @@ class IndexingPipeline:
     def stop(self) -> None:
         """Stop the pipeline worker gracefully"""
         log_with_context(
-            self.logger, logging.INFO, "Stopping pipeline worker",
+            self.logger, INFO, "Stopping pipeline worker",
             worker_id=self.worker_id
         )
         self.running = False
@@ -245,7 +243,7 @@ class IndexingPipeline:
         """
         
         log_with_context(
-            self.logger, logging.INFO, "Processing single block",
+            self.logger, INFO, "Processing single block",
             block_number=block_number,
             worker_id=self.worker_id
         )
@@ -263,13 +261,13 @@ class IndexingPipeline:
                 if success:
                     job.mark_complete()
                     log_with_context(
-                        self.logger, logging.INFO, "Single block processed successfully",
+                        self.logger, INFO, "Single block processed successfully",
                         block_number=block_number
                     )
                 else:
                     job.mark_failed("Block processing failed")
                     log_with_context(
-                        self.logger, logging.ERROR, "Single block processing failed",
+                        self.logger, ERROR, "Single block processing failed",
                         block_number=block_number
                     )
                 
@@ -277,7 +275,7 @@ class IndexingPipeline:
                 
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Single block processing failed with exception",
+                self.logger, ERROR, "Single block processing failed with exception",
                 block_number=block_number,
                 error=str(e),
                 exception_type=type(e).__name__
@@ -295,19 +293,19 @@ class IndexingPipeline:
         """
         
         log_with_context(
-            self.logger, logging.INFO, "=== STARTING _process_next_job ===",
+            self.logger, INFO, "=== STARTING _process_next_job ===",
             worker_id=self.worker_id
         )
         
         try:
             log_with_context(
-                self.logger, logging.INFO, "About to get transaction",
+                self.logger, INFO, "About to get transaction",
                 worker_id=self.worker_id
             )
             
             with self.repository_manager.get_transaction() as session:
                 log_with_context(
-                    self.logger, logging.INFO, "Got transaction, about to get next job",
+                    self.logger, INFO, "Got transaction, about to get next job",
                     worker_id=self.worker_id
                 )
                 
@@ -315,7 +313,7 @@ class IndexingPipeline:
                 job = self._get_next_job_with_lock(session)
                 
                 log_with_context(
-                    self.logger, logging.INFO, "Returned from _get_next_job_with_lock",
+                    self.logger, INFO, "Returned from _get_next_job_with_lock",
                     worker_id=self.worker_id,
                     job_found=job is not None,
                     job_id=job.id if job else None
@@ -323,13 +321,13 @@ class IndexingPipeline:
                 
                 if job is None:
                     log_with_context(
-                        self.logger, logging.INFO, "No job found, returning False",
+                        self.logger, INFO, "No job found, returning False",
                         worker_id=self.worker_id
                     )
                     return False
                 
                 log_with_context(
-                    self.logger, logging.INFO, "Marking job as processing",
+                    self.logger, INFO, "Marking job as processing",
                     worker_id=self.worker_id,
                     job_id=job.id
                 )
@@ -339,7 +337,7 @@ class IndexingPipeline:
                 session.flush()
                 
                 log_with_context(
-                    self.logger, logging.DEBUG, "Processing job",
+                    self.logger, DEBUG, "Processing job",
                     job_id=job.id,
                     job_type=job.job_type.value,
                     worker_id=self.worker_id
@@ -349,7 +347,7 @@ class IndexingPipeline:
                 success = self._process_job(session, job)
                 
                 log_with_context(
-                    self.logger, logging.INFO, "Returned from _process_job",
+                    self.logger, INFO, "Returned from _process_job",
                     worker_id=self.worker_id,
                     job_id=job.id,
                     success=success
@@ -359,20 +357,20 @@ class IndexingPipeline:
                 if success:
                     job.mark_complete()
                     log_with_context(
-                        self.logger, logging.DEBUG, "Job completed successfully",
+                        self.logger, DEBUG, "Job completed successfully",
                         job_id=job.id,
                         job_type=job.job_type.value
                     )
                 else:
                     job.mark_failed("Job processing failed")
                     log_with_context(
-                        self.logger, logging.WARNING, "Job marked as failed",
+                        self.logger, WARNING, "Job marked as failed",
                         job_id=job.id,
                         job_type=job.job_type.value
                     )
                 
                 log_with_context(
-                    self.logger, logging.INFO, "=== _process_next_job COMPLETED ===",
+                    self.logger, INFO, "=== _process_next_job COMPLETED ===",
                     worker_id=self.worker_id,
                     job_id=job.id,
                     success=success
@@ -382,14 +380,14 @@ class IndexingPipeline:
                 
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "=== ERROR in _process_next_job ===",
+                self.logger, ERROR, "=== ERROR in _process_next_job ===",
                 worker_id=self.worker_id,
                 error=str(e),
                 exception_type=type(e).__name__
             )
             import traceback
             log_with_context(
-                self.logger, logging.ERROR, "Full traceback for _process_next_job",
+                self.logger, ERROR, "Full traceback for _process_next_job",
                 worker_id=self.worker_id,
                 traceback=traceback.format_exc()
             )
@@ -411,7 +409,7 @@ class IndexingPipeline:
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Failed to get next job",
+                self.logger, ERROR, "Failed to get next job",
                 error=str(e)
             )
             return None
@@ -439,7 +437,7 @@ class IndexingPipeline:
                 return self._process_reprocess_job(session, job)
             else:
                 log_with_context(
-                    self.logger, logging.ERROR, "Unknown job type",
+                    self.logger, ERROR, "Unknown job type",
                     job_id=job.id,
                     job_type=job.job_type.value
                 )
@@ -447,7 +445,7 @@ class IndexingPipeline:
                 
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Job processing failed with exception",
+                self.logger, ERROR, "Job processing failed with exception",
                 job_id=job.id,
                 job_type=job.job_type.value,
                 error=str(e),
@@ -461,13 +459,13 @@ class IndexingPipeline:
         block_number = job.job_data.get('block_number')
         if not block_number:
             log_with_context(
-                self.logger, logging.ERROR, "Block job missing block_number",
+                self.logger, ERROR, "Block job missing block_number",
                 job_id=job.id
             )
             return False
         
         log_with_context(
-            self.logger, logging.DEBUG, "Processing block job",
+            self.logger, DEBUG, "Processing block job",
             job_id=job.id,
             block_number=block_number
         )
@@ -490,7 +488,7 @@ class IndexingPipeline:
             self._save_to_storage(transformed_block)
             
             log_with_context(
-                self.logger, logging.INFO, "Block job processed successfully",
+                self.logger, INFO, "Block job processed successfully",
                 job_id=job.id,
                 block_number=block_number,
                 transaction_count=len(transformed_block.transactions) if transformed_block.transactions else 0
@@ -500,7 +498,7 @@ class IndexingPipeline:
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Block job processing failed",
+                self.logger, ERROR, "Block job processing failed",
                 job_id=job.id,
                 block_number=block_number,
                 error=str(e)
@@ -518,7 +516,7 @@ class IndexingPipeline:
         stored_block = self._load_from_storage(block_number)
         if stored_block:
             log_with_context(
-                self.logger, logging.DEBUG, "Using stored block for re-processing",
+                self.logger, DEBUG, "Using stored block for re-processing",
                 block_number=block_number,
                 transaction_count=len(stored_block.transactions) if stored_block.transactions else 0
             )
@@ -526,7 +524,7 @@ class IndexingPipeline:
         
         # Path 2: Fresh processing from RPC
         log_with_context(
-            self.logger, logging.DEBUG, "Block not in storage, fetching from RPC",
+            self.logger, DEBUG, "Block not in storage, fetching from RPC",
             block_number=block_number
         )
         return self._fetch_and_decode_from_rpc(block_number)
@@ -539,7 +537,7 @@ class IndexingPipeline:
             block_data = self.storage_handler.get_complete_block(block_number)
             if block_data:
                 log_with_context(
-                    self.logger, logging.DEBUG, "Block loaded from complete storage",
+                    self.logger, DEBUG, "Block loaded from complete storage",
                     block_number=block_number
                 )
                 return block_data
@@ -548,7 +546,7 @@ class IndexingPipeline:
             block_data = self.storage_handler.get_processing_block(block_number)
             if block_data:
                 log_with_context(
-                    self.logger, logging.DEBUG, "Block loaded from processing storage",
+                    self.logger, DEBUG, "Block loaded from processing storage",
                     block_number=block_number
                 )
                 return block_data
@@ -571,13 +569,13 @@ class IndexingPipeline:
                         decoded_block = self.block_decoder.decode_block(rpc_block)
                         if decoded_block:
                             log_with_context(
-                                self.logger, logging.DEBUG, "Block loaded from RPC storage and decoded",
+                                self.logger, DEBUG, "Block loaded from RPC storage and decoded",
                                 block_number=block_number
                             )
                             return decoded_block
             except Exception as e:
                 log_with_context(
-                    self.logger, logging.DEBUG, "Failed to load from RPC storage",
+                    self.logger, DEBUG, "Failed to load from RPC storage",
                     block_number=block_number,
                     error=str(e)
                 )
@@ -586,7 +584,7 @@ class IndexingPipeline:
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Failed to load from storage",
+                self.logger, ERROR, "Failed to load from storage",
                 block_number=block_number,
                 error=str(e)
             )
@@ -600,7 +598,7 @@ class IndexingPipeline:
             primary_source = self.repository_manager.get_config().get_primary_source()
             if not primary_source:
                 log_with_context(
-                    self.logger, logging.ERROR, "No primary source configured",
+                    self.logger, ERROR, "No primary source configured",
                     block_number=block_number
                 )
                 return None
@@ -609,7 +607,7 @@ class IndexingPipeline:
             raw_block = self.storage_handler.get_rpc_block(block_number, source=primary_source)
             if not raw_block:
                 log_with_context(
-                    self.logger, logging.WARNING, "Block not found in RPC storage",
+                    self.logger, WARNING, "Block not found in RPC storage",
                     block_number=block_number
                 )
                 return None
@@ -618,13 +616,13 @@ class IndexingPipeline:
             decoded_block = self.block_decoder.decode_block(raw_block)
             if not decoded_block:
                 log_with_context(
-                    self.logger, logging.ERROR, "Block decoding failed",
+                    self.logger, ERROR, "Block decoding failed",
                     block_number=block_number
                 )
                 return None
             
             log_with_context(
-                self.logger, logging.DEBUG, "Block fetched and decoded from RPC",
+                self.logger, DEBUG, "Block fetched and decoded from RPC",
                 block_number=block_number,
                 transaction_count=len(decoded_block.transactions) if decoded_block.transactions else 0
             )
@@ -633,7 +631,7 @@ class IndexingPipeline:
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Failed to fetch and decode from RPC",
+                self.logger, ERROR, "Failed to fetch and decode from RPC",
                 block_number=block_number,
                 error=str(e)
             )
@@ -666,7 +664,7 @@ class IndexingPipeline:
             )
             
             log_with_context(
-                self.logger, logging.DEBUG, "Block transformed successfully",
+                self.logger, DEBUG, "Block transformed successfully",
                 block_number=decoded_block.block_number,
                 total_events=total_events
             )
@@ -675,7 +673,7 @@ class IndexingPipeline:
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Block transformation failed",
+                self.logger, ERROR, "Block transformation failed",
                 block_number=decoded_block.block_number,
                 error=str(e)
             )
@@ -686,7 +684,7 @@ class IndexingPipeline:
         
         if not transformed_block.transactions:
             log_with_context(
-                self.logger, logging.DEBUG, "No transactions to persist",
+                self.logger, DEBUG, "No transactions to persist",
                 block_number=transformed_block.block_number
             )
             return
@@ -699,7 +697,7 @@ class IndexingPipeline:
             try:
                 # 🔍 DEBUG: Log what we're about to persist
                 log_with_context(
-                    self.logger, logging.INFO, "🔍 DEBUG: About to persist transaction",
+                    self.logger, INFO, "🔍 DEBUG: About to persist transaction",
                     tx_hash=tx_hash,
                     events_count=len(transaction.events or {}),
                     positions_count=len(transaction.positions or {}),
@@ -722,7 +720,7 @@ class IndexingPipeline:
                 
             except Exception as e:
                 log_with_context(
-                    self.logger, logging.ERROR, "Failed to persist transaction results",
+                    self.logger, ERROR, "Failed to persist transaction results",
                     tx_hash=tx_hash,
                     block_number=transaction.block,
                     error=str(e)
@@ -731,7 +729,7 @@ class IndexingPipeline:
                 continue
         
         log_with_context(
-            self.logger, logging.INFO, "Block results persisted",
+            self.logger, INFO, "Block results persisted",
             block_number=transformed_block.block_number,
             transactions_processed=len(transformed_block.transactions),
             total_events_written=total_events_written,
@@ -758,7 +756,7 @@ class IndexingPipeline:
                 }
             
             log_with_context(
-                self.logger, logging.INFO, "🔍 DEBUG: About to save to GCS",
+                self.logger, INFO, "🔍 DEBUG: About to save to GCS",
                 block_number=transformed_block.block_number,
                 total_events=total_events,
                 total_positions=total_positions,
@@ -772,13 +770,13 @@ class IndexingPipeline:
             
             if not processing_success:
                 log_with_context(
-                    self.logger, logging.ERROR, "Failed to save processing block",
+                    self.logger, ERROR, "Failed to save processing block",
                     block_number=transformed_block.block_number
                 )
                 return
             
             log_with_context(
-                self.logger, logging.DEBUG, "Saved processing block",
+                self.logger, DEBUG, "Saved processing block",
                 block_number=transformed_block.block_number
             )
             
@@ -790,19 +788,19 @@ class IndexingPipeline:
             
             if not complete_success:
                 log_with_context(
-                    self.logger, logging.ERROR, "Failed to save complete block",
+                    self.logger, ERROR, "Failed to save complete block",
                     block_number=transformed_block.block_number
                 )
                 return
             
             log_with_context(
-                self.logger, logging.DEBUG, "Saved complete block",
+                self.logger, DEBUG, "Saved complete block",
                 block_number=transformed_block.block_number
             )
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "GCS save failed",
+                self.logger, ERROR, "GCS save failed",
                 block_number=transformed_block.block_number,
                 error=str(e)
             )
@@ -811,7 +809,7 @@ class IndexingPipeline:
         """Process a block range job with explicit block list (uses working single block logic)"""
         
         log_with_context(
-            self.logger, logging.INFO, "Processing block range job",
+            self.logger, INFO, "Processing block range job",
             job_id=job.id,
             job_data_keys=list(job.job_data.keys()) if job.job_data else []
         )
@@ -819,7 +817,7 @@ class IndexingPipeline:
         job_data = job.job_data
         if not job_data:
             log_with_context(
-                self.logger, logging.ERROR, "Block range job missing job_data",
+                self.logger, ERROR, "Block range job missing job_data",
                 job_id=job.id
             )
             return False
@@ -829,14 +827,14 @@ class IndexingPipeline:
             block_list = job_data['block_list']
             if not isinstance(block_list, list) or not block_list:
                 log_with_context(
-                    self.logger, logging.ERROR, "Invalid or empty block_list in job data",
+                    self.logger, ERROR, "Invalid or empty block_list in job data",
                     job_id=job.id,
                     block_list_type=type(block_list).__name__
                 )
                 return False
             
             log_with_context(
-                self.logger, logging.INFO, "Processing explicit block list",
+                self.logger, INFO, "Processing explicit block list",
                 job_id=job.id,
                 block_count=len(block_list),
                 first_block=min(block_list),
@@ -850,7 +848,7 @@ class IndexingPipeline:
             for block_number in block_list:
                 try:
                     log_with_context(
-                        self.logger, logging.DEBUG, "Processing block from range job",
+                        self.logger, DEBUG, "Processing block from range job",
                         job_id=job.id,
                         block_number=block_number,
                         progress=f"{successful_blocks + failed_blocks + 1}/{len(block_list)}"
@@ -864,14 +862,14 @@ class IndexingPipeline:
                     if self._process_block_job(session, temp_job):
                         successful_blocks += 1
                         log_with_context(
-                            self.logger, logging.DEBUG, "Block processed successfully in range job",
+                            self.logger, DEBUG, "Block processed successfully in range job",
                             job_id=job.id,
                             block_number=block_number
                         )
                     else:
                         failed_blocks += 1
                         log_with_context(
-                            self.logger, logging.WARNING, "Block processing failed in range job",
+                            self.logger, WARNING, "Block processing failed in range job",
                             job_id=job.id,
                             block_number=block_number
                         )
@@ -879,14 +877,14 @@ class IndexingPipeline:
                 except Exception as e:
                     failed_blocks += 1
                     log_with_context(
-                        self.logger, logging.ERROR, "Exception processing block in range job",
+                        self.logger, ERROR, "Exception processing block in range job",
                         job_id=job.id,
                         block_number=block_number,
                         error=str(e)
                     )
             
             log_with_context(
-                self.logger, logging.INFO, "Block range job completed",
+                self.logger, INFO, "Block range job completed",
                 job_id=job.id,
                 total_blocks=len(block_list),
                 successful=successful_blocks,
@@ -899,7 +897,7 @@ class IndexingPipeline:
         # LEGACY: Handle old start_block/end_block jobs (should not happen with new queueing)
         elif 'start_block' in job_data and 'end_block' in job_data:
             log_with_context(
-                self.logger, logging.WARNING, "Processing legacy range job - blocks may not exist",
+                self.logger, WARNING, "Processing legacy range job - blocks may not exist",
                 job_id=job.id,
                 start_block=job_data['start_block'],
                 end_block=job_data['end_block']
@@ -913,7 +911,7 @@ class IndexingPipeline:
             
             if range_size > 1000:  # Arbitrary safety limit
                 log_with_context(
-                    self.logger, logging.ERROR, "Legacy range job too large, failing for safety",
+                    self.logger, ERROR, "Legacy range job too large, failing for safety",
                     job_id=job.id,
                     range_size=range_size
                 )
@@ -930,13 +928,13 @@ class IndexingPipeline:
                         successful_blocks += 1
                 except Exception as e:
                     log_with_context(
-                        self.logger, logging.DEBUG, "Block not available in legacy range",
+                        self.logger, DEBUG, "Block not available in legacy range",
                         job_id=job.id,
                         block_number=block_number
                     )
             
             log_with_context(
-                self.logger, logging.INFO, "Legacy range job completed",
+                self.logger, INFO, "Legacy range job completed",
                 job_id=job.id,
                 range_size=range_size,
                 successful=successful_blocks
@@ -947,7 +945,7 @@ class IndexingPipeline:
         
         else:
             log_with_context(
-                self.logger, logging.ERROR, "Block range job missing required data",
+                self.logger, ERROR, "Block range job missing required data",
                 job_id=job.id,
                 available_keys=list(job_data.keys())
             )
@@ -978,7 +976,7 @@ class IndexingPipeline:
             self._save_to_storage(transformed_block)
             
             log_with_context(
-                self.logger, logging.DEBUG, "Single block processed successfully in job",
+                self.logger, DEBUG, "Single block processed successfully in job",
                 block_number=block_number
             )
             
@@ -986,7 +984,7 @@ class IndexingPipeline:
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Single block processing failed in job",
+                self.logger, ERROR, "Single block processing failed in job",
                 block_number=block_number,
                 error=str(e)
             )
@@ -996,14 +994,14 @@ class IndexingPipeline:
         """Process a transactions-specific job"""
         
         log_with_context(
-            self.logger, logging.INFO, "Processing transactions job",
+            self.logger, INFO, "Processing transactions job",
             job_id=job.id
         )
         
         # This would need implementation based on specific requirements
         # For now, just log that it's not implemented
         log_with_context(
-            self.logger, logging.WARNING, "Transactions job functionality not implemented",
+            self.logger, WARNING, "Transactions job functionality not implemented",
             job_id=job.id
         )
         
@@ -1013,14 +1011,14 @@ class IndexingPipeline:
         """Process a reprocess failed job"""
         
         log_with_context(
-            self.logger, logging.INFO, "Processing reprocess job",
+            self.logger, INFO, "Processing reprocess job",
             job_id=job.id
         )
         
         # This would need implementation based on specific requirements
         # For now, just log that it's not implemented
         log_with_context(
-            self.logger, logging.WARNING, "Reprocess functionality not implemented",
+            self.logger, WARNING, "Reprocess functionality not implemented",
             job_id=job.id
         )
         

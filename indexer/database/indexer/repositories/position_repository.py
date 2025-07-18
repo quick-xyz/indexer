@@ -7,11 +7,9 @@ from sqlalchemy import desc, and_
 
 from ...connection import ModelDatabaseManager
 from ..tables.events.position import Position
-from ....core.logging import log_with_context
+from ....core.logging import log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 from ....types.new import EvmAddress, DomainEventId
 from ...base_repository import DomainEventBaseRepository
-
-import logging
 
 
 class PositionRepository(DomainEventBaseRepository[Position]):
@@ -27,7 +25,7 @@ class PositionRepository(DomainEventBaseRepository[Position]):
                 Position.user == user
             ).order_by(desc(Position.timestamp)).limit(limit).all()
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error getting positions by user",
+            log_with_context(self.logger, ERROR, "Error getting positions by user",
                             user=user,
                             error=str(e))
             raise
@@ -42,7 +40,7 @@ class PositionRepository(DomainEventBaseRepository[Position]):
                 )
             ).order_by(Position.timestamp).all()
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error getting positions by parent",
+            log_with_context(self.logger, ERROR, "Error getting positions by parent",
                             parent_id=parent_id,
                             parent_type=parent_type,
                             error=str(e))
@@ -58,7 +56,7 @@ class PositionRepository(DomainEventBaseRepository[Position]):
                 )
             ).order_by(Position.timestamp).all()
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error getting user token positions",
+            log_with_context(self.logger, ERROR, "Error getting user token positions",
                             user=user,
                             token=token,
                             error=str(e))

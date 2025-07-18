@@ -13,7 +13,7 @@ from ..types import (
     DecodedLog,
     EvmLog,
 )
-from ..core.logging import LoggingMixin
+from ..core.logging import LoggingMixin, INFO, DEBUG, WARNING, ERROR, CRITICAL
 
 class LogDecoder(LoggingMixin):
     def __init__(self, contract_manager: ContractManager):

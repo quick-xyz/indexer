@@ -5,9 +5,7 @@ from abc import ABC, abstractmethod
 from sqlalchemy.orm import Session
 
 from ....connection import SharedDatabaseManager
-from .....core.logging import IndexerLogger, log_with_context
-
-import logging
+from .....core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 
 T = TypeVar('T')  # Database entity type
 C = TypeVar('C')  # Config struct type
@@ -82,7 +80,7 @@ class ConfigRepositoryBase(ABC, Generic[T, C]):
             session.refresh(entity)
             
             log_with_context(
-                self.logger, logging.INFO, f"{self.entity_name} created",
+                self.logger, INFO, f"{self.entity_name} created",
                 identifier=self._get_entity_identifier(config)
             )
             
@@ -118,7 +116,7 @@ class ConfigRepositoryBase(ABC, Generic[T, C]):
                 results['failed_configs'].append(config)
                 
                 log_with_context(
-                    self.logger, logging.ERROR, f"{self.entity_name} processing failed",
+                    self.logger, ERROR, f"{self.entity_name} processing failed",
                     identifier=identifier,
                     error=str(e)
                 )

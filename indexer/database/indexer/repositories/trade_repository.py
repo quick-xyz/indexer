@@ -7,11 +7,9 @@ from sqlalchemy import desc, or_
 
 from ...connection import ModelDatabaseManager
 from ..tables.events.trade import Trade
-from ....core.logging import log_with_context
+from ....core.logging import log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 from ....types.new import EvmAddress
 from .event_repository import DomainEventRepository
-
-import logging
 
 
 class TradeRepository(DomainEventRepository):
@@ -27,7 +25,7 @@ class TradeRepository(DomainEventRepository):
                 Trade.taker == taker
             ).order_by(desc(Trade.timestamp)).limit(limit).all()
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error getting trades by taker",
+            log_with_context(self.logger, ERROR, "Error getting trades by taker",
                             taker=taker,
                             error=str(e))
             raise
@@ -39,7 +37,7 @@ class TradeRepository(DomainEventRepository):
                 or_(Trade.base_token == token, Trade.quote_token == token)
             ).order_by(desc(Trade.timestamp)).limit(limit).all()
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error getting trades by token",
+            log_with_context(self.logger, ERROR, "Error getting trades by token",
                             token=token,
                             error=str(e))
             raise
@@ -51,6 +49,6 @@ class TradeRepository(DomainEventRepository):
                 Trade.trade_type == 'arbitrage'
             ).order_by(desc(Trade.timestamp)).limit(limit).all()
         except Exception as e:
-            log_with_context(self.logger, logging.ERROR, "Error getting arbitrage trades",
+            log_with_context(self.logger, ERROR, "Error getting arbitrage trades",
                             error=str(e))
             raise

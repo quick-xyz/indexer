@@ -8,7 +8,7 @@ import msgspec
 from ..registry import TransformRegistry
 from ..context import TransformContext
 from ...core.indexer_config import IndexerConfig
-from ...core.logging import LoggingMixin
+from ...core.logging import LoggingMixin, INFO, DEBUG, WARNING, ERROR, CRITICAL
 from ...types import (
     EvmAddress,
     Signal,

@@ -4,37 +4,33 @@ from msgspec import Struct
 from typing import Dict, Optional, List, Set
 from pathlib import Path
 import os
-import logging
 
 from ..types import (
     EvmAddress, 
-    DatabaseConfig, 
-    StorageConfig, 
     PathsConfig,
 )
+from ..database.shared.tables import DBModel, DBContract
 from .config_service import ConfigService
 from .secrets_service import SecretsService
-from .logging import IndexerLogger, log_with_context
-from ..types import ContractConfig, DecoderConfig, TransformerConfig
+from .logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
+from ..types import ContractConfig, DecoderConfig, TransformerConfig, SourceConfig
 
 class IndexerConfig(Struct):
     model_name: str
     model_version: str
     model_db: str
-    database: DatabaseConfig
-    storage: StorageConfig
     paths: PathsConfig
 
     contracts: Dict[EvmAddress, ContractConfig]
     tracked_tokens: Set[EvmAddress]
-    sources: Dict[int, Source]  # source_id -> Source object
+    sources: Dict[int, SourceConfig]
 
     
     @classmethod
     def from_model(cls, model_name: str, config_service: ConfigService, 
                    env_vars: dict = None) -> 'IndexerConfig':
         logger = IndexerLogger.get_logger('core.config')
-        log_with_context(logger, logging.INFO, "Loading configuration for model", model_name=model_name)
+        log_with_context(logger, INFO, "Loading configuration for model", model_name=model_name)
         
         from dotenv import load_dotenv
         load_dotenv()
@@ -47,44 +43,35 @@ class IndexerConfig(Struct):
         db_contracts = config_service.get_contracts_for_model(model_name)
         tracked_tokens = config_service.get_tracked_tokens(model_name)
         
-        # Convert database Contract objects to ContractConfig objects
         contracts = {
             address: cls._convert_db_contract_to_config(contract)
             for address, contract in db_contracts.items()
         }
         
-        # NEW: Get sources from database
         sources_list = config_service.get_sources_for_model(model_name)
         sources = {source.id: source for source in sources_list}
                 
-        log_with_context(logger, logging.INFO, "Model configuration loaded from database",
+        log_with_context(logger, INFO, "Model configuration loaded from database",
                        model_name=model_name,
                        model_version=model.version,
                        contract_count=len(contracts),
                        tracked_tokens=len(tracked_tokens),
                        sources_count=len(sources))
         
-        database = cls._create_database_config(env)
-        rpc = cls._create_rpc_config(env)
-        gcs = cls._create_gcs_config(env)
         paths = cls._create_paths_config(env)
-        storage = cls._create_storage_config(model_name)
+
         
         config = cls(
             model_name=model_name,
             model_version=model.version,
             model_db=model_name,
-            contracts=contracts,  # Now contains ContractConfig objects
+            contracts=contracts,
             tracked_tokens=tracked_tokens,
-            sources=sources,  # NEW
-            database=database,
-            rpc=rpc,
-            gcs=gcs,
+            sources=sources,
             paths=paths,
-            storage=storage
         )
         
-        log_with_context(logger, logging.INFO, "IndexerConfig created successfully",
+        log_with_context(logger, INFO, "IndexerConfig created successfully",
                        model_name=model_name,
                        model_version=model.version,
                        model_database=model_name)
@@ -92,9 +79,7 @@ class IndexerConfig(Struct):
         return config
 
     @staticmethod
-    def _convert_db_contract_to_config(db_contract: Contract) -> ContractConfig:
-        """Convert database Contract object to ContractConfig type"""
-        # Build DecoderConfig if decode_config exists
+    def _convert_db_contract_to_config(db_contract: DBContract) -> ContractConfig:
         decode = None
         if db_contract.decode_config:
             decode = DecoderConfig(
@@ -102,7 +87,6 @@ class IndexerConfig(Struct):
                 abi=db_contract.decode_config.get('abi_file', '')  # Note: DecoderConfig expects 'abi' not 'abi_file'
             )
         
-        # Build TransformerConfig if transform_config exists
         transform = None
         if db_contract.transform_config:
             transform = TransformerConfig(
@@ -120,38 +104,6 @@ class IndexerConfig(Struct):
             abi=None  # This will be loaded by ABILoader
         )
 
-    @staticmethod
-    def _create_database_config(env: dict) -> DatabaseConfig:
-        logger = IndexerLogger.get_logger('core.config.database')
-        
-        project_id = env.get("INDEXER_GCP_PROJECT_ID")
-        if not project_id:
-            raise ValueError("INDEXER_GCP_PROJECT_ID environment variable required")
-        
-        secrets_service = SecretsService(project_id)
-        
-        db_credentials = secrets_service.get_database_credentials()
-        
-        db_user = db_credentials.get('user') or env.get("INDEXER_DB_USER")
-        db_password = db_credentials.get('password') or env.get("INDEXER_DB_PASSWORD")
-        db_host = env.get("INDEXER_DB_HOST") or db_credentials.get('host') or "127.0.0.1"
-        db_port = env.get("INDEXER_DB_PORT") or db_credentials.get('port') or "5432"
-        db_name = env.get("INDEXER_SHARED_DB", "indexer_shared")
-        
-        if not db_user or not db_password:
-            raise ValueError("Database credentials not found in secrets or environment variables")
-        
-        db_url = f"postgresql+psycopg://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
-        
-        log_with_context(logger, logging.DEBUG, "Database configuration created",
-                       db_host=db_host, db_port=db_port, db_name=db_name)
-        
-        return DatabaseConfig(url=db_url)
-
-
-
-
-    
     @staticmethod
     def _create_paths_config(env: dict) -> PathsConfig:
         logger = IndexerLogger.get_logger('core.config.paths')
@@ -175,53 +127,17 @@ class IndexerConfig(Struct):
         ]:
             try:
                 dir_path.mkdir(parents=True, exist_ok=True)
-                log_with_context(logger, logging.DEBUG, "Directory ensured", 
+                log_with_context(logger, DEBUG, "Directory ensured", 
                                directory=dir_name, path=str(dir_path))
             except Exception as e:
-                log_with_context(logger, logging.ERROR, "Failed to create directory",
+                log_with_context(logger, ERROR, "Failed to create directory",
                                directory=dir_name, path=str(dir_path), error=str(e))
                 raise
         
         return paths
 
-
-    def get_model_db(self) -> DatabaseConfig:
-        base_url = self.database.url
-        url_parts = base_url.rsplit('/', 1)
-        model_db_url = f"{url_parts[0]}/{self.model_db}"
-        
-        return DatabaseConfig(
-            url=model_db_url,
-            pool_size=self.database.pool_size,
-            max_overflow=self.database.max_overflow
-        )
-
-    def get_contract_by_address(self, address: str) -> Optional[Contract]:
-        return self.contracts.get(EvmAddress(address.lower()))
-    
-    def get_source_by_id(self, source_id: int) -> Optional[Source]:
-        """Get source by ID"""
+    def get_source_by_id(self, source_id: int) -> Optional[SourceConfig]:
         return self.sources.get(source_id)
 
-    def get_all_sources(self) -> List[Source]:
-        """Get all sources for this model"""
+    def get_all_sources(self) -> List[SourceConfig]:
         return list(self.sources.values())
-
-    def get_primary_source(self) -> Optional[Source]:
-        """Get the primary (first) source for this model"""
-        if self.sources:
-            return next(iter(self.sources.values()))
-        return None
-
-    def get_rpc_path_for_block(self, block_number: int, source_id: Optional[int] = None) -> str:
-        if source_id is None:
-            source = self.get_primary_source()
-        else:
-            source = self.get_source_by_id(source_id)
-            if not source:
-                raise ValueError(f"Source ID {source_id} not found")
-        
-        path = source.path
-        format_str = source.format
-        
-        return f"{path}{format_str.format(block_number, block_number)}"

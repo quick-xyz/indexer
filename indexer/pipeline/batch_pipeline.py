@@ -8,14 +8,12 @@ import json
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import and_, or_, Integer
 
-from ..core.logging import IndexerLogger, log_with_context
+from ..core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 from ..database.repository_manager import RepositoryManager
 from ..database.indexer.tables.processing import ProcessingJob, JobStatus, JobType
 from ..storage.gcs_handler import GCSHandler
 from .indexing_pipeline import IndexingPipeline
 from ..core.indexer_config import IndexerConfig
-
-import logging
 
 
 class BatchPipeline:
@@ -53,7 +51,7 @@ class BatchPipeline:
         self.logger = IndexerLogger.get_logger('pipeline.batch_pipeline')
         
         log_with_context(
-            self.logger, logging.INFO, "BatchPipeline initialized",
+            self.logger, INFO, "BatchPipeline initialized",
             has_shared_db=repository_manager.has_shared_access()
         )
     
@@ -69,7 +67,7 @@ class BatchPipeline:
         """
         
         log_with_context(
-            self.logger, logging.INFO, "Discovering available blocks in storage",
+            self.logger, INFO, "Discovering available blocks in storage",
             source_id=source_id
         )
         
@@ -85,12 +83,12 @@ class BatchPipeline:
                     rpc_blocks = self.storage_handler.list_rpc_blocks(source=primary_source)
                 else:
                     log_with_context(
-                        self.logger, logging.WARNING, "No primary source configured, skipping RPC blocks"
+                        self.logger, WARNING, "No primary source configured, skipping RPC blocks"
                     )
                     rpc_blocks = []
             except Exception as e:
                 log_with_context(
-                    self.logger, logging.WARNING, "Failed to list RPC blocks",
+                    self.logger, WARNING, "Failed to list RPC blocks",
                     error=str(e)
                 )
                 rpc_blocks = []
@@ -100,7 +98,7 @@ class BatchPipeline:
             
             if not all_blocks:
                 log_with_context(
-                    self.logger, logging.WARNING, "No blocks found in storage",
+                    self.logger, WARNING, "No blocks found in storage",
                     processing_count=len(processing_blocks),
                     complete_count=len(complete_blocks),
                     rpc_count=len(rpc_blocks)
@@ -111,7 +109,7 @@ class BatchPipeline:
             sorted_blocks = sorted(all_blocks)
             
             log_with_context(
-                self.logger, logging.INFO, "Block discovery completed",
+                self.logger, INFO, "Block discovery completed",
                 total_blocks=len(sorted_blocks),
                 processing_blocks=len(processing_blocks),
                 complete_blocks=len(complete_blocks),
@@ -124,7 +122,7 @@ class BatchPipeline:
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Block discovery failed",
+                self.logger, ERROR, "Block discovery failed",
                 error=str(e),
                 exception_type=type(e).__name__
             )
@@ -167,7 +165,7 @@ class BatchPipeline:
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Failed to get processing status",
+                self.logger, ERROR, "Failed to get processing status",
                 error=str(e)
             )
             return {
@@ -204,7 +202,7 @@ class BatchPipeline:
                         processed_blocks.add(int(block_number))
                 
                 log_with_context(
-                    self.logger, logging.DEBUG, "Retrieved processed blocks",
+                    self.logger, DEBUG, "Retrieved processed blocks",
                     processed_count=len(processed_blocks)
                 )
                 
@@ -212,7 +210,7 @@ class BatchPipeline:
                 
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Failed to get processed blocks",
+                self.logger, ERROR, "Failed to get processed blocks",
                 error=str(e)
             )
             return set()
@@ -243,7 +241,7 @@ class BatchPipeline:
                         pending_blocks.add(int(block_number))
                 
                 log_with_context(
-                    self.logger, logging.DEBUG, "Retrieved pending blocks",
+                    self.logger, DEBUG, "Retrieved pending blocks",
                     pending_count=len(pending_blocks)
                 )
                 
@@ -251,7 +249,7 @@ class BatchPipeline:
                 
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Failed to get pending blocks",
+                self.logger, ERROR, "Failed to get pending blocks",
                 error=str(e)
             )
             return set()
@@ -277,7 +275,7 @@ class BatchPipeline:
         """
         
         log_with_context(
-            self.logger, logging.INFO, "Queuing available blocks for processing",
+            self.logger, INFO, "Queuing available blocks for processing",
             max_blocks=max_blocks,
             batch_size=batch_size,
             earliest_first=earliest_first,
@@ -302,7 +300,7 @@ class BatchPipeline:
             
             if not unprocessed_blocks:
                 log_with_context(
-                    self.logger, logging.INFO, "All available blocks already processed or queued"
+                    self.logger, INFO, "All available blocks already processed or queued"
                 )
                 return {
                     "available": len(available_blocks),
@@ -346,7 +344,7 @@ class BatchPipeline:
                 stats["latest_block"] = max(target_blocks)
             
             log_with_context(
-                self.logger, logging.INFO, "Block queue population completed",
+                self.logger, INFO, "Block queue population completed",
                 **stats
             )
             
@@ -354,7 +352,7 @@ class BatchPipeline:
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Block queue population failed",
+                self.logger, ERROR, "Block queue population failed",
                 error=str(e),
                 exception_type=type(e).__name__
             )
@@ -386,7 +384,7 @@ class BatchPipeline:
                         
                         if existing_job:
                             log_with_context(
-                                self.logger, logging.DEBUG, "Block already has job, skipping",
+                                self.logger, DEBUG, "Block already has job, skipping",
                                 block_number=block_number,
                                 existing_job_id=existing_job.id,
                                 existing_status=existing_job.status.value
@@ -407,7 +405,7 @@ class BatchPipeline:
                         continue
                     except Exception as e:
                         log_with_context(
-                            self.logger, logging.ERROR, "Failed to create job for block",
+                            self.logger, ERROR, "Failed to create job for block",
                             block_number=block_number,
                             error=str(e)
                         )
@@ -417,7 +415,7 @@ class BatchPipeline:
                 
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Failed to queue individual blocks",
+                self.logger, ERROR, "Failed to queue individual blocks",
                 error=str(e)
             )
         
@@ -485,7 +483,7 @@ class BatchPipeline:
                         blocks_queued += len(batch_blocks)
                         
                         log_with_context(
-                            self.logger, logging.DEBUG, "Created block range job",
+                            self.logger, DEBUG, "Created block range job",
                             start_block=start_block,
                             end_block=end_block,
                             block_count=len(batch_blocks),
@@ -494,7 +492,7 @@ class BatchPipeline:
                         
                     except Exception as e:
                         log_with_context(
-                            self.logger, logging.ERROR, "Failed to create block range job",
+                            self.logger, ERROR, "Failed to create block range job",
                             start_block=start_block,
                             end_block=end_block,
                             error=str(e)
@@ -505,7 +503,7 @@ class BatchPipeline:
                 
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Failed to queue block ranges",
+                self.logger, ERROR, "Failed to queue block ranges",
                 error=str(e)
             )
         
@@ -530,7 +528,7 @@ class BatchPipeline:
         """
         
         log_with_context(
-            self.logger, logging.INFO, "Starting batch processing",
+            self.logger, INFO, "Starting batch processing",
             max_jobs=max_jobs,
             timeout_seconds=timeout_seconds,
             poll_interval=poll_interval
@@ -557,7 +555,7 @@ class BatchPipeline:
             stats["failed"] = stats.get("failed_count", 0)
             
             log_with_context(
-                self.logger, logging.INFO, "Batch processing completed",
+                self.logger, INFO, "Batch processing completed",
                 **stats
             )
             
@@ -565,7 +563,7 @@ class BatchPipeline:
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Batch processing failed",
+                self.logger, ERROR, "Batch processing failed",
                 error=str(e),
                 exception_type=type(e).__name__
             )
@@ -598,7 +596,7 @@ class BatchPipeline:
         """
         
         log_with_context(
-            self.logger, logging.INFO, "Starting full pipeline run",
+            self.logger, INFO, "Starting full pipeline run",
             max_blocks=max_blocks,
             batch_size=batch_size,
             earliest_first=earliest_first,
@@ -629,7 +627,7 @@ class BatchPipeline:
             }
             
             log_with_context(
-                self.logger, logging.INFO, "Full pipeline run completed",
+                self.logger, INFO, "Full pipeline run completed",
                 **combined_stats
             )
             
@@ -637,7 +635,7 @@ class BatchPipeline:
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Full pipeline run failed",
+                self.logger, ERROR, "Full pipeline run failed",
                 error=str(e),
                 exception_type=type(e).__name__
             )
@@ -682,7 +680,7 @@ class BatchPipeline:
                 }
                 
                 log_with_context(
-                    self.logger, logging.DEBUG, "Processing statistics retrieved",
+                    self.logger, DEBUG, "Processing statistics retrieved",
                     **stats
                 )
                 
@@ -690,7 +688,7 @@ class BatchPipeline:
                 
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Failed to get processing statistics",
+                self.logger, ERROR, "Failed to get processing statistics",
                 error=str(e)
             )
             return {
@@ -745,7 +743,7 @@ class BatchPipeline:
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Failed to get pipeline status",
+                self.logger, ERROR, "Failed to get pipeline status",
                 error=str(e)
             )
             return {"error": str(e)}
@@ -771,7 +769,7 @@ class BatchPipeline:
         """
         
         log_with_context(
-            self.logger, logging.INFO, "Starting comprehensive block queueing",
+            self.logger, INFO, "Starting comprehensive block queueing",
             batch_size=batch_size,
             earliest_first=earliest_first,
             progress_interval=progress_interval
@@ -848,7 +846,7 @@ class BatchPipeline:
             print(f"   ⏱️  Time: {stats['elapsed_seconds']:,} seconds")
             
             log_with_context(
-                self.logger, logging.INFO, "Comprehensive block queueing completed",
+                self.logger, INFO, "Comprehensive block queueing completed",
                 **stats
             )
             
@@ -857,7 +855,7 @@ class BatchPipeline:
         except Exception as e:
             stats["elapsed_seconds"] = int(time.time() - start_time)
             log_with_context(
-                self.logger, logging.ERROR, "Comprehensive block queueing failed",
+                self.logger, ERROR, "Comprehensive block queueing failed",
                 error=str(e),
                 exception_type=type(e).__name__,
                 **stats
@@ -917,7 +915,7 @@ class BatchPipeline:
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "RPC block discovery failed",
+                self.logger, ERROR, "RPC block discovery failed",
                 error=str(e)
             )
             raise
@@ -959,7 +957,7 @@ class BatchPipeline:
             handled_blocks.update(complete_blocks)
             
             log_with_context(
-                self.logger, logging.INFO, "Retrieved handled blocks",
+                self.logger, INFO, "Retrieved handled blocks",
                 job_blocks=len(handled_blocks) - len(processing_blocks) - len(complete_blocks),
                 processing_blocks=len(processing_blocks),
                 complete_blocks=len(complete_blocks),
@@ -970,7 +968,7 @@ class BatchPipeline:
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Failed to get handled blocks",
+                self.logger, ERROR, "Failed to get handled blocks",
                 error=str(e)
             )
             # Return empty set on error - will queue all blocks (safe fallback)
@@ -1015,7 +1013,7 @@ class BatchPipeline:
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Job creation failed",
+                self.logger, ERROR, "Job creation failed",
                 error=str(e),
                 jobs_created=jobs_created
             )

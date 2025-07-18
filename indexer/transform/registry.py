@@ -5,7 +5,7 @@ from msgspec import Struct
 import json
 
 from ..core.indexer_config import IndexerConfig
-from ..core.logging import LoggingMixin
+from ..core.logging import LoggingMixin, INFO, DEBUG, WARNING, ERROR, CRITICAL
 
 from .transformers import *
 from ..types import EvmAddress

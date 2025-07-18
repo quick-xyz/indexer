@@ -7,12 +7,10 @@ from sqlalchemy import and_, desc, func
 
 from ...connection import ModelDatabaseManager
 from ..tables.asset_price import AssetPrice
-from ....core.logging import IndexerLogger, log_with_context
+from ....core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 from ....types import EvmAddress
 from ...base_repository import BaseRepository
 from ..tables.detail.pool_swap_detail import PricingDenomination
-
-import logging
 
 
 class AssetPriceRepository(BaseRepository):
@@ -58,7 +56,7 @@ class AssetPriceRepository(BaseRepository):
             session.flush()
             
             log_with_context(
-                self.logger, logging.DEBUG, "OHLC candle created",
+                self.logger, DEBUG, "OHLC candle created",
                 period_id=period_id,
                 asset_address=asset_address,
                 denomination=denomination.value,
@@ -72,7 +70,7 @@ class AssetPriceRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error creating OHLC candle",
+                self.logger, ERROR, "Error creating OHLC candle",
                 period_id=period_id,
                 asset_address=asset_address,
                 denomination=denomination.value if denomination else None,
@@ -99,7 +97,7 @@ class AssetPriceRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting OHLC candle",
+                self.logger, ERROR, "Error getting OHLC candle",
                 period_id=period_id,
                 asset_address=asset_address,
                 denomination=denomination.value,
@@ -126,7 +124,7 @@ class AssetPriceRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting OHLC candles for periods",
+                self.logger, ERROR, "Error getting OHLC candles for periods",
                 periods_count=len(period_ids),
                 asset_address=asset_address,
                 denomination=denomination.value,
@@ -154,7 +152,7 @@ class AssetPriceRepository(BaseRepository):
             # but missing OHLC candles
             
             log_with_context(
-                self.logger, logging.DEBUG, "Finding missing candles - implementation needed",
+                self.logger, DEBUG, "Finding missing candles - implementation needed",
                 asset_address=asset_address,
                 denomination=denomination.value if denomination else "all"
             )
@@ -163,7 +161,7 @@ class AssetPriceRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error finding periods with missing candles",
+                self.logger, ERROR, "Error finding periods with missing candles",
                 asset_address=asset_address,
                 denomination=denomination.value if denomination else "all",
                 error=str(e)
@@ -185,7 +183,7 @@ class AssetPriceRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error counting missing candles",
+                self.logger, ERROR, "Error counting missing candles",
                 asset_address=asset_address,
                 denomination=denomination.value,
                 error=str(e)
@@ -214,7 +212,7 @@ class AssetPriceRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting latest candle timestamp",
+                self.logger, ERROR, "Error getting latest candle timestamp",
                 asset_address=asset_address,
                 error=str(e)
             )
@@ -242,7 +240,7 @@ class AssetPriceRepository(BaseRepository):
             session.flush()
             
             log_with_context(
-                self.logger, logging.DEBUG, "OHLC candle updated",
+                self.logger, DEBUG, "OHLC candle updated",
                 period_id=period_id,
                 asset_address=asset_address,
                 denomination=denomination.value,
@@ -253,7 +251,7 @@ class AssetPriceRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error updating OHLC candle",
+                self.logger, ERROR, "Error updating OHLC candle",
                 period_id=period_id,
                 asset_address=asset_address,
                 denomination=denomination.value,
@@ -286,7 +284,7 @@ class AssetPriceRepository(BaseRepository):
             session.flush()
             
             log_with_context(
-                self.logger, logging.INFO, "Bulk OHLC candles created",
+                self.logger, INFO, "Bulk OHLC candles created",
                 candle_count=len(candles)
             )
             
@@ -294,7 +292,7 @@ class AssetPriceRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error bulk creating OHLC candles",
+                self.logger, ERROR, "Error bulk creating OHLC candles",
                 candle_count=len(candle_data),
                 error=str(e)
             )
@@ -333,7 +331,7 @@ class AssetPriceRepository(BaseRepository):
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting candle stats",
+                self.logger, ERROR, "Error getting candle stats",
                 asset_address=asset_address,
                 denomination=denomination.value,
                 error=str(e)

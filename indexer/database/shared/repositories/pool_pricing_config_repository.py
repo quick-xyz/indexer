@@ -7,10 +7,8 @@ from sqlalchemy import and_, or_
 from ..tables.pool_pricing_config import PoolPricingConfig
 from ..tables.config.config import Contract, Model
 from ...connection import SharedDatabaseManager
-from ....core.logging import IndexerLogger, log_with_context
+from ....core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 from ....types import EvmAddress
-
-import logging
 
 
 class PoolPricingConfigRepository:
@@ -64,7 +62,7 @@ class PoolPricingConfigRepository:
             session.flush()
             
             log_with_context(
-                self.logger, logging.INFO, "Pool pricing configuration created",
+                self.logger, INFO, "Pool pricing configuration created",
                 model_id=model_id,
                 contract_id=contract_id,
                 start_block=start_block,
@@ -77,7 +75,7 @@ class PoolPricingConfigRepository:
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error creating pool pricing configuration",
+                self.logger, ERROR, "Error creating pool pricing configuration",
                 model_id=model_id,
                 contract_id=contract_id,
                 error=str(e)
@@ -94,7 +92,7 @@ class PoolPricingConfigRepository:
                 # Get contract by address
                 pool_address = config_data.get('pool_address')
                 if not pool_address:
-                    log_with_context(self.logger, logging.WARNING, "No pool_address in config data",
+                    log_with_context(self.logger, WARNING, "No pool_address in config data",
                                    config_data=config_data)
                     continue
                 
@@ -103,7 +101,7 @@ class PoolPricingConfigRepository:
                 ).first()
                 
                 if not contract:
-                    log_with_context(self.logger, logging.WARNING, "Contract not found for pool",
+                    log_with_context(self.logger, WARNING, "Contract not found for pool",
                                    pool_address=pool_address)
                     continue
                 
@@ -123,7 +121,7 @@ class PoolPricingConfigRepository:
                     
             except Exception as e:
                 log_with_context(
-                    self.logger, logging.ERROR, "Failed to create config from data",
+                    self.logger, ERROR, "Failed to create config from data",
                     config_data=config_data, error=str(e)
                 )
                 # Continue with other configs
@@ -148,7 +146,7 @@ class PoolPricingConfigRepository:
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting active config for pool",
+                self.logger, ERROR, "Error getting active config for pool",
                 model_id=model_id,
                 contract_id=contract_id,
                 block_number=block_number,
@@ -172,7 +170,7 @@ class PoolPricingConfigRepository:
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting pricing pools for model",
+                self.logger, ERROR, "Error getting pricing pools for model",
                 model_id=model_id,
                 block_number=block_number,
                 error=str(e)
@@ -191,7 +189,7 @@ class PoolPricingConfigRepository:
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting all configs for model",
+                self.logger, ERROR, "Error getting all configs for model",
                 model_id=model_id,
                 error=str(e)
             )
@@ -211,7 +209,7 @@ class PoolPricingConfigRepository:
             session.flush()
             
             log_with_context(
-                self.logger, logging.INFO, "Pool pricing configuration closed",
+                self.logger, INFO, "Pool pricing configuration closed",
                 config_id=config_id,
                 end_block=end_block
             )
@@ -220,7 +218,7 @@ class PoolPricingConfigRepository:
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error closing configuration",
+                self.logger, ERROR, "Error closing configuration",
                 config_id=config_id,
                 error=str(e)
             )
@@ -262,7 +260,7 @@ class PoolPricingConfigRepository:
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error checking for overlaps",
+                self.logger, ERROR, "Error checking for overlaps",
                 model_id=model_id,
                 contract_id=contract_id,
                 error=str(e)
@@ -297,7 +295,7 @@ class PoolPricingConfigRepository:
             
         except Exception as e:
             log_with_context(
-                self.logger, logging.ERROR, "Error getting model pricing summary",
+                self.logger, ERROR, "Error getting model pricing summary",
                 model_id=model_id,
                 error=str(e)
             )
