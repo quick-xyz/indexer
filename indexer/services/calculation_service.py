@@ -34,11 +34,9 @@ class CalculationService:
         self,
         shared_db_manager: DatabaseManager,   # Shared database for canonical prices
         model_db_manager: DatabaseManager,  # Indexer database for events and analytics
-        repository_manager: RepositoryManager
     ):
-        self.shared_db_manager = shared_db_manager    # For canonical price reads
-        self.model_db_manager = model_db_manager  # For event reads and analytics writes
-        self.repository_manager = repository_manager
+        self.shared_db_manager = shared_db_manager
+        self.model_db_manager = model_db_manager
         
         self.logger = IndexerLogger.get_logger('services.calculation_service')
         
@@ -85,14 +83,13 @@ class CalculationService:
         
         denominations = [denomination] if denomination else [PricingDenomination.USD, PricingDenomination.AVAX]
         
-        # Get repositories
-        price_vwap_repo = self.repository_manager.get_price_vwap_repository()
-        event_detail_repo = self.repository_manager.get_event_detail_repository()
-        transfer_repo = self.repository_manager.get_transfer_repository()
-        liquidity_repo = self.repository_manager.get_liquidity_repository()
-        reward_repo = self.repository_manager.get_reward_repository()
-        position_repo = self.repository_manager.get_position_repository()
-        
+        price_vwap_repo = self.shared_db_manager.get_price_vwap_repository()
+        event_detail_repo = self.model_db_manager.get_event_detail_repo()
+        transfer_repo = self.model_db_manager.get_transfer_repo()
+        liquidity_repo = self.model_db_manager.get_liquidity_repo()
+        reward_repo = self.model_db_manager.get_reward_repo()
+        position_repo = self.model_db_manager.get_position_repo()
+
         with self.shared_db_manager.get_session() as shared_session, \
              self.model_db_manager.get_session() as model_session:
             
@@ -251,10 +248,9 @@ class CalculationService:
         results = {'usd_candles_created': 0, 'avax_candles_created': 0, 'errors': 0}
         denominations = [denomination] if denomination else [PricingDenomination.USD, PricingDenomination.AVAX]
         
-        # Get repositories
-        asset_price_repo = self.repository_manager.get_asset_price_repository()
-        trade_detail_repo = self.repository_manager.get_trade_detail_repository()
-        
+        asset_price_repo = self.model_db_manager.get_asset_price_repo()
+        trade_detail_repo = self.model_db_manager.get_trade_detail_repo()
+
         with self.model_db_manager.get_session() as session:
             for period_id in period_ids:
                 try:
@@ -354,10 +350,9 @@ class CalculationService:
         results = {'usd_volumes_created': 0, 'avax_volumes_created': 0, 'errors': 0}
         denominations = [denomination] if denomination else [PricingDenomination.USD, PricingDenomination.AVAX]
         
-        # Get repositories
-        asset_volume_repo = self.repository_manager.get_asset_volume_repository()
-        pool_swap_detail_repo = self.repository_manager.get_pool_swap_detail_repository()
-        
+        asset_volume_repo = self.model_db_manager.get_asset_volume_repo()
+        pool_swap_detail_repo = self.model_db_manager.get_pool_swap_detail_repo()
+
         with self.shared_db_manager.get_session() as shared_session, \
              self.model_db_manager.get_session() as model_session:
             
@@ -449,8 +444,8 @@ class CalculationService:
         )
         
         # Get repositories for gap detection
-        event_detail_repo = self.repository_manager.get_event_detail_repository()
-        periods_repo = self.repository_manager.get_periods_repository()
+        event_detail_repo = self.model_db_manager.get_event_detail_repo()
+        periods_repo = self.shared_db_manager.get_periods_repo()
 
         with self.model_db_manager.get_session() as model_session, \
              self.shared_db_manager.get_session() as shared_session:
@@ -522,9 +517,9 @@ class CalculationService:
         }
         
         # Get repositories for gap detection
-        asset_price_repo = self.repository_manager.get_asset_price_repository()
-        asset_volume_repo = self.repository_manager.get_asset_volume_repository()
-        periods_repo = self.repository_manager.get_periods_repository()
+        asset_price_repo = self.model_db_manager.get_asset_price_repo()
+        asset_volume_repo = self.model_db_manager.get_asset_volume_repo()
+        periods_repo = self.shared_db_manager.get_periods_repo()
 
         with self.model_db_manager.get_session() as model_session, \
              self.shared_db_manager.get_session() as shared_session:
@@ -690,9 +685,9 @@ class CalculationService:
         )
         
         # Get repositories
-        event_detail_repo = self.repository_manager.get_event_detail_repository()
-        asset_price_repo = self.repository_manager.get_asset_price_repository()
-        asset_volume_repo = self.repository_manager.get_asset_volume_repository()
+        event_detail_repo = self.model_db_manager.get_event_detail_repo()
+        asset_price_repo = self.model_db_manager.get_asset_price_repo()
+        asset_volume_repo = self.model_db_manager.get_asset_volume_repo()
         
         status = {
             'asset_address': asset_address,

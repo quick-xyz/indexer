@@ -47,7 +47,6 @@ class ServiceRunner:
         self.config = self.container._config
         
         # Get services from container
-        self.repository_manager = self.container.get(RepositoryManager)
         self.shared_db_manager = self.container.get(SharedDatabaseManager)
         self.model_db_manager = self.container.get(ModelDatabaseManager)
         self.rpc_client = self.container.get(QuickNodeRpcClient)
@@ -57,13 +56,11 @@ class ServiceRunner:
             shared_db_manager=self.shared_db_manager,
             model_db_manager=self.model_db_manager,
             rpc_client=self.rpc_client,
-            repository_manager=self.repository_manager
         )
         
         self.calculation_service = CalculationService(
             shared_db_manager=self.shared_db_manager,
             model_db_manager=self.model_db_manager,
-            repository_manager=self.repository_manager
         )
         
         self.logger = IndexerLogger.get_logger('services.service_runner')

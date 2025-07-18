@@ -1,22 +1,26 @@
 # indexer/core/config_service.py
 
 from typing import Dict, Optional, List, Set
-from sqlalchemy import and_
 
 from ..database.shared.tables import (
     DBModel,
-    DBModelContract,
-    DBModelToken,
-    DBModelSource,
-    DBPricing,
-    DBContract,
     DBToken,
+    DBContract,
     DBSource,
-    DBAddress,
+)
+from ..database.shared.repositories import (
+    ModelRepository,
+    TokenRepository,
+    ContractRepository,
+    SourceRepository,
+    ModelContractRepository,
+    ModelTokenRepository,
+    ModelSourceRepository,
 )
 from ..types import (
     EvmAddress,
     ContractConfig,
+    SourceConfig,
 )
 from ..database.connection import SharedDatabaseManager
 from ..core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL

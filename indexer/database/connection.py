@@ -17,11 +17,11 @@ class DatabaseManager:
             raise ValueError("DatabaseConfig is required")
         
         self.config = config
-        self.logger = IndexerLogger.get_logger('database.manager')
-        
-        self._engine: Optional[Engine] = None
-        self._session_factory: Optional[sessionmaker] = None
-        self._scoped_session: Optional[scoped_session] = None
+        self.logger = IndexerLogger.get_logger(f'database.{self.__class__.__name__.lower()}')
+        self._engine = None
+        self._session_factory = None
+        self._scoped_session = None
+        self._repositories = {}  # Cache for repository instances
         
         log_with_context(self.logger, INFO, "DatabaseManager initialized",
                         db_url_host=self._extract_host_from_url(config.url))
@@ -156,10 +156,165 @@ class DatabaseManager:
                             exception_type=type(e).__name__)
             return False
 
+    def _get_or_create_repository(self, repo_class, repo_name):
+        """Get cached repository or create new instance"""
+        if repo_name not in self._repositories:
+            self._repositories[repo_name] = repo_class(self)
+        return self._repositories[repo_name]
+    
+    def clear_repository_cache(self):
+        """Clear the repository cache (useful for testing)"""
+        self._repositories.clear()
+
+
 class SharedDatabaseManager(DatabaseManager):
-    """Database manager for infrastructure database (indexer_shared)"""
-    pass
+    """
+    Database manager for shared database (indexer_shared) with repository management.
+    
+    Manages both database connections and the repositories that operate on this database.
+    """
+    
+    # === Configuration Repositories ===
+    
+    def get_model_repo(self):
+        """Get the model repository"""
+        from .shared.repositories.config.model_repository import ModelRepository
+        return self._get_or_create_repository(ModelRepository, 'model')
+    
+    def get_contract_repo(self):
+        """Get the contract repository"""
+        from .shared.repositories.config.contract_repository import ContractRepository
+        return self._get_or_create_repository(ContractRepository, 'contract')
+    
+    def get_token_repo(self):
+        """Get the token repository"""
+        from .shared.repositories.config.token_repository import TokenRepository
+        return self._get_or_create_repository(TokenRepository, 'token')
+    
+    def get_source_repo(self):
+        """Get the source repository"""
+        from .shared.repositories.config.source_repository import SourceRepository
+        return self._get_or_create_repository(SourceRepository, 'source')
+    
+    def get_address_repo(self):
+        """Get the address repository"""
+        from .shared.repositories.config.address_repository import AddressRepository
+        return self._get_or_create_repository(AddressRepository, 'address')
+    
+    def get_label_repo(self):
+        """Get the label repository"""
+        from .shared.repositories.config.label_repository import LabelRepository
+        return self._get_or_create_repository(LabelRepository, 'label')
+    
+    def get_pool_repo(self):
+        """Get the pool repository"""
+        from .shared.repositories.config.pool_repository import PoolRepository
+        return self._get_or_create_repository(PoolRepository, 'pool')
+    
+    def get_pricing_repo(self):
+        """Get the pricing repository"""
+        from .shared.repositories.config.pricing_repository import PricingRepository
+        return self._get_or_create_repository(PricingRepository, 'pricing')
+    
+    def get_relations_repo(self):
+        """Get the model relations repository"""
+        from .shared.repositories.config.model_relations_repository import ModelRelationsRepository
+        return self._get_or_create_repository(ModelRelationsRepository, 'relations')
+    
+    # === Infrastructure Repositories ===
+    
+    def get_block_prices_repo(self):
+        """Get the block prices repository"""
+        from .shared.repositories.block_prices_repository import BlockPricesRepository
+        return self._get_or_create_repository(BlockPricesRepository, 'block_prices')
+    
+    def get_periods_repo(self):
+        """Get the periods repository"""
+        from .shared.repositories.periods_repository import PeriodsRepository
+        return self._get_or_create_repository(PeriodsRepository, 'periods')
+    
+    def get_price_vwap_repo(self):
+        """Get the price VWAP repository"""
+        from .shared.repositories.price_vwap_repository import PriceVwapRepository
+        return self._get_or_create_repository(PriceVwapRepository, 'price_vwap')
+    
+    def get_pool_pricing_config_repo(self):
+        """Get the pool pricing config repository"""
+        from .shared.repositories.pool_pricing_config_repository import PoolPricingConfigRepository
+        return self._get_or_create_repository(PoolPricingConfigRepository, 'pool_pricing_config')
+
 
 class ModelDatabaseManager(DatabaseManager):
-    """Database manager for model-specific database (e.g. blub_test)"""
-    pass
+    """
+    Database manager for model-specific database (e.g. blub_test) with repository management.
+    
+    Manages both database connections and the repositories that operate on this database.
+    """
+    
+    # === Domain Event Repositories ===
+    
+    def get_trade_repo(self):
+        """Get the trade repository"""
+        from .indexer.repositories.trade_repository import TradeRepository
+        return self._get_or_create_repository(TradeRepository, 'trade')
+    
+    def get_pool_swap_repo(self):
+        """Get the pool swap repository"""
+        from .indexer.repositories.pool_swap_repository import PoolSwapRepository
+        return self._get_or_create_repository(PoolSwapRepository, 'pool_swap')
+    
+    def get_position_repo(self):
+        """Get the position repository"""
+        from .indexer.repositories.position_repository import PositionRepository
+        return self._get_or_create_repository(PositionRepository, 'position')
+    
+    def get_transfer_repo(self):
+        """Get the transfer repository"""
+        from .indexer.repositories.transfer_repository import TransferRepository
+        return self._get_or_create_repository(TransferRepository, 'transfer')
+    
+    def get_liquidity_repo(self):
+        """Get the liquidity repository"""
+        from .indexer.repositories.liquidity_repository import LiquidityRepository
+        return self._get_or_create_repository(LiquidityRepository, 'liquidity')
+    
+    def get_reward_repo(self):
+        """Get the reward repository"""
+        from .indexer.repositories.reward_repository import RewardRepository
+        return self._get_or_create_repository(RewardRepository, 'reward')
+    
+    # === Detail Repositories (Pricing/Valuation) ===
+    
+    def get_pool_swap_detail_repo(self):
+        """Get the pool swap detail repository"""
+        from .indexer.repositories.pool_swap_detail_repository import PoolSwapDetailRepository
+        return self._get_or_create_repository(PoolSwapDetailRepository, 'pool_swap_detail')
+    
+    def get_trade_detail_repo(self):
+        """Get the trade detail repository"""
+        from .indexer.repositories.trade_detail_repository import TradeDetailRepository
+        return self._get_or_create_repository(TradeDetailRepository, 'trade_detail')
+    
+    def get_event_detail_repo(self):
+        """Get the event detail repository"""
+        from .indexer.repositories.event_detail_repository import EventDetailRepository
+        return self._get_or_create_repository(EventDetailRepository, 'event_detail')
+    
+    # === Processing Repository ===
+    
+    def get_processing_repo(self):
+        """Get the processing repository"""
+        from .indexer.repositories.processing_repository import ProcessingRepository
+        return self._get_or_create_repository(ProcessingRepository, 'processing')
+    
+    # === Calculation Service Repositories ===
+    
+    def get_asset_price_repo(self):
+        """Get the asset price repository"""
+        from .indexer.repositories.asset_price_repository import AssetPriceRepository
+        return self._get_or_create_repository(AssetPriceRepository, 'asset_price')
+    
+    def get_asset_volume_repo(self):
+        """Get the asset volume repository"""
+        from .indexer.repositories.asset_volume_repository import AssetVolumeRepository
+        return self._get_or_create_repository(AssetVolumeRepository, 'asset_volume')

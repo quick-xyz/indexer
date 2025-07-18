@@ -47,12 +47,10 @@ class PricingService:
         shared_db_manager: DatabaseManager,  # Shared database for prices and periods
         model_db_manager: DatabaseManager,  # Indexer database for event details
         rpc_client: QuickNodeRpcClient,
-        repository_manager: RepositoryManager
     ):
         self.shared_db_manager = shared_db_manager  # For block prices, periods, canonical pricing
         self.model_db_manager = model_db_manager  # For event pricing details
         self.rpc_client = rpc_client
-        self.repository_manager = repository_manager
         
         # Direct repository access for frequently used operations
         self.block_prices_repo = BlockPricesRepository(shared_db_manager)
@@ -182,7 +180,7 @@ class PricingService:
         )
         
         # Get repository for pool swap details
-        pool_swap_detail_repo = self.repository_manager.get_pool_swap_detail_repository()
+        pool_swap_detail_repo = self.model_db_manager.get_pool_swap_detail_repo()
         
         try:
             # Calculate direct pricing using repository method
@@ -231,7 +229,8 @@ class PricingService:
         )
         
         # Get repository for trade details
-        trade_detail_repo = self.repository_manager.get_trade_detail_repository()
+        trade_detail_repo = self.model_db_manager.get_trade_detail_repo()
+        
         
         try:
             # Calculate direct pricing using repository method
@@ -306,9 +305,9 @@ class PricingService:
             results = {'prices_created': 0, 'errors': 0, 'minutes_processed': 0}
             
             # Get pricing pool configurations and repositories
-            pool_pricing_repo = self.repository_manager.get_pool_pricing_config_repository()
-            pool_swap_detail_repo = self.repository_manager.get_pool_swap_detail_repository()
-            price_vwap_repo = self.repository_manager.get_price_vwap_repository()
+            pool_pricing_repo = self.shared_db_manager.get_pool_pricing_config_repo()
+            pool_swap_detail_repo = self.model_db_manager.get_pool_swap_detail_repo()
+            price_vwap_repo = self.shared_db_manager.get_price_vwap_repository()
             
             with self.shared_db_manager.get_session() as shared_session:
                 with self.model_db_manager.get_session() as model_session:
@@ -550,9 +549,9 @@ class PricingService:
             }
             
             # Get repositories
-            pool_swap_detail_repo = self.repository_manager.get_pool_swap_detail_repository()
-            trade_detail_repo = self.repository_manager.get_trade_detail_repository()
-            price_vwap_repo = self.repository_manager.get_price_vwap_repository()
+            pool_swap_detail_repo = self.model_db_manager.get_pool_swap_detail_repo()
+            price_vwap_repo = self.shared_db_manager.get_price_vwap_repository()
+            trade_detail_repo = self.model_db_manager.get_trade_detail_repo()
             
             with self.shared_db_manager.get_session() as shared_session:
                 with self.model_db_manager.get_session() as model_session:
@@ -1000,10 +999,9 @@ class PricingService:
                 'recent_activity': {}
             }
             
-            # Get repositories for status queries
-            pool_swap_detail_repo = self.repository_manager.get_pool_swap_detail_repository()
-            trade_detail_repo = self.repository_manager.get_trade_detail_repository()
-            price_vwap_repo = self.repository_manager.get_price_vwap_repository()
+            pool_swap_detail_repo = self.model_db_manager.get_pool_swap_detail_repo()
+            price_vwap_repo = self.shared_db_manager.get_price_vwap_repository()
+            trade_detail_repo = self.model_db_manager.get_trade_detail_repo()
             
             with self.shared_db_manager.get_session() as shared_session:
                 with self.model_db_manager.get_session() as model_session:

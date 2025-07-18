@@ -61,3 +61,7 @@ class SourceRepository(ConfigRepositoryBase[DBSource, SourceConfig]):
     def get_by_path(self, path: str) -> Optional[DBSource]:
         with self.db_manager.get_session() as session:
             return session.query(DBSource).filter(DBSource.path == path).first()
+
+    def get_by_id(self, source_id: int) -> Optional[DBSource]:
+        with self.db_manager.get_session() as session:
+            return session.query(DBSource).filter(DBSource.id == source_id).first()

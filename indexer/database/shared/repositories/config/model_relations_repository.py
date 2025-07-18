@@ -52,6 +52,18 @@ class ModelContractRepository(ConfigRepositoryBase[DBModelContract, ModelContrac
     def _get_entity_identifier(self, config: ModelContractConfig) -> str:
         return f"{config.model}|{config.contract_address}"
 
+    def get_active_contracts_for_model(self, model_id: int) -> List[DBContract]:
+        """Get all active contracts for a model with their address relationships loaded"""
+        with self.db_manager.get_session() as session:            
+            return session.query(DBContract).join(
+                DBModelContract, DBContract.id == DBModelContract.contract_id
+            ).join(
+                DBAddress, DBContract.address_id == DBAddress.id
+            ).filter(
+                DBModelContract.model_id == model_id,
+                DBModelContract.status == 'active',
+                DBContract.status == 'active'
+            ).all()
 
 class ModelTokenRepository(ConfigRepositoryBase[DBModelToken, ModelTokenConfig]):
     def __init__(self, db_manager):
@@ -97,6 +109,18 @@ class ModelTokenRepository(ConfigRepositoryBase[DBModelToken, ModelTokenConfig])
     def _get_entity_identifier(self, config: ModelTokenConfig) -> str:
         return f"{config.model}|{config.token_address}"
 
+    def get_active_tokens_for_model(self, model_id: int) -> List[DBToken]:
+        """Get all active tokens for a model with their address relationships loaded"""
+        with self.db_manager.get_session() as session:
+            return session.query(DBToken).join(
+                DBModelToken, DBToken.id == DBModelToken.token_id
+            ).join(
+                DBAddress, DBToken.address_id == DBAddress.id
+            ).filter(
+                DBModelToken.model_id == model_id,
+                DBModelToken.status == 'active',
+                DBToken.status == 'active'
+            ).all()
 
 class ModelSourceRepository(ConfigRepositoryBase[DBModelSource, ModelSourceConfig]):
     def __init__(self, db_manager):
@@ -140,7 +164,16 @@ class ModelSourceRepository(ConfigRepositoryBase[DBModelSource, ModelSourceConfi
     def _get_entity_identifier(self, config: ModelSourceConfig) -> str:
         return f"{config.model}|{config.source_name}"
 
-
+    def get_active_sources_for_model(self, model_id: int) -> List[DBSource]:
+        with self.db_manager.get_session() as session:
+            return session.query(DBSource).join(
+                DBModelSource, DBSource.id == DBModelSource.source_id
+            ).filter(
+                DBModelSource.model_id == model_id,
+                DBModelSource.status == 'active',
+                DBSource.status == 'active'
+            ).all()
+    
 class ModelRelationsRepository:
     """
     Unified repository for managing all model relations.
