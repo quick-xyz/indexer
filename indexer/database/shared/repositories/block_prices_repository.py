@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, desc, asc, func
 from sqlalchemy.exc import IntegrityError
 
-from ..tables.block_prices import BlockPrice
+from ..tables.block_prices import DBBlockPrice
 from ...base_repository import BaseRepository
 from ....core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 
@@ -21,7 +21,7 @@ class BlockPricesRepository(BaseRepository):
     """
     
     def __init__(self, db_manager):
-        super().__init__(db_manager, BlockPrice)
+        super().__init__(db_manager, DBBlockPrice)
         self.logger = IndexerLogger.get_logger('database.repository.block_prices')
     
     def create_block_price(
@@ -32,14 +32,14 @@ class BlockPricesRepository(BaseRepository):
         price_usd: Decimal,
         chainlink_round_id: Optional[int] = None,
         chainlink_updated_at: Optional[int] = None
-    ) -> Optional[BlockPrice]:
+    ) -> Optional[DBBlockPrice]:
         """
         Create a new block price record.
         
         Returns None if the block already has a price (no duplicate handling).
         """
         try:
-            price_record = BlockPrice(
+            price_record = DBBlockPrice(
                 block_number=block_number,
                 timestamp=timestamp,
                 price_usd=price_usd,
@@ -75,13 +75,13 @@ class BlockPricesRepository(BaseRepository):
             )
             raise
     
-    def get_price_at_block(self, session: Session, block_number: int) -> Optional[BlockPrice]:
+    def get_price_at_block(self, session: Session, block_number: int) -> Optional[DBBlockPrice]:
         """Get the exact price for a specific block."""
-        return session.query(BlockPrice).filter(
-            BlockPrice.block_number == block_number
+        return session.query(DBBlockPrice).filter(
+            DBBlockPrice.block_number == block_number
         ).first()
-    
-    def get_price_near_timestamp(self, session: Session, timestamp: int, tolerance_seconds: int = 300) -> Optional[BlockPrice]:
+
+    def get_price_near_timestamp(self, session: Session, timestamp: int, tolerance_seconds: int = 300) -> Optional[DBBlockPrice]:
         """
         Get price closest to a timestamp within tolerance.
         
@@ -94,14 +94,14 @@ class BlockPricesRepository(BaseRepository):
             BlockPrice object or None if no price within tolerance
         """
         # Find the closest price within tolerance
-        closest_price = session.query(BlockPrice).filter(
-            BlockPrice.timestamp.between(
+        closest_price = session.query(DBBlockPrice).filter(
+            DBBlockPrice.timestamp.between(
                 timestamp - tolerance_seconds,
                 timestamp + tolerance_seconds
             )
         ).order_by(
             # Order by absolute difference from target timestamp
-            func.abs(BlockPrice.timestamp - timestamp)
+            func.abs(DBBlockPrice.timestamp - timestamp)
         ).first()
         
         if closest_price:
@@ -114,29 +114,29 @@ class BlockPricesRepository(BaseRepository):
             )
         
         return closest_price
-    
-    def get_price_before_timestamp(self, session: Session, timestamp: int) -> Optional[BlockPrice]:
+
+    def get_price_before_timestamp(self, session: Session, timestamp: int) -> Optional[DBBlockPrice]:
         """Get the most recent price before or at a specific timestamp."""
-        return session.query(BlockPrice).filter(
-            BlockPrice.timestamp <= timestamp
-        ).order_by(BlockPrice.timestamp.desc()).first()
-    
-    def get_price_range(self, session: Session, start_block: int, end_block: int) -> List[BlockPrice]:
+        return session.query(DBBlockPrice).filter(
+            DBBlockPrice.timestamp <= timestamp
+        ).order_by(DBBlockPrice.timestamp.desc()).first()
+
+    def get_price_range(self, session: Session, start_block: int, end_block: int) -> List[DBBlockPrice]:
         """Get AVAX prices for a range of blocks."""
-        return session.query(BlockPrice).filter(
-            BlockPrice.block_number.between(start_block, end_block)
-        ).order_by(BlockPrice.block_number).all()
-    
-    def get_latest_price(self, session: Session) -> Optional[BlockPrice]:
+        return session.query(DBBlockPrice).filter(
+            DBBlockPrice.block_number.between(start_block, end_block)
+        ).order_by(DBBlockPrice.block_number).all()
+
+    def get_latest_price(self, session: Session) -> Optional[DBBlockPrice]:
         """Get the most recent AVAX price."""
-        return session.query(BlockPrice).order_by(
-            BlockPrice.block_number.desc()
+        return session.query(DBBlockPrice).order_by(
+            DBBlockPrice.block_number.desc()
         ).first()
-    
-    def get_earliest_price(self, session: Session) -> Optional[BlockPrice]:
+
+    def get_earliest_price(self, session: Session) -> Optional[DBBlockPrice]:
         """Get the earliest AVAX price."""
-        return session.query(BlockPrice).order_by(
-            BlockPrice.block_number.asc()
+        return session.query(DBBlockPrice).order_by(
+            DBBlockPrice.block_number.asc()
         ).first()
     
     def get_price_gaps(self, session: Session, start_block: int, end_block: int) -> List[Tuple[int, int]]:
@@ -147,10 +147,10 @@ class BlockPricesRepository(BaseRepository):
             List of (gap_start_block, gap_end_block) tuples
         """
         # Get all prices in range
-        prices = session.query(BlockPrice.block_number).filter(
-            BlockPrice.block_number.between(start_block, end_block)
-        ).order_by(BlockPrice.block_number).all()
-        
+        prices = session.query(DBBlockPrice.block_number).filter(
+            DBBlockPrice.block_number.between(start_block, end_block)
+        ).order_by(DBBlockPrice.block_number).all()
+
         if not prices:
             return [(start_block, end_block)]
         
@@ -186,12 +186,12 @@ class BlockPricesRepository(BaseRepository):
     def get_price_stats(self, session: Session) -> Dict:
         """Get statistics about price data."""
         stats = session.query(
-            func.count(BlockPrice.block_number).label('total_records'),
-            func.min(BlockPrice.block_number).label('earliest_block'),
-            func.max(BlockPrice.block_number).label('latest_block'),
-            func.min(BlockPrice.price_usd).label('min_price_usd'),
-            func.max(BlockPrice.price_usd).label('max_price_usd'),
-            func.avg(BlockPrice.price_usd).label('avg_price_usd')
+            func.count(DBBlockPrice.block_number).label('total_records'),
+            func.min(DBBlockPrice.block_number).label('earliest_block'),
+            func.max(DBBlockPrice.block_number).label('latest_block'),
+            func.min(DBBlockPrice.price_usd).label('min_price_usd'),
+            func.max(DBBlockPrice.price_usd).label('max_price_usd'),
+            func.avg(DBBlockPrice.price_usd).label('avg_price_usd')
         ).first()
         
         return {
@@ -223,7 +223,7 @@ class BlockPricesRepository(BaseRepository):
         
         for data in price_data:
             try:
-                price_record = BlockPrice(
+                price_record = DBBlockPrice(
                     block_number=data['block_number'],
                     timestamp=data['timestamp'],
                     price_usd=data['price_usd'],

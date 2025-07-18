@@ -25,7 +25,7 @@ from ..core.secrets_service import SecretsService
 from ..core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 from ..types import DatabaseConfig
 from .shared.tables import *
-from .indexer.tables import *
+from .model.tables import *
 
 
 class MigrationManager:

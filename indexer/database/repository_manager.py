@@ -7,17 +7,17 @@ from .connection import ModelDatabaseManager, SharedDatabaseManager
 from ..core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 
 # Import all indexer database repositories
-from .indexer.repositories.trade_repository import TradeRepository
-from .indexer.repositories.pool_swap_repository import PoolSwapRepository
-from .indexer.repositories.position_repository import PositionRepository
-from .indexer.repositories.processing_repository import ProcessingRepository
-from .indexer.repositories.pool_swap_detail_repository import PoolSwapDetailRepository
-from .indexer.repositories.trade_detail_repository import TradeDetailRepository
-from .indexer.repositories.event_detail_repository import EventDetailRepository
+from .model.repositories.trade_repository import TradeRepository
+from .model.repositories.pool_swap_repository import PoolSwapRepository
+from .model.repositories.position_repository import PositionRepository
+from .model.repositories.processing_repository import ProcessingRepository
+from .model.repositories.pool_swap_detail_repository import PoolSwapDetailRepository
+from .model.repositories.trade_detail_repository import TradeDetailRepository
+from .model.repositories.event_detail_repository import EventDetailRepository
 
 # Import calculation service repositories (indexer database)
-from .indexer.repositories.asset_price_repository import AssetPriceRepository
-from .indexer.repositories.asset_volume_repository import AssetVolumeRepository
+from .model.repositories.asset_price_repository import AssetPriceRepository
+from .model.repositories.asset_volume_repository import AssetVolumeRepository
 
 # Import shared database repositories
 from .shared.repositories.block_prices_repository import BlockPricesRepository
@@ -28,9 +28,9 @@ from .shared.repositories.pool_pricing_config_repository import PoolPricingConfi
 from .shared.repositories.price_vwap_repository import PriceVwapRepository
 
 # Import transfer/liquidity/reward repositories that extend DomainEventRepository
-from .indexer.repositories.transfer_repository import TransferRepository
-from .indexer.repositories.liquidity_repository import LiquidityRepository
-from .indexer.repositories.reward_repository import RewardRepository
+from .model.repositories.transfer_repository import TransferRepository
+from .model.repositories.liquidity_repository import LiquidityRepository
+from .model.repositories.reward_repository import RewardRepository
 
 
 class RepositoryManager:

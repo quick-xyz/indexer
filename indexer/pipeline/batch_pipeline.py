@@ -10,7 +10,7 @@ from sqlalchemy import and_, or_, Integer
 
 from ..core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 from ..database.repository_manager import RepositoryManager
-from ..database.indexer.tables.processing import ProcessingJob, JobStatus, JobType
+from ..database.model.tables.processing import ProcessingJob, JobStatus, JobType
 from ..storage.gcs_handler import GCSHandler
 from .indexing_pipeline import IndexingPipeline
 from ..core.indexer_config import IndexerConfig
@@ -928,7 +928,7 @@ class BatchPipeline:
             
             # Get blocks from processing jobs (queued, processing, complete, failed)
             with self.repository_manager.get_session() as session:
-                from indexer.database.indexer.tables.processing import ProcessingJob
+                from indexer.database.model.tables.processing import ProcessingJob
                 
                 # Query all jobs to get their block lists
                 jobs = session.query(ProcessingJob).all()
@@ -984,7 +984,7 @@ class BatchPipeline:
         
         try:
             with self.repository_manager.get_session() as session:
-                from indexer.database.indexer.tables.processing import ProcessingJob, JobType, JobStatus
+                from indexer.database.model.tables.processing import ProcessingJob, JobType, JobStatus
                 
                 # Create jobs in batches
                 for i in range(0, len(blocks), batch_size):

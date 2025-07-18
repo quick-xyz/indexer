@@ -7,10 +7,10 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, or_, desc, asc, func
 from sqlalchemy.exc import IntegrityError
 
-from ..tables.periods import Period, PeriodType
+from ..tables.periods import DBPeriod
 from ...base_repository import BaseRepository
 from ....core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
-
+from ...types import PeriodType
 
 class PeriodsRepository(BaseRepository):
     """
@@ -21,7 +21,7 @@ class PeriodsRepository(BaseRepository):
     """
     
     def __init__(self, db_manager):
-        super().__init__(db_manager, Period)
+        super().__init__(db_manager, DBPeriod)
         self.logger = IndexerLogger.get_logger('database.repository.periods')
     
     def create_period(
@@ -33,10 +33,10 @@ class PeriodsRepository(BaseRepository):
         block_open: int,
         block_close: int,
         is_complete: bool = True
-    ) -> Optional[Period]:
+    ) -> Optional[DBPeriod]:
         """Create a new period record."""
         try:
-            period = Period.create_period(
+            period = DBPeriod.create_period(
                 period_type=period_type,
                 time_open=time_open,
                 time_close=time_close,
@@ -81,12 +81,12 @@ class PeriodsRepository(BaseRepository):
         session: Session, 
         period_type: PeriodType, 
         time_open: int
-    ) -> Optional[Period]:
+    ) -> Optional[DBPeriod]:
         """Get a specific period by its composite key."""
-        return session.query(Period).filter(
+        return session.query(DBPeriod).filter(
             and_(
-                Period.period_type == period_type.value,
-                Period.time_open == time_open
+                DBPeriod.period_type == period_type.value,
+                DBPeriod.time_open == time_open
             )
         ).first()
     
@@ -96,33 +96,33 @@ class PeriodsRepository(BaseRepository):
         period_type: PeriodType,
         limit: Optional[int] = None,
         order_desc: bool = False
-    ) -> List[Period]:
+    ) -> List[DBPeriod]:
         """Get all periods for a specific type."""
-        query = session.query(Period).filter(
-            Period.period_type == period_type.value
+        query = session.query(DBPeriod).filter(
+            DBPeriod.period_type == period_type.value
         )
         
         if order_desc:
-            query = query.order_by(Period.time_open.desc())
+            query = query.order_by(DBPeriod.time_open.desc())
         else:
-            query = query.order_by(Period.time_open.asc())
-        
+            query = query.order_by(DBPeriod.time_open.asc())
+
         if limit:
             query = query.limit(limit)
         
         return query.all()
-    
-    def get_latest_period(self, session: Session, period_type: PeriodType) -> Optional[Period]:
+
+    def get_latest_period(self, session: Session, period_type: PeriodType) -> Optional[DBPeriod]:
         """Get the most recent period for a specific type."""
-        return session.query(Period).filter(
-            Period.period_type == period_type.value
-        ).order_by(Period.time_open.desc()).first()
-    
-    def get_earliest_period(self, session: Session, period_type: PeriodType) -> Optional[Period]:
+        return session.query(DBPeriod).filter(
+            DBPeriod.period_type == period_type.value
+        ).order_by(DBPeriod.time_open.desc()).first()
+
+    def get_earliest_period(self, session: Session, period_type: PeriodType) -> Optional[DBPeriod]:
         """Get the earliest period for a specific type."""
-        return session.query(Period).filter(
-            Period.period_type == period_type.value
-        ).order_by(Period.time_open.asc()).first()
+        return session.query(DBPeriod).filter(
+            DBPeriod.period_type == period_type.value
+        ).order_by(DBPeriod.time_open.asc()).first()
     
     def get_periods_in_time_range(
         self, 
@@ -130,39 +130,39 @@ class PeriodsRepository(BaseRepository):
         period_type: PeriodType,
         start_time: int,
         end_time: int
-    ) -> List[Period]:
+    ) -> List[DBPeriod]:
         """Get all periods within a time range."""
-        return session.query(Period).filter(
-            Period.period_type == period_type.value,
-            Period.time_open >= start_time,
-            Period.time_close <= end_time
-        ).order_by(Period.time_open).all()
-    
+        return session.query(DBPeriod).filter(
+            DBPeriod.period_type == period_type.value,
+            DBPeriod.time_open >= start_time,
+            DBPeriod.time_close <= end_time
+        ).order_by(DBPeriod.time_open).all()
+
     def get_periods_in_block_range(
         self, 
         session: Session, 
         period_type: PeriodType,
         start_block: int,
         end_block: int
-    ) -> List[Period]:
+    ) -> List[DBPeriod]:
         """Get all periods that overlap with a block range."""
-        return session.query(Period).filter(
-            Period.period_type == period_type.value,
-            Period.block_open <= end_block,
-            Period.block_close >= start_block
-        ).order_by(Period.time_open).all()
+        return session.query(DBPeriod).filter(
+            DBPeriod.period_type == period_type.value,
+            DBPeriod.block_open <= end_block,
+            DBPeriod.block_close >= start_block
+        ).order_by(DBPeriod.time_open).all()
     
     def get_period_containing_block(
         self, 
         session: Session, 
         period_type: PeriodType, 
         block_number: int
-    ) -> Optional[Period]:
+    ) -> Optional[DBPeriod]:
         """Get the period that contains a specific block number."""
-        return session.query(Period).filter(
-            Period.period_type == period_type.value,
-            Period.block_open <= block_number,
-            Period.block_close >= block_number
+        return session.query(DBPeriod).filter(
+            DBPeriod.period_type == period_type.value,
+            DBPeriod.block_open <= block_number,
+            DBPeriod.block_close >= block_number
         ).first()
     
     def get_period_containing_timestamp(
@@ -170,27 +170,27 @@ class PeriodsRepository(BaseRepository):
         session: Session, 
         period_type: PeriodType, 
         timestamp: int
-    ) -> Optional[Period]:
+    ) -> Optional[DBPeriod]:
         """Get the period that contains a specific timestamp."""
-        return session.query(Period).filter(
-            Period.period_type == period_type.value,
-            Period.time_open <= timestamp,
-            Period.time_close >= timestamp
+        return session.query(DBPeriod).filter(
+            DBPeriod.period_type == period_type.value,
+            DBPeriod.time_open <= timestamp,
+            DBPeriod.time_close >= timestamp
         ).first()
     
     def get_incomplete_periods(
         self, 
         session: Session, 
         period_type: Optional[PeriodType] = None
-    ) -> List[Period]:
+    ) -> List[DBPeriod]:
         """Get all incomplete periods, optionally filtered by type."""
-        query = session.query(Period).filter(Period.is_complete == False)
-        
+        query = session.query(DBPeriod).filter(DBPeriod.is_complete == False)
+
         if period_type:
-            query = query.filter(Period.period_type == period_type.value)
-        
-        return query.order_by(Period.time_open).all()
-    
+            query = query.filter(DBPeriod.period_type == period_type.value)
+
+        return query.order_by(DBPeriod.time_open).all()
+
     def mark_period_complete(
         self, 
         session: Session, 
@@ -242,12 +242,12 @@ class PeriodsRepository(BaseRepository):
             List of (gap_start_time, gap_end_time) tuples
         """
         # Get all periods in range
-        periods = session.query(Period).filter(
-            Period.period_type == period_type.value,
-            Period.time_open <= end_time,
-            Period.time_close >= start_time
-        ).order_by(Period.time_open).all()
-        
+        periods = session.query(DBPeriod).filter(
+            DBPeriod.period_type == period_type.value,
+            DBPeriod.time_open <= end_time,
+            DBPeriod.time_close >= start_time
+        ).order_by(DBPeriod.time_open).all()
+
         if not periods:
             return [(start_time, end_time)]
         
@@ -280,17 +280,17 @@ class PeriodsRepository(BaseRepository):
     def get_period_stats(self, session: Session, period_type: Optional[PeriodType] = None) -> Dict:
         """Get statistics about period data."""
         query = session.query(
-            func.count(Period.period_type).label('total_periods'),
-            func.min(Period.time_open).label('earliest_time'),
-            func.max(Period.time_close).label('latest_time'),
-            func.min(Period.block_open).label('earliest_block'),
-            func.max(Period.block_close).label('latest_block'),
-            func.count().filter(Period.is_complete == True).label('complete_periods'),
-            func.count().filter(Period.is_complete == False).label('incomplete_periods')
+            func.count(DBPeriod.period_type).label('total_periods'),
+            func.min(DBPeriod.time_open).label('earliest_time'),
+            func.max(DBPeriod.time_close).label('latest_time'),
+            func.min(DBPeriod.block_open).label('earliest_block'),
+            func.max(DBPeriod.block_close).label('latest_block'),
+            func.count().filter(DBPeriod.is_complete == True).label('complete_periods'),
+            func.count().filter(DBPeriod.is_complete == False).label('incomplete_periods')
         )
         
         if period_type:
-            query = query.filter(Period.period_type == period_type.value)
+            query = query.filter(DBPeriod.period_type == period_type.value)
         
         stats = query.first()
         
@@ -307,10 +307,10 @@ class PeriodsRepository(BaseRepository):
         # Add period type breakdown if not filtered
         if not period_type:
             type_stats = session.query(
-                Period.period_type,
-                func.count(Period.period_type).label('count')
-            ).group_by(Period.period_type).all()
-            
+                DBPeriod.period_type,
+                func.count(DBPeriod.period_type).label('count')
+            ).group_by(DBPeriod.period_type).all()
+
             result['by_type'] = {stat.period_type: stat.count for stat in type_stats}
         
         return result
@@ -335,7 +335,7 @@ class PeriodsRepository(BaseRepository):
         
         for data in period_data:
             try:
-                period = Period.create_period(
+                period = DBPeriod.create_period(
                     period_type=data['period_type'],
                     time_open=data['time_open'],
                     time_close=data['time_close'],
@@ -386,7 +386,7 @@ class PeriodsRepository(BaseRepository):
         start_time: datetime,
         end_time: datetime,
         period_type: PeriodType
-    ) -> List[Period]:
+    ) -> List[DBPeriod]:
         """
         Get periods within a datetime timeframe.
         
@@ -397,14 +397,14 @@ class PeriodsRepository(BaseRepository):
             # Convert datetime to timestamp
             start_timestamp = int(start_time.timestamp())
             end_timestamp = int(end_time.timestamp())
-            
-            periods = session.query(Period).filter(
+
+            periods = session.query(DBPeriod).filter(
                 and_(
-                    Period.period_type == period_type,
-                    Period.timestamp >= start_time,
-                    Period.timestamp <= end_time
+                    DBPeriod.period_type == period_type,
+                    DBPeriod.timestamp >= start_time,
+                    DBPeriod.timestamp <= end_time
                 )
-            ).order_by(Period.timestamp).all()
+            ).order_by(DBPeriod.timestamp).all()
             
             log_with_context(
                 self.logger, DEBUG, "Periods retrieved in timeframe",
@@ -431,7 +431,7 @@ class PeriodsRepository(BaseRepository):
         session: Session,
         cutoff_time: datetime,
         period_type: PeriodType
-    ) -> List[Period]:
+    ) -> List[DBPeriod]:
         """
         Get all periods since a cutoff time.
         
@@ -439,13 +439,13 @@ class PeriodsRepository(BaseRepository):
         to get recent periods for processing.
         """
         try:
-            periods = session.query(Period).filter(
+            periods = session.query(DBPeriod).filter(
                 and_(
-                    Period.period_type == period_type,
-                    Period.timestamp >= cutoff_time
+                    DBPeriod.period_type == period_type,
+                    DBPeriod.timestamp >= cutoff_time
                 )
-            ).order_by(Period.timestamp).all()
-            
+            ).order_by(DBPeriod.timestamp).all()
+
             log_with_context(
                 self.logger, DEBUG, "Periods retrieved since cutoff",
                 period_type=period_type.value,
@@ -468,7 +468,7 @@ class PeriodsRepository(BaseRepository):
         self,
         session: Session,
         period_ids: List[int]
-    ) -> List[Period]:
+    ) -> List[DBPeriod]:
         """
         Get periods by their IDs.
         
@@ -476,10 +476,10 @@ class PeriodsRepository(BaseRepository):
         for missing analytics processing.
         """
         try:
-            periods = session.query(Period).filter(
-                Period.id.in_(period_ids)
-            ).order_by(Period.timestamp).all()
-            
+            periods = session.query(DBPeriod).filter(
+                DBPeriod.id.in_(period_ids)
+            ).order_by(DBPeriod.timestamp).all()
+
             log_with_context(
                 self.logger, DEBUG, "Periods retrieved by IDs",
                 requested_ids=len(period_ids),
@@ -501,17 +501,17 @@ class PeriodsRepository(BaseRepository):
         session: Session,
         period_type: PeriodType,
         limit: int = 1000
-    ) -> List[Period]:
+    ) -> List[DBPeriod]:
         """
         Get recent periods of a specific type.
         
         Used by various service methods for gap detection and recent processing.
         """
         try:
-            periods = session.query(Period).filter(
-                Period.period_type == period_type
-            ).order_by(desc(Period.timestamp)).limit(limit).all()
-            
+            periods = session.query(DBPeriod).filter(
+                DBPeriod.period_type == period_type
+            ).order_by(desc(DBPeriod.timestamp)).limit(limit).all()
+
             log_with_context(
                 self.logger, DEBUG, "Recent periods retrieved",
                 period_type=period_type.value,
@@ -613,7 +613,7 @@ class PeriodsRepository(BaseRepository):
         """Get duration in seconds for a period type"""
         durations = {
             PeriodType.ONE_MINUTE: 60,
-            PeriodType.FIVE_MINUTE: 300,
+            PeriodType.FIVE_MINUTES: 300,
             PeriodType.ONE_HOUR: 3600,
             PeriodType.ONE_DAY: 86400
         }
@@ -638,14 +638,14 @@ class PeriodsRepository(BaseRepository):
             end_timestamp = int(end_time.timestamp())
             
             # Get existing periods in range
-            periods = session.query(Period).filter(
+            periods = session.query(DBPeriod).filter(
                 and_(
-                    Period.period_type == period_type,
-                    Period.timestamp >= start_time,
-                    Period.timestamp <= end_time
+                    DBPeriod.period_type == period_type,
+                    DBPeriod.timestamp >= start_time,
+                    DBPeriod.timestamp <= end_time
                 )
-            ).order_by(Period.timestamp).all()
-            
+            ).order_by(DBPeriod.timestamp).all()
+
             if not periods:
                 return [(start_time, end_time)]
             

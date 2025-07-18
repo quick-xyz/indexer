@@ -526,7 +526,7 @@ def monitor_workers(ctx, refresh, compact, batch_size):
             
             try:
                 with runner.repository_manager.get_session() as session:
-                    from indexer.database.indexer.tables.processing import ProcessingJob, JobStatus
+                    from indexer.database.model.tables.processing import ProcessingJob, JobStatus
                     
                     # Get job counts by status
                     pending_count = session.query(ProcessingJob).filter(
@@ -882,7 +882,7 @@ def monitor_workers_db(ctx, refresh):
                     # This assumes you have a worker_stats table or similar
                     # Adjust the query based on your actual database schema
                     
-                    from indexer.database.indexer.tables.processing import ProcessingJob, JobStatus
+                    from indexer.database.model.tables.processing import ProcessingJob, JobStatus
                     
                     # Get job completion counts (approximate worker activity)
                     total_completed = session.query(ProcessingJob).filter(
@@ -942,7 +942,7 @@ def show_db_status(ctx):
         runner = BatchRunner(model_name=model_name)
         
         with runner.repository_manager.get_session() as session:
-            from indexer.database.indexer.tables.processing import ProcessingJob, JobStatus
+            from indexer.database.model.tables.processing import ProcessingJob, JobStatus
             from sqlalchemy import func
             
             # Get comprehensive job statistics

@@ -10,22 +10,13 @@ from ..types.new import EvmHash, DomainEventId
 
 T = TypeVar('T')
 
-class BaseRepository(Generic[T]):
-    """
-    Base repository class with common CRUD operations and bulk operations.
-    
-    Provides standardized interface for all repository implementations
-    across both shared and indexer databases with optimized bulk operations
-    for high-performance processing.
-    """
-    
+class BaseRepository(Generic[T]):    
     def __init__(self, db_manager, model_class: Type[T]):
         self.db_manager = db_manager
         self.model_class = model_class
         self.logger = IndexerLogger.get_logger(f'database.repository.{model_class.__name__.lower()}')
     
     def get_by_id(self, session: Session, id: int) -> Optional[T]:
-        """Get record by primary key ID"""
         try:
             return session.query(self.model_class).filter(self.model_class.id == id).first()
         except Exception as e:
@@ -33,7 +24,6 @@ class BaseRepository(Generic[T]):
             raise
     
     def get_all(self, session: Session, limit: int = 100) -> List[T]:
-        """Get all records with limit, ordered by creation time"""
         try:
             return session.query(self.model_class).order_by(desc(self.model_class.created_at)).limit(limit).all()
         except Exception as e:
@@ -41,7 +31,6 @@ class BaseRepository(Generic[T]):
             raise
     
     def create(self, session: Session, **kwargs) -> T:
-        """Create new record with provided data"""
         try:
             instance = self.model_class(**kwargs)
             session.add(instance)
@@ -55,16 +44,6 @@ class BaseRepository(Generic[T]):
             raise
     
     def bulk_create(self, session: Session, items: List[Dict]) -> int:
-        """
-        Bulk insert multiple items using SQLAlchemy bulk operations.
-        
-        Args:
-            session: Database session
-            items: List of dictionaries containing item data
-            
-        Returns:
-            Number of items created
-        """
         if not items:
             return 0
             
@@ -82,7 +61,6 @@ class BaseRepository(Generic[T]):
             raise
     
     def delete(self, session: Session, id: int) -> bool:
-        """Delete record by ID"""
         try:
             record = self.get_by_id(session, id)
             if record:
@@ -94,7 +72,6 @@ class BaseRepository(Generic[T]):
             raise
     
     def count(self, session: Session) -> int:
-        """Get total count of records"""
         try:
             return session.query(self.model_class).count()
         except Exception as e:
@@ -103,16 +80,7 @@ class BaseRepository(Generic[T]):
 
 
 class DomainEventBaseRepository(BaseRepository[T]):
-    """
-    Base repository for domain events with common query patterns.
-    
-    Extends BaseRepository with domain event specific operations
-    like content_id and tx_hash queries, plus bulk operations optimized
-    for event processing.
-    """
-    
     def get_by_content_id(self, session: Session, content_id: DomainEventId) -> Optional[T]:
-        """Get domain event by content_id"""
         try:
             return session.query(self.model_class).filter(
                 self.model_class.content_id == content_id
@@ -122,7 +90,6 @@ class DomainEventBaseRepository(BaseRepository[T]):
             raise
     
     def get_by_tx_hash(self, session: Session, tx_hash: EvmHash) -> List[T]:
-        """Get all domain events for a transaction"""
         try:
             return session.query(self.model_class).filter(
                 self.model_class.tx_hash == tx_hash
@@ -132,7 +99,6 @@ class DomainEventBaseRepository(BaseRepository[T]):
             raise
     
     def get_by_block_range(self, session: Session, start_block: int, end_block: int) -> List[T]:
-        """Get domain events in block range"""
         try:
             from sqlalchemy import and_
             return session.query(self.model_class).filter(
@@ -146,7 +112,6 @@ class DomainEventBaseRepository(BaseRepository[T]):
             raise
     
     def get_recent(self, session: Session, limit: int = 100) -> List[T]:
-        """Get most recent domain events"""
         try:
             return session.query(self.model_class).order_by(
                 desc(self.model_class.timestamp)
@@ -156,7 +121,6 @@ class DomainEventBaseRepository(BaseRepository[T]):
             raise
     
     def exists_by_content_id(self, session: Session, content_id: DomainEventId) -> bool:
-        """Check if domain event exists by content_id"""
         try:
             return session.query(
                 session.query(self.model_class).filter(
@@ -168,33 +132,17 @@ class DomainEventBaseRepository(BaseRepository[T]):
             raise
     
     def bulk_create_skip_existing(self, session: Session, items: List[Dict]) -> int:
-        """
-        Bulk insert domain events, skipping those that already exist.
-        
-        This method checks for existing content_ids and only inserts new events.
-        Useful for domain events where content_id is the unique identifier.
-        
-        Args:
-            session: Database session
-            items: List of dictionaries containing event data (must include content_id)
-            
-        Returns:
-            Number of new items created
-        """
         if not items:
             return 0
             
         try:
-            # Extract content_ids from items
             content_ids = [item['content_id'] for item in items]
             
-            # Query existing content_ids (compatible with older SQLAlchemy)
             existing_records = session.query(self.model_class.content_id).filter(
                 self.model_class.content_id.in_(content_ids)
             ).all()
             existing_content_ids = set(record[0] for record in existing_records)
             
-            # Filter out existing items
             new_items = [
                 item for item in items 
                 if item['content_id'] not in existing_content_ids
@@ -204,19 +152,16 @@ class DomainEventBaseRepository(BaseRepository[T]):
                 self.logger.debug(f"All {len(items)} {self.model_class.__name__} records already exist, skipping")
                 return 0
             
-            # Clean up data before bulk insert (handle None values properly)
             cleaned_items = []
             for item in new_items:
                 cleaned_item = {}
                 for key, value in item.items():
-                    # Convert string "None" back to actual None for nullable fields
                     if value == 'None' and key in ['token_id', 'custodian']:
                         cleaned_item[key] = None
                     else:
                         cleaned_item[key] = value
                 cleaned_items.append(cleaned_item)
             
-            # Bulk insert cleaned items
             session.bulk_insert_mappings(self.model_class, cleaned_items)
             session.flush()
             
@@ -232,15 +177,7 @@ class DomainEventBaseRepository(BaseRepository[T]):
 
 
 class ProcessingBaseRepository(BaseRepository[T]):
-    """
-    Base repository for processing tables with transaction-specific operations.
-    
-    Extends BaseRepository with processing-specific operations
-    like tx_hash queries and status management.
-    """
-    
     def get_by_tx_hash(self, session: Session, tx_hash: EvmHash) -> Optional[T]:
-        """Get processing record by transaction hash"""
         try:
             return session.query(self.model_class).filter(
                 self.model_class.tx_hash == tx_hash
@@ -250,7 +187,6 @@ class ProcessingBaseRepository(BaseRepository[T]):
             raise
     
     def get_by_status(self, session: Session, status: str, limit: int = 100) -> List[T]:
-        """Get processing records by status"""
         try:
             return session.query(self.model_class).filter(
                 self.model_class.status == status
@@ -260,7 +196,6 @@ class ProcessingBaseRepository(BaseRepository[T]):
             raise
     
     def get_by_block_number(self, session: Session, block_number: int) -> List[T]:
-        """Get processing records by block number"""
         try:
             return session.query(self.model_class).filter(
                 self.model_class.block_number == block_number

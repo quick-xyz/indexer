@@ -244,7 +244,7 @@ class HybridEndToEndTest:
         try:
             with self.repository_manager.get_session() as session:
                 # Check transaction processing record
-                from indexer.database.indexer.tables.processing import TransactionProcessing
+                from indexer.database.model.tables.processing import TransactionProcessing
                 tx_records = session.query(TransactionProcessing).filter(
                     TransactionProcessing.block_number == block_number
                 ).all()

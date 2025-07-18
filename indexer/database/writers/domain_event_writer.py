@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
 from ..repository_manager import RepositoryManager
-from ..indexer.tables.processing import TransactionProcessing, TransactionStatus
+from ..model.tables.processing import TransactionProcessing, TransactionStatus
 from ...core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 from ...types.new import EvmHash, DomainEventId
 from ...types.model.positions import Position

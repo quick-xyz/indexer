@@ -36,14 +36,6 @@ class TimestampMixin:
 
 @declarative_mixin
 class SharedTimestampMixin:
-    """
-    Timestamp mixin for shared database tables.
-    
-    Provides consistent created_at and updated_at timestamp handling
-    across all shared database tables (configuration, pricing, periods).
-    
-    Uses TIMESTAMP type for consistency with PostgreSQL best practices.
-    """
     created_at = Column(TIMESTAMP, nullable=False, default=func.now())
     updated_at = Column(TIMESTAMP, nullable=False, default=func.now(), onupdate=func.now())
 
@@ -57,10 +49,9 @@ class BlockchainTimestampMixin:
         return datetime.fromtimestamp(self.timestamp, tz=timezone.utc)
 
 
-class BaseModel(ModelBase, TimestampMixin):
+class DBBaseModel(ModelBase, TimestampMixin):
     __abstract__ = True
     
-    # UUID primary key for most tables
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     
     def to_dict(self) -> Dict[str, Any]:
@@ -92,10 +83,10 @@ class BaseModel(ModelBase, TimestampMixin):
         return f"<{self.__class__.__name__}(id={self.id})>"
 
 
-class DomainEventModel(BaseModel, BlockchainTimestampMixin):    
+class DBDomainEventModel(DBBaseModel, BlockchainTimestampMixin):    
     __abstract__ = True
     
-    id = None  # Override the UUID id from BaseModel
+    id = None  # Override UUID
     content_id = Column(DomainEventIdType(), primary_key=True)
     tx_hash = Column(EvmHashType(), nullable=False, index=True)
     block_number = Column(Integer, nullable=False, index=True)

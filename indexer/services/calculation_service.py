@@ -7,9 +7,9 @@ from decimal import Decimal
 from ..core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 from ..database.repository_manager import RepositoryManager
 from ..database.connection import DatabaseManager
-from ..database.shared.tables.periods import Period, PeriodType
-from ..database.indexer.tables.detail.pool_swap_detail import PricingDenomination, PricingMethod
-
+from ..database.shared.tables.periods import DBPeriod
+from ..database.model.tables.detail.pool_swap_detail import PricingDenomination, PricingMethod
+from ..database.types import PeriodType
 
 class CalculationService:
     """

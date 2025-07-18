@@ -11,7 +11,7 @@ from sqlalchemy.exc import IntegrityError
 
 from ..core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 from ..database.repository_manager import RepositoryManager
-from ..database.indexer.tables.processing import ProcessingJob, JobStatus, JobType, TransactionStatus
+from ..database.model.tables.processing import ProcessingJob, JobStatus, JobType, TransactionStatus
 from ..database.writers.domain_event_writer import DomainEventWriter
 from ..clients.quicknode_rpc import QuickNodeRpcClient
 from ..storage.gcs_handler import GCSHandler

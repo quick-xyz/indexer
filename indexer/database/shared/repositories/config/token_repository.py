@@ -32,6 +32,7 @@ class TokenRepository(ConfigRepositoryBase[DBToken, TokenConfig]):
             address_id=address_record.id,
             symbol=config.symbol,
             decimals=config.decimals,
+            token_type=config.token_type,
             status=config.status or 'active'
         )
         
@@ -41,6 +42,7 @@ class TokenRepository(ConfigRepositoryBase[DBToken, TokenConfig]):
         return (
             entity.symbol == config.symbol and
             entity.decimals == config.decimals and
+            entity.token_type == config.token_type and
             entity.address == config.address and
             entity.status == config.status
         )
@@ -66,6 +68,7 @@ class TokenRepository(ConfigRepositoryBase[DBToken, TokenConfig]):
             address=EvmAddress(db_token.address.address),
             symbol=db_token.symbol,
             decimals=db_token.decimals,
+            token_type=db_token.token_type,
             status=db_token.status
         )
 

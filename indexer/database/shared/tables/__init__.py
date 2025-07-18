@@ -11,7 +11,7 @@ from .config.source import DBSource
 from .config.token import DBToken
 
 from .block_prices import DBBlockPrice
-from .periods import DBPeriod, DBPeriodType
+from .periods import DBPeriod
 from .price_vwap import DBPriceVwap
 
 
@@ -33,6 +33,5 @@ __all__ = [
     # Pricing infrastructure
     'DBBlockPrice',
     'DBPeriod',
-    'DBPeriodType',
     'DBPriceVwap'
 ]

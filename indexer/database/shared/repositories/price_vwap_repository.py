@@ -6,12 +6,12 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, desc, func
 
-from ..tables.price_vwap import PriceVwap
+from ..tables.price_vwap import DBPriceVwap
 from ...connection import SharedDatabaseManager
 from ....core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 from ....types import EvmAddress
 from ...base_repository import BaseRepository
-from ....database.indexer.tables.detail.pool_swap_detail import PricingDenomination
+from ....database.model.tables.detail.pool_swap_detail import PricingDenomination
 
 
 class PriceVwapRepository(BaseRepository):
@@ -26,7 +26,7 @@ class PriceVwapRepository(BaseRepository):
     """
     
     def __init__(self, db_manager: SharedDatabaseManager):
-        super().__init__(db_manager, PriceVwap)
+        super().__init__(db_manager, DBPriceVwap)
         self.logger = IndexerLogger.get_logger('database.repositories.price_vwap')
     
     def create_canonical_price(
@@ -39,13 +39,13 @@ class PriceVwapRepository(BaseRepository):
         quote_volume: Decimal,
         price_period: Decimal,
         price_vwap: Decimal
-    ) -> Optional[PriceVwap]:
+    ) -> Optional[DBPriceVwap]:
         """Create a new canonical price record"""
         try:
             # Convert timestamp to datetime
             timestamp = datetime.fromtimestamp(timestamp_minute, tz=timezone.utc)
-            
-            price_record = PriceVwap(
+
+            price_record = DBPriceVwap(
                 time=timestamp,                           # ✅ Fixed: Table uses 'time'
                 asset=asset_address.lower(),              # ✅ Fixed: Table uses 'asset'
                 denom=denomination.value,                 # ✅ Fixed: Table uses 'denom'
@@ -88,16 +88,16 @@ class PriceVwapRepository(BaseRepository):
         asset_address: str, 
         timestamp_minute: int,
         denomination: PricingDenomination
-    ) -> Optional[PriceVwap]:
+    ) -> Optional[DBPriceVwap]:
         """Get canonical price for an asset at a specific timestamp minute"""
         try:
             timestamp = datetime.fromtimestamp(timestamp_minute, tz=timezone.utc)
-            
-            return session.query(PriceVwap).filter(
+
+            return session.query(DBPriceVwap).filter(
                 and_(
-                    PriceVwap.asset == asset_address.lower(),        # ✅ Fixed: Table uses 'asset'
-                    PriceVwap.time == timestamp,                     # ✅ Fixed: Table uses 'time'
-                    PriceVwap.denom == denomination.value            # ✅ Fixed: Table uses 'denom'
+                    DBPriceVwap.asset == asset_address.lower(),        # ✅ Fixed: Table uses 'asset'
+                    DBPriceVwap.time == timestamp,                     # ✅ Fixed: Table uses 'time'
+                    DBPriceVwap.denom == denomination.value            # ✅ Fixed: Table uses 'denom'
                 )
             ).one_or_none()
             
@@ -118,17 +118,17 @@ class PriceVwapRepository(BaseRepository):
         start_timestamp: datetime,
         end_timestamp: datetime,
         denomination: PricingDenomination
-    ) -> List[PriceVwap]:
+    ) -> List[DBPriceVwap]:
         """Get canonical prices for an asset within a timestamp range"""
         try:
-            return session.query(PriceVwap).filter(
+            return session.query(DBPriceVwap).filter(
                 and_(
-                    PriceVwap.asset == asset_address.lower(),        # ✅ Fixed: Table uses 'asset'
-                    PriceVwap.time >= start_timestamp,               # ✅ Fixed: Table uses 'time'
-                    PriceVwap.time <= end_timestamp,                 # ✅ Fixed: Table uses 'time'
-                    PriceVwap.denom == denomination.value            # ✅ Fixed: Table uses 'denom'
+                    DBPriceVwap.asset == asset_address.lower(),        # ✅ Fixed: Table uses 'asset'
+                    DBPriceVwap.time >= start_timestamp,               # ✅ Fixed: Table uses 'time'
+                    DBPriceVwap.time <= end_timestamp,                 # ✅ Fixed: Table uses 'time'
+                    DBPriceVwap.denom == denomination.value            # ✅ Fixed: Table uses 'denom'
                 )
-            ).order_by(PriceVwap.time).all()                         # ✅ Fixed: Table uses 'time'
+            ).order_by(DBPriceVwap.time).all()                         # ✅ Fixed: Table uses 'time'
             
         except Exception as e:
             log_with_context(
@@ -183,7 +183,7 @@ class PriceVwapRepository(BaseRepository):
         timestamp_minute: int,
         denomination: PricingDenomination,
         **updates
-    ) -> Optional[PriceVwap]:
+    ) -> Optional[DBPriceVwap]:
         """Update existing canonical price record"""
         try:
             price_record = self.get_canonical_price(
@@ -232,8 +232,8 @@ class PriceVwapRepository(BaseRepository):
                 timestamp = data['timestamp']
                 if isinstance(timestamp, int):
                     timestamp = datetime.fromtimestamp(timestamp, tz=timezone.utc)
-                
-                record = PriceVwap(
+
+                record = DBPriceVwap(
                     time=timestamp,                           # ✅ Fixed: Table uses 'time'
                     asset=data['asset_address'].lower(),      # ✅ Fixed: Table uses 'asset'
                     denom=data['denomination'],               # ✅ Fixed: Table uses 'denom'
@@ -271,18 +271,18 @@ class PriceVwapRepository(BaseRepository):
         """Get statistics about canonical pricing coverage for an asset"""
         try:
             stats = session.query(
-                func.count(PriceVwap.time).label('price_count'),             # ✅ Fixed: Table uses 'time'
-                func.min(PriceVwap.time).label('earliest_price'),            # ✅ Fixed: Table uses 'time'
-                func.max(PriceVwap.time).label('latest_price'),              # ✅ Fixed: Table uses 'time'
-                func.avg(PriceVwap.price_vwap).label('avg_price'),           # ✅ Fixed: Table uses 'price_vwap'
-                func.min(PriceVwap.price_vwap).label('min_price'),           # ✅ Fixed: Table uses 'price_vwap'
-                func.max(PriceVwap.price_vwap).label('max_price'),           # ✅ Fixed: Table uses 'price_vwap'
-                func.sum(PriceVwap.base_volume).label('total_base_volume'),  # ✅ Fixed: Table uses 'base_volume'
-                func.sum(PriceVwap.quote_volume).label('total_quote_volume') # ✅ Fixed: Table uses 'quote_volume'
+                func.count(DBPriceVwap.time).label('price_count'),             # ✅ Fixed: Table uses 'time'
+                func.min(DBPriceVwap.time).label('earliest_price'),            # ✅ Fixed: Table uses 'time'
+                func.max(DBPriceVwap.time).label('latest_price'),              # ✅ Fixed: Table uses 'time'
+                func.avg(DBPriceVwap.price_vwap).label('avg_price'),           # ✅ Fixed: Table uses 'price_vwap'
+                func.min(DBPriceVwap.price_vwap).label('min_price'),           # ✅ Fixed: Table uses 'price_vwap'
+                func.max(DBPriceVwap.price_vwap).label('max_price'),           # ✅ Fixed: Table uses 'price_vwap'
+                func.sum(DBPriceVwap.base_volume).label('total_base_volume'),  # ✅ Fixed: Table uses 'base_volume'
+                func.sum(DBPriceVwap.quote_volume).label('total_quote_volume') # ✅ Fixed: Table uses 'quote_volume'
             ).filter(
                 and_(
-                    PriceVwap.asset == asset_address.lower(),                # ✅ Fixed: Table uses 'asset'
-                    PriceVwap.denom == denomination.value                    # ✅ Fixed: Table uses 'denom'
+                    DBPriceVwap.asset == asset_address.lower(),                # ✅ Fixed: Table uses 'asset'
+                    DBPriceVwap.denom == denomination.value                    # ✅ Fixed: Table uses 'denom'
                 )
             ).first()
             
@@ -311,16 +311,16 @@ class PriceVwapRepository(BaseRepository):
         session: Session,
         asset_address: str,
         denomination: PricingDenomination
-    ) -> Optional[PriceVwap]:
+    ) -> Optional[DBPriceVwap]:
         """Get the most recent canonical price for an asset"""
         try:
-            return session.query(PriceVwap).filter(
+            return session.query(DBPriceVwap).filter(
                 and_(
-                    PriceVwap.asset == asset_address.lower(),        # ✅ Fixed: Table uses 'asset'
-                    PriceVwap.denom == denomination.value            # ✅ Fixed: Table uses 'denom'
+                    DBPriceVwap.asset == asset_address.lower(),        # ✅ Fixed: Table uses 'asset'
+                    DBPriceVwap.denom == denomination.value            # ✅ Fixed: Table uses 'denom'
                 )
-            ).order_by(PriceVwap.time.desc()).first()                # ✅ Fixed: Table uses 'time'
-            
+            ).order_by(DBPriceVwap.time.desc()).first()                # ✅ Fixed: Table uses 'time'
+
         except Exception as e:
             log_with_context(
                 self.logger, ERROR, "Error getting latest canonical price",

@@ -19,3 +19,11 @@ class TokenConfig(Struct):
         elif self.token_type == 'erc20':
             if self.decimals < 0 or self.decimals > 77:  # Reasonable bounds
                 raise ValueError(f"ERC20 decimals must be 0-77, got {self.decimals}")
+
+    @property
+    def is_nft(self) -> bool:
+        return self.token_type in ['erc721', 'erc1155']
+    
+    @property
+    def is_fungible(self) -> bool:
+        return self.token_type == 'erc20'

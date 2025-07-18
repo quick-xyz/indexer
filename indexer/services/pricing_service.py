@@ -9,18 +9,18 @@ from sqlalchemy import and_, exists, distinct
 from ..core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 from ..database.repository_manager import RepositoryManager
 from ..database.connection import DatabaseManager
-from ..database.shared.tables.periods import Period, PeriodType
+from ..database.shared.tables.periods import Period
 from ..database.shared.repositories.block_prices_repository import BlockPricesRepository
 from ..database.shared.repositories.periods_repository import PeriodsRepository
 from ..clients.quicknode_rpc import QuickNodeRpcClient
-from ..database.indexer.tables.detail.pool_swap_detail import PricingDenomination, PricingMethod
+from ..database.model.tables.detail.pool_swap_detail import PricingDenomination, PricingMethod
 from ..database.shared.tables.config.config import Model, Contract
+from ..database.types import PeriodType
 
-
-from ..database.indexer.tables.events.trade import PoolSwap
-from ..database.indexer.tables.events.trade import Trade, PoolSwap
-from ..database.indexer.tables.detail.pool_swap_detail import PoolSwapDetail
-from ..database.indexer.tables.detail.trade_detail import TradeDetail, TradePricingMethod
+from ..database.model.tables.events.trade import PoolSwap
+from ..database.model.tables.events.trade import Trade, PoolSwap
+from ..database.model.tables.detail.pool_swap_detail import PoolSwapDetail
+from ..database.model.tables.detail.trade_detail import TradeDetail, TradePricingMethod
 
 
 class PricingService:

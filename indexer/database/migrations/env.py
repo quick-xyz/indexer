@@ -29,7 +29,7 @@ from indexer.database.types import EvmAddressType, EvmHashType, DomainEventIdTyp
 from indexer.database.shared.tables import *
 
 # Import indexer tables (model database) 
-from indexer.database.indexer.tables import *
+from indexer.database.model.tables import *
 
 # this is the Alembic Config object
 config = context.config

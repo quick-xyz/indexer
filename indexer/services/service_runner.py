@@ -35,7 +35,7 @@ from indexer.database.connection import ModelDatabaseManager, SharedDatabaseMana
 from indexer.clients.quicknode_rpc import QuickNodeRpcClient
 from indexer.services.pricing_service import PricingService
 from indexer.services.calculation_service import CalculationService
-from indexer.database.indexer.tables.detail.pool_swap_detail import PricingDenomination
+from indexer.database.model.tables.detail.pool_swap_detail import PricingDenomination
 
 
 class ServiceRunner:

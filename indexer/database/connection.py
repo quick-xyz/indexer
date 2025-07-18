@@ -255,66 +255,66 @@ class ModelDatabaseManager(DatabaseManager):
     
     def get_trade_repo(self):
         """Get the trade repository"""
-        from .indexer.repositories.trade_repository import TradeRepository
+        from .model.repositories.trade_repository import TradeRepository
         return self._get_or_create_repository(TradeRepository, 'trade')
     
     def get_pool_swap_repo(self):
         """Get the pool swap repository"""
-        from .indexer.repositories.pool_swap_repository import PoolSwapRepository
+        from .model.repositories.pool_swap_repository import PoolSwapRepository
         return self._get_or_create_repository(PoolSwapRepository, 'pool_swap')
     
     def get_position_repo(self):
         """Get the position repository"""
-        from .indexer.repositories.position_repository import PositionRepository
+        from .model.repositories.position_repository import PositionRepository
         return self._get_or_create_repository(PositionRepository, 'position')
     
     def get_transfer_repo(self):
         """Get the transfer repository"""
-        from .indexer.repositories.transfer_repository import TransferRepository
+        from .model.repositories.transfer_repository import TransferRepository
         return self._get_or_create_repository(TransferRepository, 'transfer')
     
     def get_liquidity_repo(self):
         """Get the liquidity repository"""
-        from .indexer.repositories.liquidity_repository import LiquidityRepository
+        from .model.repositories.liquidity_repository import LiquidityRepository
         return self._get_or_create_repository(LiquidityRepository, 'liquidity')
     
     def get_reward_repo(self):
         """Get the reward repository"""
-        from .indexer.repositories.reward_repository import RewardRepository
+        from .model.repositories.reward_repository import RewardRepository
         return self._get_or_create_repository(RewardRepository, 'reward')
     
     # === Detail Repositories (Pricing/Valuation) ===
     
     def get_pool_swap_detail_repo(self):
         """Get the pool swap detail repository"""
-        from .indexer.repositories.pool_swap_detail_repository import PoolSwapDetailRepository
+        from .model.repositories.pool_swap_detail_repository import PoolSwapDetailRepository
         return self._get_or_create_repository(PoolSwapDetailRepository, 'pool_swap_detail')
     
     def get_trade_detail_repo(self):
         """Get the trade detail repository"""
-        from .indexer.repositories.trade_detail_repository import TradeDetailRepository
+        from .model.repositories.trade_detail_repository import TradeDetailRepository
         return self._get_or_create_repository(TradeDetailRepository, 'trade_detail')
     
     def get_event_detail_repo(self):
         """Get the event detail repository"""
-        from .indexer.repositories.event_detail_repository import EventDetailRepository
+        from .model.repositories.event_detail_repository import EventDetailRepository
         return self._get_or_create_repository(EventDetailRepository, 'event_detail')
     
     # === Processing Repository ===
     
     def get_processing_repo(self):
         """Get the processing repository"""
-        from .indexer.repositories.processing_repository import ProcessingRepository
+        from .model.repositories.processing_repository import ProcessingRepository
         return self._get_or_create_repository(ProcessingRepository, 'processing')
     
     # === Calculation Service Repositories ===
     
     def get_asset_price_repo(self):
         """Get the asset price repository"""
-        from .indexer.repositories.asset_price_repository import AssetPriceRepository
+        from .model.repositories.asset_price_repository import AssetPriceRepository
         return self._get_or_create_repository(AssetPriceRepository, 'asset_price')
     
     def get_asset_volume_repo(self):
         """Get the asset volume repository"""
-        from .indexer.repositories.asset_volume_repository import AssetVolumeRepository
+        from .model.repositories.asset_volume_repository import AssetVolumeRepository
         return self._get_or_create_repository(AssetVolumeRepository, 'asset_volume')
