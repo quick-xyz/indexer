@@ -82,7 +82,7 @@ class CLIContext:
             db_port = os.getenv("INDEXER_DB_PORT", "5432")
         
         # Infrastructure database name
-        db_name = os.getenv("INDEXER_DB_NAME")
+        db_name = os.getenv("INDEXER_SHARED_DB")
         
         if not db_user or not db_password:
             raise ValueError("Database credentials not found. Set INDEXER_DB_USER and INDEXER_DB_PASSWORD environment variables or configure GCP secrets.")
@@ -109,7 +109,7 @@ class CLIContext:
             if not model:
                 raise ValueError(f"Model '{model_name}' not found in configuration")
             
-            model_db_name = model.name
+            model_db = model.name
         
         # Use same connection details but different database name
         project_id = os.getenv("INDEXER_GCP_PROJECT_ID")
@@ -135,14 +135,14 @@ class CLIContext:
             db_host = os.getenv("INDEXER_DB_HOST", "127.0.0.1")
             db_port = os.getenv("INDEXER_DB_PORT", "5432")
         
-        db_url = f"postgresql+psycopg://{db_user}:{db_password}@{db_host}:{db_port}/{model_db_name}"
+        db_url = f"postgresql+psycopg://{db_user}:{db_password}@{db_host}:{db_port}/{model_db}"
         config = DatabaseConfig(url=db_url)
         
         db_manager = DatabaseManager(config)
         db_manager.initialize()
         
         log_with_context(self.logger, logging.INFO, "Model database manager created",
-                        model_name=model_name, db_name=model_db_name)
+                        model_name=model_name, db_name=model_db)
         
         return db_manager
     

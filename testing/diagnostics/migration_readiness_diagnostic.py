@@ -148,7 +148,7 @@ class MigrationReadinessDiagnostic:
     
     def _check_model_database(self):
         """Check model database state."""
-        print(f"🗃️ Checking Model Database ({self.config.model_db_name})")
+        print(f"🗃️ Checking Model Database ({self.config.model_db})")
         print("-" * 50)
         
         try:

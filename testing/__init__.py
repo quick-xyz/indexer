@@ -38,10 +38,10 @@ class TestingEnvironment:
         Initialize testing environment.
         
         Args:
-            model_name: Model to use (defaults to INDEXER_MODEL_NAME env var)
+            model_name: Model to use (defaults to INDEXER_MODEL env var)
             log_level: Logging level for tests
         """
-        self.model_name = model_name or os.getenv("INDEXER_MODEL_NAME", "blub_test")
+        self.model_name = model_name or os.getenv("INDEXER_MODEL", "blub_test")
         self.log_level = log_level
         
         # Configure minimal logging

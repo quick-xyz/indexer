@@ -120,7 +120,7 @@ class DomainEventsExporter:
                            output_dir=str(self.output_dir))
             
             print(f"✅ Initialized for model: {self.config.model_name} v{self.config.model_version}")
-            print(f"📊 Database: {self.config.model_db_name}")
+            print(f"📊 Database: {self.config.model_db}")
             print(f"📁 Output directory: {self.output_dir}")
             
         except Exception as e:
@@ -185,7 +185,7 @@ class DomainEventsExporter:
             table_info = self.get_table_info(table_name)
             
             if not table_info['exists']:
-                print(f"⚠️  Table {table_name} does not exist in {self.config.model_db_name}")
+                print(f"⚠️  Table {table_name} does not exist in {self.config.model_db}")
                 return False
             
             total_rows = table_info['row_count']
@@ -260,7 +260,7 @@ class DomainEventsExporter:
     def export_all_domain_events(self, limit_per_table: Optional[int] = None):
         """Export all domain event tables with optional row limit"""
         print(f"🚀 Exporting domain events from model: {self.config.model_name}")
-        print(f"   Database: {self.config.model_db_name}")
+        print(f"   Database: {self.config.model_db}")
         print(f"   Output directory: {self.output_dir}")
         print(f"   Limit per table: {limit_per_table or 'No limit'}")
         print()
@@ -418,7 +418,7 @@ class DomainEventsExporter:
             with open(report_path, 'w') as f:
                 f.write(f"# Domain Events Export Report\n\n")
                 f.write(f"**Model:** {self.config.model_name} v{self.config.model_version}\n")
-                f.write(f"**Database:** {self.config.model_db_name}\n")
+                f.write(f"**Database:** {self.config.model_db}\n")
                 f.write(f"**Generated:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
                 f.write(f"**Export Directory:** {self.output_dir}\n")
                 f.write(f"**Max Rows Per File:** {self.max_rows_per_file:,}\n\n")

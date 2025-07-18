@@ -135,7 +135,7 @@ python testing/exporters/domain_events_exporter.py blub_test 50000
 3. **max_rows_per_file** (optional): Pagination size (default: 1000)
 
 ### Environment
-- Uses `INDEXER_MODEL_NAME` environment variable if model_name not specified
+- Uses `INDEXER_MODEL` environment variable if model_name not specified
 - Integrates with your existing testing environment setup
 - Requires same database access as your batch processing
 

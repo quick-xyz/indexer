@@ -11,7 +11,7 @@ from pathlib import Path
 def get_test_env_vars() -> Dict[str, str]:
     """Get common environment variables for testing."""
     return {
-        'model_name': os.getenv('INDEXER_MODEL_NAME', 'blub_test'),
+        'model_name': os.getenv('INDEXER_MODEL', 'blub_test'),
         'gcp_project': os.getenv('INDEXER_GCP_PROJECT_ID'),
         'db_host': os.getenv('INDEXER_DB_HOST', '127.0.0.1'),
         'db_port': os.getenv('INDEXER_DB_PORT', '5432'),
@@ -23,7 +23,7 @@ def get_test_env_vars() -> Dict[str, str]:
 def check_required_env_vars() -> tuple[bool, list[str]]:
     """Check if required environment variables are set."""
     required = [
-        'INDEXER_MODEL_NAME',
+        'INDEXER_MODEL',
         'INDEXER_DB_USER',
         'INDEXER_DB_PASSWORD',
     ]

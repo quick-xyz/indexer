@@ -30,10 +30,8 @@ from .evm import (
 
 # Configuration Types
 from .configs.config import (
-    GCSConfig,
     StorageConfig,
     DatabaseConfig,
-    RpcConfig,
     PathsConfig,
 )
 
@@ -188,7 +186,6 @@ __all__ = [
     "EvmFilteredBlock",
     
     # Configuration types
-    "GCSConfig",
     "StorageConfig",
     "TokenConfig",
     "PoolConfig",
@@ -201,7 +198,6 @@ __all__ = [
     "TransformerConfig",
     "ContractConfig",
     "DatabaseConfig",
-    "RpcConfig",
     "PathsConfig",
     
     # Indexer Types

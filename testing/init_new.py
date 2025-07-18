@@ -22,10 +22,10 @@ def get_testing_indexer(model_name: str = None, log_level: str = "WARNING"):
     Create indexer for testing with minimal logging.
     
     Args:
-        model_name: Model to use (defaults to INDEXER_MODEL_NAME env var)
+        model_name: Model to use (defaults to INDEXER_MODEL env var)
         log_level: Logging level for tests
     """
-    model_name = model_name or os.getenv("INDEXER_MODEL_NAME", "blub_test")
+    model_name = model_name or os.getenv("INDEXER_MODEL", "blub_test")
     
     # Set minimal logging via environment
     env_vars = os.environ.copy()

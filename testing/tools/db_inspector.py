@@ -65,7 +65,7 @@ class DatabaseInspector:
     
     def _inspect_model_database(self):
         """Inspect model-specific database."""
-        db_name = self.config.model_db_name
+        db_name = self.config.model_db
         
         print(f"\n{'='*60}")
         print(f"MODEL DATABASE: {db_name}")

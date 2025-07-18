@@ -88,7 +88,7 @@ class DatabaseDiagnostic:
     def _test_model_database(self):
         """Test model-specific database."""
         config = self.env.get_config()
-        db_name = config.model_db_name
+        db_name = config.model_db
         
         print(f"\n🎯 Testing model database ({db_name})...")
         
@@ -169,7 +169,7 @@ class DatabaseDiagnostic:
             print(f"  {status} {check:<25} {info}")
         
         # Model database results  
-        print(f"\n🎯 Model Database ({self.env.get_config().model_db_name}):")
+        print(f"\n🎯 Model Database ({self.env.get_config().model_db}):")
         for check, success, info in self.results["model"]:
             status = "✅" if success else "❌"
             print(f"  {status} {check:<25} {info}")

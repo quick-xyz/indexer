@@ -6,11 +6,6 @@ from pathlib import Path
 from msgspec import Struct
 
 
-class GCSConfig(Struct):
-    project_id: str
-    bucket_name: str
-    credentials_path: Optional[str] = None
-
 class StorageConfig(Struct):
     processing_prefix: str
     complete_prefix: str
@@ -21,11 +16,6 @@ class DatabaseConfig(Struct):
     url: str
     pool_size: int = 5
     max_overflow: int = 10
-
-class RpcConfig(Struct):
-    endpoint_url: str
-    timeout: int = 30
-    max_retries: int = 3
 
 class PathsConfig(Struct):
     project_root: Path
