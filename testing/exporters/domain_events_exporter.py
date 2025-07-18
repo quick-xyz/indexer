@@ -23,7 +23,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from testing import get_testing_environment
-from indexer.core.logging_config import IndexerLogger, log_with_context
+from indexer.core.logging import IndexerLogger, log_with_context
 import logging
 
 
@@ -109,7 +109,7 @@ class DomainEventsExporter:
             self.config = self.env.get_config()
             
             # Get database services
-            from indexer.database.repository import RepositoryManager
+            from indexer.database.repository_manager import RepositoryManager
             from indexer.database.connection import ModelDatabaseManager
             self.repository_manager = self.env.get_service(RepositoryManager)
             self.model_db = self.env.get_service(ModelDatabaseManager)

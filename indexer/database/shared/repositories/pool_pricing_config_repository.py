@@ -6,8 +6,8 @@ from sqlalchemy import and_, or_
 
 from ..tables.pool_pricing_config import PoolPricingConfig
 from ..tables.config.config import Contract, Model
-from ...connection import InfrastructureDatabaseManager
-from ....core.logging_config import IndexerLogger, log_with_context
+from ...connection import SharedDatabaseManager
+from ....core.logging import IndexerLogger, log_with_context
 from ....types import EvmAddress
 
 import logging
@@ -21,7 +21,7 @@ class PoolPricingConfigRepository:
     Provides methods for creating, querying, and validating pool pricing setups.
     """
     
-    def __init__(self, db_manager: InfrastructureDatabaseManager):
+    def __init__(self, db_manager: SharedDatabaseManager):
         self.db_manager = db_manager
         self.logger = IndexerLogger.get_logger('database.repositories.pool_pricing_config')
     

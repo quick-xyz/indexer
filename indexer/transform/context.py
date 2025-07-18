@@ -18,20 +18,20 @@ from ..types import (
     SwapBatchSignal,
     Position,
 )
-from ..core.mixins import LoggingMixin
+from ..core.logging import LoggingMixin
 
 TrfDict = Dict[EvmAddress, Dict[EvmAddress, Dict[int, TransferSignal]]] # {address: {token: {log_index: TransferSignal}}}
 
 
 class TransformContext(LoggingMixin):
-    def __init__(self, transaction: Transaction, indexer_tokens: Set[EvmAddress]):
+    def __init__(self, transaction: Transaction, tracked_tokens: Set[EvmAddress]):
         if not transaction:
             raise ValueError("Transaction cannot be None")
-        if not indexer_tokens:
-            self.log_warning("No indexer tokens provided to context")
-        
+        if not tracked_tokens:
+            self.log_warning("No tracked tokens provided to context")
+
         self._og_tx = transaction
-        self.indexer_tokens = indexer_tokens 
+        self.tracked_tokens = tracked_tokens
 
         self.signals: Dict[int, Signal] = {}
         self.events: Dict[DomainEventId, DomainEvent] = {}
@@ -48,7 +48,7 @@ class TransformContext(LoggingMixin):
 
         self.log_debug("Transform context initialized",
                       tx_hash=transaction.tx_hash,
-                      indexer_tokens_count=len(indexer_tokens))
+                      tracked_tokens_count=len(tracked_tokens))
 
     # Read-only access to original transaction
     @property 

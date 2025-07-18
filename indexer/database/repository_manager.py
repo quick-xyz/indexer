@@ -3,8 +3,8 @@
 from typing import Optional
 from contextlib import contextmanager
 
-from .connection import ModelDatabaseManager, InfrastructureDatabaseManager
-from ..core.logging_config import IndexerLogger, log_with_context
+from .connection import ModelDatabaseManager, SharedDatabaseManager
+from ..core.logging import IndexerLogger, log_with_context
 
 # Import all indexer database repositories
 from .indexer.repositories.trade_repository import TradeRepository
@@ -52,9 +52,9 @@ class RepositoryManager:
     
     def __init__(self, 
                  model_db_manager: ModelDatabaseManager,
-                 infrastructure_db_manager: Optional[InfrastructureDatabaseManager] = None):
+                 shared_db_manager: Optional[SharedDatabaseManager] = None):
         self.model_db_manager = model_db_manager
-        self.infrastructure_db_manager = infrastructure_db_manager
+        self.shared_db_manager = shared_db_manager
         
         self.logger = IndexerLogger.get_logger('database.repository_manager')
         
@@ -62,12 +62,12 @@ class RepositoryManager:
         self._init_indexer_repositories()
         
         # Initialize shared database repositories (infrastructure data)
-        if infrastructure_db_manager:
+        if shared_db_manager:
             self._init_shared_repositories()
         
         log_with_context(
             self.logger, logging.INFO, "RepositoryManager initialized",
-            has_shared_db=infrastructure_db_manager is not None,
+            has_shared_db=shared_db_manager is not None,
             model_db_url=model_db_manager.config.url.split('/')[-1] if model_db_manager.config.url else "unknown"
         )
     
@@ -101,12 +101,12 @@ class RepositoryManager:
     def _init_shared_repositories(self):
         """Initialize repositories for shared database (infrastructure data)"""
         # Infrastructure repositories
-        self.block_prices = BlockPricesRepository(self.infrastructure_db_manager)
-        self.periods = PeriodsRepository(self.infrastructure_db_manager)
-        self.pool_pricing_configs = PoolPricingConfigRepository(self.infrastructure_db_manager)
+        self.block_prices = BlockPricesRepository(self.shared_db_manager)
+        self.periods = PeriodsRepository(self.shared_db_manager)
+        self.pool_pricing_configs = PoolPricingConfigRepository(self.shared_db_manager)
         
         # Pricing service repositories (shared database)
-        self.price_vwap = PriceVwapRepository(self.infrastructure_db_manager)
+        self.price_vwap = PriceVwapRepository(self.shared_db_manager)
         
         log_with_context(
             self.logger, logging.DEBUG, "Shared database repositories initialized",
@@ -114,7 +114,7 @@ class RepositoryManager:
         )
     
     @contextmanager
-    def get_session(self):
+    def get_model_session(self):
         """Get session from model database manager (primary database)"""
         with self.model_db_manager.get_session() as session:
             yield session
@@ -122,10 +122,10 @@ class RepositoryManager:
     @contextmanager
     def get_shared_session(self):
         """Get session from shared database manager"""
-        if not self.infrastructure_db_manager:
+        if not self.shared_db_manager:
             raise RuntimeError("Shared database manager not available")
         
-        with self.infrastructure_db_manager.get_session() as session:
+        with self.shared_db_manager.get_session() as session:
             yield session
     
     # =====================================================================
@@ -187,26 +187,26 @@ class RepositoryManager:
     # Infrastructure repositories (shared database)
     def get_block_prices_repository(self) -> BlockPricesRepository:
         """Get block prices repository for chain-level pricing operations"""
-        if not self.infrastructure_db_manager:
+        if not self.shared_db_manager:
             raise RuntimeError("Shared database manager required for block prices repository")
         return self.block_prices
     
     def get_periods_repository(self) -> PeriodsRepository:
         """Get periods repository for time period management"""
-        if not self.infrastructure_db_manager:
+        if not self.shared_db_manager:
             raise RuntimeError("Shared database manager required for periods repository")
         return self.periods
     
     def get_pool_pricing_config_repository(self) -> PoolPricingConfigRepository:
         """Get pool pricing config repository for pricing configuration"""
-        if not self.infrastructure_db_manager:
+        if not self.shared_db_manager:
             raise RuntimeError("Shared database manager required for pool pricing config repository")
         return self.pool_pricing_configs
     
     # Pricing service repositories (shared database)
     def get_price_vwap_repository(self) -> PriceVwapRepository:
         """Get price VWAP repository for canonical pricing operations"""
-        if not self.infrastructure_db_manager:
+        if not self.shared_db_manager:
             raise RuntimeError("Shared database manager required for price VWAP repository")
         return self.price_vwap
     
@@ -227,9 +227,9 @@ class RepositoryManager:
             }
         }
         
-        if self.infrastructure_db_manager:
+        if self.shared_db_manager:
             status['shared_database'] = {
-                'url': self.infrastructure_db_manager.config.url.split('/')[-1] if self.infrastructure_db_manager.config.url else "unknown",
+                'url': self.shared_db_manager.config.url.split('/')[-1] if self.shared_db_manager.config.url else "unknown",
                 'repositories': [
                     'block_prices', 'periods', 'pool_pricing_configs', 'price_vwap'
                 ]
@@ -250,8 +250,8 @@ class RepositoryManager:
                 session.execute("SELECT 1").scalar()
             
             # Test shared database connection if available
-            if self.infrastructure_db_manager:
-                with self.infrastructure_db_manager.get_session() as session:
+            if self.shared_db_manager:
+                with self.shared_db_manager.get_session() as session:
                     session.execute("SELECT 1").scalar()
             
             log_with_context(

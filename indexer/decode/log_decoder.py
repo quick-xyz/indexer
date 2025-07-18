@@ -13,7 +13,7 @@ from ..types import (
     DecodedLog,
     EvmLog,
 )
-from ..core.mixins import LoggingMixin
+from ..core.logging import LoggingMixin
 
 class LogDecoder(LoggingMixin):
     def __init__(self, contract_manager: ContractManager):

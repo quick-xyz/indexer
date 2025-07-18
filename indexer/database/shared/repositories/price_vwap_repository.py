@@ -7,8 +7,8 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, desc, func
 
 from ..tables.price_vwap import PriceVwap
-from ...connection import InfrastructureDatabaseManager
-from ....core.logging_config import IndexerLogger, log_with_context
+from ...connection import SharedDatabaseManager
+from ....core.logging import IndexerLogger, log_with_context
 from ....types import EvmAddress
 from ...base_repository import BaseRepository
 from ....database.indexer.tables.detail.pool_swap_detail import PricingDenomination
@@ -27,7 +27,7 @@ class PriceVwapRepository(BaseRepository):
     multiple indexers/models for consistent global pricing.
     """
     
-    def __init__(self, db_manager: InfrastructureDatabaseManager):
+    def __init__(self, db_manager: SharedDatabaseManager):
         super().__init__(db_manager, PriceVwap)
         self.logger = IndexerLogger.get_logger('database.repositories.price_vwap')
     

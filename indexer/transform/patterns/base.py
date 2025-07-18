@@ -13,7 +13,7 @@ from ...types import (
     DomainEvent,
     Position
 )
-from ...core.mixins import LoggingMixin
+from ...core.logging import LoggingMixin
 from ...utils.amounts import amount_to_negative_str
 
 
@@ -71,11 +71,11 @@ class TransferPattern(ABC, LoggingMixin):
                                   tx_hash=context.transaction.tx_hash,
                                   transfer_index=idx)
                     continue
-                
-                # Generate position for recipient (if not zero address and is indexer token)
-                if (transfer.to_address and 
-                    transfer.to_address != ZERO_ADDRESS and 
-                    transfer.token in context.indexer_tokens):
+
+                # Generate position for recipient (if not zero address and is in tracked token)
+                if (transfer.to_address and
+                    transfer.to_address != ZERO_ADDRESS and
+                    transfer.token in context.tracked_tokens):
                     
                     try:
                         position_in = Position(
@@ -103,10 +103,10 @@ class TransferPattern(ABC, LoggingMixin):
                                       error=str(e),
                                       exception_type=type(e).__name__)
 
-                # Generate position for sender (if not zero address and is indexer token)
-                if (transfer.from_address and 
-                    transfer.from_address != ZERO_ADDRESS and 
-                    transfer.token in context.indexer_tokens):
+                # Generate position for sender (if not zero address and is in tracked token)
+                if (transfer.from_address and
+                    transfer.from_address != ZERO_ADDRESS and
+                    transfer.token in context.tracked_tokens):
                     
                     try:
                         position_out = Position(
@@ -201,11 +201,11 @@ class TransferPattern(ABC, LoggingMixin):
                                   tx_hash=context.transaction.tx_hash,
                                   transfer_index=idx)
                     continue
-                
-                # Generate position for recipient (if not zero address, not pool, and is indexer token)
-                if (transfer.to_address and 
-                    transfer.to_address not in (ZERO_ADDRESS, pool) and 
-                    transfer.token in context.indexer_tokens):
+
+                # Generate position for recipient (if not zero address, not pool, and is tracked token)
+                if (transfer.to_address and
+                    transfer.to_address not in (ZERO_ADDRESS, pool) and
+                    transfer.token in context.tracked_tokens):
                     
                     try:
                         position_in = Position(
@@ -234,10 +234,10 @@ class TransferPattern(ABC, LoggingMixin):
                                       error=str(e),
                                       exception_type=type(e).__name__)
 
-                # Generate position for sender (if not zero address, not pool, and is indexer token)
-                if (transfer.from_address and 
-                    transfer.from_address not in (ZERO_ADDRESS, pool) and 
-                    transfer.token in context.indexer_tokens):
+                # Generate position for sender (if not zero address, not pool, and is tracked token)
+                if (transfer.from_address and
+                    transfer.from_address not in (ZERO_ADDRESS, pool) and
+                    transfer.token in context.tracked_tokens):
                     
                     try:
                         position_out = Position(

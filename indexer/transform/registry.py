@@ -4,8 +4,8 @@ from typing import Dict, Optional, Any
 from msgspec import Struct
 import json
 
-from ..core.config import IndexerConfig
-from ..core.mixins import LoggingMixin
+from ..core.indexer_config import IndexerConfig
+from ..core.logging import LoggingMixin
 
 from .transformers import *
 from ..types import EvmAddress

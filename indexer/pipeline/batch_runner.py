@@ -23,8 +23,8 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from indexer import create_indexer
-from indexer.core.logging_config import IndexerLogger, log_with_context
-from indexer.database.repository import RepositoryManager
+from indexer.core.logging import IndexerLogger, log_with_context
+from indexer.database.repository_manager import RepositoryManager
 from indexer.database.writers.domain_event_writer import DomainEventWriter
 from indexer.clients.quicknode_rpc import QuickNodeRpcClient
 from indexer.storage.gcs_handler import GCSHandler

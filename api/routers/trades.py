@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 from typing import Optional, List, Dict, Any
 import logging
 
-from indexer.database.repository import RepositoryManager
-from indexer.core.logging_config import log_with_context
+from indexer.database.repository_manager import RepositoryManager
+from indexer.core.logging import log_with_context
 from ..dependencies import get_repository_manager, get_database_session, get_logger
 
 router = APIRouter()

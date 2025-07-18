@@ -44,7 +44,7 @@ def clear_processing_queue(model_name: str = None, dry_run: bool = True):
     # Initialize container
     container = create_indexer(model_name=model_name)
     
-    from indexer.database.repository import RepositoryManager
+    from indexer.database.repository_manager import RepositoryManager
     repository_manager = container.get(RepositoryManager)
     
     try:

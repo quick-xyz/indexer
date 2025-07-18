@@ -4,8 +4,8 @@ from typing import List, Optional, Dict, Tuple
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
 
-from ..core.logging_config import IndexerLogger, log_with_context
-from ..database.repository import RepositoryManager
+from ..core.logging import IndexerLogger, log_with_context
+from ..database.repository_manager import RepositoryManager
 from ..database.connection import DatabaseManager
 from ..database.shared.tables.periods import Period, PeriodType
 from ..database.indexer.tables.detail.pool_swap_detail import PricingDenomination, PricingMethod
@@ -35,11 +35,11 @@ class CalculationService:
     def __init__(
         self,
         shared_db_manager: DatabaseManager,   # Shared database for canonical prices
-        indexer_db_manager: DatabaseManager,  # Indexer database for events and analytics
+        model_db_manager: DatabaseManager,  # Indexer database for events and analytics
         repository_manager: RepositoryManager
     ):
         self.shared_db_manager = shared_db_manager    # For canonical price reads
-        self.indexer_db_manager = indexer_db_manager  # For event reads and analytics writes
+        self.model_db_manager = model_db_manager  # For event reads and analytics writes
         self.repository_manager = repository_manager
         
         self.logger = IndexerLogger.get_logger('services.calculation_service')
@@ -47,7 +47,7 @@ class CalculationService:
         log_with_context(
             self.logger, logging.INFO, "CalculationService initialized",
             shared_database=shared_db_manager.config.url.split('/')[-1],
-            indexer_database=indexer_db_manager.config.url.split('/')[-1]
+            model_database=model_db_manager.config.url.split('/')[-1]
         )
 
     def calculate_event_valuations(
@@ -96,13 +96,13 @@ class CalculationService:
         position_repo = self.repository_manager.get_position_repository()
         
         with self.shared_db_manager.get_session() as shared_session, \
-             self.indexer_db_manager.get_session() as indexer_session:
+             self.model_db_manager.get_session() as model_session:
             
             for period_id in period_ids:
                 try:
                     # 1. Process transfers
                     unvalued_transfers = transfer_repo.get_unvalued_events_in_period(
-                        indexer_session, period_id, asset_address
+                        model_session, period_id, asset_address
                     )
                     
                     for transfer in unvalued_transfers:
@@ -110,7 +110,7 @@ class CalculationService:
                         
                         for denom in denominations:
                             # Skip if already valued
-                            if event_detail_repo.has_valuation(indexer_session, transfer.content_id, denom):
+                            if event_detail_repo.has_valuation(model_session, transfer.content_id, denom):
                                 continue
                                 
                             canonical_price = price_vwap_repo.get_canonical_price(
@@ -119,7 +119,7 @@ class CalculationService:
                             
                             if canonical_price:
                                 event_detail_repo.create_event_valuation(
-                                    indexer_session,
+                                    model_session,
                                     event=transfer,
                                     denomination=denom,
                                     canonical_price=canonical_price.price,
@@ -129,14 +129,14 @@ class CalculationService:
                     
                     # 2. Process liquidity events
                     unvalued_liquidity = liquidity_repo.get_unvalued_events_in_period(
-                        indexer_session, period_id, asset_address
+                        model_session, period_id, asset_address
                     )
                     
                     for liquidity_event in unvalued_liquidity:
                         liquidity_minute = int(liquidity_event.timestamp.timestamp() // 60 * 60)
                         
                         for denom in denominations:
-                            if event_detail_repo.has_valuation(indexer_session, liquidity_event.content_id, denom):
+                            if event_detail_repo.has_valuation(model_session, liquidity_event.content_id, denom):
                                 continue
                                 
                             canonical_price = price_vwap_repo.get_canonical_price(
@@ -145,7 +145,7 @@ class CalculationService:
                             
                             if canonical_price:
                                 event_detail_repo.create_event_valuation(
-                                    indexer_session,
+                                    model_session,
                                     event=liquidity_event,
                                     denomination=denom,
                                     canonical_price=canonical_price.price,
@@ -155,14 +155,14 @@ class CalculationService:
                     
                     # 3. Process reward events
                     unvalued_rewards = reward_repo.get_unvalued_events_in_period(
-                        indexer_session, period_id, asset_address
+                        model_session, period_id, asset_address
                     )
                     
                     for reward in unvalued_rewards:
                         reward_minute = int(reward.timestamp.timestamp() // 60 * 60)
                         
                         for denom in denominations:
-                            if event_detail_repo.has_valuation(indexer_session, reward.content_id, denom):
+                            if event_detail_repo.has_valuation(model_session, reward.content_id, denom):
                                 continue
                                 
                             canonical_price = price_vwap_repo.get_canonical_price(
@@ -171,7 +171,7 @@ class CalculationService:
                             
                             if canonical_price:
                                 event_detail_repo.create_event_valuation(
-                                    indexer_session,
+                                    model_session,
                                     event=reward,
                                     denomination=denom,
                                     canonical_price=canonical_price.price,
@@ -181,14 +181,14 @@ class CalculationService:
                     
                     # 4. Process position events
                     unvalued_positions = position_repo.get_unvalued_events_in_period(
-                        indexer_session, period_id, asset_address
+                        model_session, period_id, asset_address
                     )
                     
                     for position in unvalued_positions:
                         position_minute = int(position.timestamp.timestamp() // 60 * 60)
                         
                         for denom in denominations:
-                            if event_detail_repo.has_valuation(indexer_session, position.content_id, denom):
+                            if event_detail_repo.has_valuation(model_session, position.content_id, denom):
                                 continue
                                 
                             canonical_price = price_vwap_repo.get_canonical_price(
@@ -197,7 +197,7 @@ class CalculationService:
                             
                             if canonical_price:
                                 event_detail_repo.create_event_valuation(
-                                    indexer_session,
+                                    model_session,
                                     event=position,
                                     denomination=denom,
                                     canonical_price=canonical_price.price,
@@ -257,7 +257,7 @@ class CalculationService:
         asset_price_repo = self.repository_manager.get_asset_price_repository()
         trade_detail_repo = self.repository_manager.get_trade_detail_repository()
         
-        with self.indexer_db_manager.get_session() as session:
+        with self.model_db_manager.get_session() as session:
             for period_id in period_ids:
                 try:
                     for denom in denominations:
@@ -361,27 +361,27 @@ class CalculationService:
         pool_swap_detail_repo = self.repository_manager.get_pool_swap_detail_repository()
         
         with self.shared_db_manager.get_session() as shared_session, \
-             self.indexer_db_manager.get_session() as indexer_session:
+             self.model_db_manager.get_session() as model_session:
             
             for period_id in period_ids:
                 try:
                     for denom in denominations:
                         # Get protocol volume aggregations for this period
                         protocol_volumes = pool_swap_detail_repo.get_protocol_volume_aggregation(
-                            indexer_session, shared_session, period_id, asset_address, denom
+                            model_session, shared_session, period_id, asset_address, denom
                         )
                         
                         for protocol, volume_data in protocol_volumes.items():
                             # Check if volume record already exists
                             existing_volume = asset_volume_repo.get_volume(
-                                indexer_session, period_id, asset_address, denom, protocol
+                                model_session, period_id, asset_address, denom, protocol
                             )
                             if existing_volume:
                                 continue
                             
                             # Create asset_volume record
                             asset_volume_repo.create_volume_metric(
-                                indexer_session,
+                                model_session,
                                 period_id=period_id,
                                 asset_address=asset_address,
                                 denomination=denom,
@@ -453,8 +453,8 @@ class CalculationService:
         # Get repositories for gap detection
         event_detail_repo = self.repository_manager.get_event_detail_repository()
         periods_repo = self.repository_manager.get_periods_repository()
-        
-        with self.indexer_db_manager.get_session() as indexer_session, \
+
+        with self.model_db_manager.get_session() as model_session, \
              self.shared_db_manager.get_session() as shared_session:
             
             # Determine periods to process
@@ -467,7 +467,7 @@ class CalculationService:
             else:
                 # Find periods with unvalued events
                 target_periods = event_detail_repo.find_periods_with_unvalued_events(
-                    indexer_session, asset_address
+                    model_session, asset_address
                 )
             
             period_ids = [p.id for p in target_periods]
@@ -527,8 +527,8 @@ class CalculationService:
         asset_price_repo = self.repository_manager.get_asset_price_repository()
         asset_volume_repo = self.repository_manager.get_asset_volume_repository()
         periods_repo = self.repository_manager.get_periods_repository()
-        
-        with self.indexer_db_manager.get_session() as indexer_session, \
+
+        with self.model_db_manager.get_session() as model_session, \
              self.shared_db_manager.get_session() as shared_session:
             
             # Determine periods to process
@@ -541,10 +541,10 @@ class CalculationService:
             else:
                 # Find periods with missing analytics
                 ohlc_gaps = asset_price_repo.find_periods_with_missing_candles(
-                    indexer_session, asset_address
+                    model_session, asset_address
                 )
                 volume_gaps = asset_volume_repo.find_periods_with_missing_volumes(
-                    indexer_session, asset_address
+                    model_session, asset_address
                 )
                 
                 # Combine gaps
@@ -704,28 +704,28 @@ class CalculationService:
             'gaps': {}
         }
         
-        with self.indexer_db_manager.get_session() as indexer_session:
+        with self.model_db_manager.get_session() as model_session:
             
             # Event valuation status
             for denom in [PricingDenomination.USD, PricingDenomination.AVAX]:
                 valuation_stats = event_detail_repo.get_valuation_stats(
-                    indexer_session, asset_address, denom
+                    model_session, asset_address, denom
                 )
                 status['event_valuations'][denom.value] = valuation_stats
                 
                 # Find valuation gaps
                 unvalued_count = event_detail_repo.count_unvalued_events(
-                    indexer_session, asset_address, denom
+                    model_session, asset_address, denom
                 )
                 status['gaps'][f'unvalued_{denom.value}'] = unvalued_count
             
             # Analytics status
             for denom in [PricingDenomination.USD, PricingDenomination.AVAX]:
                 ohlc_stats = asset_price_repo.get_candle_stats(
-                    indexer_session, asset_address, denom
+                    model_session, asset_address, denom
                 )
                 volume_stats = asset_volume_repo.get_volume_stats(
-                    indexer_session, asset_address, denom
+                    model_session, asset_address, denom
                 )
                 
                 status['analytics'][denom.value] = {
@@ -735,10 +735,10 @@ class CalculationService:
                 
                 # Find analytics gaps
                 missing_candles = asset_price_repo.count_missing_candles(
-                    indexer_session, asset_address, denom
+                    model_session, asset_address, denom
                 )
                 missing_volumes = asset_volume_repo.count_missing_volumes(
-                    indexer_session, asset_address, denom
+                    model_session, asset_address, denom
                 )
                 
                 status['gaps'][f'missing_candles_{denom.value}'] = missing_candles
@@ -747,13 +747,13 @@ class CalculationService:
             # Recent activity
             status['recent_activity'] = {
                 'last_event_valuation': event_detail_repo.get_latest_valuation_timestamp(
-                    indexer_session, asset_address
+                    model_session, asset_address
                 ),
                 'last_ohlc_candle': asset_price_repo.get_latest_candle_timestamp(
-                    indexer_session, asset_address
+                    model_session, asset_address
                 ),
                 'last_volume_metric': asset_volume_repo.get_latest_volume_timestamp(
-                    indexer_session, asset_address
+                    model_session, asset_address
                 )
             }
         

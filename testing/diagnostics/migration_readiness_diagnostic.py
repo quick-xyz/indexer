@@ -25,7 +25,7 @@ if str(PROJECT_ROOT) not in sys.path:
 from testing import get_testing_environment
 from sqlalchemy import text, inspect, MetaData
 from sqlalchemy.engine import Engine
-from indexer.database.connection import ModelDatabaseManager, InfrastructureDatabaseManager
+from indexer.database.connection import ModelDatabaseManager, SharedDatabaseManager
 
 
 class MigrationReadinessDiagnostic:
@@ -111,7 +111,7 @@ class MigrationReadinessDiagnostic:
         print("-" * 50)
         
         try:
-            db_manager = self.env.get_service(InfrastructureDatabaseManager)
+            db_manager = self.env.get_service(SharedDatabaseManager)
             engine = db_manager.engine
             
             # Test connection

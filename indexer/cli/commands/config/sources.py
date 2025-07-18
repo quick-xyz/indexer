@@ -60,7 +60,7 @@ def _preview_source_import(ctx, source_configs):
     cli_context = ctx.obj['cli_context']
     
     try:
-        source_repo = SourceRepository(cli_context.infrastructure_db_manager)
+        source_repo = SourceRepository(cli_context.shared_db_manager)
         
         click.echo("\n🔍 DRY RUN - Source Import Preview")
         click.echo("=" * 50)
@@ -100,7 +100,7 @@ def _execute_source_import(ctx, source_configs):
     cli_context = ctx.obj['cli_context']
     
     try:
-        source_repo = SourceRepository(cli_context.infrastructure_db_manager)
+        source_repo = SourceRepository(cli_context.shared_db_manager)
         
         click.echo("\n📥 Importing Sources...")
         click.echo("=" * 32)

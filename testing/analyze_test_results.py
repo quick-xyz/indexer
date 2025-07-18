@@ -28,7 +28,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from indexer import create_indexer
 from indexer.storage.gcs_handler import GCSHandler
-from indexer.database.repository import RepositoryManager
+from indexer.database.repository_manager import RepositoryManager
 from sqlalchemy import text
 
 

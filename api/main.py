@@ -7,8 +7,8 @@ import logging
 from pathlib import Path
 
 from indexer import create_indexer
-from indexer.database.repository import RepositoryManager
-from indexer.core.logging_config import IndexerLogger, log_with_context
+from indexer.database.repository_manager import RepositoryManager
+from indexer.core.logging import IndexerLogger, log_with_context
 
 from .routers import trades, liquidity, positions
 from .dependencies import set_dependencies

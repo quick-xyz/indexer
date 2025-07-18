@@ -60,7 +60,7 @@ def _preview_address_import(ctx, address_configs):
     cli_context = ctx.obj['cli_context']
     
     try:
-        address_repo = AddressRepository(cli_context.infrastructure_db_manager)
+        address_repo = AddressRepository(cli_context.shared_db_manager)
         
         click.echo("\n🔍 DRY RUN - Address Import Preview")
         click.echo("=" * 50)
@@ -100,7 +100,7 @@ def _execute_address_import(ctx, address_configs):
     cli_context = ctx.obj['cli_context']
     
     try:
-        address_repo = AddressRepository(cli_context.infrastructure_db_manager)
+        address_repo = AddressRepository(cli_context.shared_db_manager)
         
         click.echo("\n📥 Importing Addresses...")
         click.echo("=" * 35)

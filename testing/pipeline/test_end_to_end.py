@@ -18,7 +18,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from indexer import create_indexer
-from indexer.database.repository import RepositoryManager
+from indexer.database.repository_manager import RepositoryManager
 from indexer.database.writers.domain_event_writer import DomainEventWriter
 from indexer.storage.gcs_handler import GCSHandler
 from indexer.decode.block_decoder import BlockDecoder

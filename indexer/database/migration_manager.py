@@ -19,10 +19,10 @@ from alembic.runtime.migration import MigrationContext
 from alembic.operations import Operations
 from alembic.script import ScriptDirectory
 
-from .connection import InfrastructureDatabaseManager, ModelDatabaseManager, DatabaseManager
-from ..core.config import IndexerConfig
+from .connection import SharedDatabaseManager, ModelDatabaseManager, DatabaseManager
+from ..core.indexer_config import IndexerConfig
 from ..core.secrets_service import SecretsService
-from ..core.logging_config import IndexerLogger, log_with_context
+from ..core.logging import IndexerLogger, log_with_context
 from ..types import DatabaseConfig
 from .shared.tables import *
 from .indexer.tables import *
@@ -38,7 +38,7 @@ class MigrationManager:
     
     Uses proper dependency injection patterns and integrates with:
     - IndexerConfig for database configuration
-    - InfrastructureDatabaseManager for shared database operations
+    - SharedDatabaseManager for shared database operations
     - ModelDatabaseManager for model-specific database operations
     - SecretsService for credential management (via IndexerConfig)
     
@@ -50,19 +50,19 @@ class MigrationManager:
     """
     
     def __init__(self, 
-                 infrastructure_db_manager: InfrastructureDatabaseManager,
+                 shared_db_manager: SharedDatabaseManager,
                  secrets_service: SecretsService,
                  config: IndexerConfig = None):
         """
         Initialize migration manager with proper dependency injection.
         
         Args:
-            infrastructure_db_manager: For shared database operations
+            shared_db_manager: For shared database operations
             secrets_service: For database credential management  
             config: Optional config for model database operations
         """
         self.logger = IndexerLogger.get_logger('database.migration_manager')
-        self.infrastructure_db_manager = infrastructure_db_manager
+        self.shared_db_manager = shared_db_manager
         self.secrets_service = secrets_service
         self.config = config
         
@@ -165,7 +165,7 @@ class MigrationManager:
             os.environ['MIGRATION_TARGET'] = 'shared'
             
             # Use the infrastructure database engine directly
-            with self.infrastructure_db_manager.engine.connect() as connection:
+            with self.shared_db_manager.engine.connect() as connection:
                 context = MigrationContext.configure(connection)
                 return context.get_current_revision()
                 
@@ -288,7 +288,7 @@ class MigrationManager:
         # Check shared database
         try:
             # Test connection to shared database
-            with self.infrastructure_db_manager.engine.connect() as conn:
+            with self.shared_db_manager.engine.connect() as conn:
                 conn.execute(text("SELECT 1"))
                 status['shared']['exists'] = True
                 status['shared']['current_revision'] = self.get_shared_current_revision()
@@ -368,7 +368,7 @@ class MigrationManager:
         alembic_cfg.set_main_option("script_location", str(self.migrations_dir))
         
         # Use the infrastructure database manager's connection directly
-        engine = self.infrastructure_db_manager.engine
+        engine = self.shared_db_manager.engine
         alembic_cfg.set_main_option("sqlalchemy.url", str(engine.url))
         
         return alembic_cfg

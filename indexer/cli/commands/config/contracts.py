@@ -59,7 +59,7 @@ def _preview_contract_import(ctx, contract_configs):
     cli_context = ctx.obj['cli_context']
     
     try:
-        contract_repo = ContractRepository(cli_context.infrastructure_db_manager)
+        contract_repo = ContractRepository(cli_context.shared_db_manager)
         
         click.echo("\n🔍 DRY RUN - Contract Import Preview")
         click.echo("=" * 50)
@@ -99,7 +99,7 @@ def _execute_contract_import(ctx, contract_configs):
     cli_context = ctx.obj['cli_context']
     
     try:
-        contract_repo = ContractRepository(cli_context.infrastructure_db_manager)
+        contract_repo = ContractRepository(cli_context.shared_db_manager)
         
         click.echo("\n📥 Importing Contracts...")
         click.echo("=" * 35)

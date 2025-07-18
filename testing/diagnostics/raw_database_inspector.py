@@ -19,7 +19,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from sqlalchemy import text, inspect
 from sqlalchemy.engine import Engine
-from indexer.core.config import IndexerConfig
+from indexer.core.indexer_config import IndexerConfig
 from indexer import create_indexer
 
 
@@ -38,8 +38,8 @@ class RawDatabaseInspector:
             print(f"✅ Container initialized for model: {self.config.model_name}")
             
             # Get database managers directly
-            from indexer.database.connection import InfrastructureDatabaseManager, ModelDatabaseManager
-            self.shared_db_manager = self.container.get(InfrastructureDatabaseManager)
+            from indexer.database.connection import SharedDatabaseManager, ModelDatabaseManager
+            self.shared_db_manager = self.container.get(SharedDatabaseManager)
             self.model_db_manager = self.container.get(ModelDatabaseManager)
             
             print(f"✅ Database managers obtained")
@@ -51,8 +51,8 @@ class RawDatabaseInspector:
             # Try to get engines directly even if ORM models fail
             try:
                 self.container = create_indexer(model_name=model_name)
-                from indexer.database.connection import InfrastructureDatabaseManager, ModelDatabaseManager
-                self.shared_db_manager = self.container.get(InfrastructureDatabaseManager)
+                from indexer.database.connection import SharedDatabaseManager, ModelDatabaseManager
+                self.shared_db_manager = self.container.get(SharedDatabaseManager)
                 self.model_db_manager = self.container.get(ModelDatabaseManager)
                 print(f"✅ Got database managers despite ORM issues")
             except Exception as e2:

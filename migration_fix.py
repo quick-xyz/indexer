@@ -24,7 +24,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from testing import get_testing_environment
-from indexer.database.connection import InfrastructureDatabaseManager, ModelDatabaseManager
+from indexer.database.connection import SharedDatabaseManager, ModelDatabaseManager
 from indexer.database.migration_manager import MigrationManager
 from indexer.core.secrets_service import SecretsService
 from sqlalchemy import text
@@ -46,15 +46,15 @@ class MigrationDiagnosticTool:
         self.config = self.testing_env.get_config()
         
         # Get database managers from DI container
-        self.shared_db_manager = self.testing_env.get_service(InfrastructureDatabaseManager)
-        self.indexer_db_manager = self.testing_env.get_service(ModelDatabaseManager)
+        self.shared_db_manager = self.testing_env.get_service(SharedDatabaseManager)
+        self.model_db_manager = self.testing_env.get_service(ModelDatabaseManager)
         
         # Get migration manager
         self.migration_manager = self._get_migration_manager()
         
         print(f"✅ Initialized for model: {self.config.model_name}")
         print(f"   Shared DB: {self.shared_db_manager.config.url.split('/')[-1]}")
-        print(f"   Indexer DB: {self.indexer_db_manager.config.url.split('/')[-1]}")
+        print(f"   Indexer DB: {self.model_db_manager.config.url.split('/')[-1]}")
         print()
     
     def _get_migration_manager(self) -> MigrationManager:
@@ -62,7 +62,7 @@ class MigrationDiagnosticTool:
         try:
             secrets_service = self.testing_env.get_service(SecretsService)
             return MigrationManager(
-                infrastructure_db_manager=self.shared_db_manager,
+                shared_db_manager=self.shared_db_manager,
                 secrets_service=secrets_service
             )
         except Exception as e:
@@ -70,7 +70,7 @@ class MigrationDiagnosticTool:
             print("   Creating directly...")
             secrets_service = self.testing_env.get_service(SecretsService)
             return MigrationManager(
-                infrastructure_db_manager=self.shared_db_manager,
+                shared_db_manager=self.shared_db_manager,
                 secrets_service=secrets_service
             )
     
@@ -139,7 +139,7 @@ class MigrationDiagnosticTool:
         print("🗄️ Checking indexer database...")
         
         try:
-            with self.indexer_db_manager.get_session() as session:
+            with self.model_db_manager.get_session() as session:
                 # Check connectivity
                 session.execute(text("SELECT 1"))
                 

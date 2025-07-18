@@ -7,7 +7,7 @@ from sqlalchemy import desc, and_
 
 from ...connection import ModelDatabaseManager
 from ..tables.events.position import Position
-from ....core.logging_config import log_with_context
+from ....core.logging import log_with_context
 from ....types.new import EvmAddress, DomainEventId
 from ...base_repository import DomainEventBaseRepository
 

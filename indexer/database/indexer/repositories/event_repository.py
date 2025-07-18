@@ -5,7 +5,7 @@ from typing import List
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, and_
 
-from ....core.logging_config import log_with_context
+from ....core.logging import log_with_context
 from ....types.new import EvmHash, DomainEventId
 from ...base_repository import DomainEventBaseRepository
 

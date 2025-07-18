@@ -8,7 +8,7 @@ from decimal import Decimal
 
 from ...connection import ModelDatabaseManager
 from ..tables.detail.pool_swap_detail import PoolSwapDetail, PricingDenomination, PricingMethod
-from ....core.logging_config import log_with_context
+from ....core.logging import log_with_context
 from ....types.new import DomainEventId
 from ...base_repository import BaseRepository
 from ..tables.events.trade import PoolSwap
@@ -427,7 +427,7 @@ class PoolSwapDetailRepository(BaseRepository):
 
     def get_protocol_volume_aggregation(
         self,
-        indexer_session: Session,
+        model_session: Session,
         shared_session: Session,
         period_id: int,
         asset_address: str,
@@ -441,7 +441,7 @@ class PoolSwapDetailRepository(BaseRepository):
         """
         try:
             # Join swap details with contracts to get protocol info
-            results = indexer_session.query(
+            results = model_session.query(
                 Contract.project.label('protocol'),
                 func.sum(PoolSwapDetail.value).label('total_volume'),   # ✅ Fixed: Use actual field name
                 func.count(PoolSwapDetail.content_id.distinct()).label('swap_count'),

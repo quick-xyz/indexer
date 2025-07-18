@@ -60,7 +60,7 @@ def _preview_label_import(ctx, label_configs):
     cli_context = ctx.obj['cli_context']
     
     try:
-        label_repo = LabelRepository(cli_context.infrastructure_db_manager)
+        label_repo = LabelRepository(cli_context.shared_db_manager)
         
         click.echo("\n🔍 DRY RUN - Label Import Preview")
         click.echo("=" * 50)
@@ -100,7 +100,7 @@ def _execute_label_import(ctx, label_configs):
     cli_context = ctx.obj['cli_context']
     
     try:
-        label_repo = LabelRepository(cli_context.infrastructure_db_manager)
+        label_repo = LabelRepository(cli_context.shared_db_manager)
         
         click.echo("\n📥 Importing Labels...")
         click.echo("=" * 30)

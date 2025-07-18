@@ -14,7 +14,7 @@ from typing import Optional, Dict
 
 from ..database.connection import DatabaseManager
 from ..types import DatabaseConfig
-from ..core.logging_config import IndexerLogger, log_with_context
+from ..core.logging import IndexerLogger, log_with_context
 from ..core.secrets_service import SecretsService
 from ..services.service_runner import ServiceRunner
 from ..database.migration_manager import MigrationManager
@@ -34,28 +34,28 @@ class CLIContext:
     
     def __init__(self):
         self.logger = IndexerLogger.get_logger('cli.context')
-        self._infrastructure_db_manager: Optional[DatabaseManager] = None
+        self._shared_db_manager: Optional[DatabaseManager] = None
         self._model_db_managers: Dict[str, DatabaseManager] = {}  # Cache for model-specific DB managers
         self._migration_manager: Optional['MigrationManager'] = None  # Cache migration manager
 
         log_with_context(self.logger, logging.INFO, "CLIContext initialized")
     
     @property
-    def infrastructure_db_manager(self) -> DatabaseManager:
-        """Get the infrastructure database manager (indexer_shared)"""
-        if self._infrastructure_db_manager is None:
-            self._infrastructure_db_manager = self._create_infrastructure_db_manager()
-        return self._infrastructure_db_manager
-    
+    def shared_db_manager(self) -> DatabaseManager:
+        """Get the shared database manager (indexer_shared)"""
+        if self._shared_db_manager is None:
+            self._shared_db_manager = self._create_shared_db_manager()
+        return self._shared_db_manager
+
     def get_model_db_manager(self, model_name: str) -> DatabaseManager:
         """Get a model-specific database manager"""
         if model_name not in self._model_db_managers:
             self._model_db_managers[model_name] = self._create_model_db_manager(model_name)
         return self._model_db_managers[model_name]
     
-    def _create_infrastructure_db_manager(self) -> DatabaseManager:
+    def _create_shared_db_manager(self) -> DatabaseManager:
         """Create database manager for the infrastructure database (indexer_shared)"""
-        log_with_context(self.logger, logging.INFO, "Creating infrastructure database manager")
+        log_with_context(self.logger, logging.INFO, "Creating shared database manager")
         
         project_id = os.getenv("INDEXER_GCP_PROJECT_ID")
         
@@ -103,7 +103,7 @@ class CLIContext:
         log_with_context(self.logger, logging.INFO, "Creating model database manager", model_name=model_name)
         
         # Get model info from infrastructure database to find its database name
-        with self.infrastructure_db_manager.get_session() as session:
+        with self.shared_db_manager.get_session() as session:
             from ..database.shared.tables.config.config import Model
             model = session.query(Model).filter(Model.name == model_name).first()
             if not model:
@@ -163,7 +163,7 @@ class CLIContext:
             
             # Create MigrationManager with proper DI
             self._migration_manager = MigrationManager(
-                infrastructure_db_manager=self.infrastructure_db_manager,
+                shared_db_manager=self.shared_db_manager,
                 secrets_service=secrets_service
             )
         
@@ -178,8 +178,8 @@ class CLIContext:
     
     def shutdown(self):
         """Shutdown all database connections"""
-        if self._infrastructure_db_manager:
-            self._infrastructure_db_manager.shutdown()
+        if self._shared_db_manager:
+            self._shared_db_manager.shutdown()
         
         for db_manager in self._model_db_managers.values():
             db_manager.shutdown()

@@ -59,7 +59,7 @@ def _preview_token_import(ctx, token_configs):
     cli_context = ctx.obj['cli_context']
     
     try:
-        token_repo = TokenRepository(cli_context.infrastructure_db_manager)
+        token_repo = TokenRepository(cli_context.shared_db_manager)
         
         click.echo("\n🔍 DRY RUN - Token Import Preview")
         click.echo("=" * 50)
@@ -99,7 +99,7 @@ def _execute_token_import(ctx, token_configs):
     cli_context = ctx.obj['cli_context']
     
     try:
-        token_repo = TokenRepository(cli_context.infrastructure_db_manager)
+        token_repo = TokenRepository(cli_context.shared_db_manager)
         
         click.echo("\n📥 Importing Tokens...")
         click.echo("=" * 30)

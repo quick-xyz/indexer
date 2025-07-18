@@ -72,7 +72,7 @@ def _preview_relations_import(ctx, relations_data):
     cli_context = ctx.obj['cli_context']
     
     try:
-        relations_repo = ModelRelationsRepository(cli_context.infrastructure_db_manager)
+        relations_repo = ModelRelationsRepository(cli_context.shared_db_manager)
         
         click.echo("\n🔍 DRY RUN - Model Relations Import Preview")
         click.echo("=" * 60)
@@ -142,7 +142,7 @@ def _execute_relations_import(ctx, relations_data):
     cli_context = ctx.obj['cli_context']
     
     try:
-        relations_repo = ModelRelationsRepository(cli_context.infrastructure_db_manager)
+        relations_repo = ModelRelationsRepository(cli_context.shared_db_manager)
         
         click.echo("\n📥 Importing Model Relations...")
         click.echo("=" * 40)

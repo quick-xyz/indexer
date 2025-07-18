@@ -9,7 +9,7 @@ from sqlalchemy.exc import IntegrityError
 
 from ..tables.block_prices import BlockPrice
 from ...base_repository import BaseRepository
-from ....core.logging_config import IndexerLogger, log_with_context
+from ....core.logging import IndexerLogger, log_with_context
 
 import logging
 

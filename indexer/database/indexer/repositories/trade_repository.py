@@ -7,7 +7,7 @@ from sqlalchemy import desc, or_
 
 from ...connection import ModelDatabaseManager
 from ..tables.events.trade import Trade
-from ....core.logging_config import log_with_context
+from ....core.logging import log_with_context
 from ....types.new import EvmAddress
 from .event_repository import DomainEventRepository
 

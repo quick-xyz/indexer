@@ -29,9 +29,9 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from indexer import create_indexer
-from indexer.core.logging_config import IndexerLogger, log_with_context
-from indexer.database.repository import RepositoryManager
-from indexer.database.connection import ModelDatabaseManager, InfrastructureDatabaseManager
+from indexer.core.logging import IndexerLogger, log_with_context
+from indexer.database.repository_manager import RepositoryManager
+from indexer.database.connection import ModelDatabaseManager, SharedDatabaseManager
 from indexer.clients.quicknode_rpc import QuickNodeRpcClient
 from indexer.services.pricing_service import PricingService
 from indexer.services.calculation_service import CalculationService
@@ -50,21 +50,21 @@ class ServiceRunner:
         
         # Get services from container
         self.repository_manager = self.container.get(RepositoryManager)
-        self.shared_db_manager = self.container.get(InfrastructureDatabaseManager)
-        self.indexer_db_manager = self.container.get(ModelDatabaseManager)
+        self.shared_db_manager = self.container.get(SharedDatabaseManager)
+        self.model_db_manager = self.container.get(ModelDatabaseManager)
         self.rpc_client = self.container.get(QuickNodeRpcClient)
         
         # Create service instances
         self.pricing_service = PricingService(
             shared_db_manager=self.shared_db_manager,
-            indexer_db_manager=self.indexer_db_manager,
+            model_db_manager=self.model_db_manager,
             rpc_client=self.rpc_client,
             repository_manager=self.repository_manager
         )
         
         self.calculation_service = CalculationService(
             shared_db_manager=self.shared_db_manager,
-            indexer_db_manager=self.indexer_db_manager,
+            model_db_manager=self.model_db_manager,
             repository_manager=self.repository_manager
         )
         
@@ -74,7 +74,7 @@ class ServiceRunner:
             self.logger, logging.INFO, "ServiceRunner initialized",
             model_name=self.config.model_name,
             shared_database=self.shared_db_manager.config.url.split('/')[-1],
-            indexer_database=self.indexer_db_manager.config.url.split('/')[-1]
+            model_database=self.model_db_manager.config.url.split('/')[-1]
         )
 
     # =====================================================================

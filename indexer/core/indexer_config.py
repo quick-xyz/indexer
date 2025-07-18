@@ -1,7 +1,7 @@
 # indexer/core/config.py
 
 from msgspec import Struct
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Set
 from pathlib import Path
 import os
 import logging
@@ -14,10 +14,9 @@ from ..types import (
     PathsConfig,
     GCSConfig,
 )
-from ..database.shared.tables.config.config import Contract, Token, Address, Source
 from .config_service import ConfigService
 from .secrets_service import SecretsService
-from .logging_config import IndexerLogger, log_with_context
+from .logging import IndexerLogger, log_with_context
 from ..types import ContractConfig, DecoderConfig, TransformerConfig
 
 class IndexerConfig(Struct):
@@ -31,8 +30,7 @@ class IndexerConfig(Struct):
     paths: PathsConfig
 
     contracts: Dict[EvmAddress, ContractConfig]
-    model_tokens: Dict[EvmAddress, Token]
-    addresses: Dict[EvmAddress, Address]
+    tracked_tokens: Set[EvmAddress]
     sources: Dict[int, Source]  # source_id -> Source object
 
     
@@ -51,8 +49,7 @@ class IndexerConfig(Struct):
         
         model = config_service.get_model_by_name(model_name)
         db_contracts = config_service.get_contracts_for_model(model_name)
-        model_tokens = config_service.get_model_tokens(model_name)
-        addresses = config_service.get_all_addresses()
+        tracked_tokens = config_service.get_tracked_tokens(model_name)
         
         # Convert database Contract objects to ContractConfig objects
         contracts = {
@@ -68,8 +65,7 @@ class IndexerConfig(Struct):
                        model_name=model_name,
                        model_version=model.version,
                        contract_count=len(contracts),
-                       model_tokens_count=len(model_tokens),
-                       address_count=len(addresses),
+                       tracked_tokens=len(tracked_tokens),
                        sources_count=len(sources))
         
         database = cls._create_database_config(env)
@@ -83,8 +79,7 @@ class IndexerConfig(Struct):
             model_version=model.version,
             model_db_name=model_name,
             contracts=contracts,  # Now contains ContractConfig objects
-            model_tokens=model_tokens,
-            addresses=addresses,
+            tracked_tokens=tracked_tokens,
             sources=sources,  # NEW
             database=database,
             rpc=rpc,
@@ -262,18 +257,6 @@ class IndexerConfig(Struct):
 
     def get_contract_by_address(self, address: str) -> Optional[Contract]:
         return self.contracts.get(EvmAddress(address.lower()))
-    
-    def get_token_metadata(self, address: str) -> Optional[Token]:
-        return self.model_tokens.get(EvmAddress(address.lower()))
-    
-    def is_model_token(self, address: str) -> bool:
-        return EvmAddress(address.lower()) in self.model_tokens
-    
-    def get_all_model_tokens(self) -> Dict[EvmAddress, Token]:
-        return self.model_tokens
-    
-    def get_address_metadata(self, address: str) -> Optional[Address]:
-        return self.addresses.get(EvmAddress(address.lower()))
     
     def get_source_by_id(self, source_id: int) -> Optional[Source]:
         """Get source by ID"""

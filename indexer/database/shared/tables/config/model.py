@@ -16,7 +16,7 @@ class DBModel(SharedBase, SharedTimestampMixin):
     version = Column(String(50), nullable=False)
     network = Column(String(50), nullable=False, default='avalanche')
     shared_db = Column(String(50), nullable=False)
-    indexer_db = Column(String(50), nullable=False)
+    model_db = Column(String(50), nullable=False)
     description = Column(Text, nullable=True)
     model_token = Column(EvmAddressType(), nullable=True)
     status = Column(String(50), nullable=False, default='active')

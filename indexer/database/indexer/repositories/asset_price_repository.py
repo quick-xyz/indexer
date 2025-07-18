@@ -7,7 +7,7 @@ from sqlalchemy import and_, desc, func
 
 from ...connection import ModelDatabaseManager
 from ..tables.asset_price import AssetPrice
-from ....core.logging_config import IndexerLogger, log_with_context
+from ....core.logging import IndexerLogger, log_with_context
 from ....types import EvmAddress
 from ...base_repository import BaseRepository
 from ..tables.detail.pool_swap_detail import PricingDenomination

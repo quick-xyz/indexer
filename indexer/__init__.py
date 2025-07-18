@@ -5,13 +5,13 @@ import os
 from pathlib import Path
 
 from .core.container import IndexerContainer
-from .core.config import IndexerConfig
+from .core.indexer_config import IndexerConfig
 from .core.config_service import ConfigService
-from .core.logging_config import IndexerLogger, log_with_context
+from .core.logging import IndexerLogger, log_with_context
 from .clients.quicknode_rpc import QuickNodeRpcClient
 from .storage.gcs_handler import GCSHandler
-from .database.connection import DatabaseManager, InfrastructureDatabaseManager, ModelDatabaseManager
-from .database.repository import RepositoryManager
+from .database.connection import DatabaseManager, SharedDatabaseManager, ModelDatabaseManager
+from .database.repository_manager import RepositoryManager
 from .decode.block_decoder import BlockDecoder
 from .transform.manager import TransformManager
 from .database.writers.domain_event_writer import DomainEventWriter
@@ -35,9 +35,9 @@ def create_indexer(model_name: str = None, env_vars: dict = None, **overrides) -
             raise ValueError("Must provide model_name or set INDEXER_MODEL_NAME environment variable")
     
     log_with_context(logger, logging.INFO, "Loading configuration for model", model_name=model_name)
-    
-    infrastructure_db_manager = _create_infrastructure_db_manager(env)
-    config_service = ConfigService(infrastructure_db_manager)
+
+    shared_db_manager = _create_shared_db_manager(env)
+    config_service = ConfigService(shared_db_manager)
     
     config = IndexerConfig.from_model(model_name, config_service, env, **overrides)
     
@@ -52,7 +52,7 @@ def create_indexer(model_name: str = None, env_vars: dict = None, **overrides) -
     # Create singleton SecretsService before registering other services
     secrets_service = _create_secrets_service_singleton(env)
     
-    _register_services(container, infrastructure_db_manager, secrets_service)
+    _register_services(container, shared_db_manager, secrets_service)
     
     log_with_context(logger, logging.INFO, "Indexer created successfully")
     
@@ -60,7 +60,6 @@ def create_indexer(model_name: str = None, env_vars: dict = None, **overrides) -
 
 
 def _configure_logging_early(env: dict):
-    # Get log directory from environment or use default
     log_dir_env = env.get("INDEXER_LOG_DIR")
     if log_dir_env:
         log_dir = Path(log_dir_env)
@@ -81,7 +80,7 @@ def _configure_logging_early(env: dict):
     )
 
 
-def _register_services(container: IndexerContainer, infrastructure_db_manager: InfrastructureDatabaseManager, secrets_service: SecretsService):
+def _register_services(container: IndexerContainer, shared_db_manager: SharedDatabaseManager, secrets_service: SecretsService):
     logger = IndexerLogger.get_logger('core.services')
     logger.info("Registering services in container")
     
@@ -124,7 +123,7 @@ def _register_services(container: IndexerContainer, infrastructure_db_manager: I
     
     # Database services (model-specific database)
     logger.debug("Registering database services")
-    container.register_instance(InfrastructureDatabaseManager, infrastructure_db_manager)
+    container.register_instance(SharedDatabaseManager, shared_db_manager)
     container.register_factory(ModelDatabaseManager, _create_model_database_manager)
     container.register_singleton(RepositoryManager, RepositoryManager)
 
@@ -214,7 +213,7 @@ def _create_secrets_service_singleton(env: dict) -> SecretsService:
     
     return SecretsService(project_id)
 
-def _create_infrastructure_db_manager(env: dict) -> InfrastructureDatabaseManager:
+def _create_shared_db_manager(env: dict) -> SharedDatabaseManager:
     """Create infrastructure database manager for config service"""
     logger = IndexerLogger.get_logger('core.factory.infrastructure_db')
     
@@ -245,7 +244,7 @@ def _create_infrastructure_db_manager(env: dict) -> InfrastructureDatabaseManage
 
     log_with_context(logger, logging.INFO, "Creating infrastructure database manager", database=infrastructure_db_name)
 
-    db_manager = InfrastructureDatabaseManager(infrastructure_db_config)
+    db_manager = SharedDatabaseManager(infrastructure_db_config)
     db_manager.initialize()
     
     return db_manager

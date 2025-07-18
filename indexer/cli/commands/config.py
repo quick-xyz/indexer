@@ -188,11 +188,11 @@ def _import_shared_config_data(ctx, config_data: Dict[str, Any]) -> None:
     cli_context = ctx.obj['cli_context']
     
     try:
-        with cli_context.infrastructure_db_manager.get_session() as session:
+        with cli_context.shared_db_manager.get_session() as session:
             from ...core.config_service import ConfigService
-            
-            config_service = ConfigService(cli_context.infrastructure_db_manager)
-            
+
+            config_service = ConfigService(cli_context.shared_db_manager)
+
             # Import sources
             if 'sources' in config_data:
                 click.echo("📋 Importing sources...")
@@ -334,14 +334,14 @@ def _import_model_config_data(ctx, config_data: Dict[str, Any], update: bool = F
     cli_context = ctx.obj['cli_context']
     
     try:
-        with cli_context.infrastructure_db_manager.get_session() as session:
+        with cli_context.shared_db_manager.get_session() as session:
             from ...core.config_service import ConfigService
             from ...database.shared.repositories.pool_pricing_config_repository import PoolPricingConfigRepository
             from ...database.shared.tables.config.config import Model, Contract, Token, Source, ModelContract, ModelToken, ModelSource
-            
-            config_service = ConfigService(cli_context.infrastructure_db_manager)
-            pool_pricing_repo = PoolPricingConfigRepository(cli_context.infrastructure_db_manager)
-            
+
+            config_service = ConfigService(cli_context.shared_db_manager)
+            pool_pricing_repo = PoolPricingConfigRepository(cli_context.shared_db_manager)
+
             model_data = config_data['model']
             model_name = model_data['name']
             

@@ -10,7 +10,7 @@ from ...connection import ModelDatabaseManager
 from ..tables.detail.trade_detail import TradeDetail, TradePricingMethod
 from ..tables.detail.pool_swap_detail import PricingDenomination, PoolSwapDetail
 from ..tables.events.trade import Trade, PoolSwap
-from ....core.logging_config import IndexerLogger, log_with_context
+from ....core.logging import IndexerLogger, log_with_context
 from ....types.new import DomainEventId
 from ...base_repository import BaseRepository
 from ...shared.tables.periods import Period

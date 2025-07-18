@@ -9,8 +9,8 @@ from contextlib import contextmanager
 from sqlalchemy import text, Integer
 from sqlalchemy.exc import IntegrityError
 
-from ..core.logging_config import IndexerLogger, log_with_context
-from ..database.repository import RepositoryManager
+from ..core.logging import IndexerLogger, log_with_context
+from ..database.repository_manager import RepositoryManager
 from ..database.indexer.tables.processing import ProcessingJob, JobStatus, JobType, TransactionStatus
 from ..database.writers.domain_event_writer import DomainEventWriter
 from ..clients.quicknode_rpc import QuickNodeRpcClient

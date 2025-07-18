@@ -2,7 +2,7 @@
 
 from typing import Tuple, Dict, Optional
 
-from ..core.config import IndexerConfig
+from ..core.indexer_config import IndexerConfig
 from .registry import TransformRegistry
 from .context import TransformContext
 from ..types import (
@@ -16,7 +16,7 @@ from ..types import (
     ZERO_ADDRESS,
     UnknownTransfer,
 )
-from ..core.mixins import LoggingMixin
+from ..core.logging import LoggingMixin
 from .processors import TradeProcessor
 from ..utils.amounts import amount_to_negative_str
 
@@ -36,7 +36,7 @@ class TransformManager(LoggingMixin):
 
         self.log_info("TransformManager initialized", 
                      contract_count=len(config.contracts),
-                     indexer_tokens=len(config.model_tokens.keys()))
+                     tracked_tokens=len(config.tracked_tokens))
 
     def _create_context(self, transaction: Transaction) -> TransformContext:
         """Create transform context with validation"""
@@ -46,12 +46,12 @@ class TransformManager(LoggingMixin):
         try:
             context = TransformContext(
                 transaction=transaction,
-                indexer_tokens=self.config.model_tokens.keys(),
+                tracked_tokens=self.config.tracked_tokens,
             )
             
             self.log_debug("Transform context created", 
                           tx_hash=transaction.tx_hash,
-                          indexer_tokens_count=len(self.config.model_tokens.keys()))
+                          tracked_tokens_count=len(self.config.tracked_tokens))
             
             return context
             
@@ -421,10 +421,10 @@ class TransformManager(LoggingMixin):
         # Filter for indexer tokens only
         transfer_dict = {
             idx: trf for idx, trf in unmatched_transfers.items() 
-            if trf.token in context.indexer_tokens
+            if trf.token in context.tracked_tokens
         }
-        
-        self.log_debug("Filtered transfers for indexer tokens",
+
+        self.log_debug("Filtered transfers for tracked tokens",
                       tx_hash=context.transaction.tx_hash,
                       total_unmatched=len(unmatched_transfers),
                       filtered_count=len(transfer_dict))
@@ -496,8 +496,8 @@ class TransformManager(LoggingMixin):
         
         try:
             for transfer in transfers.values():
-                # Generate position for recipient (if not zero address and is indexer token)
-                if transfer.to_address != ZERO_ADDRESS and transfer.token in context.indexer_tokens:
+                # Generate position for recipient (if not zero address and is tracked token)
+                if transfer.to_address != ZERO_ADDRESS and transfer.token in context.tracked_tokens:
                     position_in = Position(
                         timestamp=context.transaction.timestamp,
                         tx_hash=context.transaction.tx_hash,
@@ -508,8 +508,8 @@ class TransformManager(LoggingMixin):
                     )
                     positions[position_in.content_id] = position_in
 
-                # Generate position for sender (if not zero address and is indexer token)
-                if transfer.from_address != ZERO_ADDRESS and transfer.token in context.indexer_tokens:
+                # Generate position for sender (if not zero address and is tracked token)
+                if transfer.from_address != ZERO_ADDRESS and transfer.token in context.tracked_tokens:
                     position_out = Position(
                         timestamp=context.transaction.timestamp,
                         tx_hash=context.transaction.tx_hash, 

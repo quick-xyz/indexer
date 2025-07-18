@@ -8,7 +8,7 @@ from sqlalchemy import create_engine, Engine, text
 from sqlalchemy.orm import sessionmaker, Session, scoped_session
 from sqlalchemy.pool import QueuePool
 
-from ..core.logging_config import IndexerLogger, log_with_context
+from ..core.logging import IndexerLogger, log_with_context
 from ..types.configs.config import DatabaseConfig
 
 
@@ -157,7 +157,7 @@ class DatabaseManager:
                             exception_type=type(e).__name__)
             return False
 
-class InfrastructureDatabaseManager(DatabaseManager):
+class SharedDatabaseManager(DatabaseManager):
     """Database manager for infrastructure database (indexer_shared)"""
     pass
 

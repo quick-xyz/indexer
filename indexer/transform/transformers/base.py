@@ -15,8 +15,8 @@ from ...types import (
     EvmHash,
 )
 from ...utils.amounts import is_positive
-from ...core.mixins import LoggingMixin
-from ...core.logging_config import log_with_context
+from ...core.logging import LoggingMixin
+from ...core.logging import log_with_context
 
 
 class BaseTransformer(ABC, LoggingMixin):

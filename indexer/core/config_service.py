@@ -1,11 +1,11 @@
 # indexer/core/config_service.py
 
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Set
 from sqlalchemy import and_
 
 from ..database.connection import DatabaseManager
 from ..database.shared.tables.config.config import Model, Contract, Token, Address, ModelContract, ModelToken, Source, ModelSource
-from ..core.logging_config import IndexerLogger, log_with_context
+from ..core.logging import IndexerLogger, log_with_context
 from ..types import EvmAddress
 
 import logging
@@ -61,7 +61,7 @@ class ConfigService:
             
             return contract_dict
     
-    def get_model_tokens(self, model_name: str) -> Dict[EvmAddress, Token]:
+    def get_tracked_tokens(self, model_name: str) -> Set[EvmAddress]:
         with self.db_manager.get_session() as session:
             tokens = session.query(Token).join(
                 ModelToken, Token.id == ModelToken.token_id
@@ -86,7 +86,7 @@ class ConfigService:
             
             return token_dict
     
-    def get_all_tokens(self) -> Dict[EvmAddress, Token]:
+    def get_all_tokens(self) -> Set[EvmAddress]:
         with self.db_manager.get_session() as session:
             tokens = session.query(Token).filter(
                 Token.status == 'active'
@@ -102,22 +102,6 @@ class ConfigService:
             
             return token_dict
     
-    def get_all_addresses(self) -> Dict[EvmAddress, Address]:
-        with self.db_manager.get_session() as session:
-            addresses = session.query(Address).filter(
-                Address.status == 'active'
-            ).all()
-            
-            address_dict = {
-                EvmAddress(address.address): address 
-                for address in addresses
-            }
-            
-            log_with_context(self.logger, logging.DEBUG, "Addresses loaded",
-                           address_count=len(address_dict))
-            
-            return address_dict
-    
     def get_token_by_address(self, address: str) -> Optional[Token]:
         with self.db_manager.get_session() as session:
             token = session.query(Token).filter(
@@ -128,17 +112,7 @@ class ConfigService:
             ).first()
             
             return token
-    
-    def get_address_by_address(self, address: str) -> Optional[Address]:
-        with self.db_manager.get_session() as session:
-            addr = session.query(Address).filter(
-                and_(
-                    Address.address == address.lower(),
-                    Address.status == 'active'
-                )
-            ).first()
-            
-            return addr
+
     
     def get_source_by_id(self, source_id: int) -> Optional[Source]:
         """Get source by ID"""

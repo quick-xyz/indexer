@@ -22,7 +22,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from indexer.cli.context import CLIContext
-from indexer.core.logging_config import IndexerLogger
+from indexer.core.logging import IndexerLogger
 
 # Create global CLI context
 cli_context = CLIContext()

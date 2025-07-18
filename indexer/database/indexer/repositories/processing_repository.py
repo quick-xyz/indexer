@@ -7,7 +7,7 @@ from sqlalchemy import and_
 
 from ...connection import ModelDatabaseManager
 from ..tables.processing import TransactionProcessing
-from ....core.logging_config import log_with_context
+from ....core.logging import log_with_context
 from ....types.new import EvmHash
 from ...base_repository import BaseRepository
 

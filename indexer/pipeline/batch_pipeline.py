@@ -8,12 +8,12 @@ import json
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import and_, or_, Integer
 
-from ..core.logging_config import IndexerLogger, log_with_context
-from ..database.repository import RepositoryManager
+from ..core.logging import IndexerLogger, log_with_context
+from ..database.repository_manager import RepositoryManager
 from ..database.indexer.tables.processing import ProcessingJob, JobStatus, JobType
 from ..storage.gcs_handler import GCSHandler
 from .indexing_pipeline import IndexingPipeline
-from ..core.config import IndexerConfig
+from ..core.indexer_config import IndexerConfig
 
 import logging
 

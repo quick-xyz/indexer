@@ -18,9 +18,9 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from indexer import create_indexer
-from indexer.core.config import IndexerConfig
+from indexer.core.indexer_config import IndexerConfig
 from indexer.core.container import IndexerContainer
-from indexer.core.logging_config import IndexerLogger, log_with_context
+from indexer.core.logging import IndexerLogger, log_with_context
 
 T = TypeVar('T')
 

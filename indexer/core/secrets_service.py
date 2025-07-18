@@ -4,7 +4,7 @@ from google.cloud import secretmanager
 from typing import Optional
 import logging
 
-from .logging_config import IndexerLogger, log_with_context
+from .logging import IndexerLogger, log_with_context
 
 
 class SecretsService:

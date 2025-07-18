@@ -45,7 +45,7 @@ def add(ctx, model_name, pool_address, start_block, strategy, primary,
     cli_context = ctx.obj['cli_context']
     
     try:
-        with cli_context.infrastructure_db_manager.get_session() as session:
+        with cli_context.shared_db_manager.get_session() as session:
             # Import here to avoid circular imports
             from ...database.shared.tables.config.config import Model, Contract
             from ...database.shared.repositories.pool_pricing_config_repository import PoolPricingConfigRepository
@@ -67,7 +67,7 @@ def add(ctx, model_name, pool_address, start_block, strategy, primary,
                 raise click.ClickException(f"Pool '{pool_address}' not found")
             
             # Create configuration
-            repo = PoolPricingConfigRepository(cli_context.infrastructure_db_manager)
+            repo = PoolPricingConfigRepository(cli_context.shared_db_manager)
             config = repo.create_pool_pricing_config(
                 session=session,
                 model_id=model.id,
@@ -102,10 +102,10 @@ def close(ctx, model_name, pool_address, end_block):
     cli_context = ctx.obj['cli_context']
     
     try:
-        with cli_context.infrastructure_db_manager.get_session() as session:
+        with cli_context.shared_db_manager.get_session() as session:
             from ...database.shared.repositories.pool_pricing_config_repository import PoolPricingConfigRepository
             
-            repo = PoolPricingConfigRepository(cli_context.infrastructure_db_manager)
+            repo = PoolPricingConfigRepository(cli_context.shared_db_manager)
             success = repo.close_active_config(
                 session=session,
                 model_name=model_name,
@@ -141,7 +141,7 @@ def show(ctx, model_name, pool_address, block):
     cli_context = ctx.obj['cli_context']
     
     try:
-        with cli_context.infrastructure_db_manager.get_session() as session:
+        with cli_context.shared_db_manager.get_session() as session:
             from ...database.shared.tables.config.config import Model, Contract
             from ...database.shared.repositories.pool_pricing_config_repository import PoolPricingConfigRepository
             
@@ -161,7 +161,7 @@ def show(ctx, model_name, pool_address, block):
                 raise click.ClickException(f"Pool '{pool_address}' not found")
             
             # Get configuration
-            repo = PoolPricingConfigRepository(cli_context.infrastructure_db_manager)
+            repo = PoolPricingConfigRepository(cli_context.shared_db_manager)
             config = repo.get_active_config_for_pool(
                 session=session,
                 model_id=model.id,
@@ -211,7 +211,7 @@ def list_configs(ctx, model_name, strategy, active_only):
     cli_context = ctx.obj['cli_context']
     
     try:
-        with cli_context.infrastructure_db_manager.get_session() as session:
+        with cli_context.shared_db_manager.get_session() as session:
             from ...database.shared.tables.config.config import Model
             from ...database.shared.repositories.pool_pricing_config_repository import PoolPricingConfigRepository
             
@@ -224,7 +224,7 @@ def list_configs(ctx, model_name, strategy, active_only):
                 raise click.ClickException(f"Model '{model_name}' not found")
             
             # Get configurations
-            repo = PoolPricingConfigRepository(cli_context.infrastructure_db_manager)
+            repo = PoolPricingConfigRepository(cli_context.shared_db_manager)
             configs = repo.get_configs_for_model(
                 session=session,
                 model_id=model.id,
@@ -288,7 +288,7 @@ def primary_pools(ctx, model_name, block):
     cli_context = ctx.obj['cli_context']
     
     try:
-        with cli_context.infrastructure_db_manager.get_session() as session:
+        with cli_context.shared_db_manager.get_session() as session:
             from ...database.shared.tables.config.config import Model
             from ...database.shared.repositories.pool_pricing_config_repository import PoolPricingConfigRepository
             
@@ -301,7 +301,7 @@ def primary_pools(ctx, model_name, block):
                 raise click.ClickException(f"Model '{model_name}' not found")
             
             # Get primary pools
-            repo = PoolPricingConfigRepository(cli_context.infrastructure_db_manager)
+            repo = PoolPricingConfigRepository(cli_context.shared_db_manager)
             primary_configs = repo.get_primary_pools_at_block(
                 session=session,
                 model_id=model.id,

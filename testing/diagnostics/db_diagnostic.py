@@ -18,7 +18,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from testing import get_testing_environment
 from sqlalchemy import text, inspect
-from indexer.database.connection import ModelDatabaseManager, InfrastructureDatabaseManager
+from indexer.database.connection import ModelDatabaseManager, SharedDatabaseManager
 
 
 class DatabaseDiagnostic:
@@ -62,7 +62,7 @@ class DatabaseDiagnostic:
         
         try:
             # Get infrastructure DB manager
-            db_manager = self.env.get_service(InfrastructureDatabaseManager)
+            db_manager = self.env.get_service(SharedDatabaseManager)
             
             # Test connection
             with db_manager.get_session() as session:

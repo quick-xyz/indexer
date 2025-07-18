@@ -4,7 +4,7 @@ from typing import Optional, Dict, List, Any
 from web3 import Web3
 from web3.contract import Contract
 
-from ..core.config import IndexerConfig
+from ..core.indexer_config import IndexerConfig
 from ..types import EvmAddress
 from .abi_loader import ABILoader
 

@@ -27,7 +27,7 @@ class ModelRepository(ConfigRepositoryBase[DBModel, ModelConfig]):
             version=config.version,
             network=config.network,
             shared_db=config.shared_db,
-            indexer_db=config.indexer_db,
+            model_db=config.model_db,
             description=config.description,
             model_token=config.model_token.lower() if config.model_token else None,
             status=config.status
@@ -41,7 +41,7 @@ class ModelRepository(ConfigRepositoryBase[DBModel, ModelConfig]):
             entity.version == config.version and
             entity.network == config.network and
             entity.shared_db == config.shared_db and
-            entity.indexer_db == config.indexer_db and
+            entity.model_db == config.model_db and
             entity.description == config.description and
             entity.model_token == (config.model_token.lower() if config.model_token else None) and
             entity.status == config.status

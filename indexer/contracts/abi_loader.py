@@ -3,7 +3,7 @@
 import json
 from pathlib import Path
 from typing import Optional, List, Dict, Any
-from ..core.mixins import LoggingMixin
+from ..core.logging import LoggingMixin
 
 
 class ABILoader(LoggingMixin):

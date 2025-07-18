@@ -11,7 +11,7 @@ class ModelConfig(Struct):
     version: str = 'v1'
     network: str = 'avalanche'
     shared_db: str
-    indexer_db: str
+    model_db: str
     status: str = 'active'
     description: Optional[str] = None
     model_token: Optional[EvmAddress] = None

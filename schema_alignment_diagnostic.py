@@ -79,7 +79,7 @@ class SchemaAlignmentDiagnostic:
             model_schema = {}
             
             # Get shared database schema
-            with container.infrastructure_db_manager().get_session() as session:
+            with container.shared_db_manager().get_session() as session:
                 result = session.execute("""
                     SELECT table_name, column_name, data_type
                     FROM information_schema.columns 

@@ -6,8 +6,8 @@ from decimal import Decimal
 
 from sqlalchemy import and_, exists, distinct
 
-from ..core.logging_config import IndexerLogger, log_with_context
-from ..database.repository import RepositoryManager
+from ..core.logging import IndexerLogger, log_with_context
+from ..database.repository_manager import RepositoryManager
 from ..database.connection import DatabaseManager
 from ..database.shared.tables.periods import Period, PeriodType
 from ..database.shared.repositories.block_prices_repository import BlockPricesRepository
@@ -47,12 +47,12 @@ class PricingService:
     def __init__(
         self,
         shared_db_manager: DatabaseManager,  # Shared database for prices and periods
-        indexer_db_manager: DatabaseManager,  # Indexer database for event details
+        model_db_manager: DatabaseManager,  # Indexer database for event details
         rpc_client: QuickNodeRpcClient,
         repository_manager: RepositoryManager
     ):
         self.shared_db_manager = shared_db_manager  # For block prices, periods, canonical pricing
-        self.indexer_db_manager = indexer_db_manager  # For event pricing details
+        self.model_db_manager = model_db_manager  # For event pricing details
         self.rpc_client = rpc_client
         self.repository_manager = repository_manager
         
@@ -65,7 +65,7 @@ class PricingService:
         log_with_context(
             self.logger, logging.INFO, "PricingService initialized",
             shared_database=shared_db_manager.config.url.split('/')[-1],
-            indexer_database=indexer_db_manager.config.url.split('/')[-1]
+            model_database=model_db_manager.config.url.split('/')[-1]
         )
     
     # =====================================================================
@@ -188,7 +188,7 @@ class PricingService:
         
         try:
             # Calculate direct pricing using repository method
-            with self.indexer_db_manager.get_session() as session:
+            with self.model_db_manager.get_session() as session:
                 results = pool_swap_detail_repo.calculate_direct_pricing(
                     session,
                     asset_address=asset_address,
@@ -237,7 +237,7 @@ class PricingService:
         
         try:
             # Calculate direct pricing using repository method
-            with self.indexer_db_manager.get_session() as session:
+            with self.model_db_manager.get_session() as session:
                 results = trade_detail_repo.calculate_direct_pricing(
                     session,
                     asset_address=asset_address,
@@ -313,17 +313,17 @@ class PricingService:
             price_vwap_repo = self.repository_manager.get_price_vwap_repository()
             
             with self.shared_db_manager.get_session() as shared_session:
-                with self.indexer_db_manager.get_session() as indexer_session:
+                with self.model_db_manager.get_session() as model_session:
                     
                     # Get model ID for pool pricing config lookup
                     model = shared_session.query(Model).filter(
-                        Model.database_name == self.indexer_db_manager.config.url.split('/')[-1]
+                        Model.database_name == self.model_db_manager.config.url.split('/')[-1]
                     ).first()
                     
                     if not model:
                         log_with_context(
                             self.logger, logging.ERROR, "Could not find model for database",
-                            database_name=self.indexer_db_manager.config.url.split('/')[-1]
+                            database_name=self.model_db_manager.config.url.split('/')[-1]
                         )
                         return {'prices_created': 0, 'errors': 1, 'minutes_processed': 0}
                     
@@ -365,7 +365,7 @@ class PricingService:
                                     swap_details = []
                                     for pool_config in asset_pricing_pools:
                                         details = pool_swap_detail_repo.get_details_for_pool_and_minute(
-                                            indexer_session,
+                                            model_session,
                                             pool_config.contract_id,
                                             timestamp_minute,
                                             denom
@@ -557,15 +557,15 @@ class PricingService:
             price_vwap_repo = self.repository_manager.get_price_vwap_repository()
             
             with self.shared_db_manager.get_session() as shared_session:
-                with self.indexer_db_manager.get_session() as indexer_session:
-                    
+                with self.model_db_manager.get_session() as model_session:
+
                     # Process each block
                     for block_number in block_numbers:
                         try:
                             results['blocks_processed'] += 1
                             
                             # Find pool swaps without direct pricing in this block
-                            unpriced_swaps = indexer_session.query(PoolSwap).filter(
+                            unpriced_swaps = model_session.query(PoolSwap).filter(
                                 and_(
                                     PoolSwap.block_number == block_number,
                                     PoolSwap.base_token == asset_address.lower(),
@@ -582,7 +582,7 @@ class PricingService:
                             ).all()
                             
                             # Find trades without direct pricing in this block
-                            unpriced_trades = indexer_session.query(Trade).filter(
+                            unpriced_trades = model_session.query(Trade).filter(
                                 and_(
                                     Trade.block_number == block_number,
                                     Trade.base_token == asset_address.lower(),
@@ -627,7 +627,7 @@ class PricingService:
                                         
                                         # Create pool swap detail with global pricing
                                         swap_detail = pool_swap_detail_repo.create_swap_detail(
-                                            indexer_session,
+                                            model_session,
                                             swap.content_id,
                                             denom,
                                             base_amount,
@@ -679,7 +679,7 @@ class PricingService:
                                         
                                         # Create trade detail with global pricing
                                         trade_detail = trade_detail_repo.create_trade_detail(
-                                            indexer_session,
+                                            model_session,
                                             trade.content_id,
                                             denom,
                                             total_value,
@@ -707,7 +707,7 @@ class PricingService:
                             )
                     
                     # Commit all changes
-                    indexer_session.commit()
+                    model_session.commit()
                     
             log_with_context(
                 self.logger, logging.INFO, "Global pricing application complete",
@@ -821,7 +821,7 @@ class PricingService:
         try:
             if blocks is None:
                 # Auto-detect recent blocks with unpriced events
-                with self.indexer_db_manager.get_session() as session:
+                with self.model_db_manager.get_session() as session:
                     
                     # Look for blocks in last 24 hours with unpriced events
                     cutoff_time = datetime.now(timezone.utc) - timedelta(hours=24)
@@ -1008,19 +1008,19 @@ class PricingService:
             price_vwap_repo = self.repository_manager.get_price_vwap_repository()
             
             with self.shared_db_manager.get_session() as shared_session:
-                with self.indexer_db_manager.get_session() as indexer_session:
+                with self.model_db_manager.get_session() as model_session:
                     
                     # Get direct pricing status
                     for denom in [PricingDenomination.USD, PricingDenomination.AVAX]:
                         # Pool swap pricing status
                         swap_stats = pool_swap_detail_repo.get_pricing_stats(
-                            indexer_session, asset_address, denom
+                            model_session, asset_address, denom
                         )
                         status['direct_pricing'][denom.value]['swaps'] = swap_stats
                         
                         # Trade pricing status
                         trade_stats = trade_detail_repo.get_pricing_stats(
-                            indexer_session, asset_address, denom
+                            model_session, asset_address, denom
                         )
                         status['direct_pricing'][denom.value]['trades'] = trade_stats
                         

@@ -59,7 +59,7 @@ def add(ctx, address, name, project, contract_type, abi_dir, abi_file,
             raise click.BadParameter("Invalid JSON for --transformer-config")
     
     try:
-        with cli_context.infrastructure_db_manager.get_session() as session:
+        with cli_context.shared_db_manager.get_session() as session:
             from ...database.shared.tables.config.config import Contract, Model, ModelContract
             
             # Check if contract already exists
@@ -154,7 +154,7 @@ def list_contracts(ctx, model, contract_type, project):
     cli_context = ctx.obj['cli_context']
     
     try:
-        with cli_context.infrastructure_db_manager.get_session() as session:
+        with cli_context.shared_db_manager.get_session() as session:
             from ...database.shared.tables.config.config import Contract, Model, ModelContract
             
             query = session.query(Contract)
@@ -241,7 +241,7 @@ def associate(ctx, address, model_name):
     cli_context = ctx.obj['cli_context']
     
     try:
-        with cli_context.infrastructure_db_manager.get_session() as session:
+        with cli_context.shared_db_manager.get_session() as session:
             from ...database.shared.tables.config.config import Contract, Model, ModelContract
             
             # Get contract and model
@@ -318,7 +318,7 @@ def update(ctx, address, name, project, contract_type, transformer, transformer_
             raise click.BadParameter("Invalid JSON for --transformer-config")
     
     try:
-        with cli_context.infrastructure_db_manager.get_session() as session:
+        with cli_context.shared_db_manager.get_session() as session:
             from ...database.shared.tables.config.config import Contract
             
             contract = session.query(Contract).filter(

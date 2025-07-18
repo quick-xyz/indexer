@@ -38,7 +38,7 @@ def add(ctx, address, name, address_type, project, description, grouping):
     cli_context = ctx.obj['cli_context']
     
     try:
-        with cli_context.infrastructure_db_manager.get_session() as session:
+        with cli_context.shared_db_manager.get_session() as session:
             from ...database.shared.tables.config.config import Address
             
             # Check if address already exists
@@ -96,7 +96,7 @@ def list_addresses(ctx, address_type, project, grouping):
     cli_context = ctx.obj['cli_context']
     
     try:
-        with cli_context.infrastructure_db_manager.get_session() as session:
+        with cli_context.shared_db_manager.get_session() as session:
             from ...database.shared.tables.config.config import Address
             
             query = session.query(Address)

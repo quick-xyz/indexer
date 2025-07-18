@@ -17,7 +17,7 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from indexer import create_indexer
-from indexer.database.connection import InfrastructureDatabaseManager, ModelDatabaseManager
+from indexer.database.connection import SharedDatabaseManager, ModelDatabaseManager
 
 
 class ProperLiquidityMigrator:
@@ -39,12 +39,12 @@ class ProperLiquidityMigrator:
         print("🔗 Setting up database connections using infrastructure DB pattern...")
         
         try:
-            # Use the same pattern as _create_infrastructure_db_manager() to get credentials
+            # Use the same pattern as __create_shared_db_manager() to get credentials
             env = os.environ
             project_id = env.get("INDEXER_GCP_PROJECT_ID")
             
             if project_id:
-                # Use SecretsService directly (like in _create_infrastructure_db_manager)
+                # Use SecretsService directly (like in _create_shared_db_manager)
                 from indexer.core.secrets_service import SecretsService
                 temp_secrets_service = SecretsService(project_id)
                 db_credentials = temp_secrets_service.get_database_credentials()

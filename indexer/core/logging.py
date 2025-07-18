@@ -1,60 +1,48 @@
-# indexer/core/logging_config.py
+# indexer/core/logging.py
 """
-Centralized logging configuration for the blockchain indexer.
+Centralized logging system for the indexer.
+
+Provides:
+- IndexerLogger: Global logging configuration
+- LoggingMixin: Consistent logging behavior for classes
+- Utility functions: Context logging helpers
 """
 
 import logging
-import logging.config
 import sys
 from pathlib import Path
 from typing import Optional, Dict, Any
-import json
 from datetime import datetime
 
 
 class IndexerFormatter(logging.Formatter):
-    """Custom formatter for indexer logs with structured output"""
-    
-    def __init__(self, include_context: bool = True):
+    def __init__(self, include_context: bool = False):
         self.include_context = include_context
         super().__init__()
     
     def format(self, record: logging.LogRecord) -> str:
-        # Base format
-        timestamp = datetime.fromtimestamp(record.created).isoformat()
-        level = record.levelname
-        logger_name = record.name
-        message = record.getMessage()
+        timestamp = datetime.fromtimestamp(record.created).strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
+        base_msg = f"{timestamp} - {record.name} - {record.levelname} - {record.getMessage()}"
         
-        # Extract context from record if available
-        context = {}
-        if self.include_context:
-            for attr in ['tx_hash', 'block_number', 'contract_address', 'log_index', 
-                        'transformer_name', 'transfer_count', 'event_count']:
-                if hasattr(record, attr):
-                    context[attr] = getattr(record, attr)
+        if not self.include_context:
+            return base_msg
         
-        # Build structured log entry
-        log_entry = {
-            'timestamp': timestamp,
-            'level': level,
-            'logger': logger_name,
-            'message': message,
-        }
+        context_parts = []
+        context_attrs = ['tx_hash', 'block_number', 'contract_address', 'model_name', 
+                        'log_index', 'error', 'transformer_name', 'pattern_name']
         
-        if context:
-            log_entry['context'] = context
-            
-        if record.exc_info:
-            log_entry['exception'] = self.formatException(record.exc_info)
+        for attr in context_attrs:
+            if hasattr(record, attr):
+                context_parts.append(f"{attr}={getattr(record, attr)}")
         
-        return json.dumps(log_entry, separators=(',', ':'))
+        if context_parts:
+            return f"{base_msg} | {' '.join(context_parts)}"
+        
+        return base_msg
 
 
 class IndexerLogger:
-    """
-    Centralized logger factory for the indexer system.
-    """
+    """Global logging configuration and management"""
     
     _configured = False
     _log_dir: Optional[Path] = None
@@ -69,7 +57,6 @@ class IndexerLogger:
                   console_enabled: bool = True,
                   file_enabled: bool = True,
                   structured_format: bool = True) -> None:
-        """Configure the logging system globally"""
         
         if cls._configured:
             return
@@ -79,18 +66,14 @@ class IndexerLogger:
         cls._console_enabled = console_enabled
         cls._file_enabled = file_enabled
         
-        # Create log directory if needed
         if file_enabled and log_dir:
             log_dir.mkdir(parents=True, exist_ok=True)
         
-        # Configure root logger
         root_logger = logging.getLogger('indexer')
         root_logger.setLevel(cls._log_level)
         
-        # Clear existing handlers
         root_logger.handlers.clear()
         
-        # Console handler
         if console_enabled:
             console_handler = logging.StreamHandler(sys.stdout)
             console_handler.setLevel(cls._log_level)
@@ -104,7 +87,6 @@ class IndexerLogger:
             console_handler.setFormatter(console_formatter)
             root_logger.addHandler(console_handler)
         
-        # File handlers
         if file_enabled and log_dir:
             # Main log file
             file_handler = logging.FileHandler(log_dir / 'indexer.log')
@@ -123,20 +105,18 @@ class IndexerLogger:
     
     @classmethod
     def get_logger(cls, name: str) -> logging.Logger:
-        """Get a logger with the indexer namespace"""
         if not cls._configured:
             cls.configure()
         
-        # Ensure name starts with 'indexer'
         if not name.startswith('indexer'):
             name = f'indexer.{name}'
         
         return logging.getLogger(name)
 
 
-# Convenience functions
+# === Utility Functions ===
+
 def get_class_logger(cls_instance) -> logging.Logger:
-    """Get logger for a class instance"""
     module = cls_instance.__class__.__module__
     class_name = cls_instance.__class__.__name__
     
@@ -149,7 +129,6 @@ def get_class_logger(cls_instance) -> logging.Logger:
 
 
 def log_with_context(logger: logging.Logger, level: int, message: str, **context) -> None:
-    """Log with additional context"""
     if logger.isEnabledFor(level):
         record = logger.makeRecord(
             logger.name, level, "", 0, message, (), None
@@ -157,3 +136,40 @@ def log_with_context(logger: logging.Logger, level: int, message: str, **context
         for key, value in context.items():
             setattr(record, key, value)
         logger.handle(record)
+
+
+# === LoggingMixin for Classes ===
+
+class LoggingMixin:
+    """
+    Mixin to add consistent logging behavior to any class.
+    
+    Provides convenient logging methods that automatically:
+    - Create class-specific loggers
+    - Support structured context logging
+    - Handle common logging patterns
+    """
+    
+    @property
+    def logger(self) -> logging.Logger:
+        """Get logger for this class"""
+        if not hasattr(self, '_logger'):
+            self._logger = get_class_logger(self)
+        return self._logger
+    
+    def log_debug(self, message: str, **context) -> None:
+        log_with_context(self.logger, logging.DEBUG, message, **context)
+    
+    def log_info(self, message: str, **context) -> None:
+        log_with_context(self.logger, logging.INFO, message, **context)
+    
+    def log_warning(self, message: str, **context) -> None:
+        log_with_context(self.logger, logging.WARNING, message, **context)
+    
+    def log_error(self, message: str, **context) -> None:
+        log_with_context(self.logger, logging.ERROR, message, **context)
+    
+    def log_transaction_context(self, tx_hash: str, **additional_context) -> Dict[str, Any]:
+        context = {'tx_hash': tx_hash}
+        context.update(additional_context)
+        return context

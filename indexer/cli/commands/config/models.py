@@ -60,7 +60,7 @@ def _preview_model_import(ctx, model_configs):
     cli_context = ctx.obj['cli_context']
     
     try:
-        model_repo = ModelRepository(cli_context.infrastructure_db_manager)
+        model_repo = ModelRepository(cli_context.shared_db_manager)
         
         click.echo("\n🔍 DRY RUN - Model Import Preview")
         click.echo("=" * 50)
@@ -100,7 +100,7 @@ def _execute_model_import(ctx, model_configs):
     cli_context = ctx.obj['cli_context']
     
     try:
-        model_repo = ModelRepository(cli_context.infrastructure_db_manager)
+        model_repo = ModelRepository(cli_context.shared_db_manager)
         
         click.echo("\n📥 Importing Models...")
         click.echo("=" * 30)

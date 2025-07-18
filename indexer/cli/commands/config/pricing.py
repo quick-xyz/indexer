@@ -61,7 +61,7 @@ def _preview_pricing_import(ctx, pricing_configs):
     cli_context = ctx.obj['cli_context']
     
     try:
-        pricing_repo = PricingRepository(cli_context.infrastructure_db_manager)
+        pricing_repo = PricingRepository(cli_context.shared_db_manager)
         
         click.echo("\n🔍 DRY RUN - Pricing Import Preview")
         click.echo("=" * 50)
@@ -101,7 +101,7 @@ def _execute_pricing_import(ctx, pricing_configs):
     cli_context = ctx.obj['cli_context']
     
     try:
-        pricing_repo = PricingRepository(cli_context.infrastructure_db_manager)
+        pricing_repo = PricingRepository(cli_context.shared_db_manager)
         
         click.echo("\n📥 Importing Pricing Configurations...")
         click.echo("=" * 45)

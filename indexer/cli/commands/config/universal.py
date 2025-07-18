@@ -217,15 +217,15 @@ def _execute_universal_import(ctx, config_data: Dict[str, Any], analysis: Dict[s
 
 def _initialize_repositories(cli_context):
     return {
-        'addresses': AddressRepository(cli_context.infrastructure_db_manager),
-        'sources': SourceRepository(cli_context.infrastructure_db_manager),
-        'models': ModelRepository(cli_context.infrastructure_db_manager),
-        'tokens': TokenRepository(cli_context.infrastructure_db_manager),
-        'contracts': ContractRepository(cli_context.infrastructure_db_manager),
-        'labels': LabelRepository(cli_context.infrastructure_db_manager),
-        'pools': PoolRepository(cli_context.infrastructure_db_manager),
-        'pricing': PricingRepository(cli_context.infrastructure_db_manager),
-        'relations': ModelRelationsRepository(cli_context.infrastructure_db_manager)
+        'addresses': AddressRepository(cli_context.shared_db_manager),
+        'sources': SourceRepository(cli_context.shared_db_manager),
+        'models': ModelRepository(cli_context.shared_db_manager),
+        'tokens': TokenRepository(cli_context.shared_db_manager),
+        'contracts': ContractRepository(cli_context.shared_db_manager),
+        'labels': LabelRepository(cli_context.shared_db_manager),
+        'pools': PoolRepository(cli_context.shared_db_manager),
+        'pricing': PricingRepository(cli_context.shared_db_manager),
+        'relations': ModelRelationsRepository(cli_context.shared_db_manager)
     }
 
 

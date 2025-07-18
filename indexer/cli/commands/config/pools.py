@@ -61,7 +61,7 @@ def _preview_pool_import(ctx, pool_configs):
     cli_context = ctx.obj['cli_context']
     
     try:
-        pool_repo = PoolRepository(cli_context.infrastructure_db_manager)
+        pool_repo = PoolRepository(cli_context.shared_db_manager)
         
         click.echo("\n🔍 DRY RUN - Pool Import Preview")
         click.echo("=" * 50)
@@ -101,7 +101,7 @@ def _execute_pool_import(ctx, pool_configs):
     cli_context = ctx.obj['cli_context']
     
     try:
-        pool_repo = PoolRepository(cli_context.infrastructure_db_manager)
+        pool_repo = PoolRepository(cli_context.shared_db_manager)
         
         click.echo("\n📥 Importing Pools...")
         click.echo("=" * 29)

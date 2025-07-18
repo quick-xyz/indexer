@@ -4,9 +4,9 @@ from fastapi import Depends, HTTPException
 from typing import Generator
 import logging
 
-from indexer.database.repository import RepositoryManager
+from indexer.database.repository_manager import RepositoryManager
 from indexer.database.connection import DatabaseManager
-from indexer.core.logging_config import IndexerLogger, log_with_context
+from indexer.core.logging import IndexerLogger, log_with_context
 
 # Global variables - these get set during app startup
 _repository_manager: RepositoryManager = None

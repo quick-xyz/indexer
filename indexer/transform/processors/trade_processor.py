@@ -7,8 +7,8 @@ import msgspec
 
 from ..registry import TransformRegistry
 from ..context import TransformContext
-from ...core.config import IndexerConfig
-from ...core.mixins import LoggingMixin
+from ...core.indexer_config import IndexerConfig
+from ...core.logging import LoggingMixin
 from ...types import (
     EvmAddress,
     Signal,
@@ -53,7 +53,7 @@ class TradeProcessor(LoggingMixin):
         self.config = config
         
         self.log_info("TradeProcessor initialized", 
-                     indexer_tokens=len(config.model_tokens.keys()))
+                     tracked_tokens=len(config.tracked_tokens))
     
     def process_trade_signals(self, trade_signals: Dict[int, Signal], context: TransformContext) -> bool:
         """Main entry point for trade signal processing"""
@@ -721,8 +721,8 @@ class TradeProcessor(LoggingMixin):
             positions = {}
             
             for transfer in transfers.values():
-                # Generate position for recipient (if not zero address and is indexer token)
-                if transfer.to_address != ZERO_ADDRESS and transfer.token in context.indexer_tokens:
+                # Generate position for recipient (if not zero address and is tracked token)
+                if transfer.to_address != ZERO_ADDRESS and transfer.token in context.tracked_tokens:
                     position_in = Position(
                         timestamp=context.transaction.timestamp,
                         tx_hash=context.transaction.tx_hash,
@@ -733,8 +733,8 @@ class TradeProcessor(LoggingMixin):
                     )
                     positions[position_in.content_id] = position_in
 
-                # Generate position for sender (if not zero address and is indexer token)
-                if transfer.from_address != ZERO_ADDRESS and transfer.token in context.indexer_tokens:
+                # Generate position for sender (if not zero address and is tracked token)
+                if transfer.from_address != ZERO_ADDRESS and transfer.token in context.tracked_tokens:
                     position_out = Position(
                         timestamp=context.transaction.timestamp,
                         tx_hash=context.transaction.tx_hash,

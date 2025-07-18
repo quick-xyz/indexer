@@ -4,8 +4,8 @@ from typing import List, Dict, Any, Optional, TypeVar, Generic
 from abc import ABC, abstractmethod
 from sqlalchemy.orm import Session
 
-from ....connection import InfrastructureDatabaseManager
-from .....core.logging_config import IndexerLogger, log_with_context
+from ....connection import SharedDatabaseManager
+from .....core.logging import IndexerLogger, log_with_context
 
 import logging
 
@@ -13,7 +13,7 @@ T = TypeVar('T')  # Database entity type
 C = TypeVar('C')  # Config struct type
 
 class ConfigRepositoryBase(ABC, Generic[T, C]):
-    def __init__(self, db_manager: InfrastructureDatabaseManager, entity_name: str):
+    def __init__(self, db_manager: SharedDatabaseManager, entity_name: str):
         self.db_manager = db_manager
         self.entity_name = entity_name
         self.logger = IndexerLogger.get_logger(f'database.shared.repositories.{entity_name.lower()}')

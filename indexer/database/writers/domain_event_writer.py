@@ -7,9 +7,9 @@ from collections import defaultdict
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
 
-from ..repository import RepositoryManager
+from ..repository_manager import RepositoryManager
 from ..indexer.tables.processing import TransactionProcessing, TransactionStatus
-from ...core.logging_config import IndexerLogger, log_with_context
+from ...core.logging import IndexerLogger, log_with_context
 from ...types.new import EvmHash, DomainEventId
 from ...types.model.positions import Position
 

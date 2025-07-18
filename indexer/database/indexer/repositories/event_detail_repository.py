@@ -9,7 +9,7 @@ from sqlalchemy import and_, desc, func, case, exists
 
 from ...connection import ModelDatabaseManager
 from ..tables.detail.event_detail import EventDetail, PricingDenomination
-from ....core.logging_config import log_with_context
+from ....core.logging import log_with_context
 from ....types.new import DomainEventId
 from ...base_repository import BaseRepository
 from ..tables.detail.pool_swap_detail import PricingMethod

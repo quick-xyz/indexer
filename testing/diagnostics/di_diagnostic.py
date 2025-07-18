@@ -89,7 +89,7 @@ class DIContainerDiagnostic:
         
         db_services = [
             ("ModelDatabaseManager", "indexer.database.connection", "ModelDatabaseManager"),
-            ("InfrastructureDatabaseManager", "indexer.database.connection", "InfrastructureDatabaseManager"),
+            ("SharedDatabaseManager", "indexer.database.connection", "SharedDatabaseManager"),
             ("RepositoryManager", "indexer.database.repository", "RepositoryManager"),
         ]
         

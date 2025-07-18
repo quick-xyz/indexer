@@ -16,7 +16,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from testing import get_testing_environment
 from sqlalchemy import text, inspect
-from indexer.database.connection import ModelDatabaseManager, InfrastructureDatabaseManager
+from indexer.database.connection import ModelDatabaseManager, SharedDatabaseManager
 
 
 class DatabaseInspector:
@@ -44,7 +44,7 @@ class DatabaseInspector:
         print(f"{'='*60}")
         
         try:
-            db_manager = self.env.get_service(InfrastructureDatabaseManager)
+            db_manager = self.env.get_service(SharedDatabaseManager)
             self._inspect_database(db_manager, "shared")
             
             # Sample key tables
@@ -188,7 +188,7 @@ def main():
             
             # Try both databases
             try:
-                shared_db = inspector.env.get_service(InfrastructureDatabaseManager)
+                shared_db = inspector.env.get_service(SharedDatabaseManager)
                 inspector._sample_table_data(shared_db, args.table, args.limit)
             except:
                 try:
