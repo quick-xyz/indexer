@@ -42,19 +42,13 @@ class ContractRegistry:
             self._abi_cache[address] = None
             return None
         
-        # Handle ContractConfig object
-        decode = getattr(contract, 'decode', None)
-        if not decode:
-            self._abi_cache[address] = None
-            return None
-            
-        abi_dir = getattr(decode, 'abi_dir', None)
-        abi_file = getattr(decode, 'abi', None)  
-        
+        abi_dir = getattr(contract, 'abi_dir', None)
+        abi_file = getattr(contract, 'abi_file', None)
+
         if not abi_dir or not abi_file:
             self._abi_cache[address] = None
             return None
-        
+
         abi = self.abi_loader.load_abi(abi_dir, abi_file)
         self._abi_cache[address] = abi
         return abi

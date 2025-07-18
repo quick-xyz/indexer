@@ -122,7 +122,7 @@ def create_indexer(model_name: str = None, env_vars: dict = None, **overrides) -
     shared_db_manager = _create_shared_db_manager(env,secrets_service)
     config_service = ConfigService(shared_db_manager)
 
-    config = IndexerConfig.from_model(model_name, config_service, env, **overrides)
+    config = IndexerConfig.from_database(model_name, config_service, env, **overrides)
     model_db_manager = _create_model_db_manager(env,secrets_service,config.model_db)
 
 

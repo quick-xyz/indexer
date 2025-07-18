@@ -4,10 +4,9 @@ from typing import Dict, Optional, List, Set
 from sqlalchemy.orm import joinedload
 
 from ..database.shared.tables import DBModel, DBContract, DBToken, DBSource, DBModelContract, DBModelToken, DBModelSource
-from ..types import EvmAddress, SourceConfig, ContractConfig
+from ..types import EvmAddress, SourceConfig, ContractConfig, TokenConfig
 from ..database.connection import SharedDatabaseManager
 from ..core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
-
 
 
 class ConfigService:    
@@ -53,35 +52,29 @@ class ConfigService:
                        is_valid=has_config)
         
         return has_config
-    
 
     # === CONTRACT OPERATIONS ===
 
-    def get_contracts_for_model(self, model_name: str) -> Dict[EvmAddress, DBContract]:
-        """Get all active contracts for a model with address relationships loaded"""
+    def get_contracts_for_model(self, model_name: str) -> Dict[EvmAddress, ContractConfig]:
+        """Get all active contracts for a model as ContractConfig objects"""
         model = self.get_model_by_name(model_name)
         if not model:
             return {}
         
-        # Get active contracts through model relations repository
         relations_repo = self.shared_db_manager.get_relations_repo()
         contracts = relations_repo.model_contracts.get_active_contracts_for_model(model.id)
         
-        contract_dict = {
-            EvmAddress(contract.address.address): contract
+        contract_repo = self.shared_db_manager.get_contract_repo()
+        contract_configs = {
+            EvmAddress(contract.address.address): contract_repo.to_config(contract)
             for contract in contracts
         }
         
         log_with_context(self.logger, DEBUG, "Contracts loaded for model",
                        model_name=model_name,
-                       contract_count=len(contract_dict))
+                       contract_count=len(contract_configs))
         
-        return contract_dict
-    
-    def get_contract_by_address(self, address: str) -> Optional[DBContract]:
-        """Get a contract by address"""
-        return self.shared_db_manager.get_contract_repo().get_by_address(address)
-
+        return contract_configs
 
     # === TOKEN OPERATIONS ===
     
@@ -91,7 +84,6 @@ class ConfigService:
         if not model:
             return set()
         
-        # Get active tokens through model relations repository
         relations_repo = self.shared_db_manager.get_relations_repo()
         tokens = relations_repo.model_tokens.get_active_tokens_for_model(model.id)
         
@@ -106,21 +98,26 @@ class ConfigService:
         
         return token_addresses
     
-    def get_token_by_address(self, address: str) -> Optional[DBToken]:
-        return self.shared_db_manager.get_token_repo().get_by_address(address)
-    
-    def get_all_active_tokens(self) -> Dict[EvmAddress, DBToken]:
-        tokens = self.shared_db_manager.get_token_repo().get_all_active()
+    def get_tokens_for_model(self, model_name: str) -> Dict[EvmAddress, TokenConfig]:
+        """Get all active tokens for a model as TokenConfig objects"""
+        model = self.get_model_by_name(model_name)
+        if not model:
+            return {}
         
-        token_dict = {
-            EvmAddress(token.address.address): token
+        relations_repo = self.shared_db_manager.get_relations_repo()
+        tokens = relations_repo.model_tokens.get_active_tokens_for_model(model.id)
+        
+        token_repo = self.shared_db_manager.get_token_repo()
+        token_configs = {
+            EvmAddress(token.address.address): token_repo.to_config(token)
             for token in tokens
         }
         
-        log_with_context(self.logger, DEBUG, "All active tokens loaded",
-                       token_count=len(token_dict))
+        log_with_context(self.logger, DEBUG, "Token configs loaded for model",
+                       model_name=model_name,
+                       token_count=len(token_configs))
         
-        return token_dict
+        return token_configs
 
     # === SOURCE OPERATIONS ===
     
@@ -133,28 +130,17 @@ class ConfigService:
         relations_repo = self.shared_db_manager.get_relations_repo()
         sources = relations_repo.model_sources.get_active_sources_for_model(model.id)
         
-        source_configs = {}
-        for source in sources:
-            source_config = SourceConfig(
-                id=source.id,
-                name=source.name,
-                path=source.path,
-                format_string=source.format_string,
-                source_type=source.source_type
-            )
-            source_configs[source.id] = source_config
+        source_repo = self.shared_db_manager.get_source_repo()
+        source_configs = {
+            source.id: source_repo.to_config(source)
+            for source in sources
+        }
         
         log_with_context(self.logger, DEBUG, "Sources loaded for model",
                        model_name=model_name,
                        source_count=len(source_configs))
         
         return source_configs
-    
-    def get_source_by_id(self, source_id: int) -> Optional[DBSource]:
-        return self.shared_db_manager.get_source_repo().get_by_id(source_id)
-    
-    def get_source_by_name(self, source_name: str) -> Optional[DBSource]:
-        return self.shared_db_manager.get_source_repo().get_by_name(source_name)
 
     # === CONVENIENCE METHODS FOR IndexerConfig ===
     
@@ -185,26 +171,16 @@ class ConfigService:
             if not model:
                 raise ValueError(f"Model '{model_name}' not found or not active")
             
+            contract_repo = self.shared_db_manager.get_contract_repo()
+            source_repo = self.shared_db_manager.get_source_repo()
+            
             contracts = {}
             for model_contract in model.contracts:
                 if model_contract.status == 'active' and model_contract.contract.status == 'active':
                     db_contract = model_contract.contract
                     address = EvmAddress(db_contract.address.address)
                     
-                    abi_data = None
-                    if abi_loader and db_contract.abi_dir and db_contract.abi_file:
-                        abi_data = abi_loader.load_abi(db_contract.abi_dir, db_contract.abi_file)
-                    
-                    contract_config = ContractConfig(
-                        address=address,
-                        status=db_contract.status,
-                        block_created=db_contract.block_created,
-                        abi_dir=db_contract.abi_dir,
-                        abi_file=db_contract.abi_file,
-                        abi=abi_data,
-                        transformer=db_contract.transformer,
-                        transform_init=db_contract.transform_init
-                    )
+                    contract_config = contract_repo.to_config(db_contract, abi_loader)
                     contracts[address] = contract_config
             
             tracked_tokens = set()
@@ -217,13 +193,8 @@ class ConfigService:
             for model_source in model.sources:
                 if model_source.status == 'active' and model_source.source.status == 'active':
                     source_obj = model_source.source
-                    source_config = SourceConfig(
-                        id=source_obj.id,
-                        name=source_obj.name,
-                        path=source_obj.path,
-                        format_string=source_obj.format,
-                        source_type=source_obj.source_type
-                    )
+                    
+                    source_config = source_repo.to_config(source_obj)
                     sources[source_obj.id] = source_config
             
             if not contracts:
@@ -304,13 +275,14 @@ class ConfigService:
     
     # === INTERNAL HELPER METHODS ===
     
-    def _get_contracts_for_model_id(self, model_id: int) -> Dict[EvmAddress, DBContract]:
+    def _get_contracts_for_model_id(self, model_id: int) -> Dict[EvmAddress, ContractConfig]:
         """Get active contracts for a model by model ID"""
         relations_repo = self.shared_db_manager.get_relations_repo()
         contracts = relations_repo.model_contracts.get_active_contracts_for_model(model_id)
         
+        contract_repo = self.shared_db_manager.get_contract_repo()
         return {
-            EvmAddress(contract.address.address): contract
+            EvmAddress(contract.address.address): contract_repo.to_config(contract)
             for contract in contracts
         }
     
@@ -329,15 +301,8 @@ class ConfigService:
         relations_repo = self.shared_db_manager.get_relations_repo()
         sources = relations_repo.model_sources.get_active_sources_for_model(model_id)
         
-        source_configs = {}
-        for source in sources:
-            source_config = SourceConfig(
-                id=source.id,
-                name=source.name,
-                path=source.path,
-                format_string=source.format,
-                source_type=source.source_type
-            )
-            source_configs[source.id] = source_config
-        
-        return source_configs
+        source_repo = self.shared_db_manager.get_source_repo()
+        return {
+            source.id: source_repo.to_config(source)
+            for source in sources
+        }

@@ -142,8 +142,8 @@ class TransformRegistry(LoggingMixin):
                                  contract_name=contract.name)
                     continue
                 
-                transformer_name = getattr(transform, 'name', None)
-                instantiate_config = getattr(transform, 'instantiate', {})
+                transformer_name = getattr(transform, 'transformer', None)
+                instantiate_config = getattr(transform, 'transform_init', {})
                 
                 if not transformer_name:
                     self.log_warning("Transformer name not specified",
