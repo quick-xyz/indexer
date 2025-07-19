@@ -1,7 +1,7 @@
 # indexer/database/model/repositories/liquidity_repository.py
 
 from ...base_repository import DomainEventBaseRepository
-from ..tables.events.liquidity import DBLiquidity
+from ..tables import DBLiquidity
 from ....core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 
 

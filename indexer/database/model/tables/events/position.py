@@ -11,12 +11,12 @@ class DBPosition(DBDomainEventModel):
     __tablename__ = 'positions'
     
     user = Column(EvmAddressType(), nullable=False, index=True)
-    custodian = Column(EvmAddressType(), nullable=True, index=True)  # Who actually holds the tokens
+    custodian = Column(EvmAddressType(), nullable=True, index=True)
     token = Column(EvmAddressType(), nullable=False, index=True)
-    amount = Column(NUMERIC(precision=78, scale=0), nullable=False)  # Can be negative
+    amount = Column(NUMERIC(precision=78, scale=0), nullable=False)
     token_id = Column(Integer, nullable=True)
     parent_id = Column(DomainEventIdType(), nullable=True, index=True)
-    parent_type = Column(String(50), nullable=True, index=True) # designates which table to join
+    parent_type = Column(String(50), nullable=True, index=True)
     
     @property
     def is_positive(self) -> bool:

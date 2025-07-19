@@ -19,6 +19,7 @@ __all__ = [
     # Configuration tables
     'DBAddress',
     'DBContract',
+    'DBLabel',
     'DBModel',
     'DBPool',
     'DBPricing',

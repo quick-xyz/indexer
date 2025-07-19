@@ -15,8 +15,8 @@ class DBTransfer(DBDomainEventModel):
     to_address = Column(EvmAddressType(), nullable=False, index=True)
     amount = Column(NUMERIC(precision=78, scale=0), nullable=False)
     parent_id = Column(DomainEventIdType(), nullable=True, index=True)
-    parent_type = Column(String(50), nullable=True, index=True) # designates which table to join
-    classification = Column(String(50), nullable=True, index=True)  # e.g., "self_custody", "exchange", "bridge", "unknown"
+    parent_type = Column(String(50), nullable=True, index=True)
+    classification = Column(String(50), nullable=True, index=True)
 
     def __repr__(self) -> str:
         return f"<Transfer(token={self.token[:10]}..., from={self.from_address[:10]}..., to={self.to_address[:10]}..., amount={self.amount})>"

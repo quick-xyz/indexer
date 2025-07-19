@@ -6,14 +6,14 @@ from sqlalchemy.orm import Session
 from sqlalchemy import and_, desc, case, func
 from decimal import Decimal
 
-from .....indexer.types import DomainEventId
+from ....types import DomainEventId
 from ...connection import ModelDatabaseManager
 from ...base_repository import BaseRepository
 from ....core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 
-from ...model.tables import DBPoolSwap, DBPoolSwapDetail
-from ...shared.tables import DBContract, Period, PoolPricingConfig
-from ....database.types import PricingDenomination, PricingMethod
+from ..tables import DBPoolSwap, DBPoolSwapDetail
+from ...shared.tables import DBContract, DBPeriod, DBPricing
+from ...types import PricingDenomination, PricingMethod
 
 
 
@@ -266,10 +266,10 @@ class PoolSwapDetailRepository(BaseRepository):
             ).join(
                 DBContract, DBPoolSwap.pool == DBContract.address
             ).join(
-                PoolPricingConfig, 
+                DBPricing, 
                 and_(
-                    PoolPricingConfig.DBContract_id == DBContract.id,
-                    PoolPricingConfig.pricing_pool == True  # Only pricing pools
+                    DBPricing.contract_id == DBContract.id,
+                    DBPricing.pricing_pool == True  # Only pricing pools
                 )
             ).filter(
                 and_(

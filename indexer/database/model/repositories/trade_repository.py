@@ -5,12 +5,12 @@ from typing import List
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, or_
 
-from .....indexer.types import EvmAddress
+from ....types import EvmAddress
 from ...connection import ModelDatabaseManager
 from .event_repository import DomainEventRepository
 from ....core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 
-from ...model.tables import DBTrade
+from ..tables import DBTrade
 
 
 class TradeRepository(DomainEventRepository):

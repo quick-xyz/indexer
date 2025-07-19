@@ -1,20 +1,20 @@
 # indexer/database/model/tables/asset_volume.py
 
-from sqlalchemy import Column, Integer, Text, Index
+from sqlalchemy import Column, Integer, Text, Index, Enum
 from sqlalchemy.dialects.postgresql import NUMERIC
 
 from ...base import DBBaseModel
-from ...types import EvmAddressType
+from ...types import EvmAddressType, PricingDenomination
 
 
 class DBAssetVolume(DBBaseModel):
     __tablename__ = 'asset_volume'
     
-    period_id = Column(Integer, primary_key=True, nullable=False)  # FK to periods.id
-    asset = Column(EvmAddressType, primary_key=True, nullable=False)  # Target asset token address
-    denom = Column(Text, primary_key=True, nullable=False)  # 'AVAX' or 'USD'
-    protocol = Column(Text, primary_key=True, nullable=False)  # Protocol name ('trader_joe', 'pangolin', 'unknown')
-    volume = Column(NUMERIC(precision=30, scale=8), nullable=False)  # Total volume for period/protocol
+    period_id = Column(Integer, primary_key=True, nullable=False) 
+    asset = Column(EvmAddressType, primary_key=True, nullable=False)
+    denom = Column(Enum(PricingDenomination, native_enum=False), primary_key=True, nullable=False)
+    protocol = Column(Text, primary_key=True, nullable=False)
+    volume = Column(NUMERIC(precision=30, scale=8), nullable=False)
     
     __table_args__ = (
         Index('idx_asset_volume_period', 'period_id'),
@@ -28,7 +28,7 @@ class DBAssetVolume(DBBaseModel):
         return f"<AssetVolume(period={self.period_id}, asset={self.asset}, denom={self.denom}, protocol={self.protocol}, volume={self.volume})>"
     
     @classmethod
-    def get_volume_for_period(cls, session, period_id: int, asset_address: str, denom: str = 'USD'):
+    def get_volume_for_period(cls, session, period_id: int, asset_address: str, denom: PricingDenomination = PricingDenomination.USD):
         return session.query(cls).filter(
             cls.period_id == period_id,
             cls.asset == asset_address,
@@ -36,7 +36,7 @@ class DBAssetVolume(DBBaseModel):
         ).all()
     
     @classmethod
-    def get_total_volume_for_period(cls, session, period_id: int, asset_address: str, denom: str = 'USD'):
+    def get_total_volume_for_period(cls, session, period_id: int, asset_address: str, denom: PricingDenomination = PricingDenomination.USD):
         from sqlalchemy import func
         
         result = session.query(func.sum(cls.volume)).filter(
@@ -49,7 +49,7 @@ class DBAssetVolume(DBBaseModel):
     
     @classmethod
     def get_protocol_volume_range(cls, session, start_period_id: int, end_period_id: int, 
-                                  asset_address: str, protocol: str, denom: str = 'USD'):
+                                  asset_address: str, protocol: str, denom: PricingDenomination = PricingDenomination.USD):
         return session.query(cls).filter(
             cls.period_id.between(start_period_id, end_period_id),
             cls.asset == asset_address,
@@ -58,7 +58,7 @@ class DBAssetVolume(DBBaseModel):
         ).order_by(cls.period_id).all()
     
     @classmethod
-    def get_protocol_summary(cls, session, asset_address: str, denom: str = 'USD', limit_periods: int = None):
+    def get_protocol_summary(cls, session, asset_address: str, denom: PricingDenomination = PricingDenomination.USD, limit_periods: int = None):
         from sqlalchemy import func, desc
         
         query = session.query(
@@ -84,7 +84,7 @@ class DBAssetVolume(DBBaseModel):
         return query.group_by(cls.protocol).order_by(desc('total_volume')).all()
     
     @classmethod
-    def get_missing_periods(cls, session, period_ids: list, asset_address: str, denom: str = 'USD'):
+    def get_missing_periods(cls, session, period_ids: list, asset_address: str, denom: PricingDenomination = PricingDenomination.USD):
         existing_periods = session.query(cls.period_id.distinct()).filter(
             cls.period_id.in_(period_ids),
             cls.asset == asset_address,

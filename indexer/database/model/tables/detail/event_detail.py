@@ -2,7 +2,6 @@
 
 from sqlalchemy import Column, UniqueConstraint, Index, Enum
 from sqlalchemy.dialects.postgresql import NUMERIC
-import enum
 
 from ....base import DBBaseModel
 from ....types import DomainEventIdType, PricingDenomination

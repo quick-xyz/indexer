@@ -1,7 +1,6 @@
 # indexer/database/model/tables/processing.py
 
 from datetime import datetime, timezone
-import enum
 
 from sqlalchemy import Column, String, Integer, Enum, DateTime, Boolean, Index, Text, BigInteger
 from sqlalchemy.dialects.postgresql import JSONB
@@ -38,7 +37,7 @@ class DBTransactionProcessing(DBBaseModel):
         self.last_processed_at = datetime.now(timezone.utc)
     
     def mark_complete(self, **metrics) -> None:
-        self.status = TransactionStatus.COMPLETED  # Fixed: use COMPLETED not COMPLETE
+        self.status = TransactionStatus.COMPLETED
         self.last_processed_at = datetime.now(timezone.utc)
         
         for key, value in metrics.items():
@@ -123,7 +122,7 @@ class DBProcessingJob(DBBaseModel):
     def create_block_job(cls, block_number: int, priority: int = 0):
         return cls(
             job_type=JobType.BLOCK,
-            status=JobStatus.PENDING,  # Explicitly set the default
+            status=JobStatus.PENDING, 
             job_data={'block_number': block_number},
             priority=priority
         )
@@ -132,7 +131,7 @@ class DBProcessingJob(DBBaseModel):
     def create_block_range_job(cls, start_block: int, end_block: int, priority: int = 0):
         return cls(
             job_type=JobType.BLOCK_RANGE,
-            status=JobStatus.PENDING,  # Explicitly set the default
+            status=JobStatus.PENDING,
             job_data={'start_block': start_block, 'end_block': end_block},
             priority=priority
         )
@@ -141,7 +140,7 @@ class DBProcessingJob(DBBaseModel):
     def create_transactions_job(cls, tx_hashes: list, priority: int = 0):
         return cls(
             job_type=JobType.TRANSACTIONS,
-            status=JobStatus.PENDING,  # Explicitly set the default
+            status=JobStatus.PENDING,
             job_data={'tx_hashes': tx_hashes},
             priority=priority
         )

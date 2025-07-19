@@ -10,8 +10,7 @@ from sqlalchemy.exc import IntegrityError
 from ..connection import ModelDatabaseManager
 from ..model.tables.processing import DBTransactionProcessing, TransactionStatus
 from ...core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
-from ...types.new import EvmHash, DomainEventId
-from ...types.model.positions import Position
+from ...types import EvmHash, DomainEventId, Position
 
 
 class DomainEventWriter:

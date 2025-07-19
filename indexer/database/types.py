@@ -74,27 +74,9 @@ class TradePricingMethod(enum.Enum):
     DIRECT = "direct"
     GLOBAL = "global"
 
-class LiquidityAction(enum.Enum):
-    ADD = "add"
-    REMOVE = "remove" 
-    UPDATE = "update"
-
-class RewardType(enum.Enum):
-    FEES = "fees"
-    REWARDS = "rewards"
-
-class StakingAction(enum.Enum):
-    DEPOSIT = "deposit"
-    WITHDRAW = "withdraw"
-
 class TradeDirection(enum.Enum):
     BUY = "buy"
     SELL = "sell"
-
-class TradeType(enum.Enum):
-    TRADE = "trade"
-    ARBITRAGE = "arbitrage"
-    AUCTION = "auction"
 
 class TransactionStatus(enum.Enum):
     PENDING = "pending"

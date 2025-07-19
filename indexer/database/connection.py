@@ -1,6 +1,6 @@
 # indexer/database/connection.py
 
-from typing import Generator, Optional
+from typing import Generator
 from contextlib import contextmanager
 
 from sqlalchemy import create_engine, Engine, text

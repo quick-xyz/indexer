@@ -1,10 +1,10 @@
 # indexer/database/model/tables/asset_price.py
 
-from sqlalchemy import Column, Integer, Text, Index
+from sqlalchemy import Column, Integer, Enum, Index
 from sqlalchemy.dialects.postgresql import NUMERIC
 
 from ...base import DBBaseModel
-from ...types import EvmAddressType
+from ...types import EvmAddressType, PricingDenomination
 
 
 class DBAssetPrice(DBBaseModel):
@@ -12,7 +12,7 @@ class DBAssetPrice(DBBaseModel):
     
     period_id = Column(Integer, primary_key=True, nullable=False)
     asset = Column(EvmAddressType, primary_key=True, nullable=False)
-    denom = Column(Text, primary_key=True, nullable=False)
+    denom = Column(Enum(PricingDenomination, native_enum=False), primary_key=True, nullable=False)
     open = Column(NUMERIC(precision=20, scale=8), nullable=False)
     high = Column(NUMERIC(precision=20, scale=8), nullable=False)
     low = Column(NUMERIC(precision=20, scale=8), nullable=False)
@@ -29,7 +29,7 @@ class DBAssetPrice(DBBaseModel):
         return f"<AssetPrice(period={self.period_id}, asset={self.asset}, denom={self.denom}, close={self.close})>"
     
     @classmethod
-    def get_ohlc_for_period(cls, session, period_id: int, asset_address: str, denom: str = 'USD'):
+    def get_ohlc_for_period(cls, session, period_id: int, asset_address: str, denom: PricingDenomination = PricingDenomination.USD):
         return session.query(cls).filter(
             cls.period_id == period_id,
             cls.asset == asset_address,
@@ -37,7 +37,7 @@ class DBAssetPrice(DBBaseModel):
         ).first()
     
     @classmethod
-    def get_ohlc_range(cls, session, start_period_id: int, end_period_id: int, asset_address: str, denom: str = 'USD'):
+    def get_ohlc_range(cls, session, start_period_id: int, end_period_id: int, asset_address: str, denom: PricingDenomination = PricingDenomination.USD):
         return session.query(cls).filter(
             cls.period_id.between(start_period_id, end_period_id),
             cls.asset == asset_address,
@@ -45,14 +45,14 @@ class DBAssetPrice(DBBaseModel):
         ).order_by(cls.period_id).all()
     
     @classmethod
-    def get_latest_ohlc(cls, session, asset_address: str, denom: str = 'USD'):
+    def get_latest_ohlc(cls, session, asset_address: str, denom: PricingDenomination = PricingDenomination.USD):
         return session.query(cls).filter(
             cls.asset == asset_address,
             cls.denom == denom
         ).order_by(cls.period_id.desc()).first()
     
     @classmethod
-    def get_missing_periods(cls, session, period_ids: list, asset_address: str, denom: str = 'USD'):
+    def get_missing_periods(cls, session, period_ids: list, asset_address: str, denom: PricingDenomination = PricingDenomination.USD):
         existing_periods = session.query(cls.period_id).filter(
             cls.period_id.in_(period_ids),
             cls.asset == asset_address,

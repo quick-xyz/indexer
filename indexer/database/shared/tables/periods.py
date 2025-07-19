@@ -1,7 +1,6 @@
 # indexer/database/shared/tables/periods.py
 
 from sqlalchemy import Column, Integer, Boolean, Enum, Index
-import enum
 
 from ...base import SharedBase, SharedTimestampMixin
 from ...types import PeriodType
@@ -11,11 +10,11 @@ class DBPeriod(SharedBase, SharedTimestampMixin):
     __tablename__ = 'periods'
     
     period_type = Column(Enum(PeriodType, native_enum=False), primary_key=True, nullable=False)
-    time_open = Column(Integer, primary_key=True, nullable=False)  # Period start timestamp
-    time_close = Column(Integer, nullable=False, index=True)       # Period end timestamp
-    block_open = Column(Integer, nullable=False, index=True)       # First block in period
-    block_close = Column(Integer, nullable=False, index=True)      # Last block in period
-    is_complete = Column(Boolean, nullable=False, default=False)   # Period has been finalized
+    time_open = Column(Integer, primary_key=True, nullable=False)  
+    time_close = Column(Integer, nullable=False, index=True)
+    block_open = Column(Integer, nullable=False, index=True)
+    block_close = Column(Integer, nullable=False, index=True)
+    is_complete = Column(Boolean, nullable=False, default=False)
     
     __table_args__ = (
         Index('idx_periods_type_time', 'period_type', 'time_open'),

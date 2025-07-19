@@ -1,9 +1,7 @@
 # indexer/database/shared/tables/block_prices.py
 
-from sqlalchemy import Column, Integer, TIMESTAMP, Index
+from sqlalchemy import Column, Integer, Index
 from sqlalchemy.dialects.postgresql import NUMERIC
-from sqlalchemy.sql import func
-from sqlalchemy.orm import declarative_mixin
 
 from ...base import SharedBase, SharedTimestampMixin
 
@@ -12,8 +10,8 @@ class DBBlockPrice(SharedBase, SharedTimestampMixin):
     __tablename__ = 'block_prices'
     
     block_number = Column(Integer, primary_key=True, nullable=False)
-    timestamp = Column(Integer, nullable=False, index=True)  # Block timestamp
-    price_usd = Column(NUMERIC(precision=20, scale=8), nullable=False)  # AVAX price in USD
+    timestamp = Column(Integer, nullable=False, index=True)
+    price_usd = Column(NUMERIC(precision=20, scale=8), nullable=False) 
     
     __table_args__ = (
         Index('idx_block_prices_timestamp', 'timestamp'),

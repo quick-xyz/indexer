@@ -5,12 +5,12 @@ from typing import List
 from sqlalchemy.orm import Session
 from sqlalchemy import and_
 
-from .....indexer.types import EvmHash
+from ....types import EvmHash
 from ...connection import ModelDatabaseManager
 from ...base_repository import BaseRepository
 from ....core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 
-from ...model.tables import DBTransactionProcessing
+from ..tables import DBTransactionProcessing
 
 
 class ProcessingRepository(BaseRepository):

@@ -5,12 +5,12 @@ from typing import List
 from sqlalchemy.orm import Session
 from sqlalchemy import desc, and_
 
-from .....indexer.types import DomainEventId, EvmAddress
+from ....types import DomainEventId, EvmAddress
 from ...connection import ModelDatabaseManager
 from .event_repository import DomainEventBaseRepository
 from ....core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 
-from ...model.tables import DBPosition
+from ..tables import DBPosition
 
 
 class PositionRepository(DomainEventBaseRepository[DBPosition]):

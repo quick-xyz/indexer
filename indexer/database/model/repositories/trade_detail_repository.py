@@ -6,14 +6,14 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, desc, func, case, exists
 
-from .....indexer.types import DomainEventId
+from ....types import DomainEventId
 from ...connection import ModelDatabaseManager
 from ...base_repository import BaseRepository
 from ....core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 
-from ...model.tables import DBPoolSwap, DBPoolSwapDetail, DBTrade, DBTradeDetail
+from ..tables import DBPoolSwap, DBPoolSwapDetail, DBTrade, DBTradeDetail
 from ...shared.tables import DBContract, DBPeriod
-from ....database.types import PricingDenomination, TradePricingMethod
+from ...types import PricingDenomination, TradePricingMethod
 
 
 class TradeDetailRepository(BaseRepository):

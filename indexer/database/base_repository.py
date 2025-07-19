@@ -1,6 +1,6 @@
 # indexer/database/base_repository.py
 
-from typing import TypeVar, Generic, Type, List, Optional, Any, Dict
+from typing import TypeVar, Generic, Type, List, Optional, Dict
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 

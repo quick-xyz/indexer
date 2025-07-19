@@ -2,7 +2,6 @@
 
 from sqlalchemy import Column, Integer, Index, Enum, UniqueConstraint
 from sqlalchemy.dialects.postgresql import NUMERIC
-import enum
 
 from ....base import DBBaseModel
 from ....types import DomainEventIdType, PricingDenomination, PricingMethod
@@ -16,7 +15,7 @@ class DBPoolSwapDetail(DBBaseModel):
     value = Column(NUMERIC(precision=30, scale=8), nullable=False)
     price = Column(NUMERIC(precision=20, scale=8), nullable=False)
     price_method = Column(Enum(PricingMethod, native_enum=False), nullable=False, index=True)
-    price_config_id = Column(Integer, nullable=True)  # Reference to pricing config used
+    price_config_id = Column(Integer, nullable=True)
     
     __table_args__ = (
         UniqueConstraint('content_id', 'denom', name='uq_pool_swap_detail_content_denom'),

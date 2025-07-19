@@ -6,7 +6,7 @@ from sqlalchemy.orm import relationship
 from ....base import SharedBase, SharedTimestampMixin
 from ....types import EvmAddressType
 from .....types import ModelConfig
-from .. import DBModelContract, DBModelToken, DBModelSource, DBPricing
+from .. import DBModelContract, DBModelToken, DBModelSource
 
 
 class DBModel(SharedBase, SharedTimestampMixin):

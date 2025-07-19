@@ -12,9 +12,9 @@ from ...connection import ModelDatabaseManager
 from ...base_repository import BaseRepository
 from ....core.logging import log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 
-from ...model.tables import DBEventDetail
+from ..tables import DBEventDetail
 from ...shared.tables import DBPeriod
-from ....database.types import PeriodType, PricingDenomination, PricingMethod
+from ...types import PeriodType, PricingDenomination, PricingMethod
 
 
 class EventDetailRepository(BaseRepository):

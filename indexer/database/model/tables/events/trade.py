@@ -1,11 +1,11 @@
 # indexer/database/model/tables/events/trade.py
 
-from sqlalchemy import Column, Integer, Enum
+from sqlalchemy import Column, Integer, Enum, String
 from sqlalchemy.dialects.postgresql import NUMERIC
 import enum
 
 from ....base import DBDomainEventModel
-from ....types import EvmAddressType, DomainEventIdType, TradeDirection, TradeType
+from ....types import EvmAddressType, DomainEventIdType, TradeDirection
 
 
 class DBTrade(DBDomainEventModel):
@@ -15,7 +15,7 @@ class DBTrade(DBDomainEventModel):
     direction = Column(Enum(TradeDirection, native_enum=False), nullable=False, index=True)
     base_token = Column(EvmAddressType(), nullable=False, index=True)
     base_amount = Column(NUMERIC(precision=78, scale=0), nullable=False)
-    trade_type = Column(Enum(TradeType, native_enum=False), nullable=False, default=TradeType.TRADE, index=True)
+    trade_type = Column(String(50), nullable=False, default='trade', index=True)
     router = Column(EvmAddressType(), nullable=True, index=True)
     swap_count = Column(Integer, nullable=True)
     

@@ -5,13 +5,12 @@ from decimal import Decimal
 from sqlalchemy.orm import Session
 from sqlalchemy import and_, desc, func
 
-from ....types import DomainEventId
 from ...connection import ModelDatabaseManager
 from ...base_repository import BaseRepository
 from ....core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 
-from ...model.tables import DBAssetPrice
-from ....database.types import PricingDenomination
+from ..tables import DBAssetPrice
+from ...types import PricingDenomination
 
 class AssetPriceRepository(BaseRepository):
     """

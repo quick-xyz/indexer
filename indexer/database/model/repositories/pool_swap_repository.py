@@ -5,12 +5,12 @@ from typing import List
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 
-from .....indexer.types import DomainEventId, EvmAddress
+from ....types import DomainEventId, EvmAddress
 from ...connection import ModelDatabaseManager
 from .event_repository import DomainEventRepository
 from ....core.logging import IndexerLogger, log_with_context, INFO, DEBUG, WARNING, ERROR, CRITICAL
 
-from ...model.tables import DBPoolSwap
+from ..tables import DBPoolSwap
 
 
 class PoolSwapRepository(DomainEventRepository):
